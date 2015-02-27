@@ -102,9 +102,9 @@ def build_aerogrid(filename_caero_bdf):
         l.append(l_m[0])
         A.append(l_m[0]*b_m[1])
         N.append(np.cross(l_1, b_1)/np.linalg.norm(np.cross(l_1, b_1)))
-        offset_l.append(caero_grid['offset'][index_1] + 0.25*l_m + 0.50*b_m)
-        offset_k.append(caero_grid['offset'][index_1] + 0.50*l_m + 0.50*b_m)
-        offset_j.append(caero_grid['offset'][index_1] + 0.75*l_m + 0.50*b_m)
+        offset_l.append(caero_grid['offset'][index_1] + 0.25*l_m + 0.50*b_1)
+        offset_k.append(caero_grid['offset'][index_1] + 0.50*l_m + 0.50*b_1)
+        offset_j.append(caero_grid['offset'][index_1] + 0.75*l_m + 0.50*b_1)
    
     n = len(ID)
     set_l = np.arange(n*6).reshape((n,6))
