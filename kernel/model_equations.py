@@ -285,46 +285,53 @@ class rigid:
             print 'AIL-S1: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='AIL-S1')[0][0]]/np.pi*180)
             print 'dCz_da: %.4f' % float(Pmac_c[2]/response['alpha'])
             
-#            from mayavi import mlab
-#            
-#            x = self.model.aerogrid['offset_k'][:,0]
-#            y = self.model.aerogrid['offset_k'][:,1]
-#            z = self.model.aerogrid['offset_k'][:,2]
+            x = self.model.aerogrid['offset_k'][:,0]
+            y = self.model.aerogrid['offset_k'][:,1]
+            z = self.model.aerogrid['offset_k'][:,2]
+            fx, fy, fz = response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]],response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
+            fx_cam, fy_cam, fz_cam = response['Pk_cam'][self.model.aerogrid['set_k'][:,0]],response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]]
 
-#            mlab.figure()
-#            mlab.points3d(x, y, z, scale_factor=0.1)
-#            mlab.quiver3d(x, y, z, response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=0.01)
-#            mlab.title('Pk_rbm', size=0.2, height=0.95)
-#            
-#            mlab.figure() 
-#            mlab.points3d(x, y, z, scale_factor=0.1)
-#            mlab.quiver3d(x, y, z, response['Pk_cam'][self.model.aerogrid['set_k'][:,0]], response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=0.01)            
-#            mlab.title('Pk_camber_twist', size=0.2, height=0.95)
-#            
-#            mlab.figure()        
-#            mlab.points3d(x, y, z, scale_factor=0.1)
-#            mlab.quiver3d(x, y, z, response['Pk_cs'][self.model.aerogrid['set_k'][:,0]], response['Pk_cs'][self.model.aerogrid['set_k'][:,1]], response['Pk_cs'][self.model.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=0.01)
-#            mlab.title('Pk_cs', size=0.2, height=0.95)
-#            
-#            mlab.figure()   
-#            mlab.points3d(x, y, z, scale_factor=0.1)
-#            mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=0.01)
-#            mlab.title('Pk_flex', size=0.2, height=0.95)
+            #fig = plt.figure()
+            #ax = fig.add_subplot(111, projection='3d')
+            #ax.scatter( x, y, fz+fz_cam, c=fz+fz_cam, s=50, linewidths=0.0, cmap='jet')
+            #plt.show()
+
+            from mayavi import mlab
+            mlab.figure()
+            mlab.points3d(x, y, z, scale_factor=0.1)
+            mlab.quiver3d(x, y, z, fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+            mlab.quiver3d(x+fx*0.01, y+fy*0.01, z+fz*0.01,fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
+            mlab.title('Pk_rbm', size=0.2, height=0.95)
             
-#            Uf = X[12:22]
-#            Ug = np.dot(self.model.mass['PHIf_strc'][0].T, Uf.T).T * 100.0
-#            x_r = self.model.strcgrid['offset'][:,0]
-#            y_r = self.model.strcgrid['offset'][:,1]
-#            z_r = self.model.strcgrid['offset'][:,2]
-#            x_f = self.model.strcgrid['offset'][:,0] + Ug[self.model.strcgrid['set'][:,0]]
-#            y_f = self.model.strcgrid['offset'][:,1] + Ug[self.model.strcgrid['set'][:,1]]
-#            z_f = self.model.strcgrid['offset'][:,2] + Ug[self.model.strcgrid['set'][:,2]]
+            mlab.figure() 
+            mlab.points3d(x, y, z, scale_factor=0.1)
+            mlab.quiver3d(x, y, z, response['Pk_cam'][self.model.aerogrid['set_k'][:,0]], response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=0.01)            
+            mlab.title('Pk_camber_twist', size=0.2, height=0.95)
             
-#            mlab.figure()
-#            mlab.points3d(x_r, y_r, z_r,  scale_factor=0.1)
-#            mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=0.1)
-#            mlab.title('flexible deformation', size=0.2, height=0.95)
-#            #mlab.show()
+            mlab.figure()        
+            mlab.points3d(x, y, z, scale_factor=0.1)
+            mlab.quiver3d(x, y, z, response['Pk_cs'][self.model.aerogrid['set_k'][:,0]], response['Pk_cs'][self.model.aerogrid['set_k'][:,1]], response['Pk_cs'][self.model.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=0.01)
+            mlab.title('Pk_cs', size=0.2, height=0.95)
+            
+            mlab.figure()   
+            mlab.points3d(x, y, z, scale_factor=0.1)
+            mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=0.01)
+            mlab.title('Pk_flex', size=0.2, height=0.95)
+            
+            Uf = X[12:22]
+            Ug = np.dot(self.model.mass['PHIf_strc'][0].T, Uf.T).T * 100.0
+            x_r = self.model.strcgrid['offset'][:,0]
+            y_r = self.model.strcgrid['offset'][:,1]
+            z_r = self.model.strcgrid['offset'][:,2]
+            x_f = self.model.strcgrid['offset'][:,0] + Ug[self.model.strcgrid['set'][:,0]]
+            y_f = self.model.strcgrid['offset'][:,1] + Ug[self.model.strcgrid['set'][:,1]]
+            z_f = self.model.strcgrid['offset'][:,2] + Ug[self.model.strcgrid['set'][:,2]]
+            
+            mlab.figure()
+            mlab.points3d(x_r, y_r, z_r,  scale_factor=0.1)
+            mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=0.1)
+            mlab.title('flexible deformation', size=0.2, height=0.95)
+            mlab.show()
 
 
             return response
