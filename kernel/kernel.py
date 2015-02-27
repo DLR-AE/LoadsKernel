@@ -10,7 +10,7 @@ import cPickle
 import time  
 import imp
 
-def run_kernel(job_name, pre=True, main=True):
+def run_kernel(job_name, pre=True, main=True, test=False):
  
     print 'Starting AE Kernel with job: ' + job_name
     from trim import trim
@@ -57,10 +57,23 @@ def run_kernel(job_name, pre=True, main=True):
         f.close()
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
+    if test:
+        print '--> Loading model data.'
+        t_start = time.time()
+        f = open('../output/model_' + job_name + '.pickle', 'r')
+        model = cPickle.load(f)
+        f.close()
+        print '--> Done in %.2f [sec].' % (time.time() - t_start)
+        
+        from read_pval2 import test
+        test(model, jcl.trimcase)
+        
+        
         
 if __name__ == "__main__":
-    run_kernel('jcl_DLR_F19_voll', pre = True, main = False)
-    run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
+    #run_kernel('jcl_DLR_F19_voll', pre = True, main = False)
+    #run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
+    run_kernel('jcl_DLR_F19_voll', pre = False, main = False, test = True)
     
     
    
