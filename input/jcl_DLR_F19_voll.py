@@ -30,7 +30,7 @@ class jcl:
                      #'filename_KAA':'/scratch/DLR-F19-S_150126/assembly_DLR-F-19-S/matrix_export/KAA.dat',
                     }
         self.aero = {'method': 'mona_steady',
-                     'key':['VC_FL000', 'MC', 'VD_FL000', 'MD'],
+                     'key':['VC', 'MC', 'VD', 'MD'],
                      'Ma': [0.8, 0.9, 0.89, 0.97],
                      'filename_caero_bdf': ['/scratch/DLR-F19-S_150126/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.CAERO1_bdf', 
                                             '/scratch/DLR-F19-S_150126/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.CAERO1_bdf'],
@@ -51,20 +51,31 @@ class jcl:
                        #'filename_MAA':['/scratch/DLR-F19-S_150126/assembly_DLR-F-19-S/matrix_export/MAA_M.dat'],
                        'filename_S103':['/scratch/DLR-F19-S_150126/assembly_DLR-F-19-S/nastran/dim_crosscheck_SOL103_M.f06'], 
                        'omit_rb_modes': True, 
-                       'modes':np.arange(1,11),                        
+                       'modes':np.arange(1,16),                        
                       }
         self.atmo = {'method':'ISA', 
                      'key':['FL000','FL055', 'FL075', 'FL300', 'FL450'],
                      'h': ft2m([0, 5500, 7500, 30000, 45000]),
                     }
-        self.trimcase = {'altitude': 'FL450',
-                         'Ma': 0.9, # cas2Ma(cas, altitude)
-                         'aero':'MC',
-                         'manoeuver':'PU',
-                         'Nz': 2.5,
-                         'Cl_max':1.5,
-                         'mass':'M',
-                        }
+        self.trimcase = [{'desc': 'CC.M.OVCFL000.LLFLevel', 
+                          'manoeuver': 'LLFLevel', 
+                          'Ma': 0.8, 
+                          'aero': 'VC', 
+                          'altitude': 'FL000', 
+                          'mass': 'M',
+                          'Nz': 1.0, 
+                          'p': 0.0,
+                          'q': 0.0, 
+                          'pdot': 0.0, 
+                          'qdot': 0.0, 
+                        }]
+                        
+#        from numpy import array
+#        fid = open('/scratch/DLR-F19-S_150217/trim_DLR-F19-S/test_trim.trimcase_dict', 'r')
+#        trimcase_str = fid.read()
+#        fid.close()
+#        self.trimcase = eval(trimcase_str)
+        
         # End
 
     
