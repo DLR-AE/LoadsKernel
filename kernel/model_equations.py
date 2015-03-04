@@ -20,7 +20,8 @@ class rigid:
         
     def equations(self, X, type):
         self.counter += 1
-        print self.counter
+        #print ' # of eval: ' + str(self.counter)
+        
         # Trim-spezifische Modelldaten holen    
         i_atmo     = self.model.atmo['key'].index(self.trimcase['altitude'])
         
@@ -99,7 +100,10 @@ class rigid:
         # --- aero control surfaces ---   
         # -----------------------------    
     
-        Ux2 = np.hstack((X[np.where(self.trimcond_X[:,0]=='AIL-S1')[0][0]], X[np.where(self.trimcond_X[:,0]=='AIL-S1')[0][0]], X[np.where(self.trimcond_X[:,0]=='AIL-S1')[0][0]], X[np.where(self.trimcond_X[:,0]=='AIL-S1')[0][0]])) #X[12:14]
+        #Ux2 = np.hstack((X[np.where(self.trimcond_X[:,0]=='AIL-S1')[0][0]], X[np.where(self.trimcond_X[:,0]=='AIL-S1')[0][0]], X[np.where(self.trimcond_X[:,0]=='AIL-S1')[0][0]], X[np.where(self.trimcond_X[:,0]=='AIL-S1')[0][0]])) #X[12:14]
+        from efcs import mephisto
+        efcs = mephisto()
+        Ux2 = efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
         Ujx2 = np.zeros(np.shape(Ujx1))
         Plx2 = np.zeros(np.shape(Plx1))
         for i_x2 in range(len(Ux2)):
@@ -151,12 +155,10 @@ class rigid:
         Pk_ges = Pk_rbm + Pk_cam + Pk_cs + Pk_f
         Pmac = np.dot(Dkx1.T, Pk_ges)
         Pb = np.dot(PHImac_cg.T, Pmac)
-        # Bemerkung: 
-        # Der rbf-spline erzeugt doofe Kraefte, eventuell waere hier der rb-nearest-spline besser/physikalischer
+
         Pg = np.dot(PHIk_strc.T, Pk_ges)
-        #Pf = np.dot(PHIf_strc, Pg )
-        Pg_tps = np.dot(self.model.PHIk_strc_tps.T, Pk_ges)
-        Pf = np.dot(PHIf_strc, Pg_tps )
+        Pf = np.dot(PHIf_strc, Pg )
+        
         # Bemerkung: 
         # Die AIC liefert Druecke auf einem Panel, daher stehen die Kraefte senkrecht 
         # zur Oberflaeche, sodass die Kraefte gleich im koerperfesten Koordinatensystem sind.
@@ -167,10 +169,13 @@ class rigid:
         g_rot = np.dot(T_bg, g) # bodyfixed
         
         
-        # SPC 246
-        Pb[1] = 0.0
-        Pb[3] = 0.0
-        Pb[5] = 0.0
+        # SPC 126
+        if np.any(Pb[[0,1,5]] != 0):
+            print str(Pb)
+            print 'enforcing SPC 126'
+            Pb[0] = 0.0
+            Pb[1] = 0.0
+            Pb[5] = 0.0
         
         # non-linear EoM, bodyfixed
         d2Ucg_dt2 = np.zeros(dUcg_dt.shape)
@@ -206,8 +211,8 @@ class rigid:
                         'Pf': Pf,
                         'alpha': alpha,
                         'beta': beta,
-                        'Pg_tps': Pg_tps,
                         'Pg': Pg,
+                        'Ux2': Ux2,
                        }
             return response
     
@@ -220,11 +225,8 @@ class rigid:
         X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
         
         # evaluate model equations
-        
         if type=='trim':
             Y = self.equations(X, 'trim')
-            #print 'X: %s' % str(X)
-            #print 'Y: %s' % str(Y)
             # get the current values from Y and substract tamlab.figure()
             # fsolve only finds the roots; Y = 0
             Y_target_ist = Y[np.where((self.trimcond_Y[:,1] == 'target'))[0]]
@@ -235,37 +237,13 @@ class rigid:
         elif type=='full_output':
             response = self.equations(X, 'full_output')
             # do something with this output, e.g. plotting, animations, saving, etc.            
-            print 'Y: '            
+            print ''            
+            print 'Y: '         
+            print '--------------------' 
             for i_Y in range(len(response['Y'])):
                 print self.trimcond_Y[:,0][i_Y] + ': %.4f' % float(response['Y'][i_Y])
-            #import pickle
-            #f = open('Pk_ges.pickle', 'w')
-            #pickle.dump(Pk_ges, f)
-            #f.close()
-            
-            Pg = np.dot(self.model.PHIk_strc.T,response['Pk_ges'])
-            Pg_tps = np.dot(self.model.PHIk_strc_tps.T,response['Pk_ges'])
-            # Vergleich:
-            print 'Pg: ' + str(np.sum(Pg[self.model.strcgrid['set']], axis=0))
-            print 'Pg_tps: ' + str(np.sum(Pg_tps[self.model.strcgrid['set']], axis=0))
-                       
-#            fig = plt.figure()
-#            ax = fig.add_subplot(111, projection='3d')
-#            ax.scatter( self.model.strcgrid['offset'][:,0], self.model.strcgrid['offset'][:,1], Pg[self.model.strcgrid['set'][:,2]]*0, color='b')
-#            ax.scatter( self.model.strcgrid['offset'][:,0], self.model.strcgrid['offset'][:,1], Pg[self.model.strcgrid['set'][:,2]], color='g')
-#            ax.set_xlabel('x [m]')
-#            ax.set_ylabel('y [m]')
-#            ax.set_zlabel('fz [N]')
-            
-#            fig = plt.figure()
-#            ax = fig.add_subplot(111, projection='3d')
-#            ax.scatter( self.model.strcgrid['offset'][:,0], self.model.strcgrid['offset'][:,1], Pg_tps[self.model.strcgrid['set'][:,2]]*0, color='b')
-#            ax.scatter( self.model.strcgrid['offset'][:,0], self.model.strcgrid['offset'][:,1], Pg_tps[self.model.strcgrid['set'][:,2]], color='g')
-#            ax.set_xlabel('x [m]')
-#            ax.set_ylabel('y [m]')
-#            ax.set_zlabel('fz [N]')
-            
-            
+
+
             fz_rbm =response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
             fz_cam =response['Pk_cam'][self.model.aerogrid['set_k'][:,2]]
             fz_cs =response['Pk_cs'][self.model.aerogrid['set_k'][:,2]]
@@ -273,7 +251,9 @@ class rigid:
             
             A = sum(self.model.aerogrid['A'][:])
             Pmac_c = response['Pmac']/response['q_dyn']/A
+            print ''
             print 'aero derivatives:'
+            print '--------------------' 
             print 'Cz_rbm: %.4f' % float(sum(fz_rbm)/response['q_dyn']/A)
             print 'Cz_cam: %.4f' % float(sum(fz_cam)/response['q_dyn']/A)
             print 'Cz_cs: %.4f' % float(sum(fz_cs)/response['q_dyn']/A)
@@ -281,57 +261,58 @@ class rigid:
             print '--------------'
             print 'Cz: %.4f' % float(Pmac_c[2])
             print 'Cmy: %.4f' % float(Pmac_c[4])
-            print 'alpha: %.4f' % float(response['alpha']/np.pi*180)
-            print 'AIL-S1: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='AIL-S1')[0][0]]/np.pi*180)
+            print 'alpha: %.4f [deg]' % float(response['alpha']/np.pi*180)
+            print 'command_xi: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])
+            print 'command_eta: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])
+            print 'command_zeta: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
+            print 'CS deflections [deg]: ' + str(response['Ux2']/np.pi*180)
             print 'dCz_da: %.4f' % float(Pmac_c[2]/response['alpha'])
+            print '--------------------' 
             
-            x = self.model.aerogrid['offset_k'][:,0]
-            y = self.model.aerogrid['offset_k'][:,1]
-            z = self.model.aerogrid['offset_k'][:,2]
-            fx, fy, fz = response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]],response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
-            fx_cam, fy_cam, fz_cam = response['Pk_cam'][self.model.aerogrid['set_k'][:,0]],response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]]
 
-            #fig = plt.figure()
-            #ax = fig.add_subplot(111, projection='3d')
-            #ax.scatter( x, y, fz+fz_cam, c=fz+fz_cam, s=50, linewidths=0.0, cmap='jet')
-            #plt.show()
+            plotting = False
+            if plotting:
+                
+                x = self.model.aerogrid['offset_k'][:,0]
+                y = self.model.aerogrid['offset_k'][:,1]
+                z = self.model.aerogrid['offset_k'][:,2]
+                fx, fy, fz = response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]],response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
 
-            from mayavi import mlab
-            mlab.figure()
-            mlab.points3d(x, y, z, scale_factor=0.1)
-            mlab.quiver3d(x, y, z, fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-            mlab.quiver3d(x+fx*0.01, y+fy*0.01, z+fz*0.01,fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
-            mlab.title('Pk_rbm', size=0.2, height=0.95)
+                from mayavi import mlab
+                mlab.figure()
+                mlab.points3d(x, y, z, scale_factor=0.1)
+                mlab.quiver3d(x, y, z, fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+                mlab.quiver3d(x+fx*0.01, y+fy*0.01, z+fz*0.01,fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
+                mlab.title('Pk_rbm', size=0.2, height=0.95)
+                
+                mlab.figure() 
+                mlab.points3d(x, y, z, scale_factor=0.1)
+                mlab.quiver3d(x, y, z, response['Pk_cam'][self.model.aerogrid['set_k'][:,0]], response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=0.01)            
+                mlab.title('Pk_camber_twist', size=0.2, height=0.95)
+                
+                mlab.figure()        
+                mlab.points3d(x, y, z, scale_factor=0.1)
+                mlab.quiver3d(x, y, z, response['Pk_cs'][self.model.aerogrid['set_k'][:,0]], response['Pk_cs'][self.model.aerogrid['set_k'][:,1]], response['Pk_cs'][self.model.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=0.01)
+                mlab.title('Pk_cs', size=0.2, height=0.95)
+                
+                mlab.figure()   
+                mlab.points3d(x, y, z, scale_factor=0.1)
+                mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=0.01)
+                mlab.title('Pk_flex', size=0.2, height=0.95)
+                
+                Uf = X[12:22]
+                Ug = np.dot(self.model.mass['PHIf_strc'][0].T, Uf.T).T * 100.0
+                x_r = self.model.strcgrid['offset'][:,0]
+                y_r = self.model.strcgrid['offset'][:,1]
+                z_r = self.model.strcgrid['offset'][:,2]
+                x_f = self.model.strcgrid['offset'][:,0] + Ug[self.model.strcgrid['set'][:,0]]
+                y_f = self.model.strcgrid['offset'][:,1] + Ug[self.model.strcgrid['set'][:,1]]
+                z_f = self.model.strcgrid['offset'][:,2] + Ug[self.model.strcgrid['set'][:,2]]
+                
+                mlab.figure()
+                mlab.points3d(x_r, y_r, z_r,  scale_factor=0.1)
+                mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=0.1)
+                mlab.title('flexible deformation', size=0.2, height=0.95)
+                mlab.show()
             
-            mlab.figure() 
-            mlab.points3d(x, y, z, scale_factor=0.1)
-            mlab.quiver3d(x, y, z, response['Pk_cam'][self.model.aerogrid['set_k'][:,0]], response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=0.01)            
-            mlab.title('Pk_camber_twist', size=0.2, height=0.95)
-            
-            mlab.figure()        
-            mlab.points3d(x, y, z, scale_factor=0.1)
-            mlab.quiver3d(x, y, z, response['Pk_cs'][self.model.aerogrid['set_k'][:,0]], response['Pk_cs'][self.model.aerogrid['set_k'][:,1]], response['Pk_cs'][self.model.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=0.01)
-            mlab.title('Pk_cs', size=0.2, height=0.95)
-            
-            mlab.figure()   
-            mlab.points3d(x, y, z, scale_factor=0.1)
-            mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=0.01)
-            mlab.title('Pk_flex', size=0.2, height=0.95)
-            
-            Uf = X[12:22]
-            Ug = np.dot(self.model.mass['PHIf_strc'][0].T, Uf.T).T * 100.0
-            x_r = self.model.strcgrid['offset'][:,0]
-            y_r = self.model.strcgrid['offset'][:,1]
-            z_r = self.model.strcgrid['offset'][:,2]
-            x_f = self.model.strcgrid['offset'][:,0] + Ug[self.model.strcgrid['set'][:,0]]
-            y_f = self.model.strcgrid['offset'][:,1] + Ug[self.model.strcgrid['set'][:,1]]
-            z_f = self.model.strcgrid['offset'][:,2] + Ug[self.model.strcgrid['set'][:,2]]
-            
-            mlab.figure()
-            mlab.points3d(x_r, y_r, z_r,  scale_factor=0.1)
-            mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=0.1)
-            mlab.title('flexible deformation', size=0.2, height=0.95)
-            mlab.show()
-
-
             return response

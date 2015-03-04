@@ -42,20 +42,24 @@ def run_kernel(job_name, pre=True, main=True, test=False):
         f.close()
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
-        print '--> Starting Main.'
-        t_start = time.time()
-
-        trim = trim(model, jcl.trimcase)
-        trim.set_trimcond()
-        trim.exec_trim()
-        print '--> Done in %.2f [sec].' % (time.time() - t_start)
+        print '--> Starting Main for %d trimcase(s).' % len(jcl.trimcase)
         
-        print '--> Saving response.'  
-        t_start = time.time()
-        f = open('../output/response_' + job_name + '.pickle', 'w')
-        cPickle.dump(trim.response, f, cPickle.HIGHEST_PROTOCOL)
-        f.close()
-        print '--> Done in %.2f [sec].' % (time.time() - t_start)
+        for i in range(len(jcl.trimcase)):
+            print '--------------------' 
+            print 'trimcase: ' + jcl.trimcase[i]['desc']
+            print '--------------------' 
+            t_start = time.time()
+            trim = trim(model, jcl.trimcase[i])
+            trim.set_trimcond()
+            trim.exec_trim()
+            print '--> Done in %.2f [sec].' % (time.time() - t_start)
+            
+            print '--> Saving response.'  
+            f = open('../output/response_' + job_name + jcl.trimcase[i]['desc'] + '.pickle', 'w')
+            cPickle.dump(trim.response, f, cPickle.HIGHEST_PROTOCOL)
+            f.close()
+            print '--> Done in %.2f [sec].' % (time.time() - t_start)
+            
         
     if test:
         print '--> Loading model data.'
@@ -65,15 +69,15 @@ def run_kernel(job_name, pre=True, main=True, test=False):
         f.close()
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
-        from read_pval2 import test
+        from read_pval3 import test
         test(model, jcl.trimcase)
         
         
         
 if __name__ == "__main__":
     #run_kernel('jcl_DLR_F19_voll', pre = True, main = False)
-    #run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
-    run_kernel('jcl_DLR_F19_voll', pre = False, main = False, test = True)
+    run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
+    #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, test = True)
     
     
    
