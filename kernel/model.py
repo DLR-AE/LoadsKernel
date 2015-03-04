@@ -143,7 +143,7 @@ class model:
             
             # splines
             
-            self.PHIk_strc_tps = spline_functions.spline_rbf(self.strcgrid, '',self.aerogrid, '_k', 'tps' )
+            #self.PHIk_strc = spline_functions.spline_rbf(self.strcgrid, '',self.aerogrid, '_k', 'tps' )
             # rbf-spline not (yet) stable for translation of forces and moments to structure grid, so use rb-spline with nearest neighbour search instead
             rules = spline_rules.nearest_neighbour(self.strcgrid, self.aerogrid)    
             self.PHIk_strc = spline_functions.spline_rb(self.strcgrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6])
@@ -224,7 +224,7 @@ class model:
                 rules = spline_rules.rules_point(cggrid, self.macgrid)
                 PHImac_cg = spline_functions.spline_rb(cggrid, '', self.macgrid, '', rules, self.coord)          
                 
-                PHIjf = np.dot(self.Djk, np.dot(self.PHIk_strc_tps, PHIf_strc.T))                
+                PHIjf = np.dot(self.Djk, np.dot(self.PHIk_strc, PHIf_strc.T))                
                 
                 # save all matrices to data structure
                 self.mass['key'].append(self.jcl.mass['key'][i_mass])
