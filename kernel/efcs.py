@@ -33,10 +33,10 @@ class mephisto:
         delta_AILS4 -= command_eta
         
         # zeta - Gierachse
-        delta_AILS1 -= command_zeta
-        delta_AILS2 -= command_zeta
-        delta_AILS3 -= command_zeta
-        delta_AILS4 -= command_zeta
+        #delta_AILS1 -= command_zeta
+        #delta_AILS2 -= command_zeta
+        #delta_AILS3 -= command_zeta
+        #delta_AILS4 -= command_zeta
         
         Ux2 = np.array([delta_AILS1, delta_AILS2, delta_AILS3, delta_AILS4])
         
