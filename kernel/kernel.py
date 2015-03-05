@@ -10,9 +10,10 @@ import cPickle
 import time  
 import imp
 
-def run_kernel(job_name, pre=True, main=True, test=False):
- 
+def run_kernel(job_name, pre=True, main=True, post=False, test=False):
+    
     print 'Starting AE Kernel with job: ' + job_name
+
     from trim import trim
     from model import model
     
@@ -43,23 +44,30 @@ def run_kernel(job_name, pre=True, main=True, test=False):
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
         print '--> Starting Main for %d trimcase(s).' % len(jcl.trimcase)
-        
+        t_start = time.time()
+        response = []
         for i in range(len(jcl.trimcase)):
-            print '--------------------' 
+            print ''
+            print '========================================' 
             print 'trimcase: ' + jcl.trimcase[i]['desc']
-            print '--------------------' 
+            print '========================================' 
             t_start = time.time()
-            trim = trim(model, jcl.trimcase[i])
-            trim.set_trimcond()
-            trim.exec_trim()
-            print '--> Done in %.2f [sec].' % (time.time() - t_start)
+            trim_i = trim(model, jcl.trimcase[i])
+            trim_i.set_trimcond()
+            trim_i.exec_trim()
+            response.append(trim_i.response)
             
-            print '--> Saving response.'  
-            f = open('../output/response_' + job_name + jcl.trimcase[i]['desc'] + '.pickle', 'w')
-            cPickle.dump(trim.response, f, cPickle.HIGHEST_PROTOCOL)
-            f.close()
-            print '--> Done in %.2f [sec].' % (time.time() - t_start)
-            
+        print '--> Saving response(s).'  
+        f = open('../output/response_' + job_name + '.pickle', 'w')
+        cPickle.dump(response, f, cPickle.HIGHEST_PROTOCOL)
+        f.close()
+        print '--> Done in %.2f [sec].' % (time.time() - t_start)
+    
+    if post:
+        f = open('../output/response_' + job_name + '.pickle', 'r')
+        response = cPickle.load(f)
+        f.close()
+        
         
     if test:
         print '--> Loading model data.'
@@ -71,12 +79,14 @@ def run_kernel(job_name, pre=True, main=True, test=False):
         
         from read_pval3 import test
         test(model, jcl.trimcase)
-        
+
+        print 'Done.'
         
         
 if __name__ == "__main__":
     #run_kernel('jcl_DLR_F19_voll', pre = True, main = False)
     run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
+    #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
     #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, test = True)
     
     
