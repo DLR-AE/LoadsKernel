@@ -8,7 +8,7 @@ import numpy as np
 import scipy.optimize as so
 
 class trim:
-    def __init__(self,model, trimcase):
+    def __init__(self, model, trimcase):
         self.model = model
         self.trimcase = trimcase
             
@@ -28,7 +28,7 @@ class trim:
             ['phi',      'fix',  0.0,],
             ['theta',    'free', 2.0/180*np.pi,],
             ['psi',      'fix',  0.0,],
-            ['u',        'fix',  u,],
+            ['u',        'fix',  u,  ],
             ['v',        'fix',  0.0,],
             ['w',        'fix',  0.0,],
             ['p',        'fix',  self.trimcase['p'],],
@@ -99,7 +99,8 @@ class trim:
                     print self.trimcond_X[:,0][np.where((self.trimcond_X[:,1] == 'free'))[0]][i_X] + ': %.4f' % float(X_free[i_X])
                     
                 self.response = model_equations.eval_equations(X_free, 'full_output')
-                
+            else:
+                self.response = 'Failure: ' + msg
                 # store response
             
 
