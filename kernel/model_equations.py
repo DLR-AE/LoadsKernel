@@ -189,7 +189,8 @@ class rigid:
         # --------------   
         # --- output ---   
         # -------------- 
-        Nxyz = (d2Ucg_dt2[0:3]-g_rot)/9.8066  
+        # loadfactor im Sinne von Beschleunigung der Masse, Gravitation und Richtungsaenderung muessen abgezogen werden! 
+        Nxyz = (d2Ucg_dt2[0:3] - g_rot - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
         # geodetic
         d2Ucg_dt2_geo = np.hstack((np.dot(T_bg.T, d2Ucg_dt2[0:3]), np.dot(T_bg.T, d2Ucg_dt2[3:6]))) 
         
