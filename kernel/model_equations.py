@@ -29,10 +29,11 @@ class rigid:
         Qjj        = self.model.aero['Qjj'][i_aero]    
         
         i_mass     = self.model.mass['key'].index(self.trimcase['mass'])
-        PHIstrc_cg = self.model.mass['PHIstrc_cg'][i_mass]
         PHImac_cg  = self.model.mass['PHImac_cg'][i_mass]
+        PHIcg_mac  = self.model.mass['PHIcg_mac'][i_mass]
+        PHInorm_cg  = self.model.mass['PHInorm_cg'][i_mass]
+        PHIcg_norm  = self.model.mass['PHIcg_norm'][i_mass]
         Mb         = self.model.mass['Mb'][i_mass]
-        cggrid     = self.model.mass['cggrid'][i_mass]
         Mff        = self.model.mass['Mff'][i_mass]
         Kff        = self.model.mass['Kff'][i_mass]
         Dff        = self.model.mass['Dff'][i_mass]
@@ -46,8 +47,11 @@ class rigid:
         Dkx1       = self.model.Dkx1
         
         # recover states
-        Ucg      = np.array(X[0:6]) # x, y, z, phi, theta, psi earthfixed
-        dUcg_dt  = np.array(X[6:12]) # u v w p q r bodyfixed
+        Ucg      = np.dot(PHInorm_cg, X[0:6]) # x, y, z, phi, theta, psi earthfixed
+        Tgeo2body = np.zeros((6,6))
+        Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
+        Tgeo2body[3:6,3:6] = calc_drehmatrix(X[3], X[4], X[5])
+        dUcg_dt  = np.dot(PHIcg_norm,np.dot(Tgeo2body, X[6:12])) #np.dot(PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
         Uf = np.array(X[12:12+n_modes])
         dUf_dt = np.array(X[12+n_modes:12+n_modes*2])
         
@@ -62,14 +66,22 @@ class rigid:
         alpha = X[4] - np.arctan(X[8]/X[6]) # alpha = theta - gamma
         beta  = X[5] - np.arctan(X[7]/X[6])
         my    = 0.0
-        T_eb = calc_drehmatrix(my, alpha, beta) 
-        Ux1 = np.hstack((np.dot(T_eb, dUmac_dt[0:3]), np.dot(T_eb, dUmac_dt[3:6]))) # jetzt im Aero-Koordinatensystem
-        #Ux1 = np.array([dUmac_dt[0], dUmac_dt[1] + dUmac_dt[0] * np.tan(beta), dUmac_dt[2] + dUmac_dt[0] * np.tan(alpha), dUmac_dt[3], dUmac_dt[4], dUmac_dt[5]])
+        T_eb = np.zeros((6,6))
+        T_eb[0:3,0:3] = calc_drehmatrix(my, alpha, beta) 
+        T_eb[3:6,3:6] = calc_drehmatrix(my, alpha, beta) 
+        #Ux1 = np.hstack((np.dot(T_eb, X[6:9]), np.dot(T_eb, X[9:12]))) # jetzt im Aero-Koordinatensystem
+        # dUmac_dt und Ux1 unterscheiden sich durch 
+        # - den induzierten Anstellwinkel aus der Flugbahn
+        # - die Vorzeichen / Koordinatensystem
+        #Ux1_a = (PHImac_cg.dot(T_eb.dot(PHIcg_norm.dot(np.hstack((X[6:9], [0,0,0]))))))
+        #Ux1_b = (PHImac_cg.dot(Tgeo2body.dot(PHIcg_norm.dot(np.hstack(([0,0,0],X[9:12]))))))
         
-        Ujx1 = np.dot(Djx1,Ux1)
+        Ux1 = PHImac_cg.dot(Tgeo2body.dot(PHInorm_cg.dot(X[6:12])))
+        Ujx1 = np.dot(Djx1,Ux1)#_a + Ux1_b)
+
         # der downwash wj ist nur die Komponente von Uj, welche senkrecht zum Panel steht! 
         # --> mit N multiplizieren und danach die Norm bilden
-        wjx1 = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas
+        wjx1 = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1
         flx1 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx1)
         # Bemerkung: greifen die Luftkraefte bei j,l oder k an?
         # Dies würde das Cmy beeinflussen!
@@ -80,7 +92,18 @@ class rigid:
         Plx1[self.model.aerogrid['set_l'][:,2]] = flx1[2,:]
         
         Pk_rbm = np.dot(self.model.Dlk.T, Plx1)
+        Pb_rbm = np.dot(PHImac_cg.T, np.dot(Dkx1.T, Pk_rbm))
         
+#        print Pb_rbm
+#        from mayavi import mlab
+#        x = self.model.aerogrid['offset_j'][:,0]
+#        y = self.model.aerogrid['offset_j'][:,1]
+#        z = self.model.aerogrid['offset_j'][:,2]
+#        
+#        mlab.figure() 
+#        mlab.points3d(x, y, z, scale_factor=0.1)
+#        mlab.quiver3d(x, y, z, Ujx1[self.model.aerogrid['set_j'][:,0]]*0.0, Ujx1[self.model.aerogrid['set_j'][:,1]], Ujx1[self.model.aerogrid['set_j'][:,2]], color=(0,1,1), scale_factor=1.0)            
+#        mlab.show()
         # -----------------------------   
         # --- aero camber and twist ---   
         # -----------------------------
@@ -92,7 +115,7 @@ class rigid:
         Plcam[self.model.aerogrid['set_l'][:,1]] = flcam[1,:]
         Plcam[self.model.aerogrid['set_l'][:,2]] = flcam[2,:]
         
-        Pk_cam = np.dot(self.model.Dlk.T, Plcam)
+        Pk_cam = np.dot(self.model.Dlk.T, Plcam) * 0.0
         
         
         
@@ -123,7 +146,7 @@ class rigid:
             Plx2[self.model.aerogrid['set_l'][:,2]] += flx2[2,:]
         
         Pk_cs = np.dot(self.model.Dlk.T, Plx2)
-        
+        Pb_cs = np.dot(PHImac_cg.T, np.dot(Dkx1.T, Pk_cs))
         # ---------------------   
         # --- aero flexible ---   
         # ---------------------  
@@ -147,28 +170,26 @@ class rigid:
         Plf[self.model.aerogrid['set_l'][:,1]] = flf_1[1,:] + flf_2[1,:]
         Plf[self.model.aerogrid['set_l'][:,2]] = flf_1[2,:] + flf_2[2,:]
         
-        Pk_f = np.dot(self.model.Dlk.T, Plf)
+        Pk_f = np.dot(self.model.Dlk.T, Plf) * 0.0
         
         # --------------------------------   
         # --- summation of forces, EoM ---   
         # --------------------------------
-        Pk_ges = Pk_rbm + Pk_cam + Pk_cs + Pk_f
-        Pmac = np.dot(Dkx1.T, Pk_ges)
+        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f
+        Pmac = np.dot(Dkx1.T, Pk_aero)
         Pb = np.dot(PHImac_cg.T, Pmac)
 
-        Pg = np.dot(PHIk_strc.T, Pk_ges)
-        Pf = np.dot(PHIf_strc, Pg )
+        Pg_aero = np.dot(PHIk_strc.T, Pk_aero)
+        Pf = np.dot(PHIf_strc, Pg_aero )
         
         # Bemerkung: 
         # Die AIC liefert Druecke auf einem Panel, daher stehen die Kraefte senkrecht 
         # zur Oberflaeche, sodass die Kraefte gleich im koerperfesten Koordinatensystem sind.
         # Anregung im aero coord., Reaktion im body-fixed coord.  
 
-        g = np.array([0.0, 0.0, -9.8066]) # erdfest, geodetic
-        T_bg = calc_drehmatrix(Ucg[3], Ucg[4], Ucg[5])  #np.array([-np.sin(Ucg[4]), np.sin(Ucg[3])*np.cos(Ucg[4]),  np.cos(Ucg[3])*np.cos(Ucg[4])])
-        g_rot = np.dot(T_bg, g) # bodyfixed
-        
-        
+        g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
+        g_cg = np.dot(PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
+
         # SPC 126
         if np.any(Pb[[0,1,5]] != 0):
             print str(Pb)
@@ -179,8 +200,11 @@ class rigid:
         
         # non-linear EoM, bodyfixed
         d2Ucg_dt2 = np.zeros(dUcg_dt.shape)
-        d2Ucg_dt2[0:3] = np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) + np.dot(np.linalg.inv(Mb)[0:3,0:3], Pb[0:3]) + g_rot
-        d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(Mb[3:6,3:6]) , np.dot( np.cross(-Mb[3:6,3:6], dUcg_dt[3:6]), dUcg_dt[3:6]) + Pb[3:6] )
+        #d2Ucg_dt2[0:3] = np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) + np.dot(np.linalg.inv(Mb)[0:3,0:3], Pb[0:3]) + g_cg
+        #d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(Mb[3:6,3:6]) , np.dot( np.cross(-Mb[3:6,3:6], dUcg_dt[3:6]), dUcg_dt[3:6]) + Pb[3:6] )
+        # Nastran
+        d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(Mb)[0:3,0:3], Pb[0:3]) + g_cg
+        d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(Mb[3:6,3:6]), Pb[3:6] )
         
         # linear, flexible EoM
         d2Uf_dt2 = np.dot( -np.linalg.inv(Mff),  ( np.dot(Dff, dUf_dt) + np.dot(Kff, Uf) - Pf  ) )
@@ -190,11 +214,11 @@ class rigid:
         # --- output ---   
         # -------------- 
         # loadfactor im Sinne von Beschleunigung der Masse, Gravitation und Richtungsaenderung muessen abgezogen werden! 
-        Nxyz = (d2Ucg_dt2[0:3] - g_rot - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
-        # geodetic
-        d2Ucg_dt2_geo = np.hstack((np.dot(T_bg.T, d2Ucg_dt2[0:3]), np.dot(T_bg.T, d2Ucg_dt2[3:6]))) 
-        
-        Y = np.hstack((dUcg_dt, d2Ucg_dt2_geo, dUf_dt, d2Uf_dt2, Nxyz[2]))    
+        #Nxyz = (d2Ucg_dt2[0:3] - g_cg - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
+        # Nastran
+        Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
+                
+        Y = np.hstack((X[6:12], np.dot(PHInorm_cg, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, Nxyz[2]))    
             
         if type == 'trim':
             return Y
@@ -203,7 +227,7 @@ class rigid:
                         'Y': Y,
                         'Pk_rbm': Pk_rbm,
                         'Pk_cam': Pk_cam,
-                        'Pk_ges': Pk_ges,
+                        'Pk_aero': Pk_aero,
                         'Pk_cs': Pk_cs,
                         'Pk_f': Pk_f,
                         'q_dyn': q_dyn,
@@ -212,7 +236,7 @@ class rigid:
                         'Pf': Pf,
                         'alpha': alpha,
                         'beta': beta,
-                        'Pg': Pg,
+                        'Pg_aero': Pg_aero,
                         'Ux2': Ux2,
                        }
             return response
@@ -244,24 +268,27 @@ class rigid:
             for i_Y in range(len(response['Y'])):
                 print self.trimcond_Y[:,0][i_Y] + ': %.4f' % float(response['Y'][i_Y])
 
-
-            fz_rbm =response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
-            fz_cam =response['Pk_cam'][self.model.aerogrid['set_k'][:,2]]
-            fz_cs =response['Pk_cs'][self.model.aerogrid['set_k'][:,2]]
-            fz_flex =response['Pk_f'][self.model.aerogrid['set_k'][:,2]]
+            Pmac_rbm  = np.dot(self.model.Dkx1.T, response['Pk_rbm'])
+            Pmac_cam  = np.dot(self.model.Dkx1.T, response['Pk_cam'])
+            Pmac_cs   = np.dot(self.model.Dkx1.T, response['Pk_cs'])
+            Pmac_f    = np.dot(self.model.Dkx1.T, response['Pk_f'])
             
             A = sum(self.model.aerogrid['A'][:])
             Pmac_c = response['Pmac']/response['q_dyn']/A
             print ''
             print 'aero derivatives:'
             print '--------------------' 
-            print 'Cz_rbm: %.4f' % float(sum(fz_rbm)/response['q_dyn']/A)
-            print 'Cz_cam: %.4f' % float(sum(fz_cam)/response['q_dyn']/A)
-            print 'Cz_cs: %.4f' % float(sum(fz_cs)/response['q_dyn']/A)
-            print 'Cz_f: %.4f' % float(sum(fz_flex)/response['q_dyn']/A)
+            print 'Cz_rbm: %.4f' % float(Pmac_rbm[2]/response['q_dyn']/A)
+            print 'Cz_cam: %.4f' % float(Pmac_cam[2]/response['q_dyn']/A)
+            print 'Cz_cs: %.4f' % float(Pmac_cs[2]/response['q_dyn']/A)
+            print 'Cz_f: %.4f' % float(Pmac_f[2]/response['q_dyn']/A)
             print '--------------'
+            print 'Cx: %.4f' % float(Pmac_c[0])
+            print 'Cy: %.4f' % float(Pmac_c[1])
             print 'Cz: %.4f' % float(Pmac_c[2])
-            print 'Cmy: %.4f' % float(Pmac_c[4])
+            print 'Cmx: %.4f' % float(Pmac_c[3]/self.model.macgrid['b_ref'])
+            print 'Cmy: %.4f' % float(Pmac_c[4]/self.model.macgrid['c_ref'])
+            print 'Cmz: %.4f' % float(Pmac_c[5]/self.model.macgrid['b_ref'])
             print 'alpha: %.4f [deg]' % float(response['alpha']/np.pi*180)
             print 'command_xi: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])
             print 'command_eta: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])
@@ -270,7 +297,6 @@ class rigid:
             print 'dCz_da: %.4f' % float(Pmac_c[2]/response['alpha'])
             print '--------------------' 
             
-
             plotting = False
             if plotting:
                 
@@ -301,7 +327,8 @@ class rigid:
                 mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=0.01)
                 mlab.title('Pk_flex', size=0.2, height=0.95)
                 
-                Uf = X[12:22]
+                n_modes    = self.model.mass['n_modes'][0]
+                Uf = X[12:12+n_modes]
                 Ug = np.dot(self.model.mass['PHIf_strc'][0].T, Uf.T).T * 100.0
                 x_r = self.model.strcgrid['offset'][:,0]
                 y_r = self.model.strcgrid['offset'][:,1]

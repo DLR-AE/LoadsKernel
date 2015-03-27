@@ -18,10 +18,10 @@ class model:
         self.jcl = jcl
             
     def build_model(self):
-        self.coord = {'ID': [0],
-                      'RID': [0],
-                      'dircos': [np.eye(3)],
-                      'offset': [np.array([0,0,0])],
+        self.coord = {'ID': [0, 9300],
+                      'RID': [0, 0],
+                      'dircos': [np.eye(3), np.array([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])],
+                      'offset': [np.array([0,0,0]), np.array([0,0,0])],
                      }        
         print 'Building structure model...'
         if self.jcl.geom['method'] == 'mona':
@@ -37,6 +37,9 @@ class model:
                     self.strcgrid['n'] += subgrid['n']
                     self.strcgrid['set'] = np.vstack((self.strcgrid['set'],subgrid['set']+self.strcgrid['set'].max()+1))
                     self.strcgrid['offset'] = np.vstack((self.strcgrid['offset'],subgrid['offset']))
+                    
+                self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_grid'][i_file], self.coord, self.strcgrid)
+                
             #self.KAA = read_geom.Nastran_OP4(self.jcl.geom['filename_KAA'], sparse_output=True, sparse_format=True) 
 
         print 'Building atmo model...'
@@ -58,7 +61,7 @@ class model:
                 self.atmo['a'].append(a)
 
         else:
-            print 'Unknown atmo method: ' + str(jcl.aero['method'])
+            print 'Unknown atmo method: ' + str(self.jcl.aero['method'])
               
         print 'Building aero model...'
         if self.jcl.aero['method'] == 'mona_steady':
@@ -155,6 +158,7 @@ class model:
             rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
             self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord)
             self.Djx1 = np.dot(self.Djk, self.Dkx1)
+            self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
             
             # AIC
             self.aero = {'key':[],
@@ -172,10 +176,14 @@ class model:
         if self.jcl.mass['method'] == 'mona':
             self.mass = {'key': [],
                          'Mb': [],
-                         'MAA': [],   
+                         'MGG': [],   
                          'cggrid': [],
+                         'cggrid_norm': [],
                          'PHIstrc_cg': [],
                          'PHImac_cg': [],
+                         'PHIcg_mac': [],
+                         'PHInorm_cg': [],
+                         'PHIcg_norm': [],
                          'PHIf_strc': [],
                          'PHIjf': [],
                          'Mff': [],
@@ -199,8 +207,7 @@ class model:
                 for i_mode in range(len(modes_selection)):
                     eigenvector = eigenvectors[str(modes_selection[i_mode])][:,1:]
                     PHIf_strc[i_mode,:] = eigenvector.reshape((1,-1))[0]
-                # MAA
-                #MAA = read_geom.Nastran_OP4(self.jcl.mass['filename_MAA'][i_mass], sparse_output=True, sparse_format=True) 
+                MGG = read_geom.Nastran_OP4(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
                 
                 # Mb        
                 massmatrix_0, inertia, offset_cg, CID = read_geom.Nastran_weightgenerator(self.jcl.mass['filename_S103'][i_mass])  
@@ -211,33 +218,55 @@ class model:
                           'CP': np.array([CID]),
                           'coord_desc': 'bodyfixed',
                           }
+                cggrid_norm = {"ID": np.array([9300+i_mass]),
+                          "offset": np.array([[-offset_cg[0], offset_cg[1], -offset_cg[2]]]),
+                          "set": np.array([[0, 1, 2, 3, 4, 5]]),
+                          'CD': np.array([9300]),
+                          'CP': np.array([9300]),
+                          'coord_desc': 'bodyfixed_DIN9300',
+                          } 
+                          
+                          
                 # assemble mass matrix about center of gravity, relativ to the axis of the basic coordinate system
+                # switsch signs for coupling terms of I to suite EoMs
                 Mb = np.zeros((6,6))
                 Mb[0,0] = massmatrix_0[0,0]
                 Mb[1,1] = massmatrix_0[0,0]
                 Mb[2,2] = massmatrix_0[0,0]
-                Mb[3:6,3:6] = inertia
+                Mb[3:6,3:6] = inertia #np.array([[1,-1,-1],[-1,1,-1],[-1,-1,1]]) * inertia
                 
                 rules = spline_rules.rules_point(cggrid, self.strcgrid)
                 PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
                 
                 rules = spline_rules.rules_point(cggrid, self.macgrid)
-                PHImac_cg = spline_functions.spline_rb(cggrid, '', self.macgrid, '', rules, self.coord)          
+                PHImac_cg = spline_functions.spline_rb(cggrid, '', self.macgrid, '', rules, self.coord)    
+                rules = spline_rules.rules_point(self.macgrid, cggrid)
+                PHIcg_mac = spline_functions.spline_rb( self.macgrid, '', cggrid, '', rules, self.coord)      
+                
+                rules = spline_rules.rules_point(cggrid, cggrid_norm)
+                PHInorm_cg = spline_functions.spline_rb(cggrid, '', cggrid_norm, '', rules, self.coord)   
+                rules = spline_rules.rules_point(cggrid_norm, cggrid)
+                PHIcg_norm = spline_functions.spline_rb(cggrid_norm, '', cggrid, '', rules, self.coord) 
                 
                 PHIjf = np.dot(self.Djk, np.dot(self.PHIk_strc, PHIf_strc.T))                
                 
                 # save all matrices to data structure
                 self.mass['key'].append(self.jcl.mass['key'][i_mass])
                 self.mass['Mb'].append(Mb)
-                #self.mass['MAA'].append(MAA)
+                self.mass['MGG'].append(MGG)
                 self.mass['cggrid'].append(cggrid)
+                self.mass['cggrid_norm'].append(cggrid_norm)
                 self.mass['PHIstrc_cg'].append(PHIstrc_cg)
                 self.mass['PHImac_cg'].append(PHImac_cg)
+                self.mass['PHIcg_mac'].append(PHIcg_mac)
+                self.mass['PHIcg_norm'].append(PHIcg_norm)
+                self.mass['PHInorm_cg'].append(PHInorm_cg)
                 self.mass['PHIf_strc'].append(PHIf_strc) 
                 self.mass['PHIjf'].append(PHIjf)
                 self.mass['Mff'].append(Mff) 
                 self.mass['Kff'].append(Kff) 
                 self.mass['Dff'].append(Dff) 
                 self.mass['n_modes'].append(len(modes_selection))
+                
 
             
