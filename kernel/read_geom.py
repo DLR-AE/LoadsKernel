@@ -329,7 +329,7 @@ def Nastran_OP4(filename, sparse_output=False, sparse_format=False ):
     print 'Done.'       
     return data
   
-def Modgen_CORD2R(filename, coord):
+def Modgen_CORD2R(filename, coord, grid=''):
 #    coord = {'ID':[],
 #             'RID':[],
 #             'offset':[],
@@ -357,6 +357,32 @@ def Modgen_CORD2R(filename, coord):
                 coord['RID'].append(RID)
                 coord['offset'].append(A)
                 coord['dircos'].append(dircos)
+                
+            elif string.find(read_string, 'CORD1R') !=-1 and read_string[0] != '$':
+                # CHORD1R ist aehnlich zu CORD2R, anstelle von offsets werden als grid points angegeben 
+                if grid == '':
+                    print read_string
+                    print 'Found CORD1R card, but no grid is given. Coord is ignored.'
+                else:
+                    line1 = read_string
+                    ID = nastran_number_converter(line1[8:16], 'int')
+                    RID = 0
+                    ID_A = nastran_number_converter(line1[16:24], 'int')
+                    A =  grid['offset'][np.where(grid['ID'] == ID_A)[0][0]]
+                    ID_B = nastran_number_converter(line1[24:32], 'int')
+                    B = grid['offset'][np.where(grid['ID'] == ID_B)[0][0]]   
+                    ID_C = nastran_number_converter(line1[32:40], 'int')
+                    C = grid['offset'][np.where(grid['ID'] == ID_C)[0][0]]   
+                    # build coord - wie bei CORD2R              
+                    z = B - A
+                    y = np.cross(B-A, C-A)
+                    x = np.cross(y,z)
+                    dircos = np.vstack((x,y,z)).T
+                    # save
+                    coord['ID'].append(ID)
+                    coord['RID'].append(RID)
+                    coord['offset'].append(A)
+                    coord['dircos'].append(dircos)
             elif read_string == '':
                 break
         return coord
