@@ -15,7 +15,8 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
     print 'Starting AE Kernel with job: ' + job_name
 
     from trim import trim
-    from model import model
+    from model import model as model_obj
+    from post_processing import post_processing
     
     print '--> Reading parameters from JCL.'
     jcl = imp.load_source('jcl', '../input/' + job_name + '.py')
@@ -24,7 +25,7 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
     if pre: 
         print '--> Starting preprocessing.'   
         t_start = time.time()
-        model = model(jcl)
+        model = model_obj(jcl)
         model.build_model()
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
@@ -36,12 +37,8 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
     if main:
-        print '--> Loading model data.'
-        t_start = time.time()
-        f = open('../output/model_' + job_name + '.pickle', 'r')
-        model = cPickle.load(f)
-        f.close()
-        print '--> Done in %.2f [sec].' % (time.time() - t_start)
+        if not 'model' in locals():
+            model = load_model(job_name)
         
         print '--> Starting Main for %d trimcase(s).' % len(jcl.trimcase)
         t_start = time.time()
@@ -64,11 +61,19 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
     
     if post:
-        f = open('../output/response_' + job_name + '.pickle', 'r')
-        response = cPickle.load(f)
-        f.close()
+        if not 'model' in locals():
+            model = load_model(job_name)
+        
+        if not 'response' in locals():
+            print '--> Loading response(s).'  
+            with open('../output/response_' + job_name + '.pickle', 'r') as f:
+                response = cPickle.load(f)
         
         
+        post_processing = post_processing(jcl, model, response)
+        post_processing.modal_displacment_method()
+        
+    
     if test:
         print '--> Loading model data.'
         t_start = time.time()
@@ -81,12 +86,19 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
         test(model, jcl.trimcase)
 
         print 'Done.'
-        
+
+def load_model(job_name):
+    print '--> Loading model data.'
+    t_start = time.time()
+    with open('../output/model_' + job_name + '.pickle', 'r') as f:
+        model = cPickle.load(f)
+    print '--> Done in %.2f [sec].' % (time.time() - t_start)
+    return model
         
 if __name__ == "__main__":
     #run_kernel('jcl_DLR_F19_voll', pre = True, main = False)
-    run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
-    #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
+    #run_kernel('jcl_DLR_F19_voll', pre = True, main = True)
+    run_kernel('jcl_DLR_F19_voll', pre = False, main = True, post = True)
     #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, test = True)
     
     

@@ -39,8 +39,16 @@ class model:
                     self.strcgrid['offset'] = np.vstack((self.strcgrid['offset'],subgrid['offset']))
                     
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_grid'][i_file], self.coord, self.strcgrid)
-                
-            #self.KAA = read_geom.Nastran_OP4(self.jcl.geom['filename_KAA'], sparse_output=True, sparse_format=True) 
+            
+            # sort stucture grid to be in accordance with matricies such as Mgg from Nastran
+            sort_vector = self.strcgrid['ID'].argsort()
+            self.strcgrid['ID'] = self.strcgrid['ID'][sort_vector]
+            self.strcgrid['CD'] = self.strcgrid['CD'][sort_vector]
+            self.strcgrid['CP'] = self.strcgrid['CP'][sort_vector]
+            #self.strcgrid['set'] = self.strcgrid['set'][sort_vector,:]
+            self.strcgrid['offset'] = self.strcgrid['offset'][sort_vector,:]
+
+            self.Kgg = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
 
         print 'Building atmo model...'
         if self.jcl.atmo['method']=='ISA':

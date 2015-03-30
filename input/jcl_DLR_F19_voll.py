@@ -32,7 +32,7 @@ class jcl:
                                       '/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/massconfig/mg05_DLR-F19-S_baseline.RBE3_SUBSEG2_mod',
                                       '/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/Klappenanbindung.bdf',
                                       ],
-                     #'filename_KAA':'/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/matrix_export/KAA.dat',
+                     'filename_KGG':'/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/nastran/KGG_dim.dat',
                     }
         self.aero = {'method': 'mona_steady',
                      'key':['VC', 'MC', 'VD', 'MD'],

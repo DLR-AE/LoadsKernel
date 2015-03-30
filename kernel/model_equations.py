@@ -238,6 +238,9 @@ class rigid:
                         'beta': beta,
                         'Pg_aero': Pg_aero,
                         'Ux2': Ux2,
+                        'd2Ucg_dt2': d2Ucg_dt2,
+                        'd2Uf_dt2': d2Uf_dt2,
+                        'Uf': Uf,
                        }
             return response
     
@@ -297,7 +300,7 @@ class rigid:
             print 'dCz_da: %.4f' % float(Pmac_c[2]/response['alpha'])
             print '--------------------' 
             
-            plotting = True
+            plotting = False
             if plotting:
                 
                 x = self.model.aerogrid['offset_k'][:,0]
@@ -327,9 +330,10 @@ class rigid:
                 mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=0.01)
                 mlab.title('Pk_flex', size=0.2, height=0.95)
                 
-                n_modes    = self.model.mass['n_modes'][0]
+                i_mass     = self.model.mass['key'].index(self.trimcase['mass'])
+                n_modes    = self.model.mass['n_modes'][i_mass]
                 Uf = X[12:12+n_modes]
-                Ug = np.dot(self.model.mass['PHIf_strc'][0].T, Uf.T).T * 100.0
+                Ug = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T * 100.0
                 x_r = self.model.strcgrid['offset'][:,0]
                 y_r = self.model.strcgrid['offset'][:,1]
                 z_r = self.model.strcgrid['offset'][:,2]
