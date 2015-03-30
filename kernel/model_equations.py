@@ -170,7 +170,7 @@ class rigid:
         Plf[self.model.aerogrid['set_l'][:,1]] = flf_1[1,:] + flf_2[1,:]
         Plf[self.model.aerogrid['set_l'][:,2]] = flf_1[2,:] + flf_2[2,:]
         
-        Pk_f = np.dot(self.model.Dlk.T, Plf) * 0.0
+        Pk_f = np.dot(self.model.Dlk.T, Plf)
         
         # --------------------------------   
         # --- summation of forces, EoM ---   
@@ -297,7 +297,7 @@ class rigid:
             print 'dCz_da: %.4f' % float(Pmac_c[2]/response['alpha'])
             print '--------------------' 
             
-            plotting = False
+            plotting = True
             if plotting:
                 
                 x = self.model.aerogrid['offset_k'][:,0]

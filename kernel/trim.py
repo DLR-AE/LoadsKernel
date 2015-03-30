@@ -15,7 +15,8 @@ class trim:
     def set_trimcond(self):
         # init
         i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
-        n_modes = len(self.model.jcl.mass['modes'])
+        i_mass = self.model.mass['key'].index(self.trimcase['mass'])
+        n_modes = self.model.mass['n_modes'][i_mass]
         u = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
         z = -self.model.atmo['h'][i_atmo]
         #q = (self.trimcase['Nz'] - 1.0)*9.81/u

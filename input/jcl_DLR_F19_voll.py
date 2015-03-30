@@ -59,7 +59,7 @@ class jcl:
                                         '/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/nastran/dim_crosscheck_SOL103_BFDM.f06',
                                        ], 
                        'omit_rb_modes': True, 
-                       'modes':np.arange(1,11),                        
+                       'modes':[np.arange(1,11), np.arange(1,15)]               
                       }
         self.atmo = {'method':'ISA', 
                      'key':['FL000','FL055', 'FL075', 'FL300', 'FL450'],
