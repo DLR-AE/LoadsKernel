@@ -17,7 +17,7 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
     from trim import trim
     from model import model
     
-    print '--> Reading parameters read from JCL.'
+    print '--> Reading parameters from JCL.'
     jcl = imp.load_source('jcl', '../input/' + job_name + '.py')
     jcl = jcl.jcl() 
         

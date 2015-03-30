@@ -115,7 +115,7 @@ class rigid:
         Plcam[self.model.aerogrid['set_l'][:,1]] = flcam[1,:]
         Plcam[self.model.aerogrid['set_l'][:,2]] = flcam[2,:]
         
-        Pk_cam = np.dot(self.model.Dlk.T, Plcam) * 0.0
+        Pk_cam = np.dot(self.model.Dlk.T, Plcam) 
         
         
         
