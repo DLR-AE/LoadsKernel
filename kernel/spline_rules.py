@@ -6,6 +6,7 @@ Created on Fri Nov 21 10:32:03 2014
 """
 
 import numpy as np
+import read_geom
 
 def nearest_neighbour(grid_i, grid_d):
     print 'Searching nearest neighbour of {:.0f} dependent nodes in {:.0f} independent nodes...'.format(len(grid_d['ID']) , len(grid_i['ID']))
@@ -45,4 +46,23 @@ def rules_aeropanel(aerogrid):
     return splinerules
         
 
-    
+def monstations_from_report(mongrid, filenames):
+    if mongrid['n'] != len(filenames):
+        print 'Number of Stations in mongrid ({:.0f}) and number of reports ({:.0f}) unequal!'.format(mongrid['n'], len(filenames))
+    ID_d = []
+    ID_i = []
+    for i_station in range(mongrid['n']):
+                ID_d.append(read_geom.Nastran_NodeLocationReport(filenames[i_station]))
+                ID_i.append(mongrid['ID'][i_station])
+                
+    splinerules = {"method": 'rb',
+                   "ID_i": ID_i,
+                   "ID_d": ID_d,
+                    }
+    return splinerules
+                
+                
+                
+                
+                
+                

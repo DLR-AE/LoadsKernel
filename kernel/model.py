@@ -23,7 +23,7 @@ class model:
                       'dircos': [np.eye(3), np.array([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])],
                       'offset': [np.array([0,0,0]), np.array([0,0,0])],
                      }        
-        print 'Building structure model...'
+        print 'Building structural model...'
         if self.jcl.geom['method'] == 'mona':
             
             for i_file in range(len(self.jcl.geom['filename_grid'])):
@@ -47,8 +47,13 @@ class model:
             self.strcgrid['CP'] = self.strcgrid['CP'][sort_vector]
             #self.strcgrid['set'] = self.strcgrid['set'][sort_vector,:]
             self.strcgrid['offset'] = self.strcgrid['offset'][sort_vector,:]
-
+            
             self.Kgg = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
+            
+            print 'Building Monitoring Stations...' 
+            self.mongrid = read_geom.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
+            rules = spline_rules.monstations_from_report(self.mongrid, self.jcl.geom['filename_modgrid_report'])
+            self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord)
 
         print 'Building atmo model...'
         if self.jcl.atmo['method']=='ISA':

@@ -69,11 +69,22 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
             with open('../output/response_' + job_name + '.pickle', 'r') as f:
                 response = cPickle.load(f)
         
-        
+        print '--> Starting Post for %d trimcase(s).' % len(jcl.trimcase)
+        t_start = time.time()
         post_processing = post_processing(jcl, model, response)
-        post_processing.modal_displacment_method()
+        post_processing.force_summation_method()
+        post_processing.cuttingforces()
+        post_processing.gather_monstations()
+        print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
-    
+        print '--> Saving response(s) and monstations.'  
+        with open('../output/response_' + job_name + '.pickle', 'w') as f:
+            cPickle.dump(response, f, cPickle.HIGHEST_PROTOCOL)
+        with open('../output/monstations_' + job_name + '.pickle', 'w') as f:
+            cPickle.dump(post_processing.monstations, f, cPickle.HIGHEST_PROTOCOL)
+
+        post_processing.plot_monstations(post_processing.monstations, '../output/monstations_' + job_name + '.pdf')
+        
     if test:
         print '--> Loading model data.'
         t_start = time.time()
@@ -97,8 +108,8 @@ def load_model(job_name):
         
 if __name__ == "__main__":
     #run_kernel('jcl_DLR_F19_voll', pre = True, main = False)
-    #run_kernel('jcl_DLR_F19_voll', pre = True, main = True)
-    run_kernel('jcl_DLR_F19_voll', pre = False, main = True, post = True)
+    #run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
+    run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
     #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, test = True)
     
     

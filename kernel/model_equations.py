@@ -170,7 +170,7 @@ class rigid:
         Plf[self.model.aerogrid['set_l'][:,1]] = flf_1[1,:] + flf_2[1,:]
         Plf[self.model.aerogrid['set_l'][:,2]] = flf_1[2,:] + flf_2[2,:]
         
-        Pk_f = np.dot(self.model.Dlk.T, Plf)
+        Pk_f = np.dot(self.model.Dlk.T, Plf) * 0.0
         
         # --------------------------------   
         # --- summation of forces, EoM ---   
@@ -241,6 +241,7 @@ class rigid:
                         'd2Ucg_dt2': d2Ucg_dt2,
                         'd2Uf_dt2': d2Uf_dt2,
                         'Uf': Uf,
+                        'Nxyz': Nxyz,
                        }
             return response
     

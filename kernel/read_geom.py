@@ -468,4 +468,19 @@ def Modgen_W2GJ(filename):
     return camber_twist
 
 
-            
+def Nastran_NodeLocationReport(filename):
+    IDs = set()
+    with open(filename, 'r') as fid:
+        while True:
+            read_string = fid.readline()
+            if string.find(read_string, 'Node ID') !=-1 and read_string[0] != '$':
+                while True:
+                    read_string = fid.readline()
+                    if read_string.split() != [] and nastran_number_converter(read_string.split()[0], 'ID') != 0:
+                        IDs.add(nastran_number_converter(read_string.split()[0], 'ID'))
+                    else:
+                        break
+            elif read_string == '':
+                break
+
+        return list(IDs)     
