@@ -21,57 +21,57 @@ class jcl:
                         'MAC_ref': [0.0, 0.0, 0.0],
                        }
         self.geom = {'method': 'mona',
-                     'filename_grid':['/scratch/DLR-F19-S_150217/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.GRID',
-                                      '/scratch/DLR-F19-S_150217/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.GRID',
-                                      '/scratch/DLR-F19-S_150217/mg03_DLR-F19-S_Klappen/output/Klappen_innen.GRID',
-                                      '/scratch/DLR-F19-S_150217/mg03_DLR-F19-S_Klappen/output/Klappen_aussen.GRID',
-                                      '/scratch/DLR-F19-S_150217/mg03_DLR-F19-S_Klappen_LinkeSeite/output/Klappen_innen.GRID',
-                                      '/scratch/DLR-F19-S_150217/mg03_DLR-F19-S_Klappen_LinkeSeite/output/Klappen_aussen.GRID',
-                                      '/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/massconfig/special.rbe3',
-                                      '/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/massconfig/mg02_DLR-F19-S_baseline.RBE3_SUBSEG2_mod',
-                                      '/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/massconfig/mg05_DLR-F19-S_baseline.RBE3_SUBSEG2_mod',
-                                      '/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/Klappenanbindung.bdf',
+                     'filename_grid':['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.GRID',
+                                      '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.GRID',
+                                      '/scratch/DLR-F19-S_150217_work/mg03_DLR-F19-S_Klappen/output/Klappen_innen.GRID',
+                                      '/scratch/DLR-F19-S_150217_work/mg03_DLR-F19-S_Klappen/output/Klappen_aussen.GRID',
+                                      '/scratch/DLR-F19-S_150217_work/mg03_DLR-F19-S_Klappen_LinkeSeite/output/Klappen_innen.GRID',
+                                      '/scratch/DLR-F19-S_150217_work/mg03_DLR-F19-S_Klappen_LinkeSeite/output/Klappen_aussen.GRID',
+                                      '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/massconfig/special.rbe3',
+                                      '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/massconfig/mg02_DLR-F19-S_baseline.RBE3_SUBSEG2_mod',
+                                      '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/massconfig/mg05_DLR-F19-S_baseline.RBE3_SUBSEG2_mod',
+                                      '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/Klappenanbindung.bdf',
                                       ],
-                     'filename_KGG':'/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/nastran/KGG_dim.dat',
-                     'filename_mongrid': '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/grids',
-                     'filename_modgrid_report': ['/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon1.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon2.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon3.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon4.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon5.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon6.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon7.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon8.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon9.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon10.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon11.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon12.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/monitoring_stations/mon13.rpt.01',
+                     'filename_KGG':'/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/KGG_dim.dat',
+                     'filename_mongrid': '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/grids',
+                     'filename_modgrid_report': ['/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon1.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon2.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon3.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon4.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon5.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon6.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon7.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon8.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon9.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon10.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon11.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon12.rpt.01',
+                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon13.rpt.01',
                                                  ],
                     }
         self.aero = {'method': 'mona_steady',
                      'key':['VC', 'MC', 'VD', 'MD'],
                      'Ma': [0.8, 0.9, 0.89, 0.97],
-                     'filename_caero_bdf': ['/scratch/DLR-F19-S_150217/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.CAERO1_bdf', 
-                                            '/scratch/DLR-F19-S_150217/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.CAERO1_bdf'],
-                     'filename_deriv_4_W2GJ': ['/scratch/DLR-F19-S_150217/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.deriv_4_W2GJ', 
-                                               '/scratch/DLR-F19-S_150217/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.deriv_4_W2GJ'],
-                     'filename_aesurf': ['/scratch/DLR-F19-S_150217/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.AESURF', 
-                                         '/scratch/DLR-F19-S_150217/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AESURF'],
-                     'filename_aelist': ['/scratch/DLR-F19-S_150217/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.AELIST', 
-                                         '/scratch/DLR-F19-S_150217/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AELIST'],
-                     'filename_AIC': ['/scratch/DLR-F19-S_150217/trim_DLR-F19-S/aic/AJJ01.dat', \
-                                      '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/aic/AJJ02.dat', \
-                                      '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/aic/AJJ03.dat', \
-                                      '/scratch/DLR-F19-S_150217/trim_DLR-F19-S/aic/AJJ04.dat', \
+                     'filename_caero_bdf': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.CAERO1_bdf', 
+                                            '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.CAERO1_bdf'],
+                     'filename_deriv_4_W2GJ': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.deriv_4_W2GJ', 
+                                               '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.deriv_4_W2GJ'],
+                     'filename_aesurf': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.AESURF', 
+                                         '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AESURF'],
+                     'filename_aelist': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.AELIST', 
+                                         '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AELIST'],
+                     'filename_AIC': ['/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/aic/AJJ01.dat', \
+                                      '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/aic/AJJ02.dat', \
+                                      '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/aic/AJJ03.dat', \
+                                      '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/aic/AJJ04.dat', \
                                      ],
                     }
         self.mass = {'method': 'mona',
                        'key': ['M', 'BFDM'],
-                       'filename_MGG':['/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/nastran/MGG_M_dim.dat',
-                                       '/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/nastran/MGG_BFDM_dim.dat'],
-                       'filename_S103':['/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/nastran/dim_crosscheck_SOL103_M.f06', 
-                                        '/scratch/DLR-F19-S_150217/assembly_DLR-F-19-S/nastran/dim_crosscheck_SOL103_BFDM.f06',
+                       'filename_MGG':['/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MGG_M_dim.dat',
+                                       '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MGG_BFDM_dim.dat'],
+                       'filename_S103':['/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/dim_crosscheck_SOL103_M.f06', 
+                                        '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/dim_crosscheck_SOL103_BFDM.f06',
                                        ], 
                        'omit_rb_modes': True, 
                        'modes':[np.arange(1,11), np.arange(1,15)]               
@@ -94,7 +94,7 @@ class jcl:
 #                        }]
                         
         from numpy import array
-        fid = open('/scratch/DLR-F19-S_150217/trim_DLR-F19-S/test_trim.trimcase_dict', 'r')
+        fid = open('/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/test_trim.trimcase_dict', 'r')
         trimcase_str = fid.read()
         fid.close()
         self.trimcase = eval(trimcase_str)

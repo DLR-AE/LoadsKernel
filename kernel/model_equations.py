@@ -242,6 +242,7 @@ class rigid:
                         'd2Uf_dt2': d2Uf_dt2,
                         'Uf': Uf,
                         'Nxyz': Nxyz,
+                        'g_cg': g_cg,
                        }
             return response
     

@@ -8,6 +8,7 @@ import build_aero
 import spline_rules
 import spline_functions
 import read_geom
+from grid_trafo import grid_trafo
 from  atmo_isa import atmo_isa
 import numpy as np
 import matplotlib.pyplot as plt
@@ -48,6 +49,9 @@ class model:
             #self.strcgrid['set'] = self.strcgrid['set'][sort_vector,:]
             self.strcgrid['offset'] = self.strcgrid['offset'][sort_vector,:]
             
+            # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
+            grid_trafo(self.strcgrid, self.coord, 0)
+
             self.Kgg = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
             
             print 'Building Monitoring Stations...' 
