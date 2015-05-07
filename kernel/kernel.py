@@ -12,8 +12,7 @@ import imp
 
 def run_kernel(job_name, pre=True, main=True, post=False, test=False):
     
-    print 'Starting AE Kernel with job: '
-    print 'job_name: ' + job_name
+    print 'Starting AE Kernel with job: ' + job_name
     print 'pre:  ' + str(pre)
     print 'main: ' + str(main)
     print 'post: ' + str(post)
@@ -112,7 +111,7 @@ def load_model(job_name):
     return model
         
 if __name__ == "__main__":
-    #run_kernel('jcl_DLR_F19_voll', pre = True, main = True)
+    run_kernel('jcl_DLR_F19_voll', pre = True, main = True)
     #run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
     run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
     #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, test = True)

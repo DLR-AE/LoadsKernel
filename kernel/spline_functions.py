@@ -11,7 +11,8 @@ import time
 import string
 from read_geom import nastran_number_converter
 
-def Nastran_Spline(filename, strcgrid, aerogrid):
+def spline_nastran(filename, strcgrid, aerogrid):
+    print 'Read Nastran spline (PARAM    OPGTKG   1) from {}'.format(filename)
     with open(filename, 'r') as fid:
         lines = fid.readlines()
     i_line = 0
@@ -54,7 +55,6 @@ def Nastran_Spline(filename, strcgrid, aerogrid):
                 line_split = line_split[3:]
             i_line += 1
             
-    print 'Done.'
     return PHI
 
 

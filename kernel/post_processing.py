@@ -36,11 +36,7 @@ class post_processing:
             #response['Pg_flex'] = self.model.Kgg.dot(response['Ug_flex']) * 0.0
             
             response['Pg'] = response['Pg_aero'] + response['Pg_iner_r'] + response['Pg_iner_f']
-            
-            nastran_spline = self.model.nastran_spline           
-            Pg_aero_test = nastran_spline.T.dot(response['Pk_aero'])
-            response['Pg'] = Pg_aero_test + response['Pg_iner_r'] + response['Pg_iner_f']
-            
+
             # das muss raus kommen:
             #np.dot(self.model.mass['Mb'][i_mass],np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'], response['d2Ucg_dt2'][3:6])))
             #PHIstrc_cg.T.dot(response['Pg_aero'])

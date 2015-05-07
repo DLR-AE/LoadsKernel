@@ -66,6 +66,9 @@ class jcl:
                                       '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/aic/AJJ04.dat', \
                                      ],
                     }
+        self.spline = {'method': 'nastran', # 'nearest_neighbour', 'rbf', 'nastran'
+                       'filename': '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/test_trim/test_trim_BFDM_loop3.f06',
+                      }
         self.mass = {'method': 'mona',
                        'key': ['M', 'BFDM'],
                        'filename_MGG':['/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MGG_M_dim.dat',

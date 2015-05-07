@@ -162,14 +162,21 @@ class model:
 #            plt.show()
             
             
-            # splines
-            self.nastran_spline = spline_functions.Nastran_Spline('/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/test_trim/test_trim_BFDM_loop3.f06', self.strcgrid, self.aerogrid)       
+            # splines 
+            
+            # PHIk_strc with 'nearest_neighbour', 'rbf' or 'nastran'
+            if self.jcl.spline['method'] == 'rbf': 
+                self.PHIk_strc = spline_functions.spline_rbf(self.strcgrid, '',self.aerogrid, '_k', 'tps' )
+                # rbf-spline not (yet) stable for translation of forces and moments to structure grid, so use rb-spline with nearest neighbour search instead
+            elif self.jcl.spline['method'] == 'nearest_neighbour':
+                rules = spline_rules.nearest_neighbour(self.strcgrid, self.aerogrid)    
+                self.PHIk_strc = spline_functions.spline_rb(self.strcgrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6])
+            elif self.jcl.spline['method'] == 'nastran': 
+                self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename'], self.strcgrid, self.aerogrid)  
+            else:
+                print 'Unknown spline method.'
 
-            #self.PHIk_strc = spline_functions.spline_rbf(self.strcgrid, '',self.aerogrid, '_k', 'tps' )
-            # rbf-spline not (yet) stable for translation of forces and moments to structure grid, so use rb-spline with nearest neighbour search instead
-            rules = spline_rules.nearest_neighbour(self.strcgrid, self.aerogrid)    
-            self.PHIk_strc = spline_functions.spline_rb(self.strcgrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6])
-
+                        
             rules = spline_rules.rules_aeropanel(self.aerogrid)
             self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord)
             self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord)
