@@ -8,6 +8,55 @@ import numpy as np
 import scipy
 import scipy.sparse as sp
 import time
+import string
+from read_geom import nastran_number_converter
+
+def Nastran_Spline(filename, strcgrid, aerogrid):
+    with open(filename, 'r') as fid:
+        lines = fid.readlines()
+    i_line = 0
+    PHI = np.zeros((aerogrid['n']*6, strcgrid['n']*6))
+    for line in lines:
+        i_line += 1
+        if string.find(string.replace(line,' ',''),'GPJK') != -1:
+            i_line += 3
+            break
+        
+    while string.find(string.replace(lines[i_line],' ',''),'COLUMN') != -1:
+        #print lines[i_line]
+        line_split = lines[i_line].split()
+        if line_split[3].split('-')[1][:2] == 'T3':
+            tmp = 2
+        elif line_split[3].split('-')[1][:2] == 'R2':
+            tmp = 4
+        else:
+            print 'DOF not implemented!'
+        col = aerogrid['set_k'][np.where(np.int(line_split[3].split('-')[0]) == aerogrid['ID'])[0][0],tmp]
+        
+        i_line += 1
+        while True:
+            if lines[i_line] == '\n' or lines[i_line][0] == '1':
+                i_line += 1
+                break
+            
+            line_split = lines[i_line].split()
+            while len(line_split) >= 3:
+
+                if line_split[1] == 'T3':
+                    tmp = 2
+                elif line_split[1] == 'R2':
+                    tmp = 4
+                else:
+                    print 'DOF not implemented!'                    
+                row = strcgrid['set'][np.where(np.int(line_split[0]) == strcgrid['ID'])[0][0],tmp]
+                PHI[col,row] = nastran_number_converter(line_split[2], 'float')
+                
+                line_split = line_split[3:]
+            i_line += 1
+            
+    print 'Done.'
+    return PHI
+
 
 def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type):
     cl_rbf = rbf(grid_i['offset'+set_i].T, grid_d['offset'+set_d].T, rbf_type) 

@@ -37,11 +37,19 @@ class post_processing:
             
             response['Pg'] = response['Pg_aero'] + response['Pg_iner_r'] + response['Pg_iner_f']
             
+            nastran_spline = self.model.nastran_spline           
+            Pg_aero_test = nastran_spline.T.dot(response['Pk_aero'])
+            response['Pg'] = Pg_aero_test + response['Pg_iner_r'] + response['Pg_iner_f']
+            
             # das muss raus kommen:
             #np.dot(self.model.mass['Mb'][i_mass],np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'], response['d2Ucg_dt2'][3:6])))
             #PHIstrc_cg.T.dot(response['Pg_aero'])
             # das kommt raus:
             #PHIstrc_cg.T.dot(response['Pg_iner_r'])
+            
+            
+            
+            
             
             plotting = False
             if plotting:
@@ -49,8 +57,8 @@ class post_processing:
                 x, y, z = self.model.strcgrid['offset'][:,0], self.model.strcgrid['offset'][:,1], self.model.strcgrid['offset'][:,2]
                 
                 mlab.figure() 
-                mlab.points3d(x, y, z, scale_factor=0.1)
-                mlab.quiver3d(x, y, z, response['Pg_iner_r'][self.model.strcgrid['set'][:,0]], response['Pg_iner_r'][self.model.strcgrid['set'][:,1]], response['Pg_iner_r'][self.model.strcgrid['set'][:,2]], color=(1,0,0), scale_factor=0.001)            
+                mlab.points3d(x, y, z, scale_factor=0.05)
+                #mlab.quiver3d(x, y, z, response['Pg_iner_r'][self.model.strcgrid['set'][:,0]], response['Pg_iner_r'][self.model.strcgrid['set'][:,1]], response['Pg_iner_r'][self.model.strcgrid['set'][:,2]], color=(1,0,0), scale_factor=0.001)            
                 #mlab.quiver3d(x, y, z, Pg_iner_f[self.model.strcgrid['set'][:,0]], Pg_iner_f[self.model.strcgrid['set'][:,1]], Pg_iner_f[self.model.strcgrid['set'][:,2]], color=(0,1,0), scale_factor=0.01)            
                 
                 #mlab.quiver3d(x, y, z, Pg_flex[self.model.strcgrid['set'][:,0]]*1, Pg_flex[self.model.strcgrid['set'][:,1]]*0, Pg_flex[self.model.strcgrid['set'][:,2]]*0, color=(1,0,0), scale_factor=0.01)         
@@ -58,7 +66,8 @@ class post_processing:
                 #mlab.quiver3d(x, y, z, Pg_flex[self.model.strcgrid['set'][:,0]]*0, Pg_flex[self.model.strcgrid['set'][:,1]]*0, Pg_flex[self.model.strcgrid['set'][:,2]]*1, color=(0,0,1), scale_factor=0.01)                 
         
                 mlab.quiver3d(x, y, z, response['Pg_aero'][self.model.strcgrid['set'][:,0]], response['Pg_aero'][self.model.strcgrid['set'][:,1]], response['Pg_aero'][self.model.strcgrid['set'][:,2]], color=(0,0,1), scale_factor=0.001)            
-        
+                mlab.quiver3d(x, y, z, Pg_aero_test[self.model.strcgrid['set'][:,0]], Pg_aero_test[self.model.strcgrid['set'][:,1]], Pg_aero_test[self.model.strcgrid['set'][:,2]], color=(1,0,0), scale_factor=0.001)            
+
                 #fx, fy, fz = response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]]
                 #scale=0.001
                 #mlab.figure()  

@@ -124,6 +124,7 @@ def build_aerogrid(filename_caero_bdf):
                 'set_j': set_j,
                 'CD': caero_grid['CD'],
                 'CP': caero_grid['CP'],
+                'n': n,
                 'coord_desc': 'bodyfixed',
                }     
     #fig = plt.figure()

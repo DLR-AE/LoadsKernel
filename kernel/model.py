@@ -100,7 +100,8 @@ class model:
                     self.aerogrid['set_j'] = np.vstack((self.aerogrid['set_j'],subgrid['set_j']+self.aerogrid['set_j'].max()+1))
                     self.aerogrid['CD'] = np.hstack((self.aerogrid['CD'],subgrid['CD']))
                     self.aerogrid['CP'] = np.hstack((self.aerogrid['CP'],subgrid['CP']))
-            
+                    self.aerogrid['n'] += subgrid['n']
+                       
             # Correctionfor camber and twist, W2GJ
             for i_file in range(len(self.jcl.aero['filename_deriv_4_W2GJ'])):
                 subgrid = read_geom.Modgen_W2GJ(self.jcl.aero['filename_deriv_4_W2GJ'][i_file]) 
@@ -162,7 +163,8 @@ class model:
             
             
             # splines
-            
+            self.nastran_spline = spline_functions.Nastran_Spline('/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/test_trim/test_trim_BFDM_loop3.f06', self.strcgrid, self.aerogrid)       
+
             #self.PHIk_strc = spline_functions.spline_rbf(self.strcgrid, '',self.aerogrid, '_k', 'tps' )
             # rbf-spline not (yet) stable for translation of forces and moments to structure grid, so use rb-spline with nearest neighbour search instead
             rules = spline_rules.nearest_neighbour(self.strcgrid, self.aerogrid)    
