@@ -90,15 +90,18 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
         post_processing.plot_monstations(post_processing.monstations, '../output/monstations_' + job_name + '.pdf')
         
     if test:
-        print '--> Loading model data.'
-        t_start = time.time()
-        f = open('../output/model_' + job_name + '.pickle', 'r')
-        model = cPickle.load(f)
-        f.close()
-        print '--> Done in %.2f [sec].' % (time.time() - t_start)
+        if not 'model' in locals():
+            model = load_model(job_name)
         
-        from read_pval3 import test
-        test(model, jcl.trimcase)
+        if not 'response' in locals():
+            print '--> Loading response(s).'  
+            with open('../output/response_' + job_name + '.pickle', 'r') as f:
+                response = cPickle.load(f)
+        
+        import process_spline
+        process_spline.test_spline(model, response[0])
+        #from read_pval3 import test
+        #test(model, jcl.trimcase)
 
         print 'Done.'
 
@@ -111,9 +114,9 @@ def load_model(job_name):
     return model
         
 if __name__ == "__main__":
-    run_kernel('jcl_DLR_F19_voll', pre = True, main = True)
+    run_kernel('jcl_DLR_F19_voll', pre = True, main = True, post = True)
     #run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
-    run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
+    #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
     #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, test = True)
     
     

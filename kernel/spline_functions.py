@@ -58,7 +58,8 @@ def spline_nastran(filename, strcgrid, aerogrid):
     return PHI
 
 
-def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type):
+def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type, dimensions=''):
+
     cl_rbf = rbf(grid_i['offset'+set_i].T, grid_d['offset'+set_d].T, rbf_type) 
     cl_rbf.build_M()
     cl_rbf.build_splinematrix()
@@ -66,14 +67,24 @@ def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type):
     # obige Matrix gilt fuer Verschiebung eines DOF
     # PHI soll aber alle 6 DOFs verschieben!
     # Hier koennte auch eine sparse-Matrix genommen werden...
-    PHI = np.zeros((len(grid_d['ID'])*6, len(grid_i['ID'])*6))
+    
+    # Here, the size of the splining matrix is determined. One might want the matrix to be bigger than actually needed.
+    # One example might be the multiplication of the (smaller) x2grid with the (larger) AIC matrix.
+    if dimensions != '' and len(dimensions) == 2:
+        dimensions_i = dimensions[0]
+        dimensions_d = dimensions[1]
+    else:
+        dimensions_i = 6*len(grid_i['set'+set_i])
+        dimensions_d = 6*len(grid_d['set'+set_d])
+    print 'Expanding Spline to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i)
+    PHI = np.zeros((dimensions_d, dimensions_i))
     PHI[np.ix_(grid_d['set'+set_d][:,0], grid_i['set'+set_i][:,0])] = PHI_tmp
     PHI[np.ix_(grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])] = PHI_tmp
     PHI[np.ix_(grid_d['set'+set_d][:,2], grid_i['set'+set_i][:,2])] = PHI_tmp
     PHI[np.ix_(grid_d['set'+set_d][:,3], grid_i['set'+set_i][:,3])] = PHI_tmp
     PHI[np.ix_(grid_d['set'+set_d][:,4], grid_i['set'+set_i][:,4])] = PHI_tmp
     PHI[np.ix_(grid_d['set'+set_d][:,5], grid_i['set'+set_i][:,5])] = PHI_tmp
-
+    print '... Done'
     return PHI
 
 class rbf:
@@ -152,7 +163,6 @@ class rbf:
         
         else:
             print 'Error: Unkown Radial Basis Function!'
-            exit()
             
     def __init__(self, nodes_fe, nodes_cfd, rbf_type):
         self.nodes_cfd = nodes_cfd

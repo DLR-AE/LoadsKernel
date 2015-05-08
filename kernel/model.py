@@ -7,6 +7,7 @@ Created on Fri Nov 28 10:53:48 2014
 import build_aero
 import spline_rules
 import spline_functions
+import build_splinegrid
 import read_geom
 from grid_trafo import grid_trafo
 from  atmo_isa import atmo_isa
@@ -165,18 +166,28 @@ class model:
             # splines 
             
             # PHIk_strc with 'nearest_neighbour', 'rbf' or 'nastran'
+            if self.jcl.spline['splinegrid'] == True:
+                # this optin is only valid if spline['method'] == 'rbf' or 'rb'
+                print 'Coupling aerogrid to strcgrid via splinegrid:'
+                self.splinegrid = build_splinegrid.build_splinegrid(self.strcgrid, self.jcl.spline['filename_splinegrid'])
+                # self.splinegrid = build_splinegrid.grid_thin_out_random(self.splinegrid, 0.05)
+                # self.splinegrid = build_splinegrid.grid_thin_out_radius(self.splinegrid, 0.5)
+            else:
+                print 'Coupling aerogrid directly. Doing cleanup/thin out of strcgrid to avoid singularities (safety first!)'
+                self.splinegrid = build_splinegrid.grid_thin_out_radius(self.strcgrid, 0.01)
+            
+
             if self.jcl.spline['method'] == 'rbf': 
-                self.PHIk_strc = spline_functions.spline_rbf(self.strcgrid, '',self.aerogrid, '_k', 'tps' )
+                self.PHIk_strc = spline_functions.spline_rbf(self.splinegrid, '',self.aerogrid, '_k', 'tps', dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6] )
                 # rbf-spline not (yet) stable for translation of forces and moments to structure grid, so use rb-spline with nearest neighbour search instead
             elif self.jcl.spline['method'] == 'nearest_neighbour':
-                rules = spline_rules.nearest_neighbour(self.strcgrid, self.aerogrid)    
-                self.PHIk_strc = spline_functions.spline_rb(self.strcgrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6])
+                rules = spline_rules.nearest_neighbour(self.splinegrid, self.aerogrid)    
+                self.PHIk_strc = spline_functions.spline_rb(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6])
             elif self.jcl.spline['method'] == 'nastran': 
-                self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename'], self.strcgrid, self.aerogrid)  
+                self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
             else:
                 print 'Unknown spline method.'
-
-                        
+        
             rules = spline_rules.rules_aeropanel(self.aerogrid)
             self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord)
             self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord)

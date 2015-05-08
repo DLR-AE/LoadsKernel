@@ -26,11 +26,13 @@ class post_processing:
             Mgg        = self.model.mass['MGG'][i_mass]
             PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
             PHIstrc_cg  = self.model.mass['PHIstrc_cg'][i_mass]
-
+            
+            # Formel bezogen auf die linearen Bewegungsgleichungen Nastrans. 
+            # Fuer Bewegungsgleichungen z.B. von Waszack muessen die zusaetzlichen Terme hier ebenfalls beruecksichtigt werden!
             d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'], response['d2Ucg_dt2'][3:6])) )
-            #d2Ug_dt2_r = PHIstrc_cg.dot( [0,0,1,0,0,0] )
-            d2Ug_dt2_f = PHIf_strc.T.dot(response['d2Uf_dt2'])
             response['Pg_iner_r'] = - Mgg.dot(d2Ug_dt2_r)
+            
+            d2Ug_dt2_f = PHIf_strc.T.dot(response['d2Uf_dt2'])
             response['Pg_iner_f'] = - Mgg.dot(d2Ug_dt2_f)  * 0.0
             #response['Ug_flex'] = PHIf_strc.T.dot(response['Uf'])
             #response['Pg_flex'] = self.model.Kgg.dot(response['Ug_flex']) * 0.0
@@ -42,11 +44,7 @@ class post_processing:
             #PHIstrc_cg.T.dot(response['Pg_aero'])
             # das kommt raus:
             #PHIstrc_cg.T.dot(response['Pg_iner_r'])
-            
-            
-            
-            
-            
+
             plotting = False
             if plotting:
                 from mayavi import mlab
@@ -62,16 +60,7 @@ class post_processing:
                 #mlab.quiver3d(x, y, z, Pg_flex[self.model.strcgrid['set'][:,0]]*0, Pg_flex[self.model.strcgrid['set'][:,1]]*0, Pg_flex[self.model.strcgrid['set'][:,2]]*1, color=(0,0,1), scale_factor=0.01)                 
         
                 mlab.quiver3d(x, y, z, response['Pg_aero'][self.model.strcgrid['set'][:,0]], response['Pg_aero'][self.model.strcgrid['set'][:,1]], response['Pg_aero'][self.model.strcgrid['set'][:,2]], color=(0,0,1), scale_factor=0.001)            
-                mlab.quiver3d(x, y, z, Pg_aero_test[self.model.strcgrid['set'][:,0]], Pg_aero_test[self.model.strcgrid['set'][:,1]], Pg_aero_test[self.model.strcgrid['set'][:,2]], color=(1,0,0), scale_factor=0.001)            
-
-                #fx, fy, fz = response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]]
-                #scale=0.001
-                #mlab.figure()  
-                #mlab.points3d(x, y, z, scale_factor=0.1)
-                #mlab.quiver3d(x, y, z, fx*scale, fy*scale, fz*scale , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-                #mlab.quiver3d(x+fx*scale, y+fy*scale, z+fz*scale,fx*scale, fy*scale, fz*scale , color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
-                #mlab.title('Pg', size=0.2, height=0.95)
-                
+         
                 #x_f = self.model.strcgrid['offset'][:,0] + Ug_flex[self.model.strcgrid['set'][:,0]] * 100
                 #y_f = self.model.strcgrid['offset'][:,1] + Ug_flex[self.model.strcgrid['set'][:,1]] * 100
                 #z_f = self.model.strcgrid['offset'][:,2] + Ug_flex[self.model.strcgrid['set'][:,2]] * 100
