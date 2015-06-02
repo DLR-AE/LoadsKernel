@@ -34,7 +34,7 @@ class jcl:
                                       ],
                      'filename_KGG':'/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/KGG_dim.dat',
                      'filename_mongrid': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_grids.bdf',
-                     'filename_monstations': ['/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon00.bdf',
+                     'filename_monstations': ['/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon08.bdf',
                                                  '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon01.bdf',
                                                  '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon02.bdf',
                                                  '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon03.bdf',

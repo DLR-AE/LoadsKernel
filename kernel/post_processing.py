@@ -94,7 +94,7 @@ class post_processing:
                 monstation['loads'].append(self.response[i_trimcase]['Pmon'][self.model.mongrid['set'][i_station,:]])
                 monstation['subcase'].append(self.jcl.trimcase[i_trimcase]['desc'])
 
-            self.monstations['MON{:0>2s}'.format(str(int(self.model.mongrid['ID'][i_station])))] = monstation
+            self.monstations['Mon{:s}'.format(str(int(self.model.mongrid['ID'][i_station])))] = monstation
             
 
     def save_monstations(self, filename):
@@ -111,7 +111,7 @@ class post_processing:
     
     def plot_monstations(self, monstations, filename_pdf):
         
-        stations_to_plot = ['MON01', 'MON02', 'MON03', 'MON00']
+        stations_to_plot = ['Mon1', 'Mon2', 'Mon3', 'Mon8']
         
         print 'start potato-plotting...'
         # get data needed for plotting from monstations
@@ -193,7 +193,7 @@ class post_processing:
             plt.xlabel('y [m]')
             plt.ylabel('Mz [Nm]')
             #plt.tight_layout()
-            plt.suptitle('Subcase ' + str(monstations['MON00']['subcase'][i_case]))
+            plt.suptitle('Subcase ' + str(monstations['Mon1']['subcase'][i_case]))
             plt.subplots_adjust(left=0.1, right=0.95, top=0.90, bottom=0.1, wspace = 0.4, hspace = 0.3)
             
             #plt.show()
