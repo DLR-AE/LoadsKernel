@@ -60,5 +60,3 @@ def grid_thin_out_radius(grid, radius):
                }
     return grid_thin 
     
-    
-    

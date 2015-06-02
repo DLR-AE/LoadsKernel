@@ -33,20 +33,19 @@ class jcl:
                                       '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/Klappenanbindung.bdf',
                                       ],
                      'filename_KGG':'/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/KGG_dim.dat',
-                     'filename_mongrid': '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/grids',
-                     'filename_modgrid_report': ['/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon1.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon2.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon3.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon4.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon5.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon6.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon7.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon8.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon9.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon10.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon11.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon12.rpt.01',
-                                                 '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/monitoring_stations/mon13.rpt.01',
+                     'filename_mongrid': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_grids.bdf',
+                     'filename_monstations': ['/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon00.bdf',
+                                                 '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon01.bdf',
+                                                 '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon02.bdf',
+                                                 '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon03.bdf',
+                                                 '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon04.bdf',
+                                                 '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon05.bdf',
+                                                 '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon06.bdf',
+                                                 '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon07.bdf',
+                                                 '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon20.bdf',
+                                                 '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon22.bdf',
+                                                 '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon23.bdf',
+                                                 '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon24.bdf',
                                                  ],
                     }
         self.aero = {'method': 'mona_steady',
@@ -69,7 +68,7 @@ class jcl:
         self.spline = {'method': 'nearest_neighbour', # 'nearest_neighbour', 'rbf', 'nastran'
                        'filename_f06': '/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/test_trim/test_trim_BFDM_loop3.f06',
                        'splinegrid': True, # if true, provide filename_grid, not valid when spline method = 'nastran'
-                       'filename_splinegrid': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/SplineKnoten/test_Alle.bdf'
+                       'filename_splinegrid': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/SplineKnoten/splinegrid.bdf'
                       }
         self.mass = {'method': 'mona',
                        'key': ['M', 'BFDM'],

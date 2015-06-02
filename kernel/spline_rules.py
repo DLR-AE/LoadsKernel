@@ -60,7 +60,22 @@ def monstations_from_report(mongrid, filenames):
                    "ID_d": ID_d,
                     }
     return splinerules
+
+def monstations_from_bdf(mongrid, filenames):
+    if mongrid['n'] != len(filenames):
+        print 'Number of Stations in mongrid ({:.0f}) and number of bdfs ({:.0f}) unequal!'.format(mongrid['n'], len(filenames))
+    ID_d = []
+    ID_i = []
+    for i_station in range(mongrid['n']):
+        tmp = read_geom.Modgen_GRID(filenames[i_station]) 
+        ID_d.append(tmp['ID'])
+        ID_i.append(mongrid['ID'][i_station])
                 
+    splinerules = {"method": 'rb',
+                   "ID_i": ID_i,
+                   "ID_d": ID_d,
+                    }
+    return splinerules
                 
                 
                 
