@@ -35,7 +35,7 @@ class post_processing:
             response['Pg_iner_r'] = - Mgg.dot(d2Ug_dt2_r)
             
             d2Ug_dt2_f = PHIf_strc.T.dot(response['d2Uf_dt2'])
-            response['Pg_iner_f'] = - Mgg.dot(d2Ug_dt2_f)  * 0.0
+            response['Pg_iner_f'] = - Mgg.dot(d2Ug_dt2_f)
             #response['Ug_flex'] = PHIf_strc.T.dot(response['Uf'])
             #response['Pg_flex'] = self.model.Kgg.dot(response['Ug_flex']) * 0.0
             
@@ -62,7 +62,8 @@ class post_processing:
                 #mlab.quiver3d(x, y, z, Pg_flex[self.model.strcgrid['set'][:,0]]*0, Pg_flex[self.model.strcgrid['set'][:,1]]*0, Pg_flex[self.model.strcgrid['set'][:,2]]*1, color=(0,0,1), scale_factor=0.01)                 
         
                 mlab.quiver3d(x, y, z, response['Pg_aero'][self.model.strcgrid['set'][:,0]], response['Pg_aero'][self.model.strcgrid['set'][:,1]], response['Pg_aero'][self.model.strcgrid['set'][:,2]], color=(0,0,1), scale_factor=0.001)            
-         
+                mlab.quiver3d(x, y, z, response['Pg_iner_r'][self.model.strcgrid['set'][:,0]], response['Pg_iner_r'][self.model.strcgrid['set'][:,1]], response['Pg_iner_r'][self.model.strcgrid['set'][:,2]], color=(0,0,1), scale_factor=0.001)            
+
                 #x_f = self.model.strcgrid['offset'][:,0] + Ug_flex[self.model.strcgrid['set'][:,0]] * 100
                 #y_f = self.model.strcgrid['offset'][:,1] + Ug_flex[self.model.strcgrid['set'][:,1]] * 100
                 #z_f = self.model.strcgrid['offset'][:,2] + Ug_flex[self.model.strcgrid['set'][:,2]] * 100
@@ -105,13 +106,24 @@ class post_processing:
 
     def save_nodalloads(self, filename):
         print 'saving nodal loads as Nastarn cards...'
-        with open(filename, 'w') as fid: 
+        with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
                 write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg'], i_trimcase+1)
+        with open(filename+'_Pg_aero', 'w') as fid: 
+            for i_trimcase in range(len(self.jcl.trimcase)):
+                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_aero'], i_trimcase+1)
+        with open(filename+'_Pg_iner_r', 'w') as fid: 
+            for i_trimcase in range(len(self.jcl.trimcase)):
+                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_r'], i_trimcase+1) 
+        with open(filename+'_Pg_iner_f', 'w') as fid: 
+            for i_trimcase in range(len(self.jcl.trimcase)):
+                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_f'], i_trimcase+1)
     
     def plot_monstations(self, monstations, filename_pdf):
         
-        stations_to_plot = ['Mon1', 'Mon2', 'Mon3', 'Mon8']
+        stations_wing = ['Mon1', 'Mon2', 'Mon3', 'Mon8']
+        stations_fuselage = ['Mon6', 'Mon7']
+        stations_to_plot = stations_wing + stations_fuselage
         
         print 'start potato-plotting...'
         # get data needed for plotting from monstations
@@ -126,7 +138,12 @@ class post_processing:
         pp = PdfPages(filename_pdf)
         for i_station in range(len(stations_to_plot)):
             # calculated convex hull from scattered points
-            points = np.vstack((loads[i_station][:,2], loads[i_station][:,3])).T
+            if stations_to_plot[i_station] in stations_wing:
+                points = np.vstack((loads[i_station][:,2], loads[i_station][:,3])).T
+                labels = ['Fz [N]', 'Mx [Nm]' ]
+            elif stations_to_plot[i_station] in stations_fuselage:
+                points = np.vstack((loads[i_station][:,2], loads[i_station][:,4])).T
+                labels = ['Fz [N]', 'My [Nm]' ]
             hull = ConvexHull(points)
             
             plt.figure()
@@ -143,8 +160,8 @@ class post_processing:
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             plt.title(stations_to_plot[i_station])
             plt.grid('on')
-            plt.xlabel('Fz [N]')
-            plt.ylabel('Mx [Nm]')
+            plt.xlabel(labels[0])
+            plt.ylabel(labels[1])
             
             #plt.show()
             pp.savefig()

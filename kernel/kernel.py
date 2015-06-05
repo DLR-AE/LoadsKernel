@@ -96,9 +96,26 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
             print '--> Loading response(s).'  
             with open('../output/response_' + job_name + '.pickle', 'r') as f:
                 response = cPickle.load(f)
+                
+        import scipy.sparse as sp
         
-        import process_spline
-        process_spline.test_spline(model, response[0])
+        Pf = np.abs(model.mass['PHIf_strc'][1].dot(response[0]['Pg']))
+        Pf_dim = Pf / np.max(Pf)
+        Pf_dim = Pf / np.max(Pf)
+        Uf = np.linalg.inv(model.mass['Kff'][1]).dot(Pf)
+        
+        Ug = model.mass['PHIf_strc'][1].T.dot(Uf)
+        
+        Pgg = model.Kgg.dot(Ug)
+        
+        import matplotlib.pyplot as plt
+        plt.figure()
+        #plt.plot(Pf_dim, 'b.-')
+        plt.plot(Uf, 'r.-')
+        plt.grid('on')
+        plt.show()
+        #import process_spline
+        #process_spline.test_spline(model, response[0])
         #from read_pval3 import test
         #test(model, jcl.trimcase)
 
@@ -113,10 +130,10 @@ def load_model(job_name):
     return model
         
 if __name__ == "__main__":
-    #run_kernel('jcl_DLR_F19_voll', pre = True, main = True, post = True)
+    run_kernel('jcl_DLR_F19_voll', pre = True, main = True, post = True)
     #run_kernel('jcl_DLR_F19_voll', pre = True, main = False)
     #run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
-    run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
+    #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
     #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, test = True)
     
     

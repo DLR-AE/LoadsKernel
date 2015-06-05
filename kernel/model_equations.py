@@ -92,7 +92,7 @@ class rigid:
         Plx1[self.model.aerogrid['set_l'][:,2]] = flx1[2,:]
         
         Pk_rbm = np.dot(self.model.Dlk.T, Plx1)
-        Pb_rbm = np.dot(PHImac_cg.T, np.dot(Dkx1.T, Pk_rbm))
+        #Pb_rbm = np.dot(PHImac_cg.T, np.dot(Dkx1.T, Pk_rbm))
         
 #        print Pb_rbm
 #        from mayavi import mlab
@@ -104,6 +104,8 @@ class rigid:
 #        mlab.points3d(x, y, z, scale_factor=0.1)
 #        mlab.quiver3d(x, y, z, Ujx1[self.model.aerogrid['set_j'][:,0]]*0.0, Ujx1[self.model.aerogrid['set_j'][:,1]], Ujx1[self.model.aerogrid['set_j'][:,2]], color=(0,1,1), scale_factor=1.0)            
 #        mlab.show()
+        
+        
         # -----------------------------   
         # --- aero camber and twist ---   
         # -----------------------------
@@ -116,8 +118,6 @@ class rigid:
         Plcam[self.model.aerogrid['set_l'][:,2]] = flcam[2,:]
         
         Pk_cam = np.dot(self.model.Dlk.T, Plcam) 
-        
-        
         
         # -----------------------------   
         # --- aero control surfaces ---   
@@ -146,7 +146,8 @@ class rigid:
             Plx2[self.model.aerogrid['set_l'][:,2]] += flx2[2,:]
         
         Pk_cs = np.dot(self.model.Dlk.T, Plx2)
-        Pb_cs = np.dot(PHImac_cg.T, np.dot(Dkx1.T, Pk_cs))
+        #Pb_cs = np.dot(PHImac_cg.T, np.dot(Dkx1.T, Pk_cs))
+        
         # ---------------------   
         # --- aero flexible ---   
         # ---------------------  
@@ -189,7 +190,7 @@ class rigid:
 
         g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
         g_cg = np.dot(PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
-
+        
         # SPC 126
         if np.any(Pb[[0,1,5]] != 0):
             print str(Pb)
@@ -334,19 +335,32 @@ class rigid:
                 
                 i_mass     = self.model.mass['key'].index(self.trimcase['mass'])
                 n_modes    = self.model.mass['n_modes'][i_mass]
-                Uf = X[12:12+n_modes]
-                Ug = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T * 100.0
-                x_r = self.model.strcgrid['offset'][:,0]
-                y_r = self.model.strcgrid['offset'][:,1]
-                z_r = self.model.strcgrid['offset'][:,2]
-                x_f = self.model.strcgrid['offset'][:,0] + Ug[self.model.strcgrid['set'][:,0]]
-                y_f = self.model.strcgrid['offset'][:,1] + Ug[self.model.strcgrid['set'][:,1]]
-                z_f = self.model.strcgrid['offset'][:,2] + Ug[self.model.strcgrid['set'][:,2]]
+                Uf = response['X'][12:12+n_modes]
+                Ug_f = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T * 10.0
+                
+                PHIstrc_cg  = self.model.mass['PHIstrc_cg'][i_mass]
+                PHInorm_cg  = self.model.mass['PHInorm_cg'][i_mass]
+                PHIcg_norm  = self.model.mass['PHIcg_norm'][i_mass]
+                Tgeo2body = np.zeros((6,6))
+                Tgeo2body[0:3,0:3] = calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])
+                Tgeo2body[3:6,3:6] = calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])
+                Ug_r = PHIstrc_cg.dot( np.dot(PHIcg_norm,np.dot(Tgeo2body, X[0:6]+[0,0,1.37160000e+04,0,0,0])) )
+                
+                x = self.model.strcgrid['offset'][:,0]
+                y = self.model.strcgrid['offset'][:,1]
+                z = self.model.strcgrid['offset'][:,2]
+                x_r = self.model.strcgrid['offset'][:,0] + Ug_r[self.model.strcgrid['set'][:,0]]
+                y_r = self.model.strcgrid['offset'][:,1] + Ug_r[self.model.strcgrid['set'][:,1]]
+                z_r = self.model.strcgrid['offset'][:,2] + Ug_r[self.model.strcgrid['set'][:,2]]
+                x_f = self.model.strcgrid['offset'][:,0] + Ug_f[self.model.strcgrid['set'][:,0]]
+                y_f = self.model.strcgrid['offset'][:,1] + Ug_f[self.model.strcgrid['set'][:,1]]
+                z_f = self.model.strcgrid['offset'][:,2] + Ug_f[self.model.strcgrid['set'][:,2]]
                 
                 mlab.figure()
-                mlab.points3d(x_r, y_r, z_r,  scale_factor=0.1)
+                mlab.points3d(x, y, z,  scale_factor=0.1)
+                mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=0.1)
                 mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=0.1)
-                mlab.title('flexible deformation', size=0.2, height=0.95)
+                mlab.title('rbm (green) and flexible deformation (blue)', size=0.2, height=0.95)
                 mlab.show()
             
             return response
