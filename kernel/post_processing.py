@@ -6,10 +6,12 @@ Created on Mon Mar 30 13:34:50 2015
 """
 import numpy as np
 import matplotlib.pyplot as plt
+from mayavi import mlab
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
 import os
 
+from trim_tools import *
 import write_functions
 
 class post_processing:
@@ -49,7 +51,6 @@ class post_processing:
 
             plotting = False
             if plotting:
-                from mayavi import mlab
                 x, y, z = self.model.strcgrid['offset'][:,0], self.model.strcgrid['offset'][:,1], self.model.strcgrid['offset'][:,2]
                 
                 mlab.figure() 
@@ -119,6 +120,72 @@ class post_processing:
             for i_trimcase in range(len(self.jcl.trimcase)):
                 write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_f'], i_trimcase+1)
     
+    
+    def plot_forces_deformation_interactive(self):
+        for i_trimcase in range(len(self.jcl.trimcase)):
+            response   = self.response[i_trimcase]
+            trimcase   = self.jcl.trimcase[i_trimcase]
+            print 'interactive plotting of forces and deformations for trim {:s}'.format(trimcase['desc'])
+
+            x = self.model.aerogrid['offset_k'][:,0]
+            y = self.model.aerogrid['offset_k'][:,1]
+            z = self.model.aerogrid['offset_k'][:,2]
+            fx, fy, fz = response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]],response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
+    
+            mlab.figure()
+            mlab.points3d(x, y, z, scale_factor=0.1)
+            mlab.quiver3d(x, y, z, fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+            mlab.quiver3d(x+fx*0.01, y+fy*0.01, z+fz*0.01,fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
+            mlab.title('Pk_rbm', size=0.2, height=0.95)
+            
+            mlab.figure() 
+            mlab.points3d(x, y, z, scale_factor=0.1)
+            mlab.quiver3d(x, y, z, response['Pk_cam'][self.model.aerogrid['set_k'][:,0]], response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=0.01)            
+            mlab.title('Pk_camber_twist', size=0.2, height=0.95)
+            
+            mlab.figure()        
+            mlab.points3d(x, y, z, scale_factor=0.1)
+            mlab.quiver3d(x, y, z, response['Pk_cs'][self.model.aerogrid['set_k'][:,0]], response['Pk_cs'][self.model.aerogrid['set_k'][:,1]], response['Pk_cs'][self.model.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=0.01)
+            mlab.title('Pk_cs', size=0.2, height=0.95)
+            
+            mlab.figure()   
+            mlab.points3d(x, y, z, scale_factor=0.1)
+            mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=0.01)
+            mlab.title('Pk_flex', size=0.2, height=0.95)
+            
+            i_mass     = self.model.mass['key'].index(trimcase['mass'])
+            i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
+            n_modes    = self.model.mass['n_modes'][i_mass]
+            Uf = response['X'][12:12+n_modes]
+            Ug_f = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T * 1.0
+            
+            PHIstrc_cg  = self.model.mass['PHIstrc_cg'][i_mass]
+            PHInorm_cg  = self.model.mass['PHInorm_cg'][i_mass]
+            PHIcg_norm  = self.model.mass['PHIcg_norm'][i_mass]
+            Tgeo2body = np.zeros((6,6))
+            Tgeo2body[0:3,0:3] = calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])
+            Tgeo2body[3:6,3:6] = calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])
+            height = self.model.atmo['h'][i_atmo] # correction of height to zero to allow plotting in one diagram
+            Ug_r = PHIstrc_cg.dot( np.dot(PHIcg_norm,np.dot(Tgeo2body, response['X'][0:6]+[0,0,height,0,0,0])) )
+            
+            x = self.model.strcgrid['offset'][:,0]
+            y = self.model.strcgrid['offset'][:,1]
+            z = self.model.strcgrid['offset'][:,2]
+            x_r = self.model.strcgrid['offset'][:,0] + Ug_r[self.model.strcgrid['set'][:,0]]
+            y_r = self.model.strcgrid['offset'][:,1] + Ug_r[self.model.strcgrid['set'][:,1]]
+            z_r = self.model.strcgrid['offset'][:,2] + Ug_r[self.model.strcgrid['set'][:,2]]
+            x_f = self.model.strcgrid['offset'][:,0] + Ug_f[self.model.strcgrid['set'][:,0]]
+            y_f = self.model.strcgrid['offset'][:,1] + Ug_f[self.model.strcgrid['set'][:,1]]
+            z_f = self.model.strcgrid['offset'][:,2] + Ug_f[self.model.strcgrid['set'][:,2]]
+            
+            mlab.figure()
+            mlab.points3d(x, y, z,  scale_factor=0.1)
+            mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=0.1)
+            mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=0.1)
+            mlab.title('rbm (green) and flexible deformation (blue)', size=0.2, height=0.95)
+            mlab.show()
+                
+
     def plot_monstations(self, monstations, filename_pdf):
         
         stations_wing = ['Mon1', 'Mon2', 'Mon3', 'Mon8']

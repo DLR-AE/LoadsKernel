@@ -87,7 +87,8 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
         post_processing.save_nodalloads('../output/nodalloads_' + job_name + '.bdf')
         post_processing.gather_monstations() # wird zum plotten benoetigt
         post_processing.plot_monstations(post_processing.monstations, '../output/monstations_' + job_name + '.pdf')
-        
+        post_processing.plot_forces_deformation_interactive()
+
     if test:
         if not 'model' in locals():
             model = load_model(job_name)
@@ -97,27 +98,37 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
             with open('../output/response_' + job_name + '.pickle', 'r') as f:
                 response = cPickle.load(f)
                 
-        import scipy.sparse as sp
-        
-        Pf = np.abs(model.mass['PHIf_strc'][1].dot(response[0]['Pg']))
-        Pf_dim = Pf / np.max(Pf)
-        Pf_dim = Pf / np.max(Pf)
-        Uf = np.linalg.inv(model.mass['Kff'][1]).dot(Pf)
-        
-        Ug = model.mass['PHIf_strc'][1].T.dot(Uf)
-        
-        Pgg = model.Kgg.dot(Ug)
-        
-        import matplotlib.pyplot as plt
-        plt.figure()
-        #plt.plot(Pf_dim, 'b.-')
-        plt.plot(Uf, 'r.-')
-        plt.grid('on')
-        plt.show()
-        #import process_spline
-        #process_spline.test_spline(model, response[0])
-        #from read_pval3 import test
-        #test(model, jcl.trimcase)
+#        import pprint
+#        np.set_printoptions(threshold=np.inf)
+#        offsets_l = model.aerogrid['offset_l']     
+#        with open('dlm_offsets_l.ascii', 'w') as fid: 
+#            pprint.pprint(offsets_l, fid)
+#
+#        from numpy import  array
+#        with open('dlm_offsets_l.ascii', 'r') as fid: 
+#            offsets_l2 = eval(fid.read())
+         
+#        import scipy.sparse as sp
+#        
+#        Pf = np.abs(model.mass['PHIf_strc'][1].dot(response[0]['Pg']))
+#        Pf_dim = Pf / np.max(Pf)
+#        Pf_dim = Pf / np.max(Pf)
+#        Uf = np.linalg.inv(model.mass['Kff'][1]).dot(Pf)
+#        
+#        Ug = model.mass['PHIf_strc'][1].T.dot(Uf)
+#        
+#        Pgg = model.Kgg.dot(Ug)
+#        
+#        import matplotlib.pyplot as plt
+#        plt.figure()
+#        #plt.plot(Pf_dim, 'b.-')
+#        plt.plot(Uf, 'r.-')
+#        plt.grid('on')
+#        plt.show()
+#        import process_spline
+#        process_spline.test_spline(model, response[0])
+        from read_pval3 import test
+        test(model, model.jcl.trimcase[0])
 
         print 'Done.'
 
@@ -130,10 +141,10 @@ def load_model(job_name):
     return model
         
 if __name__ == "__main__":
-    run_kernel('jcl_DLR_F19_voll', pre = True, main = True, post = True)
+    #run_kernel('jcl_DLR_F19_voll', pre = True, main = True, post = True)
     #run_kernel('jcl_DLR_F19_voll', pre = True, main = False)
     #run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
-    #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
+    run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
     #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, test = True)
     
     

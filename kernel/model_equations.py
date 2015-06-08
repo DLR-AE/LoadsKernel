@@ -7,8 +7,6 @@ Created on Thu Nov 27 15:43:35 2014
 
 import numpy as np
 from trim_tools import * 
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 class rigid:
     def __init__(self, model, trimcase, trimcond_X, trimcond_Y):
@@ -92,19 +90,7 @@ class rigid:
         Plx1[self.model.aerogrid['set_l'][:,2]] = flx1[2,:]
         
         Pk_rbm = np.dot(self.model.Dlk.T, Plx1)
-        #Pb_rbm = np.dot(PHImac_cg.T, np.dot(Dkx1.T, Pk_rbm))
-        
-#        print Pb_rbm
-#        from mayavi import mlab
-#        x = self.model.aerogrid['offset_j'][:,0]
-#        y = self.model.aerogrid['offset_j'][:,1]
-#        z = self.model.aerogrid['offset_j'][:,2]
-#        
-#        mlab.figure() 
-#        mlab.points3d(x, y, z, scale_factor=0.1)
-#        mlab.quiver3d(x, y, z, Ujx1[self.model.aerogrid['set_j'][:,0]]*0.0, Ujx1[self.model.aerogrid['set_j'][:,1]], Ujx1[self.model.aerogrid['set_j'][:,2]], color=(0,1,1), scale_factor=1.0)            
-#        mlab.show()
-        
+       
         
         # -----------------------------   
         # --- aero camber and twist ---   
@@ -118,6 +104,7 @@ class rigid:
         Plcam[self.model.aerogrid['set_l'][:,2]] = flcam[2,:]
         
         Pk_cam = np.dot(self.model.Dlk.T, Plcam) 
+        
         
         # -----------------------------   
         # --- aero control surfaces ---   
@@ -146,7 +133,7 @@ class rigid:
             Plx2[self.model.aerogrid['set_l'][:,2]] += flx2[2,:]
         
         Pk_cs = np.dot(self.model.Dlk.T, Plx2)
-        #Pb_cs = np.dot(PHImac_cg.T, np.dot(Dkx1.T, Pk_cs))
+
         
         # ---------------------   
         # --- aero flexible ---   
@@ -303,64 +290,6 @@ class rigid:
             print 'dCz_da: %.4f' % float(Pmac_c[2]/response['alpha'])
             print '--------------------' 
             
-            plotting = False
-            if plotting:
-                
-                x = self.model.aerogrid['offset_k'][:,0]
-                y = self.model.aerogrid['offset_k'][:,1]
-                z = self.model.aerogrid['offset_k'][:,2]
-                fx, fy, fz = response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]],response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
-
-                from mayavi import mlab
-                mlab.figure()
-                mlab.points3d(x, y, z, scale_factor=0.1)
-                mlab.quiver3d(x, y, z, fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-                mlab.quiver3d(x+fx*0.01, y+fy*0.01, z+fz*0.01,fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
-                mlab.title('Pk_rbm', size=0.2, height=0.95)
-                
-                mlab.figure() 
-                mlab.points3d(x, y, z, scale_factor=0.1)
-                mlab.quiver3d(x, y, z, response['Pk_cam'][self.model.aerogrid['set_k'][:,0]], response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=0.01)            
-                mlab.title('Pk_camber_twist', size=0.2, height=0.95)
-                
-                mlab.figure()        
-                mlab.points3d(x, y, z, scale_factor=0.1)
-                mlab.quiver3d(x, y, z, response['Pk_cs'][self.model.aerogrid['set_k'][:,0]], response['Pk_cs'][self.model.aerogrid['set_k'][:,1]], response['Pk_cs'][self.model.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=0.01)
-                mlab.title('Pk_cs', size=0.2, height=0.95)
-                
-                mlab.figure()   
-                mlab.points3d(x, y, z, scale_factor=0.1)
-                mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=0.01)
-                mlab.title('Pk_flex', size=0.2, height=0.95)
-                
-                i_mass     = self.model.mass['key'].index(self.trimcase['mass'])
-                n_modes    = self.model.mass['n_modes'][i_mass]
-                Uf = response['X'][12:12+n_modes]
-                Ug_f = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T * 10.0
-                
-                PHIstrc_cg  = self.model.mass['PHIstrc_cg'][i_mass]
-                PHInorm_cg  = self.model.mass['PHInorm_cg'][i_mass]
-                PHIcg_norm  = self.model.mass['PHIcg_norm'][i_mass]
-                Tgeo2body = np.zeros((6,6))
-                Tgeo2body[0:3,0:3] = calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])
-                Tgeo2body[3:6,3:6] = calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])
-                Ug_r = PHIstrc_cg.dot( np.dot(PHIcg_norm,np.dot(Tgeo2body, X[0:6]+[0,0,1.37160000e+04,0,0,0])) )
-                
-                x = self.model.strcgrid['offset'][:,0]
-                y = self.model.strcgrid['offset'][:,1]
-                z = self.model.strcgrid['offset'][:,2]
-                x_r = self.model.strcgrid['offset'][:,0] + Ug_r[self.model.strcgrid['set'][:,0]]
-                y_r = self.model.strcgrid['offset'][:,1] + Ug_r[self.model.strcgrid['set'][:,1]]
-                z_r = self.model.strcgrid['offset'][:,2] + Ug_r[self.model.strcgrid['set'][:,2]]
-                x_f = self.model.strcgrid['offset'][:,0] + Ug_f[self.model.strcgrid['set'][:,0]]
-                y_f = self.model.strcgrid['offset'][:,1] + Ug_f[self.model.strcgrid['set'][:,1]]
-                z_f = self.model.strcgrid['offset'][:,2] + Ug_f[self.model.strcgrid['set'][:,2]]
-                
-                mlab.figure()
-                mlab.points3d(x, y, z,  scale_factor=0.1)
-                mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=0.1)
-                mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=0.1)
-                mlab.title('rbm (green) and flexible deformation (blue)', size=0.2, height=0.95)
-                mlab.show()
+            
             
             return response
