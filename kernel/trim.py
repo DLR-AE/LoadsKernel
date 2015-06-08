@@ -8,8 +8,9 @@ import numpy as np
 import scipy.optimize as so
 
 class trim:
-    def __init__(self, model, trimcase):
+    def __init__(self, model, jcl, trimcase):
         self.model = model
+        self.jcl = jcl
         self.trimcase = trimcase
             
     def set_trimcond(self):
@@ -27,7 +28,7 @@ class trim:
             ['y',        'fix',  0.0,],
             ['z',        'fix',  z  ,],
             ['phi',      'fix',  0.0,],
-            ['theta',    'free', 2.0/180*np.pi,],
+            ['theta',    'free', 3.0/180*np.pi,],
             ['psi',      'fix',  0.0,],
             ['u',        'fix',  u,  ],
             ['v',        'fix',  0.0,],
@@ -78,16 +79,17 @@ class trim:
     
                 
         import model_equations # Warum muss der import hier stehen??
-        model_equations = model_equations.rigid(self.model, self.trimcase, self.trimcond_X, self.trimcond_Y)
+        equations = model_equations.nastran(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+
         X_free_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]]
         
         bypass = False
         if bypass:
             print 'running bypass...'
-            self.response = model_equations.eval_equations( X_free_0, 'full_output')
+            self.response = equations.eval_equations( X_free_0, 'full_output')
         else:
             print 'running trim for ' + str(len(X_free_0)) + ' variables...'
-            X_free, info, status, msg= so.fsolve(model_equations.eval_equations, X_free_0, args=('trim'), full_output=True)
+            X_free, info, status, msg= so.fsolve(equations.eval_equations, X_free_0, args=('trim'), full_output=True)
             print msg
             print 'function evaluations: ' + str(info['nfev'])
             
@@ -99,7 +101,7 @@ class trim:
                 for i_X in range(len(X_free)):
                     print self.trimcond_X[:,0][np.where((self.trimcond_X[:,1] == 'free'))[0]][i_X] + ': %.4f' % float(X_free[i_X])
                     
-                self.response = model_equations.eval_equations(X_free, 'full_output')
+                self.response = equations.eval_equations(X_free, 'full_output')
             else:
                 self.response = 'Failure: ' + msg
                 # store response

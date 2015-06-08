@@ -53,7 +53,7 @@ def run_kernel(job_name, pre=True, main=True, post=False, test=False):
             print 'trimcase: ' + jcl.trimcase[i]['desc']
             print '========================================' 
             t_start = time.time()
-            trim_i = trim(model, jcl.trimcase[i])
+            trim_i = trim(model, jcl, jcl.trimcase[i])
             trim_i.set_trimcond()
             trim_i.exec_trim()
             response.append(trim_i.response)
@@ -143,9 +143,9 @@ def load_model(job_name):
 if __name__ == "__main__":
     #run_kernel('jcl_DLR_F19_voll', pre = True, main = True, post = True)
     #run_kernel('jcl_DLR_F19_voll', pre = True, main = False)
-    #run_kernel('jcl_DLR_F19_voll', pre = False, main = True)
-    run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
-    #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, test = True)
+    run_kernel('jcl_DLR_F19_voll_CFD', pre = False, main = True)
+    #run_kernel('jcl_DLR_F19_voll', pre = False, main = False, post = True)
+    #run_kernel('jcl_DLR_F19_voll_CFD', pre = False, main = False, test = True)
     
     
    

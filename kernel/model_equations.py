@@ -7,10 +7,12 @@ Created on Thu Nov 27 15:43:35 2014
 
 import numpy as np
 from trim_tools import * 
+from scipy import interpolate
 
-class rigid:
-    def __init__(self, model, trimcase, trimcond_X, trimcond_Y):
+class nastran:
+    def __init__(self, model, jcl, trimcase, trimcond_X, trimcond_Y):
         self.model = model
+        self.jcl = jcl
         self.trimcase = trimcase
         self.trimcond_X = trimcond_X
         self.trimcond_Y = trimcond_Y
@@ -79,8 +81,17 @@ class rigid:
 
         # der downwash wj ist nur die Komponente von Uj, welche senkrecht zum Panel steht! 
         # --> mit N multiplizieren und danach die Norm bilden
-        wjx1 = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1
-        flx1 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx1)
+        
+        
+        wjx1 = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1 
+        if self.jcl.aero['method'] == 'mona_steady_corrected':
+            interpolation_function = interpolate.interp1d(np.array(self.model.aero['interp_wj_corrfac_alpha'][i_aero]['alpha'])/180.0*np.pi, np.array(self.model.aero['interp_wj_corrfac_alpha'][i_aero]['wj_corrfac']).T)
+            print(str(alpha/np.pi*180))         
+            wj_corrfac = interpolation_function(alpha)
+        else:
+            wj_corrfac = np.ones(wjx1.shape)        
+        flx1 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx1 * wj_corrfac)
+
         # Bemerkung: greifen die Luftkraefte bei j,l oder k an?
         # Dies würde das Cmy beeinflussen!
         # Gewaehlt: l
@@ -266,7 +277,7 @@ class rigid:
             Pmac_cs   = np.dot(self.model.Dkx1.T, response['Pk_cs'])
             Pmac_f    = np.dot(self.model.Dkx1.T, response['Pk_f'])
             
-            A = sum(self.model.aerogrid['A'][:])
+            A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
             Pmac_c = response['Pmac']/response['q_dyn']/A
             print ''
             print 'aero derivatives:'
@@ -290,6 +301,5 @@ class rigid:
             print 'dCz_da: %.4f' % float(Pmac_c[2]/response['alpha'])
             print '--------------------' 
             
-            
-            
             return response
+        

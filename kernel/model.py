@@ -15,6 +15,7 @@ from  atmo_isa import atmo_isa
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import cPickle
 
 class model:
     def __init__(self,jcl):
@@ -88,7 +89,7 @@ class model:
             print 'Unknown atmo method: ' + str(self.jcl.aero['method'])
               
         print 'Building aero model...'
-        if self.jcl.aero['method'] == 'mona_steady':
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_steady_corrected']:
             # grids
             for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
                 subgrid = build_aero.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file]) 
@@ -210,12 +211,18 @@ class model:
             # AIC
             self.aero = {'key':[],
                          'Qjj':[],
+                         'interp_wj_corrfac_alpha': [],
                         }
             for i_aero in range(len(self.jcl.aero['key'])):
                 Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)  
                 Qjj = np.linalg.inv(Ajj.T)
                 self.aero['key'].append(self.jcl.aero['key'][i_aero])
                 self.aero['Qjj'].append(Qjj)
+                
+                # Correction of downwash by correction factor, e.g. obtained from CFD
+                if self.jcl.aero['method'] == 'mona_steady_corrected':    
+                    correction = cPickle.load(open(self.jcl.aero['filename_correction'][i_aero], 'r'))
+                    self.aero['interp_wj_corrfac_alpha'].append(correction)     
         else:
             print 'Unknown aero method: ' + str(self.jcl.aero['method'])
             
