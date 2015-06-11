@@ -86,7 +86,7 @@ class nastran:
         wjx1 = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1 
         if self.jcl.aero['method'] == 'mona_steady_corrected':
             interpolation_function = interpolate.interp1d(np.array(self.model.aero['interp_wj_corrfac_alpha'][i_aero]['alpha'])/180.0*np.pi, np.array(self.model.aero['interp_wj_corrfac_alpha'][i_aero]['wj_corrfac']).T)
-            print(str(alpha/np.pi*180))         
+            print('applying aero correction for alpha = ' + str(alpha/np.pi*180))         
             wj_corrfac = interpolation_function(alpha)
         else:
             wj_corrfac = np.ones(wjx1.shape)        

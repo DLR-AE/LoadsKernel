@@ -157,7 +157,7 @@ class post_processing:
             i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
             n_modes    = self.model.mass['n_modes'][i_mass]
             Uf = response['X'][12:12+n_modes]
-            Ug_f = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T * 1.0
+            Ug_f = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T * 10.0
             
             PHIstrc_cg  = self.model.mass['PHIstrc_cg'][i_mass]
             PHInorm_cg  = self.model.mass['PHInorm_cg'][i_mass]
@@ -182,7 +182,7 @@ class post_processing:
             mlab.points3d(x, y, z,  scale_factor=0.1)
             mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=0.1)
             mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=0.1)
-            mlab.title('rbm (green) and flexible deformation (blue)', size=0.2, height=0.95)
+            mlab.title('rbm (green) and flexible deformation x10 (blue)', size=0.2, height=0.95)
             mlab.show()
                 
 
