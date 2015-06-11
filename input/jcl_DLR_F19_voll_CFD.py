@@ -48,7 +48,7 @@ class jcl:
                                                  '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_Mon24.bdf',
                                                  ],
                     }
-        self.aero = {'method': 'mona_steady', # mona_steady, mona_steady_corrected
+        self.aero = {'method': 'mona_steady_corrected', # mona_steady, mona_steady_corrected
                      'key':['VC', 'MC'],
                      'Ma': [0.8, 0.9],
                      'filename_caero_bdf': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.CAERO1_bdf', 
@@ -83,18 +83,19 @@ class jcl:
                      'key':['FL000','FL055', 'FL075', 'FL300', 'FL450'],
                      'h': ft2m([0, 5500, 7500, 30000, 45000]),
                     }
-        self.trimcase = [{'desc': 'CC.M.OVCFL000.LLFLevel', 
-                          'manoeuver': 'LLFLevel', 
+        self.trimcase = [{'desc': 'CC.BFDM.OVCFL000.LLFPUNz25', 
+                          'manoeuver': 'LLFPUNz25', 
                           'Ma': 0.8, 
                           'aero': 'VC', 
                           'altitude': 'FL000', 
                           'mass': 'BFDM',
-                          'Nz': 1.0, 
+                          'Nz': 2.5, 
                           'p': 0.0,
-                          'q': 0.0, 
+                          'q': 0.055, 
                           'pdot': 0.0, 
                           'qdot': 0.0, 
-                        }]
+                         },
+                        ]
                         
 #        from numpy import array
 #        fid = open('/scratch/DLR-F19-S_150217_work/trim_DLR-F19-S/test_trim.trimcase_dict', 'r')
