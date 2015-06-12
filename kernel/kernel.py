@@ -103,10 +103,33 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False):
 #        offsets_l = model.aerogrid['offset_l']     
 #        with open('dlm_offsets_l.ascii', 'w') as fid: 
 #            pprint.pprint(offsets_l, fid)
+                
+#        from process_pval import test
+#        test(model, model.jcl.trimcase[0])
 
-        from process_pval import test
-        test(model, model.jcl.trimcase[0])
-
+                
+#        eigenvectors_selected = model.mass['PHIf_strc'][0].T#[0][6:,:].T
+#        eigenvalues_selected = model.mass['Kff'][0]#[0][6:,6:]
+#        
+#        force_vector = np.zeros(model.strcgrid['n']*6)
+#        force_vector[model.strcgrid['set'][:,2]] = 9.81 # [N]
+#        force_vector = response[0]['Pg']
+#        F_gen = np.dot(eigenvectors_selected.T, force_vector)
+#
+#        gen_coords = np.linalg.solve(eigenvalues_selected, F_gen)
+#        print gen_coords
+#        
+#        displacements_nodal = np.dot(eigenvectors_selected, gen_coords)
+#        displacements_nodal_xyz = displacements_nodal[model.strcgrid['set'][:,0:3]]
+#        
+#        np.savetxt('../output/structure_undeformed.dat', model.strcgrid['offset'])
+#        np.savetxt('../output/displacements_physical.dat', displacements_nodal_xyz + model.strcgrid['offset'])
+#        
+#        from write_functions import write_force_and_moment_cards
+#        with open('../output/load.bdf', 'w') as fid:
+#            write_force_and_moment_cards(fid, model.strcgrid, force_vector, 1)
+        
+        
         print 'Done.'
 
 def load_model(job_name):
@@ -118,9 +141,9 @@ def load_model(job_name):
     return model
         
 if __name__ == "__main__":
-    #run_kernel('jcl_DLR_F19_voll', pre = True, main = True, post = True)
-    run_kernel('jcl_DLR_F19_voll_CFD', main = True, post=True)
-    #run_kernel('jcl_DLR_F19_voll_CFD', pre = False, main = False, test = True)
+    #run_kernel('jcl_DLR_F19_voll', pre=True, main = True, post = True)
+    #run_kernel('jcl_DLR_F19_voll_CFD', main = True)
+    run_kernel('jcl_DLR_F19_voll_2', pre=True, main=True, post=True)
     
     
    

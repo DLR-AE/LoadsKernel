@@ -38,6 +38,8 @@ class nastran:
         Kff        = self.model.mass['Kff'][i_mass]
         Dff        = self.model.mass['Dff'][i_mass]
         PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
+        PHIstrc_cg  = self.model.mass['PHIstrc_cg'][i_mass]
+        Mgg        = self.model.mass['MGG'][i_mass]
         PHIjf      = self.model.mass['PHIjf'][i_mass]
         n_modes    = self.model.mass['n_modes'][i_mass] 
         
@@ -178,9 +180,6 @@ class nastran:
         Pmac = np.dot(Dkx1.T, Pk_aero)
         Pb = np.dot(PHImac_cg.T, Pmac)
 
-        Pg_aero = np.dot(PHIk_strc.T, Pk_aero)
-        Pf = np.dot(PHIf_strc, Pg_aero )
-        
         # Bemerkung: 
         # Die AIC liefert Druecke auf einem Panel, daher stehen die Kraefte senkrecht 
         # zur Oberflaeche, sodass die Kraefte gleich im koerperfesten Koordinatensystem sind.
@@ -205,6 +204,15 @@ class nastran:
         d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(Mb)[0:3,0:3], Pb[0:3]) + g_cg
         d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(Mb[3:6,3:6]), Pb[3:6] )
         
+        
+        # Aero- und Inertialkraefte verursachen elastische Verformungen. 
+        # Das System ist in einer statischen Ruhelagen, wenn die modalen Beschleunigungen gleich Null sind.
+        # eventuell kann man diese Zeilen geschickter formulieren, um Rechenzeit zu sparen??
+        d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) )
+        Pg_iner_r = - Mgg.dot(d2Ug_dt2_r)
+        Pg_aero = np.dot(PHIk_strc.T, Pk_aero)
+        Pf = np.dot(PHIf_strc, Pg_aero + Pg_iner_r )
+
         # linear, flexible EoM
         d2Uf_dt2 = np.dot( -np.linalg.inv(Mff),  ( np.dot(Dff, dUf_dt) + np.dot(Kff, Uf) - Pf  ) )
 
