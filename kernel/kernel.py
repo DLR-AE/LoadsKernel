@@ -85,9 +85,10 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False):
             cPickle.dump(response, f, cPickle.HIGHEST_PROTOCOL)
         post_processing.save_monstations('../output/monstations_' + job_name + '.bdf')     
         post_processing.save_nodalloads('../output/nodalloads_' + job_name + '.bdf')
-        post_processing.gather_monstations() # wird zum plotten benoetigt
+        post_processing.save_nodaldefo('../output/nodaldefo_' + job_name)
+        #post_processing.gather_monstations() # wird zum plotten benoetigt
         #post_processing.plot_monstations(post_processing.monstations, '../output/monstations_' + job_name + '.pdf')
-        post_processing.plot_forces_deformation_interactive()
+        #post_processing.plot_forces_deformation_interactive()
 
     if test:
         if not 'model' in locals():
@@ -143,7 +144,7 @@ def load_model(job_name):
 if __name__ == "__main__":
     #run_kernel('jcl_DLR_F19_voll', pre=True, main = True, post = True)
     #run_kernel('jcl_DLR_F19_voll_CFD', main = True)
-    run_kernel('jcl_DLR_F19_voll_2', pre=True, main=True, post=True)
+    run_kernel('jcl_DLR_F19_voll_2', post=True)
     
     
    

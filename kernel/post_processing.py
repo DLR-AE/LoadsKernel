@@ -26,10 +26,14 @@ class post_processing:
             response   = self.response[i_trimcase]
             trimcase   = self.jcl.trimcase[i_trimcase]
             
+            i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
             i_mass     = self.model.mass['key'].index(trimcase['mass'])
             Mgg        = self.model.mass['MGG'][i_mass]
             PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
             PHIstrc_cg  = self.model.mass['PHIstrc_cg'][i_mass]
+            PHInorm_cg  = self.model.mass['PHInorm_cg'][i_mass]
+            PHIcg_norm  = self.model.mass['PHIcg_norm'][i_mass]
+            n_modes    = self.model.mass['n_modes'][i_mass]
             
             # Formel bezogen auf die linearen Bewegungsgleichungen Nastrans. 
             # Fuer Bewegungsgleichungen z.B. von Waszack muessen die zusaetzlichen Terme hier ebenfalls beruecksichtigt werden!
@@ -48,33 +52,18 @@ class post_processing:
             #PHIstrc_cg.T.dot(response['Pg_aero'])
             # das kommt raus:
             #PHIstrc_cg.T.dot(response['Pg_iner_r'])
-
-            plotting = False
-            if plotting:
-                x, y, z = self.model.strcgrid['offset'][:,0], self.model.strcgrid['offset'][:,1], self.model.strcgrid['offset'][:,2]
-                
-                mlab.figure() 
-                mlab.points3d(x, y, z, scale_factor=0.05)
-                #mlab.quiver3d(x, y, z, response['Pg_iner_r'][self.model.strcgrid['set'][:,0]], response['Pg_iner_r'][self.model.strcgrid['set'][:,1]], response['Pg_iner_r'][self.model.strcgrid['set'][:,2]], color=(1,0,0), scale_factor=0.001)            
-                #mlab.quiver3d(x, y, z, Pg_iner_f[self.model.strcgrid['set'][:,0]], Pg_iner_f[self.model.strcgrid['set'][:,1]], Pg_iner_f[self.model.strcgrid['set'][:,2]], color=(0,1,0), scale_factor=0.01)            
-                
-                #mlab.quiver3d(x, y, z, Pg_flex[self.model.strcgrid['set'][:,0]]*1, Pg_flex[self.model.strcgrid['set'][:,1]]*0, Pg_flex[self.model.strcgrid['set'][:,2]]*0, color=(1,0,0), scale_factor=0.01)         
-                #mlab.quiver3d(x, y, z, Pg_flex[self.model.strcgrid['set'][:,0]]*0, Pg_flex[self.model.strcgrid['set'][:,1]]*1, Pg_flex[self.model.strcgrid['set'][:,2]]*0, color=(0,1,0), scale_factor=0.01)         
-                #mlab.quiver3d(x, y, z, Pg_flex[self.model.strcgrid['set'][:,0]]*0, Pg_flex[self.model.strcgrid['set'][:,1]]*0, Pg_flex[self.model.strcgrid['set'][:,2]]*1, color=(0,0,1), scale_factor=0.01)                 
-        
-                mlab.quiver3d(x, y, z, response['Pg_aero'][self.model.strcgrid['set'][:,0]], response['Pg_aero'][self.model.strcgrid['set'][:,1]], response['Pg_aero'][self.model.strcgrid['set'][:,2]], color=(0,0,1), scale_factor=0.001)            
-                mlab.quiver3d(x, y, z, response['Pg_iner_r'][self.model.strcgrid['set'][:,0]], response['Pg_iner_r'][self.model.strcgrid['set'][:,1]], response['Pg_iner_r'][self.model.strcgrid['set'][:,2]], color=(0,0,1), scale_factor=0.001)            
-
-                #x_f = self.model.strcgrid['offset'][:,0] + Ug_flex[self.model.strcgrid['set'][:,0]] * 100
-                #y_f = self.model.strcgrid['offset'][:,1] + Ug_flex[self.model.strcgrid['set'][:,1]] * 100
-                #z_f = self.model.strcgrid['offset'][:,2] + Ug_flex[self.model.strcgrid['set'][:,2]] * 100
-                
-                #mlab.figure()
-                #mlab.points3d(x, y, z,  scale_factor=0.1)
-                #mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=0.1)
-                #mlab.title('flexible deformation', size=0.2, height=0.95)
-    
-                mlab.show()
+            
+            
+            Uf = response['X'][12:12+n_modes]
+            response['Ug_f'] = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T
+            
+            Tgeo2body = np.zeros((6,6))
+            Tgeo2body[0:3,0:3] = calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])
+            Tgeo2body[3:6,3:6] = calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])
+            height = self.model.atmo['h'][i_atmo] # correction of height to zero to allow plotting in one diagram
+            response['Ug_r'] = PHIstrc_cg.dot( np.dot(PHIcg_norm,np.dot(Tgeo2body, response['X'][0:6]+[0,0,height,0,0,0])) )
+            
+            response['Ug'] = response['Ug_r'] + response['Ug_f']
 
         
     def cuttingforces(self):
@@ -104,7 +93,18 @@ class post_processing:
         with open(filename, 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
                 write_functions.write_force_and_moment_cards(fid, self.model.mongrid, self.response[i_trimcase]['Pmon'], i_trimcase+1)
-
+    
+    def save_nodaldefo(self, filename):
+        print 'saving nodal deformations as dat file...'
+        with open(filename+'_undeformed.dat', 'w') as fid:             
+            np.savetxt(fid, np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'])))
+        
+        for i_trimcase in range(len(self.jcl.trimcase)):
+            with open(filename+'_subcase_'+str(i_trimcase+1)+'_Uf_x10.dat', 'w') as fid: 
+                defo = np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'] + self.response[i_trimcase]['Ug_f'][self.model.strcgrid['set'][:,0:3]] * 10.0 ))
+                np.savetxt(fid, defo)
+                
+                
     def save_nodalloads(self, filename):
         print 'saving nodal loads as Nastarn cards...'
         with open(filename+'_Pg', 'w') as fid: 
@@ -153,30 +153,15 @@ class post_processing:
             mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=0.01)
             mlab.title('Pk_flex', size=0.2, height=0.95)
             
-            i_mass     = self.model.mass['key'].index(trimcase['mass'])
-            i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
-            n_modes    = self.model.mass['n_modes'][i_mass]
-            Uf = response['X'][12:12+n_modes]
-            Ug_f = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T * 10.0
-            
-            PHIstrc_cg  = self.model.mass['PHIstrc_cg'][i_mass]
-            PHInorm_cg  = self.model.mass['PHInorm_cg'][i_mass]
-            PHIcg_norm  = self.model.mass['PHIcg_norm'][i_mass]
-            Tgeo2body = np.zeros((6,6))
-            Tgeo2body[0:3,0:3] = calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])
-            Tgeo2body[3:6,3:6] = calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])
-            height = self.model.atmo['h'][i_atmo] # correction of height to zero to allow plotting in one diagram
-            Ug_r = PHIstrc_cg.dot( np.dot(PHIcg_norm,np.dot(Tgeo2body, response['X'][0:6]+[0,0,height,0,0,0])) )
-            
             x = self.model.strcgrid['offset'][:,0]
             y = self.model.strcgrid['offset'][:,1]
             z = self.model.strcgrid['offset'][:,2]
-            x_r = self.model.strcgrid['offset'][:,0] + Ug_r[self.model.strcgrid['set'][:,0]]
-            y_r = self.model.strcgrid['offset'][:,1] + Ug_r[self.model.strcgrid['set'][:,1]]
-            z_r = self.model.strcgrid['offset'][:,2] + Ug_r[self.model.strcgrid['set'][:,2]]
-            x_f = self.model.strcgrid['offset'][:,0] + Ug_f[self.model.strcgrid['set'][:,0]]
-            y_f = self.model.strcgrid['offset'][:,1] + Ug_f[self.model.strcgrid['set'][:,1]]
-            z_f = self.model.strcgrid['offset'][:,2] + Ug_f[self.model.strcgrid['set'][:,2]]
+            x_r = self.model.strcgrid['offset'][:,0] + response['Ug_r'][self.model.strcgrid['set'][:,0]]
+            y_r = self.model.strcgrid['offset'][:,1] + response['Ug_r'][self.model.strcgrid['set'][:,1]]
+            z_r = self.model.strcgrid['offset'][:,2] + response['Ug_r'][self.model.strcgrid['set'][:,2]]
+            x_f = self.model.strcgrid['offset'][:,0] + response['Ug_f'][self.model.strcgrid['set'][:,0]] * 10.0
+            y_f = self.model.strcgrid['offset'][:,1] + response['Ug_f'][self.model.strcgrid['set'][:,1]] * 10.0
+            z_f = self.model.strcgrid['offset'][:,2] + response['Ug_f'][self.model.strcgrid['set'][:,2]] * 10.0
             
             mlab.figure()
             mlab.points3d(x, y, z,  scale_factor=0.1)
