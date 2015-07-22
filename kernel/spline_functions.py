@@ -180,7 +180,7 @@ class rbf:
 # http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.sparse.lil_matrix.html
 # lil_matrix((M, N)) is recommended as "an efficient structure for constructing sparse matrices incrementally".
 
-def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions=''):
+def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='', sparse_output=False):
     
     # Here, the size of the splining matrix is determined. One might want the matrix to be bigger than actually needed.
     # One example might be the multiplication of the (smaller) x2grid with the (larger) AIC matrix.
@@ -247,9 +247,13 @@ def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='')
             T_sub[2,4] = -r[0]  
             T_di = sparse_insert(T_di, T_sub, grid_d['set'+set_d][position_d,0:6], grid_i['set'+set_i][position_i,0:6])
             
-    #splinematrix = np.dot(np.dot(T_d.T,T_di),T_i)   
     splinematrix = T_d.transpose().dot(T_di).dot(T_i)
-    return splinematrix.toarray() #T_di
+    if sparse_output:
+        return splinematrix
+    else:
+        return splinematrix.toarray() 
+        
+    
 
 
 def sparse_insert(sparsematrix, submatrix, idx1, idx2):
