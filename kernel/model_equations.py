@@ -202,7 +202,7 @@ class nastran:
         #d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(Mb[3:6,3:6]) , np.dot( np.cross(-Mb[3:6,3:6], dUcg_dt[3:6]), dUcg_dt[3:6]) + Pb[3:6] )
         # Nastran
         d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(Mb)[0:3,0:3], Pb[0:3]) + g_cg
-        d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(Mb[3:6,3:6]), Pb[3:6] )
+        d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(Mb)[3:6,3:6], Pb[3:6] )
         
         
         # Aero- und Inertialkraefte verursachen elastische Verformungen. 
