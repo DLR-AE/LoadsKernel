@@ -166,7 +166,9 @@ def Modgen_GRID(filename):
         while True:
             read_string = fid.readline()
             if string.find(read_string, 'GRID') !=-1 and read_string[0] != '$':
-                grids.append([nastran_number_converter(read_string[8:16], 'ID'), nastran_number_converter(read_string[16:24], 'CP'), nastran_number_converter(read_string[24:32], 'float'), nastran_number_converter(read_string[32:40], 'float'), nastran_number_converter(read_string[40:48], 'float')])
+                if string.find(read_string[48:56], '\n') != -1: # if CD is missing, fix with CP
+                    read_string = read_string[:48] + read_string[16:24]
+                grids.append([nastran_number_converter(read_string[8:16], 'ID'), nastran_number_converter(read_string[16:24], 'CP'), nastran_number_converter(read_string[24:32], 'float'), nastran_number_converter(read_string[32:40], 'float'), nastran_number_converter(read_string[40:48], 'float'), nastran_number_converter(read_string[48:56], 'CD')])
             elif read_string == '':
                 break
     grids = np.array(grids)
@@ -175,7 +177,7 @@ def Modgen_GRID(filename):
             "offset":grids[:,2:5],
             "n": n,
             "CP": grids[:,1],
-            "CD": grids[:,1],
+            "CD": grids[:,5],
             "set": np.arange(n*6).reshape((n,6)),
            }
     return grid
@@ -351,7 +353,7 @@ def Modgen_CORD2R(filename, coord, grid=''):
                 z = B - A
                 y = np.cross(B-A, C-A)
                 x = np.cross(y,z)
-                dircos = np.vstack((x,y,z)).T
+                dircos = np.vstack((x/np.linalg.norm(x),y/np.linalg.norm(y),z/np.linalg.norm(z))).T
                 # save
                 coord['ID'].append(ID)
                 coord['RID'].append(RID)
@@ -377,7 +379,7 @@ def Modgen_CORD2R(filename, coord, grid=''):
                     z = B - A
                     y = np.cross(B-A, C-A)
                     x = np.cross(y,z)
-                    dircos = np.vstack((x,y,z)).T
+                    dircos = np.vstack((x/np.linalg.norm(x),y/np.linalg.norm(y),z/np.linalg.norm(z))).T
                     # save
                     coord['ID'].append(ID)
                     coord['RID'].append(RID)
