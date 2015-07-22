@@ -6,13 +6,14 @@ Created on Mon Mar 30 13:34:50 2015
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from mayavi import mlab
+#from mayavi import mlab
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
 import os
 
 from trim_tools import *
 import write_functions
+from grid_trafo import *
 
 class post_processing:
     def __init__(self, jcl, model, response):
@@ -69,7 +70,9 @@ class post_processing:
     def cuttingforces(self):
         print 'calculating cutting forces & moments...'
         for i_trimcase in range(len(self.jcl.trimcase)):
-            self.response[i_trimcase]['Pmon'] = self.model.PHIstrc_mon.T.dot(self.response[i_trimcase]['Pg'])
+            self.response[i_trimcase]['Pmon_global'] = self.model.PHIstrc_mon.T.dot(self.response[i_trimcase]['Pg'])
+            self.response[i_trimcase]['Pmon_local'] = force_trafo(self.model.mongrid, self.model.coord, self.response[i_trimcase]['Pmon'])
+                            
         
     def gather_monstations(self):
         print 'gathering information on monitoring stations from respone(s)...'
@@ -82,17 +85,17 @@ class post_processing:
                           'loads':[],
                          }
             for i_trimcase in range(len(self.jcl.trimcase)):
-                monstation['loads'].append(self.response[i_trimcase]['Pmon'][self.model.mongrid['set'][i_station,:]])
-                monstation['subcase'].append(self.jcl.trimcase[i_trimcase]['desc'])
+                monstation['loads'].append(self.response[i_trimcase]['Pmon_local'][self.model.mongrid['set'][i_station,:]])
+                monstation['subcase'].append(self.jcl.trimcase[i_trimcase]['subcase'])
 
-            self.monstations['Mon{:s}'.format(str(int(self.model.mongrid['ID'][i_station])))] = monstation
+            self.monstations['MON{:s}'.format(str(int(self.model.mongrid['ID'][i_station])))] = monstation
             
 
     def save_monstations(self, filename):
         print 'saving monitoring stations as Nastarn cards...'
         with open(filename, 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
-                write_functions.write_force_and_moment_cards(fid, self.model.mongrid, self.response[i_trimcase]['Pmon'], i_trimcase+1)
+                write_functions.write_force_and_moment_cards(fid, self.model.mongrid, self.response[i_trimcase]['Pmon_local'], i_trimcase+1)
     
     def save_nodaldefo(self, filename):
         print 'saving nodal deformations as dat file...'
@@ -110,18 +113,20 @@ class post_processing:
         with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
                 write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg'], i_trimcase+1)
-        with open(filename+'_Pg_aero', 'w') as fid: 
-            for i_trimcase in range(len(self.jcl.trimcase)):
-                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_aero'], i_trimcase+1)
-        with open(filename+'_Pg_iner_r', 'w') as fid: 
-            for i_trimcase in range(len(self.jcl.trimcase)):
-                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_r'], i_trimcase+1) 
-        with open(filename+'_Pg_iner_f', 'w') as fid: 
-            for i_trimcase in range(len(self.jcl.trimcase)):
-                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_f'], i_trimcase+1)
+#        with open(filename+'_Pg_aero', 'w') as fid: 
+#            for i_trimcase in range(len(self.jcl.trimcase)):
+#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_aero'], i_trimcase+1)
+#        with open(filename+'_Pg_iner_r', 'w') as fid: 
+#            for i_trimcase in range(len(self.jcl.trimcase)):
+#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_r'], i_trimcase+1) 
+#        with open(filename+'_Pg_iner_f', 'w') as fid: 
+#            for i_trimcase in range(len(self.jcl.trimcase)):
+#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_f'], i_trimcase+1)
     
     
     def plot_forces_deformation_interactive(self):
+        from mayavi import mlab
+
         for i_trimcase in range(len(self.jcl.trimcase)):
             response   = self.response[i_trimcase]
             trimcase   = self.jcl.trimcase[i_trimcase]
