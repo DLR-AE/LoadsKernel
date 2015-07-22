@@ -37,7 +37,7 @@ def write_MONPNT1(fid,mongrid, rules):
     
         line = 'MONPNT1 Mon{: <5d}Label{:<51d}+\n'.format(int(mongrid['ID'][i_station]), int(mongrid['ID'][i_station]))
         fid.write(line)
-        line = '+         123456 Comp{:<3d}{:>8d}{:>8.7s}{:>8.7s}{:>8.7s}\n'.format(int(mongrid['ID'][i_station]), int(mongrid['CP'][i_station]), str(mongrid['offset'][i_station][0]), str(mongrid['offset'][i_station][1]), str(mongrid['offset'][i_station][2]) )
+        line = '+         123456 Comp{:<3d}{:>8d}{:>8.7s}{:>8.7s}{:>8.7s}{:>8d}\n'.format(int(mongrid['ID'][i_station]), int(mongrid['CP'][i_station]), str(mongrid['offset'][i_station][0]), str(mongrid['offset'][i_station][1]), str(mongrid['offset'][i_station][2]), int(mongrid['CD'][i_station]) )
         fid.write(line)
         line = 'AECOMP   Comp{:<3d}    SET1{:>8d}\n'.format(int(mongrid['ID'][i_station]), int(mongrid['ID'][i_station]) )
         fid.write(line)
