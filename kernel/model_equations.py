@@ -20,47 +20,54 @@ class nastran:
         
     def equations(self, X, type):
         self.counter += 1
-        #print ' # of eval: ' + str(self.counter)
-        
+
         # Trim-spezifische Modelldaten holen    
         i_atmo     = self.model.atmo['key'].index(self.trimcase['altitude'])
-        
         i_aero     = self.model.aero['key'].index(self.trimcase['aero'])
         Qjj        = self.model.aero['Qjj'][i_aero]    
-        
+
         i_mass     = self.model.mass['key'].index(self.trimcase['mass'])
         PHImac_cg  = self.model.mass['PHImac_cg'][i_mass]
         PHIcg_mac  = self.model.mass['PHIcg_mac'][i_mass]
-        PHInorm_cg  = self.model.mass['PHInorm_cg'][i_mass]
-        PHIcg_norm  = self.model.mass['PHIcg_norm'][i_mass]
+        PHInorm_cg = self.model.mass['PHInorm_cg'][i_mass]
+        PHIcg_norm = self.model.mass['PHIcg_norm'][i_mass]
         Mb         = self.model.mass['Mb'][i_mass]
         Mff        = self.model.mass['Mff'][i_mass]
         Kff        = self.model.mass['Kff'][i_mass]
         Dff        = self.model.mass['Dff'][i_mass]
         PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
-        PHIstrc_cg  = self.model.mass['PHIstrc_cg'][i_mass]
+        PHIstrc_cg = self.model.mass['PHIstrc_cg'][i_mass]
         Mgg        = self.model.mass['MGG'][i_mass]
         PHIjf      = self.model.mass['PHIjf'][i_mass]
         n_modes    = self.model.mass['n_modes'][i_mass] 
-        
         
         PHIk_strc  = self.model.PHIk_strc
         Djx1       = self.model.Djx1
         Dkx1       = self.model.Dkx1
         
         # recover states
-        Ucg      = np.dot(PHInorm_cg, X[0:6]) # x, y, z, phi, theta, psi earthfixed
         Tgeo2body = np.zeros((6,6))
         Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
         Tgeo2body[3:6,3:6] = calc_drehmatrix(X[3], X[4], X[5])
-        dUcg_dt  = np.dot(PHIcg_norm,np.dot(Tgeo2body, X[6:12])) #np.dot(PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
+        Ucg      = np.dot(PHIcg_norm,np.dot(Tgeo2body, X[0:6] )) # x, y, z, phi, theta, psi bodyfixed
+        dUcg_dt  = np.dot(PHIcg_norm,np.dot(Tgeo2body, X[6:12])) # u v w p q r bodyfixed
         Uf = np.array(X[12:12+n_modes])
         dUf_dt = np.array(X[12+n_modes:12+n_modes*2])
         
-        dUmac_dt = np.dot(PHImac_cg, dUcg_dt) # auch noch bodyfixed
+        dUmac_dt = np.dot(PHImac_cg, dUcg_dt) # auch bodyfixed
         Vtas = sum(dUmac_dt[0:3]**2)**0.5
         rho = self.model.atmo['rho'][i_atmo]
         q_dyn = rho/2.0*Vtas**2
+        
+        # init aero db for hybrid aero 
+        if self.jcl.aero['method'] == 'hybrid' and self.model.aerodb.has_key('alpha') and self.trimcase['aero'] in self.model.aerodb['alpha']:
+            correct_alpha = True
+            aerodb_alpha = self.model.aerodb['alpha'][self.trimcase['aero']]
+            if self.counter == 1:
+                print 'Hybrid aero is used for alpha.'
+                print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], aerodb_alpha['q_dyn'], q_dyn)        
+        else:
+            correct_alpha = False
         
         # ------------------------------    
         # --- aero rigid body motion ---   
@@ -68,9 +75,9 @@ class nastran:
         alpha = X[4] - np.arctan(X[8]/X[6]) # alpha = theta - gamma
         beta  = X[5] - np.arctan(X[7]/X[6])
         my    = 0.0
-        T_eb = np.zeros((6,6))
-        T_eb[0:3,0:3] = calc_drehmatrix(my, alpha, beta) 
-        T_eb[3:6,3:6] = calc_drehmatrix(my, alpha, beta) 
+        #T_eb = np.zeros((6,6))
+        #T_eb[0:3,0:3] = calc_drehmatrix(my, alpha, beta) 
+        #T_eb[3:6,3:6] = calc_drehmatrix(my, alpha, beta) 
         #Ux1 = np.hstack((np.dot(T_eb, X[6:9]), np.dot(T_eb, X[9:12]))) # jetzt im Aero-Koordinatensystem
         # dUmac_dt und Ux1 unterscheiden sich durch 
         # - den induzierten Anstellwinkel aus der Flugbahn
@@ -78,22 +85,21 @@ class nastran:
         #Ux1_a = (PHImac_cg.dot(T_eb.dot(PHIcg_norm.dot(np.hstack((X[6:9], [0,0,0]))))))
         #Ux1_b = (PHImac_cg.dot(Tgeo2body.dot(PHIcg_norm.dot(np.hstack(([0,0,0],X[9:12]))))))
         
-        Ux1 = PHImac_cg.dot(Tgeo2body.dot(PHInorm_cg.dot(X[6:12])))
-        Ujx1 = np.dot(Djx1,Ux1)#_a + Ux1_b)
-
+        if correct_alpha:
+            # Anstellwinkel alpha von der DLM-Loesung abziehen
+            drehmatrix = np.zeros((6,6))
+            drehmatrix[0:3,0:3] = calc_drehmatrix(0.0, -alpha, 0.0) 
+            drehmatrix[3:6,3:6] = calc_drehmatrix(0.0, -alpha, 0.0) 
+            dUcg_dt_tmp = np.dot(drehmatrix, dUcg_dt)
+            dUmac_dt_tmp = np.dot(PHImac_cg, dUcg_dt_tmp)
+            Ujx1 = np.dot(Djx1,dUmac_dt_tmp)
+        else: 
+            Ujx1 = np.dot(Djx1,dUmac_dt)
+            
         # der downwash wj ist nur die Komponente von Uj, welche senkrecht zum Panel steht! 
-        # --> mit N multiplizieren und danach die Norm bilden
-        
-        
+        # --> mit N multiplizieren und danach die Norm bilden    
         wjx1 = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1 
-        if self.jcl.aero['method'] == 'mona_steady_corrected':
-            interpolation_function = interpolate.interp1d(np.array(self.model.aero['interp_wj_corrfac_alpha'][i_aero]['alpha'])/180.0*np.pi, np.array(self.model.aero['interp_wj_corrfac_alpha'][i_aero]['wj_corrfac']).T)
-            print('applying aero correction for alpha = ' + str(alpha/np.pi*180))         
-            wj_corrfac = interpolation_function(alpha)
-        else:
-            wj_corrfac = np.ones(wjx1.shape)        
-        flx1 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx1 * wj_corrfac)
-
+        flx1 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx1)
         # Bemerkung: greifen die Luftkraefte bei j,l oder k an?
         # Dies würde das Cmy beeinflussen!
         # Gewaehlt: l
@@ -103,21 +109,28 @@ class nastran:
         Plx1[self.model.aerogrid['set_l'][:,2]] = flx1[2,:]
         
         Pk_rbm = np.dot(self.model.Dlk.T, Plx1)
-       
-        
+        if correct_alpha:
+            # jetzt den Anstellwinkel durch die CFD-loesung addieren
+           interpolation_function = interpolate.interp1d(np.array(aerodb_alpha['values'])/180.0*np.pi, np.array(aerodb_alpha['Pk']), axis=0)
+           Pk_alpha = interpolation_function(alpha) / aerodb_alpha['q_dyn'] * q_dyn
+           Pk_rbm += Pk_alpha
+           
         # -----------------------------   
         # --- aero camber and twist ---   
         # -----------------------------
-        
-        wj_cam = np.sin(self.model.camber_twist['cam_rad'] )
-        flcam = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj_cam)
-        Plcam = np.zeros(np.shape(Ujx1))
-        Plcam[self.model.aerogrid['set_l'][:,0]] = flcam[0,:]
-        Plcam[self.model.aerogrid['set_l'][:,1]] = flcam[1,:]
-        Plcam[self.model.aerogrid['set_l'][:,2]] = flcam[2,:]
-        
-        Pk_cam = np.dot(self.model.Dlk.T, Plcam) 
-        
+
+        if correct_alpha:
+            # Effekte von Camber und Twist sind in der CFD-Loesung durch die geometrische Form enthalten
+            Pk_cam = np.zeros(Pk_rbm.shape)
+        else:
+            wj_cam = np.sin(self.model.camber_twist['cam_rad'] )
+            flcam = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj_cam)
+            Plcam = np.zeros(np.shape(Ujx1))
+            Plcam[self.model.aerogrid['set_l'][:,0]] = flcam[0,:]
+            Plcam[self.model.aerogrid['set_l'][:,1]] = flcam[1,:]
+            Plcam[self.model.aerogrid['set_l'][:,2]] = flcam[2,:]
+            
+            Pk_cam = np.dot(self.model.Dlk.T, Plcam) 
         
         # -----------------------------   
         # --- aero control surfaces ---   
@@ -151,20 +164,17 @@ class nastran:
         # ---------------------   
         # --- aero flexible ---   
         # ---------------------  
-        # modale Beschleunigungen
-        #dUf_dt_test = np.array([ 1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.])
-                
-        #dUjf_dt =  np.dot(self.model.PHIk_strc_tps, np.dot(PHIf_strc.T, dUf_dt )))
+               
+        # modale Verformung
+        Ujf = np.dot(PHIjf, Uf )
+        wjf_1 = np.sum(self.model.aerogrid['N'][:] * np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3]),axis=1) / Vtas
+        flf_1 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjf_1)       
+        
+        # modale Bewegung
+        # zu Ueberpruefen, da Trim bisher in statischer Ruhelage und somit  dUf_dt = 0
         dUjf_dt = np.dot(PHIjf, dUf_dt ) # viel schneller!
         wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas
         flf_2 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjf_2)        
-        
-        # modale Verformung
-        #Uf_test = np.array([ 1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.])
-        #Ujf = np.dot(self.model.Djk, np.dot(self.model.PHIk_strc_tps, np.dot(PHIf_strc.T, Uf )))
-        Ujf = np.dot(PHIjf, Uf )
-        wjf_1 = np.sin(Ujf[self.model.aerogrid['set_j'][:,(4)]])  #* Vtas/Vtas
-        flf_1 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjf_1)            
         
         Plf = np.zeros(np.shape(dUjf_dt))
         Plf[self.model.aerogrid['set_l'][:,0]] = flf_1[0,:] + flf_2[0,:]
@@ -189,12 +199,12 @@ class nastran:
         g_cg = np.dot(PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
         
         # SPC 126
-        if np.any(Pb[[0,1,5]] != 0):
-            print str(Pb)
-            print 'enforcing SPC 126'
-            Pb[0] = 0.0
-            Pb[1] = 0.0
-            Pb[5] = 0.0
+#        if np.any(Pb[[0,1,5]] != 0):
+#            print str(Pb)
+#            print 'enforcing SPC 126'
+#            Pb[0] = 0.0
+#            Pb[1] = 0.0
+#            Pb[5] = 0.0
         
         # non-linear EoM, bodyfixed
         d2Ucg_dt2 = np.zeros(dUcg_dt.shape)
@@ -225,7 +235,7 @@ class nastran:
         # Nastran
         Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
                 
-        Y = np.hstack((X[6:12], np.dot(PHInorm_cg, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, Nxyz[2]))    
+        Y = np.hstack((X[6:12], np.dot(PHIcg_norm, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, Nxyz[2]))    
             
         if type == 'trim':
             return Y
@@ -287,6 +297,10 @@ class nastran:
             
             A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
             Pmac_c = response['Pmac']/response['q_dyn']/A
+            # um alpha drehen, um Cl und Cd zu erhalten
+            Cl = Pmac_c[2]*np.cos(response['alpha'])+Pmac_c[0]*np.sin(response['alpha'])
+            Cd = Pmac_c[2]*np.sin(response['alpha'])+Pmac_c[0]*np.cos(response['alpha'])
+            
             print ''
             print 'aero derivatives:'
             print '--------------------' 
@@ -302,6 +316,8 @@ class nastran:
             print 'Cmy: %.4f' % float(Pmac_c[4]/self.model.macgrid['c_ref'])
             print 'Cmz: %.4f' % float(Pmac_c[5]/self.model.macgrid['b_ref'])
             print 'alpha: %.4f [deg]' % float(response['alpha']/np.pi*180)
+            print 'Cd: %.4f' % float(Cd)
+            print 'Cl: %.4f' % float(Cl)
             print 'command_xi: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])
             print 'command_eta: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])
             print 'command_zeta: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
