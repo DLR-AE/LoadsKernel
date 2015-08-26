@@ -31,9 +31,9 @@ class post_processing:
             i_mass     = self.model.mass['key'].index(trimcase['mass'])
             Mgg        = self.model.mass['MGG'][i_mass]
             PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
-            PHIstrc_cg  = self.model.mass['PHIstrc_cg'][i_mass]
-            PHInorm_cg  = self.model.mass['PHInorm_cg'][i_mass]
-            PHIcg_norm  = self.model.mass['PHIcg_norm'][i_mass]
+            PHIstrc_cg = self.model.mass['PHIstrc_cg'][i_mass]
+            PHInorm_cg = self.model.mass['PHInorm_cg'][i_mass]
+            PHIcg_norm = self.model.mass['PHIcg_norm'][i_mass]
             n_modes    = self.model.mass['n_modes'][i_mass]
             
             # Formel bezogen auf die linearen Bewegungsgleichungen Nastrans. 
@@ -71,7 +71,7 @@ class post_processing:
         print 'calculating cutting forces & moments...'
         for i_trimcase in range(len(self.jcl.trimcase)):
             self.response[i_trimcase]['Pmon_global'] = self.model.PHIstrc_mon.T.dot(self.response[i_trimcase]['Pg'])
-            self.response[i_trimcase]['Pmon_local'] = force_trafo(self.model.mongrid, self.model.coord, self.response[i_trimcase]['Pmon'])
+            self.response[i_trimcase]['Pmon_local'] = force_trafo(self.model.mongrid, self.model.coord, self.response[i_trimcase]['Pmon_global'])
                             
         
     def gather_monstations(self):
