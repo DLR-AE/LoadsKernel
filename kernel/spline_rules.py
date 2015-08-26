@@ -8,13 +8,13 @@ Created on Fri Nov 21 10:32:03 2014
 import numpy as np
 import read_geom
 
-def nearest_neighbour(grid_i, grid_d):
+def nearest_neighbour(grid_i,  set_i,  grid_d, set_d):
     print 'Searching nearest neighbour of {:.0f} dependent nodes in {:.0f} independent nodes...'.format(len(grid_d['ID']) , len(grid_i['ID']))
     len(grid_d['ID'])
     single_ids = []    
     neighbours = []    
     for i_d in range(len(grid_d['ID'])):
-        dist = np.sum((grid_i['offset'] - grid_d['offset_k'][i_d])**2, axis=1)**0.5
+        dist = np.sum((grid_i['offset'+set_i] - grid_d['offset'+set_d][i_d])**2, axis=1)**0.5
         single_ids.append([grid_d['ID'][i_d]])         
         neighbours.append([grid_i['ID'][dist.argmin()]])
         
