@@ -17,8 +17,8 @@ def process_matrix(model, matrix, plot=False):
 
     for param in matrix.keys():
         for aero_key in matrix[param].keys():
-            
-            # if markers are specified, extract affiliated points from cfd grid
+            # if any markers are specified, extract affiliated points from cfd grid
+            # otherwise, the coordinates can be extracted from the pval-file and no cfd gird is requiered!
             markers = matrix[param][aero_key]['markers']
             if markers != 'all':
                 filename_grid = matrix[param][aero_key]['filename_grid']
@@ -42,10 +42,12 @@ def process_matrix(model, matrix, plot=False):
                 points = np.unique(points_of_surface[points])
         
             matrix[param][aero_key]['Pk'] = []
+            matrix[param][aero_key]['cfdgrid'] = []
+            matrix[param][aero_key]['PHIcfd_k'] = []
             for i_value in range(len(matrix[param][aero_key]['values'])):
                 # read pval
                 filename_pval = matrix[param][aero_key]['filenames_surface_pval'][i_value]
-                print '{}, {}, {}: reading {}'.format(aero_key, param, str(matrix[param][aero_key]['values'][i_value]),filename_pval)
+                print '{}, {}, {}: reading {}'.format( param, aero_key, str(matrix[param][aero_key]['values'][i_value]),filename_pval)
                 ncfile_pval = netcdf.NetCDFFile(filename_pval, 'r')
                 # check if pval contains all required data
                 for needed_key in ['global_id', 'x', 'y', 'z', 'x-force', 'y-force', 'z-force']:
@@ -60,29 +62,34 @@ def process_matrix(model, matrix, plot=False):
                     for point in points: 
                         pos.append(np.where(global_id == point)[0][0]) 
                 else:
-                    pos = range(len(ncfile_pval.variables['global_id'][:]))    
+                    pos = range(len(global_id))    
                     
-                if i_value == 0: #and matrix[param][aero_key]['cfdgrid'][i_value-1]['n'] == cfdgrid['n'] and np.all(matrix[param][aero_key]['cfdgrid'][i_value-1]['offset'] == cfdgrid['offset']):
-                    # build cfdgrid
-                    cfdgrid = {}
-                    cfdgrid['ID'] = global_id[pos]
-                    cfdgrid['CP'] = np.zeros(cfdgrid['ID'].shape)
-                    cfdgrid['CD'] = np.zeros(cfdgrid['ID'].shape)
-                    cfdgrid['n'] = len(cfdgrid['ID'])
-                    cfdgrid['offset'] = np.vstack((ncfile_pval.variables['x'][:][pos].copy(), ncfile_pval.variables['y'][:][pos].copy(),ncfile_pval.variables['z'][:][pos].copy() )).T
-                    cfdgrid['set'] = np.arange(6*cfdgrid['n']).reshape(-1,6)
-                    # store cfdgrid
-                    matrix[param][aero_key]['cfdgrid'] = cfdgrid
+                # build cfdgrid
+                cfdgrid = {}
+                cfdgrid['ID'] = global_id[pos]
+                cfdgrid['CP'] = np.zeros(cfdgrid['ID'].shape)
+                cfdgrid['CD'] = np.zeros(cfdgrid['ID'].shape)
+                cfdgrid['n'] = len(cfdgrid['ID'])
+                cfdgrid['offset'] = np.vstack((ncfile_pval.variables['x'][:][pos].copy(), ncfile_pval.variables['y'][:][pos].copy(),ncfile_pval.variables['z'][:][pos].copy() )).T
+                cfdgrid['set'] = np.arange(6*cfdgrid['n']).reshape(-1,6)
+                # store cfdgrid
+                matrix[param][aero_key]['cfdgrid'].append(cfdgrid)
+                
+                # To save some time, check if the grids are identical.  
+                # - number of points should be identical
+                # - offsets should be identical
+                # If the first condition returns false, the next one is not checked. This is useful to avoid errors if e.g. offsets are not comparablr because they have different lenght.
+                if i_value != 0 and matrix[param][aero_key]['cfdgrid'][i_value-1]['n'] == cfdgrid['n'] and np.all(matrix[param][aero_key]['cfdgrid'][i_value-1]['offset'] == cfdgrid['offset']):
+                    print ' - assuming identical cfd grids, re-using spline matrix'
+                    PHIcfd_k = matrix[param][aero_key]['PHIcfd_k'][i_value-1]                                        
+                else:
                     # build spline
                     rules = spline_rules.nearest_neighbour( model.aerogrid, '_k', cfdgrid, '')    
                     PHIcfd_k = spline_functions.spline_rb(model.aerogrid, '_k', cfdgrid, '', rules, model.coord,  sparse_output=True) 
-                    # store spline
-                    matrix[param][aero_key]['PHIcfd_k'] = PHIcfd_k                    
-                else:
-                    # assuming identical cfd grids, re-using spline matrix
-                    PHIcfd_k = matrix[param][aero_key]['PHIcfd_k']
                     
-                
+                # store spline
+                matrix[param][aero_key]['PHIcfd_k'].append(PHIcfd_k)
+                    
                 # build force vector from cfd                    
                 Pcfd = np.zeros(cfdgrid['n']*6)
                 Pcfd[cfdgrid['set'][:,0]] = ncfile_pval.variables['x-force'][:][pos].copy()
