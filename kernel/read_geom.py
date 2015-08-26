@@ -253,11 +253,11 @@ def Nastran_OP4(filename, sparse_output=False, sparse_format=False ):
         if nastran_number_converter(read_string[24:32], 'int') == 2:
             type_real = True
             type_complex = False
-            data = sp.lil_matrix((n_row, n_col), dtype=float)
+            data = sp.lil_matrix((n_col, n_row), dtype=float)
         elif nastran_number_converter(read_string[24:32], 'int') == 4:
             type_real = False
             type_complex = True
-            data = sp.lil_matrix((n_row, n_col), dtype=complex)
+            data = sp.lil_matrix((n_col, n_row), dtype=complex)
             
         else:
             print 'Unknown format: ' + read_string[24:32] 
