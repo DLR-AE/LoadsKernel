@@ -5,6 +5,7 @@ Created on Fri Nov 28 10:53:48 2014
 @author: voss_ar
 """
 import build_aero
+import build_aerodb
 import spline_rules
 import spline_functions
 import build_splinegrid
@@ -90,7 +91,7 @@ class model:
             print 'Unknown atmo method: ' + str(self.jcl.aero['method'])
               
         print 'Building aero model...'
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_steady_corrected']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
             # grids
             for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
                 subgrid = build_aero.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file]) 
@@ -193,7 +194,7 @@ class model:
                 self.PHIk_strc = spline_functions.spline_rbf(self.splinegrid, '',self.aerogrid, '_k', 'tps', dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6] )
                 # rbf-spline not (yet) stable for translation of forces and moments to structure grid, so use rb-spline with nearest neighbour search instead
             elif self.jcl.spline['method'] == 'nearest_neighbour':
-                rules = spline_rules.nearest_neighbour(self.splinegrid, self.aerogrid)    
+                rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.aerogrid, '_k')    
                 self.PHIk_strc = spline_functions.spline_rb(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6])
             elif self.jcl.spline['method'] == 'nastran': 
                 self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
@@ -208,7 +209,7 @@ class model:
             self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord)
             self.Djx1 = np.dot(self.Djk, self.Dkx1)
             self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
-            
+
             # AIC
             self.aero = {'key':[],
                          'Qjj':[],
@@ -220,10 +221,11 @@ class model:
                 self.aero['key'].append(self.jcl.aero['key'][i_aero])
                 self.aero['Qjj'].append(Qjj)
                 
-                # Correction of downwash by correction factor, e.g. obtained from CFD
-                if self.jcl.aero['method'] == 'mona_steady_corrected':    
-                    correction = cPickle.load(open(self.jcl.aero['filename_correction'][i_aero], 'r'))
-                    self.aero['interp_wj_corrfac_alpha'].append(correction)     
+            if self.jcl.aero['method'] == 'hybrid':   
+                print 'Building aero db...'
+                self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb)  
+                    
+                
         else:
             print 'Unknown aero method: ' + str(self.jcl.aero['method'])
             
