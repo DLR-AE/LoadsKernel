@@ -30,17 +30,35 @@ class nastran:
         rho = self.model.atmo['rho'][self.i_atmo]
         self.q_dyn = rho/2.0*self.Vtas**2
         
-        # init aero db for hybrid aero 
+        # init aero db for hybrid aero: alpha
         if self.jcl.aero['method'] == 'hybrid' and self.model.aerodb.has_key('alpha') and self.trimcase['aero'] in self.model.aerodb['alpha']:
             self.correct_alpha = True
             self.aerodb_alpha = self.model.aerodb['alpha'][self.trimcase['aero']]
             # interp1d:  x has to be an array of monotonically increasing values
             self.aerodb_alpha_interpolation_function = interpolate.interp1d(np.array(self.aerodb_alpha['values'])/180.0*np.pi, np.array(self.aerodb_alpha['Pk']), axis=0, bounds_error = True )
             print 'Hybrid aero is used for alpha.'
-            print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], self.aerodb_alpha['q_dyn'], self.q_dyn)        
+            #print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], self.aerodb_alpha['q_dyn'], self.q_dyn)        
         else:
-            self.correct_alpha = False        
+            self.correct_alpha = False      
+       
+        # init efcs
+        from efcs import mephisto
+        self.efcs = mephisto()        
         
+        # init aero db for hybrid aero: control surfaces x2
+        # because there are several control surfaces, lists are used
+        self.correct_x2 = []
+        self.aerodb_x2 = []
+        self.aerodb_x2_interpolation_function = []
+        for x2_key in self.efcs.keys:        
+            if self.jcl.aero['method'] == 'hybrid' and self.model.aerodb.has_key(x2_key) and self.trimcase['aero'] in self.model.aerodb[x2_key]:
+                self.correct_x2.append(x2_key)
+                self.aerodb_x2.append(self.model.aerodb[x2_key][self.trimcase['aero']])
+                self.aerodb_x2_interpolation_function.append(interpolate.interp1d(np.array(self.aerodb_x2[-1]['values'])/180.0*np.pi, np.array(self.aerodb_x2[-1]['Pk']), axis=0, bounds_error = True ))
+                print 'Hybrid aero is used for {}.'.format(x2_key)
+                #print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], self.aerodb_x2[-1]['q_dyn'], self.q_dyn)       
+           
+                
         
     def equations(self, X, type):
         self.counter += 1
@@ -138,28 +156,34 @@ class nastran:
         # --- aero control surfaces ---   
         # -----------------------------    
     
-        from efcs import mephisto
-        efcs = mephisto()
-        Ux2 = efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
-        Ujx2 = np.zeros(np.shape(Ujx1))
-        Plx2 = np.zeros(np.shape(Plx1))
-        for i_x2 in range(len(Ux2)):
-            Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
-            # Drehung der Normalenvektoren
-            #drehmatrix_N = np.dot(self.model.coord['dircos'][1], calc_drehmatrix(0,Ux2[i_x2],0))
-            #N_rot = []
-            #for i_N in self.model.aerogrid['N']:
-            #    N_rot.append(np.dot(drehmatrix_N, i_N))
-            #N_rot = np.array(N_rot)
-            wjx2 = np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]])  #* Vtas/Vtas
-            flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
-            #fjx2 = q_dyn * N_rot.T*self.model.aerogrid['A']*np.dot(self.model.aero['Qjj'][i_aero], wjx2)
-            
-            Plx2[self.model.aerogrid['set_l'][:,0]] += flx2[0,:]
-            Plx2[self.model.aerogrid['set_l'][:,1]] += flx2[1,:]
-            Plx2[self.model.aerogrid['set_l'][:,2]] += flx2[2,:]
+        Pk_cs = np.zeros(np.shape(Pk_rbm))
+        Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
         
-        Pk_cs = np.dot(self.model.Dlk.T, Plx2)
+        for i_x2 in range(len(self.efcs.keys)):
+            if self.efcs.keys[i_x2] in self.correct_x2:
+                pos = self.correct_x2.index(self.efcs.keys[i_x2])
+                x2_interpolation_function = self.aerodb_x2_interpolation_function[pos]
+                # Null-Loesung abziehen!
+                # Extrapolation sollte durch passend eingestellte Grenzen im EFCS verhindert werden. 
+                Pk_cs += (x2_interpolation_function(Ux2[i_x2]) - x2_interpolation_function(0.0) ) / self.aerodb_x2[pos]['q_dyn'] * self.q_dyn
+            else:
+                # use DLM solution
+                Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
+                # Drehung der Normalenvektoren
+                #drehmatrix_N = np.dot(self.model.coord['dircos'][1], calc_drehmatrix(0,Ux2[i_x2],0))
+                #N_rot = []
+                #for i_N in self.model.aerogrid['N']:
+                #    N_rot.append(np.dot(drehmatrix_N, i_N))
+                #N_rot = np.array(N_rot)
+                wjx2 = np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]])  #* Vtas/Vtas
+                flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
+                #fjx2 = q_dyn * N_rot.T*self.model.aerogrid['A']*np.dot(self.model.aero['Qjj'][i_aero], wjx2)
+                Plx2 = np.zeros(np.shape(Plx1))
+                Plx2[self.model.aerogrid['set_l'][:,0]] = flx2[0,:]
+                Plx2[self.model.aerogrid['set_l'][:,1]] = flx2[1,:]
+                Plx2[self.model.aerogrid['set_l'][:,2]] = flx2[2,:]
+            
+                Pk_cs += np.dot(self.model.Dlk.T, Plx2)
 
         
         # ---------------------   
