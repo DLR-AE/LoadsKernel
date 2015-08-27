@@ -105,17 +105,13 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False):
             print '--> Loading response(s).'  
             with open('../output/response_' + job_name + '.pickle', 'r') as f:
                 response = cPickle.load(f)
-        print 'bla'   
+        print 'test ready.'   
 #        import pprint
 #        np.set_printoptions(threshold=np.inf)
 #        offsets_l = model.aerogrid['offset_l']     
 #        with open('dlm_offsets_l.ascii', 'w') as fid: 
 #            pprint.pprint(offsets_l, fid)
-                
-#        from process_pval import test
-#        test(model, model.jcl.trimcase[0])
-
-                
+                               
 #        eigenvectors_selected = model.mass['PHIf_strc'][0].T#[0][6:,:].T
 #        eigenvalues_selected = model.mass['Kff'][0]#[0][6:,6:]
 #        
@@ -149,11 +145,11 @@ def load_model(job_name):
     return model
         
 if __name__ == "__main__":
-    #run_kernel('jcl_DLR_F19_voll', pre=True, main = True, post = True)
-    #run_kernel('jcl_DLR_F19_voll_CFD', main = True)
-    #run_kernel('jcl_DLR_F19_voll_2', post=True)
+
     #run_kernel('jcl_DLR_F19_manloads', pre=True)
     #run_kernel('jcl_DLR_F19_manloads', main=True)
     #run_kernel('jcl_DLR_F19_manloads', post=True)
     #run_kernel('jcl_DLR_F19_manloads', test=True)
-    run_kernel('jcl_DLR_F19_subcase109', main=True)
+    #run_kernel('jcl_DLR_F19_singlesubcase', main=True, post=True)
+    #run_kernel('jcl_DLR_F19_manloads_flex', main=True, post=True)
+    run_kernel('jcl_DLR_F19_CFD', main=True)

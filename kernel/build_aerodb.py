@@ -80,7 +80,7 @@ def process_matrix(model, matrix, plot=False):
                 # - offsets should be identical
                 # If the first condition returns false, the next one is not checked. This is useful to avoid errors if e.g. offsets are not comparablr because they have different lenght.
                 if i_value != 0 and matrix[param][aero_key]['cfdgrid'][i_value-1]['n'] == cfdgrid['n'] and np.all(matrix[param][aero_key]['cfdgrid'][i_value-1]['offset'] == cfdgrid['offset']):
-                    print ' - assuming identical cfd grids, re-using spline matrix'
+                    print ' --> assuming identical cfd grids, re-using spline matrix'
                     PHIcfd_k = matrix[param][aero_key]['PHIcfd_k'][i_value-1]                                        
                 else:
                     # build spline
