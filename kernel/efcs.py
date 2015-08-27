@@ -8,9 +8,10 @@ import numpy as np
 
 class mephisto:
     def __init__(self):
+        self.keys = ['AIL-S1', 'AIL-S2', 'AIL-S3', 'AIL-S4']
         self.Ux2_0 = np.array([0.0, 0.0, 0.0, 0.0])
-        self.Ux2_lower = np.array([-30.0, -30.0,-30.0,-30.0])/180*np.pi
-        self.Ux2_upper = np.array([30.0, 30.0, 30.0, 30.0])/180*np.pi
+        self.Ux2_lower = np.array([-5.0, -5.0,-5.0,-5.0])/180*np.pi
+        self.Ux2_upper = np.array([ 5.0,  5.0, 5.0, 5.0])/180*np.pi
                 
     def efcs(self, command_xi, command_eta, command_zeta):
 
