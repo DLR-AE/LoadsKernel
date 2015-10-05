@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 #from mayavi import mlab
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
-import os
+import os, csv
 
 from trim_tools import *
 import write_functions
@@ -177,109 +177,141 @@ class post_processing:
                 
 
     def plot_monstations(self, monstations, filename_pdf):
-        
-        stations_wing = ['Mon1', 'Mon2', 'Mon3', 'Mon8']
-        stations_fuselage = ['Mon6', 'Mon7']
-        stations_to_plot = stations_wing + stations_fuselage
-        
+        potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
+        potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
+        potatos_Fz_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON4', 'MON5']
+        cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
+
         print 'start potato-plotting...'
         # get data needed for plotting from monstations
         loads = []
         offsets = []
-        for station in stations_to_plot:
+        potato = np.unique(potatos_Fz_Mx + potatos_Mx_My + potatos_Fz_My)
+        for station in potato:
             loads.append(monstations[station]['loads'])
             offsets.append(monstations[station]['offset'])
         loads = np.array(loads)
         offsets = np.array(offsets)
         
         pp = PdfPages(filename_pdf)
-        for i_station in range(len(stations_to_plot)):
-            # calculated convex hull from scattered points
-            if stations_to_plot[i_station] in stations_wing:
+        self.crit_trimcases = []
+        for i_station in range(len(potato)):
+            
+            if potato[i_station] in potatos_Fz_Mx:
                 points = np.vstack((loads[i_station][:,2], loads[i_station][:,3])).T
                 labels = ['Fz [N]', 'Mx [Nm]' ]
-            elif stations_to_plot[i_station] in stations_fuselage:
+                # --- plot ---
+                hull = ConvexHull(points) # calculated convex hull from scattered points
+                plt.figure()
+                plt.scatter(points[:,0], points[:,1], color='cornflowerblue') # plot points
+                for simplex in hull.simplices:                   # plot convex hull
+                    plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
+                for i_case in range(hull.nsimplex):              # plot text   
+                    plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
+                    self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+                plt.title(potato[i_station])
+                plt.grid('on')
+                plt.xlabel(labels[0])
+                plt.ylabel(labels[1])
+                pp.savefig()
+                plt.close()
+            if potato[i_station] in potatos_Mx_My:
+                points = np.vstack((loads[i_station][:,3], loads[i_station][:,4])).T
+                labels = ['Mx [N]', 'My [Nm]' ]
+                # --- plot ---
+                hull = ConvexHull(points) # calculated convex hull from scattered points
+                plt.figure()
+                plt.scatter(points[:,0], points[:,1], color='cornflowerblue') # plot points
+                for simplex in hull.simplices:                   # plot convex hull
+                    plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
+                for i_case in range(hull.nsimplex):              # plot text   
+                    plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
+                    self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+                plt.title(potato[i_station])
+                plt.grid('on')
+                plt.xlabel(labels[0])
+                plt.ylabel(labels[1])
+                pp.savefig()
+                plt.close()   
+                
+            if potato[i_station] in potatos_Fz_My:
                 points = np.vstack((loads[i_station][:,2], loads[i_station][:,4])).T
                 labels = ['Fz [N]', 'My [Nm]' ]
-            hull = ConvexHull(points)
-            
-            plt.figure()
-            # plot points
-            plt.scatter(points[:,0], points[:,1], color='b')
-            # plot hull and lable points
-            plt.scatter(points[hull.vertices,0], points[hull.vertices,1], color='r')  
-            for simplex in hull.simplices: 
-                plt.plot(points[simplex,0], points[simplex,1], 'r--')
-            for i_case in range(hull.nsimplex):                    
-                plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[stations_to_plot[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
+                # --- plot ---
+                hull = ConvexHull(points) # calculated convex hull from scattered points
+                plt.figure()
+                plt.scatter(points[:,0], points[:,1], color='cornflowerblue') # plot points
+                for simplex in hull.simplices:                   # plot convex hull
+                    plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
+                for i_case in range(hull.nsimplex):              # plot text   
+                    plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
+                    self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+                plt.title(potato[i_station])
+                plt.grid('on')
+                plt.xlabel(labels[0])
+                plt.ylabel(labels[1])
+                pp.savefig()
+                plt.close()   
         
-            plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            plt.title(stations_to_plot[i_station])
-            plt.grid('on')
-            plt.xlabel(labels[0])
-            plt.ylabel(labels[1])
-            
-            #plt.show()
-            pp.savefig()
-            plt.close()
         
         print 'start plotting cutting forces...'
-        for i_case in range(len(monstations[stations_to_plot[0]]['subcase'])):
-            #print i_case
-            loads_subcase = loads[:,i_case,:]
+        cuttingforces = ['Fx [N]', 'Fy [N]', 'Fz [N]', 'Mx [Nm]', 'My [Nm]', 'Mz [Nm]']
+        
+        loads = []
+        offsets = []
+        for station in cuttingforces_wing:
+            loads.append(monstations[station]['loads'])
+            offsets.append(monstations[station]['offset'])
+        loads = np.array(loads)
+        offsets = np.array(offsets)
+        
+        for i_cuttingforce in range(len(cuttingforces)):
+            i_max = np.argmax(loads[:,:,i_cuttingforce], 1)
+            i_min = np.argmin(loads[:,:,i_cuttingforce], 1)
             plt.figure()
-            # for every subcase, plot Fx, Fy, Fz, Mx, My, Mz in 3x2 subplots
-            plt.subplot(2,3,1)
-            plt.plot(offsets[:,1], loads_subcase[:,0], '.-')
+            plt.plot(offsets[:,1],loads[:,:,i_cuttingforce], color='cornflowerblue', linestyle='-', marker='.')
+            for i_station in range(len(cuttingforces_wing)):
+                # verticalalignment or va 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
+                # max
+                plt.scatter(offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], color='r')
+                plt.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(monstations['MON1']['subcase'][i_max[i_station]]), fontsize=8, verticalalignment='bottom' )
+                # min
+                plt.scatter(offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], color='r')
+                plt.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(monstations['MON1']['subcase'][i_min[i_station]]), fontsize=8, verticalalignment='top' )
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            plt.title('Wing')        
             plt.grid('on')
             plt.xlabel('y [m]')
-            plt.ylabel('Fx [N]')   
-            plt.subplot(2,3,2)
-            plt.plot(offsets[:,1], loads_subcase[:,1], '.-')  
-            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            plt.grid('on')
-            plt.xlabel('y [m]')
-            plt.ylabel('Fy [N]')   
-            plt.subplot(2,3,3)
-            plt.plot(offsets[:,1], loads_subcase[:,2], '.-')  
-            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            plt.grid('on')
-            plt.xlabel('y [m]')
-            plt.ylabel('Fz [N]')   
-            plt.subplot(2,3,4)
-            plt.plot(offsets[:,1], loads_subcase[:,3], '.-') 
-            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            plt.grid('on')
-            plt.xlabel('y [m]')
-            plt.ylabel('Mx [Nm]')   
-            plt.subplot(2,3,5)
-            plt.plot(offsets[:,1], loads_subcase[:,4], '.-') 
-            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            plt.grid('on')
-            plt.xlabel('y [m]')
-            plt.ylabel('My [Nm]')  
-            plt.subplot(2,3,6)
-            plt.plot(offsets[:,1], loads_subcase[:,5], '.-') 
-            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            plt.grid('on')
-            plt.xlabel('y [m]')
-            plt.ylabel('Mz [Nm]')
-            #plt.tight_layout()
-            plt.suptitle('Subcase ' + str(monstations['Mon1']['subcase'][i_case]))
-            plt.subplots_adjust(left=0.1, right=0.95, top=0.90, bottom=0.1, wspace = 0.4, hspace = 0.3)
-            
+            plt.ylabel(cuttingforces[i_cuttingforce]) 
             #plt.show()
             pp.savefig()
             plt.close()
             
         pp.close()
-        print 'saved as ' + filename_pdf
-        print 'opening '+ filename_pdf
-        os.system('evince ' + filename_pdf + ' &')
-        return
+        print 'plots saved as ' + filename_pdf
+        #print 'opening '+ filename_pdf
+        #os.system('evince ' + filename_pdf + ' &')
+        return 
         
+        
+    def write_critical_trimcases(self, crit_trimcases, trimcases, filename_csv):
+        
+        crit_trimcases_info = []
+        for trimcase in trimcases:
+            if trimcase['subcase'] in crit_trimcases:
+                crit_trimcases_info.append(trimcase)
+        print 'writing critical trimcases cases to: ' + filename_csv
+        with open(filename_csv, 'wb') as fid:
+            w = csv.DictWriter(fid, crit_trimcases_info[0].keys())
+            w.writeheader()
+            w.writerows(crit_trimcases_info)
+        return
         
         
         
