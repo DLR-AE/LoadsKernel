@@ -73,54 +73,61 @@ class jcl:
         self.matrix_aerodb = {}
         self.matrix_aerodb['alpha'] = {}
         self.matrix_aerodb['alpha']['VC'] = {   'markers': 'all', # 'all' or list of markers [1, 2, ...]
-                                                'filename_grid': '/scratch/DLR-F19_centaur_euler2/DLR-F19_AIL.grid', # only if special markers are requested
+                                                'filename_grid': '/marvin/work/92240-F19-1447591004/DLR-F19_AIL_bl_struct_y_2.grid', # only if special markers are requested
                                                 'q_dyn': 0.5*1.225*265.030316756404**2,                                
-                                                'values': [-2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-                                                'filenames_surface_pval': ['/marvin/work/92240-F19-1447591004/alpha/sol/sol_polar_AoA-2.0.surface.pval.1353',
-                                                                           '/marvin/work/92240-F19-1447591004/alpha/sol/sol_polar_AoA-1.0.surface.pval.851',
-                                                                           '/marvin/work/92240-F19-1447591004/alpha/sol/sol_steady.surface.pval.551',
-                                                                           '/marvin/work/92240-F19-1447591004/alpha/sol/sol_polar_AoA1.0.surface.pval.568',
-                                                                           '/marvin/work/92240-F19-1447591004/alpha/sol/sol_polar_AoA2.0.surface.pval.538',
-                                                                           '/marvin/work/92240-F19-1447591004/alpha/sol/sol_polar_AoA3.0.surface.pval.536',
-                                                                           '/marvin/work/92240-F19-1447591004/alpha/sol/sol_polar_AoA4.0.surface.pval.770',
-                                                                           '/marvin/work/92240-F19-1447591004/alpha/sol/sol_polar_AoA5.0.surface.pval.1217',
-                                                                           '/marvin/work/92240-F19-1447591004/alpha/sol/sol_polar_AoA6.0.surface.pval.1629'],
+                                                'values': [-2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
+                                                'filenames_surface_pval': ['/marvin/work/92240-F19-1447591004/alpha_rans/sol/sol_polar_AoA-2.0.surface.pval.2499',
+                                                                           '/marvin/work/92240-F19-1447591004/alpha_rans/sol/sol_polar_AoA-1.0.surface.pval.4550',
+                                                                           '/marvin/work/92240-F19-1447591004/alpha_rans/sol/sol_polar_AoA0.0.surface.pval.4490',
+                                                                           '/marvin/work/92240-F19-1447591004/alpha_rans/sol/sol_polar_AoA1.0.surface.pval.4530',
+                                                                           '/marvin/work/92240-F19-1447591004/alpha_rans/sol/sol_polar_AoA2.0.surface.pval.4738',
+                                                                           '/marvin/work/92240-F19-1447591004/alpha_rans/sol/sol_polar_AoA3.0.surface.pval.5300',
+                                                                           '/marvin/work/92240-F19-1447591004/alpha_rans/sol/sol_polar_AoA4.0.surface.pval.5300',
+                                                                           '/marvin/work/92240-F19-1447591004/alpha_rans/sol/sol_polar_AoA5.0.surface.pval.5418',],
                                             }
         self.matrix_aerodb['AIL-S1'] = {}
         self.matrix_aerodb['AIL-S1']['VC'] = {  'markers': 'all', # 'all' or list of markers [1, 2, ...]
                                                 'filename_grid': '', # only if special markers are requested
                                                 'q_dyn': 0.5*1.225*265.030316756404**2,                                
-                                                'values': [-5.0, 0.0, 5.0 ],
-                                                'filenames_surface_pval': ['/marvin/work/92240-F19-1447591004/eta/sol/sol_mesh_state1.surface.pval.820',
-                                                                           '/marvin/work/92240-F19-1447591004/eta/sol/sol_steady.surface.pval.837',
-                                                                           '/marvin/work/92240-F19-1447591004/eta/sol/sol_mesh_state2.surface.pval.865'],
+                                                'values': [-10.0, -5.0, 0.0, 5.0, 10.0 ],
+                                                'filenames_surface_pval': ['/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state1.surface.pval.4829',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state2.surface.pval.4736',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_steady.surface.pval.4490',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state3.surface.pval.4272',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state4.surface.pval.4203'],
                                              }
         self.matrix_aerodb['AIL-S2'] = {}
         self.matrix_aerodb['AIL-S2']['VC'] = {  'markers': 'all', # 'all' or list of markers [1, 2, ...]
                                                 'filename_grid': '', # only if special markers are requested
                                                 'q_dyn': 0.5*1.225*265.030316756404**2,                                
-                                                'values': [-5.0, 0.0, 5.0 ],
-                                                'filenames_surface_pval': ['/marvin/work/92240-F19-1447591004/eta/sol/sol_mesh_state3.surface.pval.839',
-                                                                           '/marvin/work/92240-F19-1447591004/eta/sol/sol_steady.surface.pval.837',
-                                                                           '/marvin/work/92240-F19-1447591004/eta/sol/sol_mesh_state4.surface.pval.867'],
+                                                'values': [-10.0, -5.0, 0.0, 5.0, 10.0 ],
+                                                'filenames_surface_pval': ['/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state5.surface.pval.4480',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state6.surface.pval.4536',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_steady.surface.pval.4490',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state7.surface.pval.4285',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state8.surface.pval.4216'],
                                              }
         self.matrix_aerodb['AIL-S3'] = {}
         self.matrix_aerodb['AIL-S3']['VC'] = {  'markers': 'all', # 'all' or list of markers [1, 2, ...]
                                                 'filename_grid': '', # only if special markers are requested
                                                 'q_dyn': 0.5*1.225*265.030316756404**2,                                
-                                                'values': [-5.0, 0.0, 5.0 ],
-                                                'filenames_surface_pval': ['/marvin/work/92240-F19-1447591004/eta/sol/sol_mesh_state5.surface.pval.823',
-                                                                           '/marvin/work/92240-F19-1447591004/eta/sol/sol_steady.surface.pval.837',
-                                                                           '/marvin/work/92240-F19-1447591004/eta/sol/sol_mesh_state6.surface.pval.842'],
+                                                'values': [-10.0, -5.0, 0.0, 5.0, 10.0 ],
+                                                'filenames_surface_pval': ['/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state9.surface.pval.4488',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state10.surface.pval.4532',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_steady.surface.pval.4490',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state11.surface.pval.4292',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state12.surface.pval.4232'],
                                              }
         self.matrix_aerodb['AIL-S4'] = {}
         self.matrix_aerodb['AIL-S4']['VC'] = {  'markers': 'all', # 'all' or list of markers [1, 2, ...]
                                                 'filename_grid': '', # only if special markers are requested
                                                 'q_dyn': 0.5*1.225*265.030316756404**2,                                
-                                                'values': [-5.0, 0.0, 5.0 ],
-                                                'filenames_surface_pval': ['/marvin/work/92240-F19-1447591004/eta/sol/sol_mesh_state7.surface.pval.821',
-                                                                           '/marvin/work/92240-F19-1447591004/eta/sol/sol_steady.surface.pval.837',
-                                                                           '/marvin/work/92240-F19-1447591004/eta/sol/sol_mesh_state8.surface.pval.395'],
+                                                'values': [-10.0, -5.0, 0.0, 5.0, 10.0 ],
+                                                'filenames_surface_pval': ['/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state13.surface.pval.4863',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state14.surface.pval.4749',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_steady.surface.pval.4490',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state15.surface.pval.4281',
+                                                                           '/marvin/work/92240-F19-1447591004/eta_rans/sol/sol_mesh_state16.surface.pval.4247'],
                                              }
                             
         self.spline = {'method': 'nearest_neighbour', # 'nearest_neighbour', 'rbf', 'nastran'
@@ -148,20 +155,25 @@ class jcl:
                      'key':['FL000','FL055', 'FL075', 'FL200', 'FL300', 'FL450'],
                      'h': ft2m([0, 5500, 7500, 20000, 30000, 45000]),
                     }
-        self.trimcase = [{'desc': 'CC.BFDM.OVCFL000.LLFPUNz25', 
-                          'manoeuver': 'LLFPUNz25', 
-                          'subcase': 1,
-                          'Ma': 0.8, 
-                          'aero': 'VC', 
-                          'altitude': 'FL000', 
-                          'mass': 'BFDM',
-                          'Nz': 2.5, 
-                          'p': 0.0,
-                          'q': 0.055, 
-                          'pdot': 0.0, 
-                          'qdot': 0.0, 
-                         },
-                        ]
+#        self.trimcase = [{'desc': 'CC.BFDM.OVCFL000.LLFPUNz25', 
+#                          'manoeuver': 'LLFPUNz25', 
+#                          'subcase': 1,
+#                          'Ma': 0.8, 
+#                          'aero': 'VC', 
+#                          'altitude': 'FL000', 
+#                          'mass': 'BFDM',
+#                          'Nz': 2.5, 
+#                          'p': 0.0,
+#                          'q': 0.055, 
+#                          'pdot': 0.0, 
+#                          'qdot': 0.0, 
+#                         },
+#                        ]
+                        
+        from numpy import array
+        with open('/scratch/kernel_pre_20150821/input/jcl_DLR_F19_CFD.trimcase_dict', 'r') as fid:
+            trimcase_str = fid.read()
+        self.trimcase = eval(trimcase_str)
                         
         
         # End
