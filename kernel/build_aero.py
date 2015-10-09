@@ -47,7 +47,8 @@ def build_x2grid(jcl_aero, aerogrid, coord):
         x2grid['ID'].append([])
         x2grid['offset_j'].append([])
         x2grid['set_j'].append([])
-        for i_panel in aelist['values'][i_surf]:
+        
+        for i_panel in aelist['values'][aelist['ID'].index( aesurf['AELIST'][i_surf] )]:
             pos_panel = np.where(aerogrid['ID']==i_panel)[0][0]
             x2grid['ID'][i_surf].append(aerogrid['ID'][pos_panel])
             x2grid['CD'][i_surf].append(aerogrid['CD'][pos_panel])
@@ -56,15 +57,19 @@ def build_x2grid(jcl_aero, aerogrid, coord):
             x2grid['set_j'][i_surf].append(aerogrid['set_j'][pos_panel])
         
     return x2grid, coord   
-   
-        
+     
 
-def build_aerogrid(filename_caero_bdf):
-    # all corner points are defined as grid points by ModGen
-    caero_grid = read_geom.Modgen_GRID(filename_caero_bdf)
-    # four grid points are assembled to one panel, this is expressed as CQUAD4s 
-    caero_panels = read_geom.Modgen_CQUAD4(filename_caero_bdf)
-
+def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4'):
+    if method_caero == 'CQUAD4':
+        # all corner points are defined as grid points by ModGen
+        caero_grid = read_geom.Modgen_GRID(filename_caero_bdf)
+        # four grid points are assembled to one panel, this is expressed as CQUAD4s 
+        caero_panels = read_geom.Modgen_CQUAD4(filename_caero_bdf)
+    elif method_caero == 'CAERO1':
+        caero_grid, caero_panels = read_geom.Nastran_CAERO1(filename_caero_bdf)
+    else:
+        print "Error: Method %s not implemented. Availble options are 'CQUAD4' and 'CAERO1'" % method_caero
+    print ' - from corner points and aero panels, constructing aerogrid'
     ID = []
     l = [] # length of panel
     A = [] # area of one panel
@@ -100,7 +105,8 @@ def build_aerogrid(filename_caero_bdf):
         
         ID.append(caero_panels['ID'][i_panel])    
         l.append(l_m[0])
-        A.append(l_m[0]*b_m[1])
+        # A.append(l_m[0]*b_m[1])
+        A.append(np.linalg.norm(np.cross(l_m, b_m)))
         N.append(np.cross(l_1, b_1)/np.linalg.norm(np.cross(l_1, b_1)))
         offset_l.append(caero_grid['offset'][index_1] + 0.25*l_m + 0.50*b_1)
         offset_k.append(caero_grid['offset'][index_1] + 0.50*l_m + 0.50*b_1)
@@ -122,16 +128,21 @@ def build_aerogrid(filename_caero_bdf):
                 'set_l': set_l,
                 'set_k': set_k,
                 'set_j': set_j,
-                'CD': caero_grid['CD'],
-                'CP': caero_grid['CP'],
+                'CD': caero_panels['CD'],
+                'CP': caero_panels['CP'],
                 'n': n,
                 'coord_desc': 'bodyfixed',
-               }     
+               }   
+    #import matplotlib.pyplot as plt
     #fig = plt.figure()
     #ax = fig.add_subplot(111, projection='3d')
     #ax.scatter(caero_grid['offset'][:,0], caero_grid['offset'][:,1], caero_grid['offset'][:,2], color='b', marker='.', label='caero_grid')
     #ax.scatter(aerogrid['offset_k'][:,0], aerogrid['offset_k'][:,1], aerogrid['offset_k'][:,2], color='r', marker='.', label='k')
     #ax.scatter(aerogrid['offset_j'][:,0], aerogrid['offset_j'][:,1], aerogrid['offset_j'][:,2], color='g', marker='.', label='j')
+    #plt.scatter( aerogrid['offset_k'][:,0], aerogrid['offset_k'][:,1], color='r', marker='.', label='k')
+    #plt.scatter( aerogrid['offset_j'][:,0], aerogrid['offset_j'][:,1], color='g', marker='.', label='j')
+    #plt.grid('on')
+    #plt.legend()
     #plt.show()    
     return aerogrid
 
