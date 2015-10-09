@@ -42,11 +42,18 @@ def spline_nastran(filename, strcgrid, aerogrid):
             
             line_split = lines[i_line].split()
             while len(line_split) >= 3:
-
-                if line_split[1] == 'T3':
+                if line_split[1] == 'T1':
+                    tmp = 0
+                elif line_split[1] == 'T2':
+                    tmp = 1
+                elif line_split[1] == 'T3':
                     tmp = 2
+                elif line_split[1] == 'R1':
+                    tmp = 3
                 elif line_split[1] == 'R2':
                     tmp = 4
+                elif line_split[1] == 'R3':
+                    tmp = 5
                 else:
                     print 'DOF not implemented!'                    
                 row = strcgrid['set'][np.where(np.int(line_split[0]) == strcgrid['ID'])[0][0],tmp]
