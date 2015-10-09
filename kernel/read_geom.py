@@ -163,14 +163,13 @@ def Modgen_GRID(filename):
     print 'Read GRID data from ModGen file: %s' %filename
     grids = []
     with open(filename, 'r') as fid:
-        while True:
-            read_string = fid.readline()
-            if string.find(read_string, 'GRID') !=-1 and read_string[0] != '$':
-                if string.find(read_string[48:56], '\n') != -1: # if CD is missing, fix with CP
-                    read_string = read_string[:48] + read_string[16:24]
-                grids.append([nastran_number_converter(read_string[8:16], 'ID'), nastran_number_converter(read_string[16:24], 'CP'), nastran_number_converter(read_string[24:32], 'float'), nastran_number_converter(read_string[32:40], 'float'), nastran_number_converter(read_string[40:48], 'float'), nastran_number_converter(read_string[48:56], 'CD')])
-            elif read_string == '':
-                break
+        lines = fid.readlines()
+    for line in lines:
+        if line[0] != '$' and string.find(line[:8], 'GRID') !=-1 :
+            if string.find(line[48:56], '\n') != -1: # if CD is missing, fix with CP
+                line = line[:48] + line[16:24]
+            grids.append([nastran_number_converter(line[8:16], 'ID'), nastran_number_converter(line[16:24], 'CP'), nastran_number_converter(line[24:32], 'float'), nastran_number_converter(line[32:40], 'float'), nastran_number_converter(line[40:48], 'float'), nastran_number_converter(line[48:56], 'CD')])
+            
     grids = np.array(grids)
     n = len(grids[:,0])
     grid = {"ID": grids[:,0],
@@ -198,12 +197,71 @@ def Modgen_CQUAD4(filename):
              }
     return panels
     
+def Nastran_CAERO1(filename):
+    print 'Read CAERO1 data from Nastran file: %s' %filename
+    caerocards = []
+    with open(filename, 'r') as fid:
+        while True:
+            read_string = fid.readline()
+            if string.find(read_string, 'CAERO1') !=-1 and read_string[0] != '$':
+                # read first line of CAERO card
+                caerocard = {'EID': nastran_number_converter(read_string[8:16], 'ID'),
+                             'CP': nastran_number_converter(read_string[24:32], 'ID'),
+                             'n_span': nastran_number_converter(read_string[32:40], 'ID'),
+                             'n_chord': nastran_number_converter(read_string[40:48], 'ID'),
+                            }
+                if np.any([caerocard['n_span'] == 0, caerocard['n_chord'] == 0]):
+                    print 'Error: Assumption of equal spaced CAERO panels is violated!'
+                # read second line of CAERO card
+                read_string = fid.readline()  
+                caerocard['X1'] = np.array([nastran_number_converter(read_string[ 8:16], 'float'), nastran_number_converter(read_string[16:24], 'float'), nastran_number_converter(read_string[24:32], 'float')])
+                caerocard['length12'] = nastran_number_converter(read_string[32:40], 'float')
+                caerocard['X2'] = caerocard['X1'] + np.array([caerocard['length12'], 0.0, 0.0])
+                caerocard['X4'] =np.array([nastran_number_converter(read_string[40:48], 'float'), nastran_number_converter(read_string[48:56], 'float'), nastran_number_converter(read_string[56:64], 'float')])
+                caerocard['length43'] = nastran_number_converter(read_string[64:72], 'float')
+                caerocard['X3'] = caerocard['X4'] + np.array([caerocard['length43'], 0.0, 0.0])
+                caerocards.append(caerocard)
+            elif read_string == '':
+                break
+            
+    print ' - from CAERO cards, constructing corner points and aero panels'
+    # from CAERO cards, construct corner points... '
+    # then, combine four corner points to one panel
+    grid_ID = 0
+    grids = {'ID':[], 'offset':[]}
+    panels = {"ID": [], 'CP':[], 'CD':[], "cornerpoints": []}
+    for caerocard in caerocards:
+         # build matrix of corner points
+         grids_map = np.zeros((caerocard['n_chord']+1, caerocard['n_span']+1), dtype='int')
+         d_span = (caerocard['X4'] - caerocard['X1']) / caerocard['n_span']
+         for i_strip in range(caerocard['n_span']+1):
+             d_chord = ( (caerocard['X2'] - caerocard['X1']) * (caerocard['n_span'] - i_strip)/caerocard['n_span'] \
+                    +(caerocard['X3'] - caerocard['X4']) * (      0             + i_strip)/caerocard['n_span'] ) / caerocard['n_chord']
+             for i_row in range(caerocard['n_chord']+1):
+                 grids['ID'].append(grid_ID)
+                 grids['offset'].append(caerocard['X1']+ d_span*i_strip + d_chord*i_row)
+                 grids_map[i_row,i_strip ] = grid_ID
+                 grid_ID += 1
+        
+         panel_ID =  caerocard['EID']                  
+         for i_strip in range(caerocard['n_span']):
+             for i_row in range(caerocard['n_chord']):
+                panels['ID'].append(panel_ID)
+                panels['CP'].append(caerocard['CP']) # applying CP of CAERO card to all grids
+                panels['CD'].append(caerocard['CP'])
+                panels['cornerpoints'].append([ grids_map[i_row, i_strip], grids_map[i_row+1, i_strip], grids_map[i_row+1, i_strip+1], grids_map[i_row, i_strip+1] ])
+                panel_ID += 1 
+
+    return grids, panels      
     
 def nastran_number_converter(string_in, type, default=0):
     if type in ['float']:
         try:
             out = float(string_in)
         except:
+            
+            string_in = string_in.replace(' ', '') # remove leading spaces
+            string_in = string_in.replace('\n', '') # remove end of line
             if '-' in string_in[1:]:
                 if string_in[0] in ['-', '+']:
                     sign = string_in[0]
@@ -216,6 +274,9 @@ def nastran_number_converter(string_in, type, default=0):
                     out = float(sign + string_in[1:].replace('+', 'E+'))
                 else:
                     out = float(string_in.replace('+', 'E+'))
+            elif string_in == '':
+                print "Warning: could not interprete the following number: '" + string_in + "' -> setting value to zero."
+                out = float(default)
             else: 
                 print "ERROR: could not interprete the following number: " + string_in
                 return
@@ -397,38 +458,34 @@ def Modgen_AESURF(filename):
               'eff':[],
              }
     with open(filename, 'r') as fid:
-        while True:
-            read_string = fid.readline()
-            if string.find(read_string, 'AESURF') !=-1 and read_string[0] != '$':
-                # extract information from AESURF card
-                aesurf['ID'].append(nastran_number_converter(read_string[8:16], 'int'))
-                aesurf['key'].append(string.replace(read_string[16:24], ' ', ''))
-                aesurf['CID'].append(nastran_number_converter(read_string[24:32], 'int'))
-                aesurf['AELIST'].append(nastran_number_converter(read_string[32:40], 'int'))
-                aesurf['eff'].append(nastran_number_converter(read_string[56:64], 'float'))
-            elif read_string == '':
-                break
-        return aesurf
+        lines = fid.readlines()
+    for line in lines:
+        if string.find(line, 'AESURF') !=-1 and line[0] != '$':
+            # extract information from AESURF card
+            aesurf['ID'].append(nastran_number_converter(line[8:16], 'int'))
+            aesurf['key'].append(string.replace(line[16:24], ' ', ''))
+            aesurf['CID'].append(nastran_number_converter(line[24:32], 'int'))
+            aesurf['AELIST'].append(nastran_number_converter(line[32:40], 'int'))
+            aesurf['eff'].append(nastran_number_converter(line[56:64], 'float'))
+    return aesurf
 
 def Modgen_AELIST(filename):
     aelist = {'ID': [], 'values':[]}
     with open(filename, 'r') as fid:
-        while True:
-            read_string = fid.readline()
-            if string.find(read_string, 'AELIST') !=-1 and read_string[0] != '$':
-                if string.replace(read_string[24:32], ' ', '') == 'THRU' and read_string[-2] != '+':
-                    # Assumption: the list is defined with the help of THRU and there is only one THRU
-                    startvalue = nastran_number_converter(read_string[16:24], 'int')
-                    stoppvalue = nastran_number_converter(read_string[32:40], 'int')
-                    values = np.arange(startvalue, stoppvalue+1)
-                    aelist['ID'].append(nastran_number_converter(read_string[8:16], 'int'))
-                    aelist['values'].append(values)
-                else:
-                    print 'Notation of AELIST with single values not yet implemented!'
-                    return
-            elif read_string == '':
-                break
-        return aelist
+        lines = fid.readlines()
+    for line in lines:
+        if string.find(line, 'AELIST') !=-1 and line[0] != '$':
+            if string.replace(line[24:32], ' ', '') == 'THRU' and line[-2] != '+':
+                # Assumption: the list is defined with the help of THRU and there is only one THRU
+                startvalue = nastran_number_converter(line[16:24], 'int')
+                stoppvalue = nastran_number_converter(line[32:40], 'int')
+                values = np.arange(startvalue, stoppvalue+1)
+                aelist['ID'].append(nastran_number_converter(line[8:16], 'int'))
+                aelist['values'].append(values)
+            else:
+                print 'Notation of AELIST with single values not yet implemented!'
+                return
+    return aelist
 
 def Modgen_SET1(filename):
     # Assumption: only one SET1 card per file
