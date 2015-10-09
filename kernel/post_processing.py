@@ -136,26 +136,28 @@ class post_processing:
             y = self.model.aerogrid['offset_k'][:,1]
             z = self.model.aerogrid['offset_k'][:,2]
             fx, fy, fz = response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]],response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
-    
+            f_scale = 0.002 # vectors
+            p_scale = 0.3 # points
             mlab.figure()
-            mlab.points3d(x, y, z, scale_factor=0.1)
-            mlab.quiver3d(x, y, z, fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-            mlab.quiver3d(x+fx*0.01, y+fy*0.01, z+fz*0.01,fx*0.01, fy*0.01, fz*0.01 , color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
+            mlab.points3d(x, y, z, scale_factor=p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=f_scale)            
+            #mlab.quiver3d(x, y, z, fx*f_scale, fy*f_scale, fz*f_scale , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+            #mlab.quiver3d(x+fx*f_scale, y+fy*f_scale, z+fz*f_scale,fx*f_scale, fy*f_scale, fz*f_scale , color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
             mlab.title('Pk_rbm', size=0.2, height=0.95)
             
             mlab.figure() 
-            mlab.points3d(x, y, z, scale_factor=0.1)
-            mlab.quiver3d(x, y, z, response['Pk_cam'][self.model.aerogrid['set_k'][:,0]], response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=0.01)            
+            mlab.points3d(x, y, z, scale_factor=p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_cam'][self.model.aerogrid['set_k'][:,0]], response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=f_scale)            
             mlab.title('Pk_camber_twist', size=0.2, height=0.95)
             
             mlab.figure()        
-            mlab.points3d(x, y, z, scale_factor=0.1)
-            mlab.quiver3d(x, y, z, response['Pk_cs'][self.model.aerogrid['set_k'][:,0]], response['Pk_cs'][self.model.aerogrid['set_k'][:,1]], response['Pk_cs'][self.model.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=0.01)
+            mlab.points3d(x, y, z, scale_factor=p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_cs'][self.model.aerogrid['set_k'][:,0]], response['Pk_cs'][self.model.aerogrid['set_k'][:,1]], response['Pk_cs'][self.model.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=f_scale)
             mlab.title('Pk_cs', size=0.2, height=0.95)
             
             mlab.figure()   
-            mlab.points3d(x, y, z, scale_factor=0.1)
-            mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=0.01)
+            mlab.points3d(x, y, z, scale_factor=p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=f_scale)
             mlab.title('Pk_flex', size=0.2, height=0.95)
             
             x = self.model.strcgrid['offset'][:,0]
@@ -169,9 +171,9 @@ class post_processing:
             z_f = self.model.strcgrid['offset'][:,2] + response['Ug_f'][self.model.strcgrid['set'][:,2]] * 10.0
             
             mlab.figure()
-            mlab.points3d(x, y, z,  scale_factor=0.1)
-            mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=0.1)
-            mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=0.1)
+            mlab.points3d(x, y, z,  scale_factor=p_scale)
+            mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=p_scale)
+            mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=p_scale)
             mlab.title('rbm (green) and flexible deformation x10 (blue)', size=0.2, height=0.95)
             mlab.show()
                 
