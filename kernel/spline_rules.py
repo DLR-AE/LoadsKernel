@@ -46,20 +46,6 @@ def rules_aeropanel(aerogrid):
     return splinerules
         
 
-def monstations_from_report(mongrid, filenames):
-    if mongrid['n'] != len(filenames):
-        print 'Number of Stations in mongrid ({:.0f}) and number of reports ({:.0f}) unequal!'.format(mongrid['n'], len(filenames))
-    ID_d = []
-    ID_i = []
-    for i_station in range(mongrid['n']):
-                ID_d.append(read_geom.Nastran_NodeLocationReport(filenames[i_station]))
-                ID_i.append(mongrid['ID'][i_station])
-                
-    splinerules = {"method": 'rb',
-                   "ID_i": ID_i,
-                   "ID_d": ID_d,
-                    }
-    return splinerules
 
 def monstations_from_bdf(mongrid, filenames):
     if mongrid['n'] != len(filenames):
@@ -77,6 +63,24 @@ def monstations_from_bdf(mongrid, filenames):
                     }
     return splinerules
                 
+                
+def monstations_from_aecomp(mongrid, filename):
+    aecomp = read_geom.Nastran_AECOMP(filename)
+    # Assumption: only SET1 is used in AECOMP, AELIST and CAERO are not yet implemented
+    sets = read_geom.Nastran_SET1(filename)
+    ID_d = []
+    ID_i = []
+    for i_station in range(mongrid['n']):
+        i_aecomp = aecomp['name'].index( mongrid['comp'][i_station])
+        i_set = sets['ID'].index(aecomp['list_id'][i_aecomp])
+        ID_d.append(sets['values'][i_set])
+        ID_i.append(mongrid['ID'][i_station])
+                
+    splinerules = {"method": 'rb',
+                   "ID_i": ID_i,
+                   "ID_d": ID_d,
+                    }
+    return splinerules
                 
                 
                 

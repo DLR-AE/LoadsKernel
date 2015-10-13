@@ -487,25 +487,88 @@ def Modgen_AELIST(filename):
                 return
     return aelist
 
-def Modgen_SET1(filename):
-    # Assumption: only one SET1 card per file
-
+def Nastran_SET1(filename):
+    
+    sets = {'ID':[], 'values':[]}
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            if string.find(read_string, 'SET1') !=-1 and read_string[0] != '$':
-                row = read_string[16:-2]
-            elif read_string[0] == '+' and read_string[-2:-1] == '+':
+            if string.find(read_string[:8], 'SET1') !=-1 and read_string[-2:-1] == '+' and read_string[:1] != '$':
+                # this is the first line
+                row = read_string[8:-2]
+            elif read_string[:1] == '+' and read_string[-2:-1] == '+':
+                # these are the middle lines
                 row += read_string[8:-2]
-            elif read_string[0] == '+':
+            elif read_string[:1] == '+' or np.all(string.find(read_string[:8], 'SET1') !=-1 and read_string[:1] != '$'):
+                # this is the last line, no more IDs to come
                 row += read_string[8:-1]
+                
+                # start conversion from string to list containing ID values
+                sets['ID'].append(nastran_number_converter(row[:8], 'int'))
+                row = row[8:]
+                
+                values = []
+                while len(row)>0:
+                    values.append(nastran_number_converter(row[:8], 'int'))
+                    row = row[8:]
+                sets['values'].append( np.array(values) )
+            if read_string == '':
                 break
-        IDs = []
-        while len(row)>0:
-            IDs.append(nastran_number_converter(row[:8], 'int'))
-            row = row[8:]
-        return np.array(IDs)
+        return sets
+        
+def Nastran_AECOMP(filename):
+    aecomp = {'name': [], 'list_type':[], 'list_id':[]}
+    with open(filename, 'r') as fid:
+        lines = fid.readlines()
+    for line in lines:
+        if string.find(line, 'AECOMP') !=-1 and line[0] != '$':
+            # Assumption: only one list is given per AECOMP
+            aecomp['name'].append(string.replace(line[8:16], ' ', ''))
+            aecomp['list_type'].append(string.replace(line[16:24], ' ', ''))
+            aecomp['list_id'].append(nastran_number_converter(line[24:32], 'int'))
+    
+    return aecomp
 
+def Nastran_MONPNT1(filename):    
+    ID = []
+    name = []
+    label = []
+    comp = []
+    CP = []
+    CD = []
+    offset = []
+    i_ID = 1
+    with open(filename, 'r') as fid:
+        while True:
+            read_string = fid.readline()
+            if string.find(read_string, 'MONPNT1') !=-1 and read_string[0] != '$':
+                # extract information from MONPNT1 card
+                # erste Zeile
+                ID.append(i_ID) # Eigentlich haben MONPNTs keine IDs sondern nur Namen...
+                i_ID += 1
+                name.append(string.replace(read_string[8:16], ' ', ''))
+                label.append(string.replace(read_string[16:72], ' ', ''))
+                # zweite Zeile
+                read_string = fid.readline()
+                comp.append(string.replace(read_string[16:24], ' ', ''))
+                CP.append(nastran_number_converter(read_string[24:32], 'int'))
+                CD.append(nastran_number_converter(read_string[56:64], 'int'))
+                offset.append([nastran_number_converter(read_string[32:40], 'float'), nastran_number_converter(read_string[40:48], 'float'), nastran_number_converter(read_string[48:56], 'float')])
+            elif read_string == '':
+                break
+    
+    n = len(ID)
+    mongrid = {'ID':np.array(ID),
+               'name':name,
+               'label':label,
+               'comp':comp,
+               'CP':np.array(CP),
+               'CD':np.array(CD),
+               'offset':np.array(offset),
+               'set': np.arange(n*6).reshape((n,6)),
+               'n':n,
+              }
+    return mongrid
 
 def Modgen_W2GJ(filename):
     print 'Read W2GJ data (correction of camber and twist) from ModGen file: %s' %filename
