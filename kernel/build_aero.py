@@ -28,8 +28,8 @@ def build_x2grid(jcl_aero, aerogrid, coord):
         if i_file == 0:
             aelist = sub_aelist
         else:
-            aelist['ID'] = np.hstack((aelist['ID'], sub_aelist['ID']))
-            aelist['values'] = np.vstack((aelist['values'], sub_aelist['values']))
+            for key in aelist.keys():
+                aelist[key] += sub_aelist[key]
                 
     x2grid = {'ID_surf': aesurf['ID'],
                'CID': aesurf['CID'],

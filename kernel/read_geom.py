@@ -194,6 +194,8 @@ def Modgen_CQUAD4(filename):
     data = np.array(data)
     panels = {"ID": data[:,0],
               "cornerpoints": data[:,1:5],
+              "CP": np.zeros(data[:,0].shape), # Assumption: panels are given in global coord system
+              "CD": np.zeros(data[:,0].shape),
              }
     return panels
     
