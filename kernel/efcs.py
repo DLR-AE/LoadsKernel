@@ -73,8 +73,8 @@ class allegra:
         self.Ux2_lower = np.array([-30.0, -30.0, -30.0])/180*np.pi
         self.Ux2_upper = np.array([ 30.0,  30.0, 30.0])/180*np.pi
         
-        self.alpha_lower = 0.0/180*np.pi
-        self.alpha_upper = 5.0/180*np.pi
+        self.alpha_lower = -2.0/180*np.pi
+        self.alpha_upper = 6.0/180*np.pi
                 
     def efcs(self, command_xi, command_eta, command_zeta):
 
