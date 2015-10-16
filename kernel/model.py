@@ -244,7 +244,7 @@ class model:
                 
             if self.jcl.aero['method'] == 'hybrid':   
                 print 'Building aero db...'
-                self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb)  
+                self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
                     
                 
         else:

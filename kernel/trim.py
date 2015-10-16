@@ -28,7 +28,7 @@ class trim:
             ['y',        'fix',  0.0,],
             ['z',        'fix',  z  ,],
             ['phi',      'fix',  0.0,],
-            ['theta',    'free', 3.0/180*np.pi,],
+            ['theta',    'free', 1.0/180*np.pi,],
             ['psi',      'fix',  0.0,],
             ['u',        'fix',  u,  ],
             ['v',        'fix',  0.0,],
@@ -42,7 +42,7 @@ class trim:
         for i_mode in range(n_modes):
             self.trimcond_X = np.vstack((self.trimcond_X ,  ['dUf_dt'+str(i_mode), 'free', 0.0]))
             
-        self.trimcond_X = np.vstack((self.trimcond_X , ['command_xi',   'free', 0.0,],  ['command_eta',   'free',  0.0,], ['command_zeta',   'fix',  0.0,]))
+        self.trimcond_X = np.vstack((self.trimcond_X , ['command_xi',   'fix', 0.0,],  ['command_eta',   'free',  0.0,], ['command_zeta',   'fix',  0.0,]))
             
         # outputs
         self.trimcond_Y = np.array([ 
@@ -55,7 +55,7 @@ class trim:
             ['du',       'free',   0.0,],
             ['dv',       'fix',    0.0,],
             ['dw',       'free',   0.0,],
-            ['dp',       'target', self.trimcase['pdot'],],
+            ['dp',       'free', self.trimcase['pdot'],],
             ['dq',       'target', self.trimcase['qdot'],],
             ['dr',       'fix',    0.0,],
             ])

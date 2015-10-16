@@ -93,9 +93,10 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False):
         post_processing.save_nodalloads('../output/nodalloads_' + job_name + '.bdf')
         post_processing.save_nodaldefo('../output/nodaldefo_' + job_name)
         
-        
-        #post_processing.plot_monstations(post_processing.monstations, '../output/monstations_' + job_name + '.pdf')
-        #post_processing.plot_forces_deformation_interactive()
+        print '--> Drawing some plots.'  
+        post_processing.plot_monstations(post_processing.monstations, '../output/monstations_' + job_name + '.pdf')
+        post_processing.write_critical_trimcases(post_processing.crit_trimcases, jcl.trimcase, '../output/crit_trimcases_' + job_name + '.csv')
+        post_processing.plot_forces_deformation_interactive()
 
     if test:
         if not 'model' in locals():
@@ -105,34 +106,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False):
             print '--> Loading response(s).'  
             with open('../output/response_' + job_name + '.pickle', 'r') as f:
                 response = cPickle.load(f)
-        print 'test ready.'   
-#        import pprint
-#        np.set_printoptions(threshold=np.inf)
-#        offsets_l = model.aerogrid['offset_l']     
-#        with open('dlm_offsets_l.ascii', 'w') as fid: 
-#            pprint.pprint(offsets_l, fid)
-                               
-#        eigenvectors_selected = model.mass['PHIf_strc'][0].T#[0][6:,:].T
-#        eigenvalues_selected = model.mass['Kff'][0]#[0][6:,6:]
-#        
-#        force_vector = np.zeros(model.strcgrid['n']*6)
-#        force_vector[model.strcgrid['set'][:,2]] = 9.81 # [N]
-#        force_vector = response[0]['Pg']
-#        F_gen = np.dot(eigenvectors_selected.T, force_vector)
-#
-#        gen_coords = np.linalg.solve(eigenvalues_selected, F_gen)
-#        print gen_coords
-#        
-#        displacements_nodal = np.dot(eigenvectors_selected, gen_coords)
-#        displacements_nodal_xyz = displacements_nodal[model.strcgrid['set'][:,0:3]]
-#        
-#        np.savetxt('../output/structure_undeformed.dat', model.strcgrid['offset'])
-#        np.savetxt('../output/displacements_physical.dat', displacements_nodal_xyz + model.strcgrid['offset'])
-#        
-#        from write_functions import write_force_and_moment_cards
-#        with open('../output/load.bdf', 'w') as fid:
-#            write_force_and_moment_cards(fid, model.strcgrid, force_vector, 1)
-        
+        print 'test ready.' 
+        # place code to test here
+
         
     print 'AE Kernel finished.'
 
@@ -146,10 +122,10 @@ def load_model(job_name):
         
 if __name__ == "__main__":
 
-    #run_kernel('jcl_DLR_F19_manloads', pre=True)
-    #run_kernel('jcl_DLR_F19_manloads', main=True)
-    #run_kernel('jcl_DLR_F19_manloads', post=True)
-    #run_kernel('jcl_DLR_F19_manloads', test=True)
-    #run_kernel('jcl_DLR_F19_singlesubcase', main=True, post=True)
-    #run_kernel('jcl_DLR_F19_manloads_flex', main=True, post=True)
-    run_kernel('jcl_DLR_F19_CFD', main=True)
+    run_kernel('jcl_ALLEGRA_CFD', pre=False, main=False, post=True)
+    
+    
+    
+    
+    
+    

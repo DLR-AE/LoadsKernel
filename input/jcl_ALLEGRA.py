@@ -41,7 +41,7 @@ class jcl:
         self.efcs = {'version': 'allegra'}
                     
         self.matrix_aerodb = {}
-                            
+                                            }                            
         self.spline = {'method': 'nastran', # 'nearest_neighbour', 'rbf', 'nastran'
                        'filename_f06': '/work/hand_ve/Transfer/Arne/ALLEGRA/main_c05_sol144.f06',
                        'splinegrid': False, # if true, provide filename_grid, not valid and ignored when spline method = 'nastran'
@@ -60,7 +60,7 @@ class jcl:
                     }
         self.trimcase = [{'desc': '#1019', 
                           'manoeuver': 'LLFLevel', 
-                          'subcase': 1,
+                          'subcase': 1019,
                           'Ma': 0.7966, 
                           'aero': 'MC', 
                           'altitude': 'FL230', 
@@ -73,7 +73,7 @@ class jcl:
                          },
                          {'desc': '#1119', 
                           'manoeuver': 'LLFPUNz25', 
-                          'subcase': 2,
+                          'subcase': 1119,
                           'Ma': 0.7966, 
                           'aero': 'MC', 
                           'altitude': 'FL230', 
@@ -86,7 +86,7 @@ class jcl:
                          },
                          {'desc': '#1219', 
                           'manoeuver': 'LLFPUNz25', 
-                          'subcase': 3,
+                          'subcase': 1219,
                           'Ma': 0.7966, 
                           'aero': 'MC', 
                           'altitude': 'FL230', 
@@ -99,7 +99,7 @@ class jcl:
                          },
                          {'desc': '#1319', 
                           'manoeuver': 'LLFPDNz10', 
-                          'subcase': 4,
+                          'subcase': 1319,
                           'Ma': 0.7966, 
                           'aero': 'MC', 
                           'altitude': 'FL230', 
@@ -112,7 +112,7 @@ class jcl:
                          },
                          {'desc': '#1419', 
                           'manoeuver': 'LLFPDNz10', 
-                          'subcase': 5,
+                          'subcase': 1419,
                           'Ma': 0.7966, 
                           'aero': 'MC', 
                           'altitude': 'FL230', 

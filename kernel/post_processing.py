@@ -87,8 +87,12 @@ class post_processing:
             for i_trimcase in range(len(self.jcl.trimcase)):
                 monstation['loads'].append(self.response[i_trimcase]['Pmon_local'][self.model.mongrid['set'][i_station,:]])
                 monstation['subcase'].append(self.jcl.trimcase[i_trimcase]['subcase'])
-
-            self.monstations['MON{:s}'.format(str(int(self.model.mongrid['ID'][i_station])))] = monstation
+            
+            if not self.model.mongrid.has_key('name'):
+                name = 'MON{:s}'.format(str(int(self.model.mongrid['ID'][i_station]))) # make up a name
+            else:
+                name = self.model.mongrid['name'][i_station] # take name from mongrid
+            self.monstations[name] = monstation
             
 
     def save_monstations(self, filename):
@@ -101,12 +105,13 @@ class post_processing:
         print 'saving nodal deformations as dat file...'
         with open(filename+'_undeformed.dat', 'w') as fid:             
             np.savetxt(fid, np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'])))
+            #np.savetxt(fid, self.model.strcgrid['offset'])
         
         for i_trimcase in range(len(self.jcl.trimcase)):
             with open(filename+'_subcase_'+str(i_trimcase+1)+'_Uf_x10.dat', 'w') as fid: 
                 defo = np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'] + self.response[i_trimcase]['Ug_f'][self.model.strcgrid['set'][:,0:3]] * 10.0 ))
                 np.savetxt(fid, defo)
-                
+                #np.savetxt(fid, defo[:,1:4])
                 
     def save_nodalloads(self, filename):
         print 'saving nodal loads as Nastarn cards...'
@@ -160,6 +165,11 @@ class post_processing:
             mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=f_scale)
             mlab.title('Pk_flex', size=0.2, height=0.95)
             
+            mlab.figure()   
+            mlab.points3d(x, y, z, scale_factor=p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_cfd'][self.model.aerogrid['set_k'][:,0]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,1]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,2]], color=(1,1,1), scale_factor=f_scale)
+            mlab.title('Pk_cfd', size=0.2, height=0.95)
+            
             x = self.model.strcgrid['offset'][:,0]
             y = self.model.strcgrid['offset'][:,1]
             z = self.model.strcgrid['offset'][:,2]
@@ -171,18 +181,30 @@ class post_processing:
             z_f = self.model.strcgrid['offset'][:,2] + response['Ug_f'][self.model.strcgrid['set'][:,2]] * 10.0
             
             mlab.figure()
-            mlab.points3d(x, y, z,  scale_factor=p_scale)
+            mlab.points3d(x, y, z, color=(0,0,0), scale_factor=p_scale)
             mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=p_scale)
             mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=p_scale)
             mlab.title('rbm (green) and flexible deformation x10 (blue)', size=0.2, height=0.95)
+            
+            mlab.figure()   
+            mlab.points3d(x, y, z, color=(0,0,0), scale_factor=p_scale)
+            mlab.quiver3d(x, y, z, response['Pg_aero'][self.model.strcgrid['set'][:,0]], response['Pg_aero'][self.model.strcgrid['set'][:,1]], response['Pg_aero'][self.model.strcgrid['set'][:,2]], color=(0,1,0), scale_factor=f_scale)
+            mlab.title('Pg_aero', size=0.2, height=0.95)
+            
             mlab.show()
                 
 
     def plot_monstations(self, monstations, filename_pdf):
-        potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
-        potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
-        potatos_Fz_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON4', 'MON5']
-        cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
+        # Allegra
+        potatos_Fz_Mx = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', ]
+        potatos_Mx_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', ]
+        potatos_Fz_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', ]
+        cuttingforces_wing = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', ]
+        # DLR-F19
+#        potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
+#        potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
+#        potatos_Fz_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON4', 'MON5']
+#        cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
 
         print 'start potato-plotting...'
         # get data needed for plotting from monstations
@@ -282,10 +304,10 @@ class post_processing:
                 # verticalalignment or va 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
                 # max
                 plt.scatter(offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], color='r')
-                plt.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(monstations['MON1']['subcase'][i_max[i_station]]), fontsize=8, verticalalignment='bottom' )
+                plt.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(monstations[monstations.keys()[0]]['subcase'][i_max[i_station]]), fontsize=8, verticalalignment='bottom' )
                 # min
                 plt.scatter(offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], color='r')
-                plt.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(monstations['MON1']['subcase'][i_min[i_station]]), fontsize=8, verticalalignment='top' )
+                plt.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(monstations[monstations.keys()[0]]['subcase'][i_min[i_station]]), fontsize=8, verticalalignment='top' )
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             plt.title('Wing')        
             plt.grid('on')
