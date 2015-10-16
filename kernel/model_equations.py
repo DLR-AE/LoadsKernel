@@ -111,6 +111,7 @@ class nastran:
         
         if self.correct_alpha:
             # Anstellwinkel alpha von der DLM-Loesung abziehen
+            alpha = self.efcs.alpha_protetcion(alpha)
             drehmatrix = np.zeros((6,6))
             drehmatrix[0:3,0:3] = calc_drehmatrix(0.0, -alpha, 0.0) 
             drehmatrix[3:6,3:6] = calc_drehmatrix(0.0, -alpha, 0.0) 
@@ -133,11 +134,19 @@ class nastran:
         Plx1[self.model.aerogrid['set_l'][:,2]] = flx1[2,:]
         
         Pk_rbm = np.dot(self.model.Dlk.T, Plx1)
+        
+        # ----------------  
+        # --- aero CFD ---   
+        # ----------------
+        
         if self.correct_alpha:
             # jetzt den Anstellwinkel durch die CFD-loesung addieren
             Pk_alpha = self.aerodb_alpha_interpolation_function(alpha) / self.aerodb_alpha['q_dyn'] * self.q_dyn
-            Pk_rbm += Pk_alpha
-           
+        else:
+            Pk_alpha = np.zeros(Pk_rbm.shape)   
+             
+        Pk_cfd = Pk_alpha
+        
         # -----------------------------   
         # --- aero camber and twist ---   
         # -----------------------------
@@ -209,12 +218,12 @@ class nastran:
         Plf[self.model.aerogrid['set_l'][:,1]] = flf_1[1,:] + flf_2[1,:]
         Plf[self.model.aerogrid['set_l'][:,2]] = flf_1[2,:] + flf_2[2,:]
         
-        Pk_f = np.dot(self.model.Dlk.T, Plf) * 0.0
+        Pk_f = np.dot(self.model.Dlk.T, Plf) #* 0.0
         
         # --------------------------------   
         # --- summation of forces, EoM ---   
         # --------------------------------
-        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f
+        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_cfd
         Pmac = np.dot(Dkx1.T, Pk_aero)
         Pb = np.dot(PHImac_cg.T, Pmac)
 
@@ -275,6 +284,7 @@ class nastran:
                         'Pk_aero': Pk_aero,
                         'Pk_cs': Pk_cs,
                         'Pk_f': Pk_f,
+                        'Pk_cfd': Pk_cfd,
                         'q_dyn': self.q_dyn,
                         'Pb': Pb,
                         'Pmac': Pmac,
