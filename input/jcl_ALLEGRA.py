@@ -41,7 +41,7 @@ class jcl:
         self.efcs = {'version': 'allegra'}
                     
         self.matrix_aerodb = {}
-                                            }                            
+                         
         self.spline = {'method': 'nastran', # 'nearest_neighbour', 'rbf', 'nastran'
                        'filename_f06': '/work/hand_ve/Transfer/Arne/ALLEGRA/main_c05_sol144.f06',
                        'splinegrid': False, # if true, provide filename_grid, not valid and ignored when spline method = 'nastran'

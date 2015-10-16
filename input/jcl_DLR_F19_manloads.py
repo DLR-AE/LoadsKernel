@@ -20,6 +20,7 @@ class jcl:
                         'A_ref': 77,
                         'MAC_ref': [0.0, 0.0, 0.0],
                        }
+        self.efcs = {'version': 'mephisto'}
         self.geom = {'method': 'mona',
                      'filename_grid':['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.GRID',
                                       '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.GRID',
@@ -108,7 +109,7 @@ class jcl:
 #                        }]
                         
         from numpy import array
-        with open('/scratch/DLR-F19-S_150217_work/manloads_DLR-F19-S/trim.trimcase_dict', 'r') as fid:
+        with open('/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S_selected/trim.trimcase_dict', 'r') as fid:
             trimcase_str = fid.read()
         self.trimcase = eval(trimcase_str)
         
