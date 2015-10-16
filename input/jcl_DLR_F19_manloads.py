@@ -54,6 +54,7 @@ class jcl:
                                                  ],
                     }
         self.aero = {'method': 'mona_steady',
+                     'flex': False,
                      'key':['VC', 'MC', 'VD', 'MD'],
                      'Ma': [0.8, 0.9, 0.89, 0.97],
                      'filename_caero_bdf': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.CAERO1_bdf', 

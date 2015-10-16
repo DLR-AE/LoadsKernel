@@ -31,6 +31,11 @@ class nastran:
         rho = self.model.atmo['rho'][self.i_atmo]
         self.q_dyn = rho/2.0*self.Vtas**2
         
+        if self.jcl.aero.has_key('flex') and self.jcl.aero['flex'] == True:
+            self.k_flex = 1.0
+        else:
+            self.k_flex = 0.0
+        
         # init aero db for hybrid aero: alpha
         if self.jcl.aero['method'] == 'hybrid' and self.model.aerodb.has_key('alpha') and self.trimcase['aero'] in self.model.aerodb['alpha']:
             self.correct_alpha = True
@@ -218,7 +223,7 @@ class nastran:
         Plf[self.model.aerogrid['set_l'][:,1]] = flf_1[1,:] + flf_2[1,:]
         Plf[self.model.aerogrid['set_l'][:,2]] = flf_1[2,:] + flf_2[2,:]
         
-        Pk_f = np.dot(self.model.Dlk.T, Plf) #* 0.0
+        Pk_f = np.dot(self.model.Dlk.T, Plf) * self.k_flex
         
         # --------------------------------   
         # --- summation of forces, EoM ---   

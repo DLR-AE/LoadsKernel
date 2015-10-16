@@ -29,6 +29,7 @@ class jcl:
                      'filename_monstations': [], # if no MONPNTs are available: one file per MONPNT containing all GRIDs to be integrated
                     }
         self.aero = {'method': 'mona_steady', # 'mona_steady', 'hybrid'
+                     'flex': True,
                      'key':['MC',],
                      'Ma': [0.7966,],
                      'method_caero': 'CAERO1', # 'CAERO1', 'CQUAD4'

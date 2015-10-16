@@ -95,7 +95,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         print '--> Drawing some plots.'  
         post_processing.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf')
         post_processing.write_critical_trimcases(post_processing.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv')
-        post_processing.plot_forces_deformation_interactive()
+        #post_processing.plot_forces_deformation_interactive()
 
     if test:
         if not 'model' in locals():
