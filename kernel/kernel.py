@@ -9,8 +9,10 @@ import numpy as np
 import cPickle
 import time  
 import imp
+import sys
 
 def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_input='../input/', path_output='../output/'):
+    sys.stdout = Logger(path_output + 'log_' + job_name + ".txt")
     
     print 'Starting AE Kernel with job: ' + job_name
     print 'pre:  ' + str(pre)
@@ -66,7 +68,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
     if post:
         from post_processing import post_processing as post_processing_obj
         if not 'model' in locals():
-            model = load_model(job_name)
+            model = load_model(job_name, path_output)
         
         if not 'response' in locals():
             print '--> Loading response(s).'  
@@ -95,7 +97,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         print '--> Drawing some plots.'  
         post_processing.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf')
         post_processing.write_critical_trimcases(post_processing.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv')
-        #post_processing.plot_forces_deformation_interactive()
+        post_processing.plot_forces_deformation_interactive()
 
     if test:
         if not 'model' in locals():
@@ -118,13 +120,23 @@ def load_model(job_name, path_output):
         model = cPickle.load(f)
     print '--> Done in %.2f [sec].' % (time.time() - t_start)
     return model
-        
+
+class Logger(object):
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.filename = filename
+
+    def write(self, message):
+        self.terminal.write(message)
+        with open(self.filename, "a") as log:
+            log.write(message)
+
 if __name__ == "__main__":
 
     #run_kernel('jcl_ALLEGRA', pre=True, main=True, post=True, path_output='/scratch/kernel_Allegra/')
     #run_kernel('jcl_ALLEGRA_CFD', pre=True, main=True, post=True, path_output='/scratch/kernel_Allegra_CFD/')
-    run_kernel('jcl_DLR_F19_manloads', pre=False, main=True, post=True, path_output='/scratch/kernel_Vergleich_Nastran/')
-
+    #run_kernel('jcl_DLR_F19_manloads', pre=False, main=True, post=True, path_output='/scratch/kernel_Vergleich_Nastran/')
+    run_kernel('jcl_DLR_F19_CFD', pre=False, main=True, post=True, path_output='/scratch/kernel_Vergleich_AeroDB/')
     
     
     
