@@ -12,7 +12,10 @@ class mephisto:
         self.Ux2_0 = np.array([0.0, 0.0, 0.0, 0.0])
         self.Ux2_lower = np.array([-5.0, -5.0,-5.0,-5.0])/180*np.pi
         self.Ux2_upper = np.array([ 5.0,  5.0, 5.0, 5.0])/180*np.pi
-                
+        
+        self.alpha_lower = -2.0/180*np.pi
+        self.alpha_upper = 5.0/180*np.pi
+        
     def efcs(self, command_xi, command_eta, command_zeta):
 
         # Ausgangsposition
@@ -52,6 +55,16 @@ class mephisto:
             Ux2[violation_upper] = self.Ux2_upper[violation_upper]
             
         return Ux2
+        
+    def alpha_protetcion(self, alpha):
+        if alpha < self.alpha_lower:
+            print 'Warning: commanded alpha not possible, violation of lower alpha bounds!'
+            alpha = self.alpha_lower
+        if alpha > self.alpha_upper:
+            print 'Warning: commanded alpha not possible, violation of upper alpha bounds!'
+            alpha = self.alpha_upper
+        return alpha
+        
 
 class allegra:
     def __init__(self):
@@ -59,6 +72,9 @@ class allegra:
         self.Ux2_0 = np.array([0.0, 0.0, 0.0])
         self.Ux2_lower = np.array([-30.0, -30.0, -30.0])/180*np.pi
         self.Ux2_upper = np.array([ 30.0,  30.0, 30.0])/180*np.pi
+        
+        self.alpha_lower = 0.0/180*np.pi
+        self.alpha_upper = 5.0/180*np.pi
                 
     def efcs(self, command_xi, command_eta, command_zeta):
 
@@ -87,3 +103,13 @@ class allegra:
             Ux2[violation_upper] = self.Ux2_upper[violation_upper]
             
         return Ux2
+
+    def alpha_protetcion(self, alpha):
+        if alpha < self.alpha_lower:
+            print 'Warning: commanded alpha not possible, violation of lower alpha bounds!'
+            alpha = self.alpha_lower
+        if alpha > self.alpha_upper:
+            print 'Warning: commanded alpha not possible, violation of upper alpha bounds!'
+            alpha = self.alpha_upper
+        return alpha
+        
