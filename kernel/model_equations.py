@@ -338,6 +338,7 @@ class nastran:
             Pmac_cam  = np.dot(self.model.Dkx1.T, response['Pk_cam'])
             Pmac_cs   = np.dot(self.model.Dkx1.T, response['Pk_cs'])
             Pmac_f    = np.dot(self.model.Dkx1.T, response['Pk_f'])
+	    Pmac_cfd  = np.dot(self.model.Dkx1.T, response['Pk_cfd'])
             
             A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
             Pmac_c = response['Pmac']/response['q_dyn']/A
@@ -352,6 +353,7 @@ class nastran:
             print 'Cz_cam: %.4f' % float(Pmac_cam[2]/response['q_dyn']/A)
             print 'Cz_cs: %.4f' % float(Pmac_cs[2]/response['q_dyn']/A)
             print 'Cz_f: %.4f' % float(Pmac_f[2]/response['q_dyn']/A)
+	    print 'Cz_cfd: %.4f' % float(Pmac_cfd[2]/response['q_dyn']/A)
             print '--------------'
             print 'Cx: %.4f' % float(Pmac_c[0])
             print 'Cy: %.4f' % float(Pmac_c[1])
