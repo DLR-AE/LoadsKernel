@@ -64,6 +64,8 @@ class trim:
             self.trimcond_Y = np.vstack((self.trimcond_Y ,  ['dUf_dt'+str(i_mode), 'target', 0.0]))
         for i_mode in range(n_modes):
             self.trimcond_Y = np.vstack((self.trimcond_Y ,  ['d2Uf_d2t'+str(i_mode), 'target', 0.0]))
+        self.trimcond_Y = np.vstack((self.trimcond_Y , ['dcommand_xi',   'fix', 0.0,],  ['dcommand_eta',   'fix',  0.0,], ['dcommand_zeta',   'fix',  0.0,]))
+
         
         self.trimcond_Y = np.vstack((self.trimcond_Y , ['Nz',       'target',  self.trimcase['Nz'],]))
 
@@ -86,10 +88,10 @@ class trim:
         bypass = False
         if bypass:
             print 'running bypass...'
-            self.response = equations.eval_equations( X_free_0, 'full_output')
+            self.response = equations.eval_equations(X_free_0, time=0.0, type='full_output')
         else:
             print 'running trim for ' + str(len(X_free_0)) + ' variables...'
-            X_free, info, status, msg= so.fsolve(equations.eval_equations, X_free_0, args=('trim'), full_output=True)
+            X_free, info, status, msg= so.fsolve(equations.eval_equations, X_free_0, args=(0.0, 'trim'), full_output=True)
             print msg
             print 'function evaluations: ' + str(info['nfev'])
             
@@ -101,15 +103,45 @@ class trim:
                 for i_X in range(len(X_free)):
                     print self.trimcond_X[:,0][np.where((self.trimcond_X[:,1] == 'free'))[0]][i_X] + ': %.4f' % float(X_free[i_X])
                     
-                self.response = equations.eval_equations(X_free, 'full_output')
+                self.response = equations.eval_equations(X_free, time=0.0, type='full_output')
             else:
                 self.response = 'Failure: ' + msg
                 # store response
             
 
         
+    def exec_sim(self):
+        print 'running integration...'
+        import model_equations 
+        equations = model_equations.nastran(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+
+        X0 = self.response['X']        
+        t0 = 0.0        
+        dt = 0.01
+        t_final = 0.5
+        t = np.arange(t0,t_final+dt, dt)
+
+        # A
+#        from scipy.integrate import ode
+#        integrator = ode(equations.eval_equations).set_integrator('vode', method='bdf')
+#        integrator.set_f_params('integrate')
+#        integrator.set_initial_value(X0, 0.0)
+#        while integrator.successful() and integrator.t < t_final:  integrator.integrate(integrator.t+dt)
         
-        
+        # B
+        from scipy.integrate import odeint
+        X_t, info = odeint(equations.eval_equations, X0, t, args=('integrate',), full_output=True, h0=0.001)
+        print info['message']
+        print 'time steps: ' + str(t)
+        print 'time step evaluatins: ' + str(info['nfe'])
+        if info['message'] == 'Integration successful.':
+            self.response['t'] = t
+            self.response['t_cur'] = info['tcur']
+            self.response['X_t'] = X_t.T
+        else:
+            self.response['X_t'] = info['message']
+            
+            
         
         
         

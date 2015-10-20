@@ -175,7 +175,7 @@ class nastran:
     
         Pk_cs = np.zeros(np.shape(Pk_rbm))
         Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
-        
+        dUx2 = np.zeros(Ux2.shape)
         for i_x2 in range(len(self.efcs.keys)):
             if self.efcs.keys[i_x2] in self.correct_x2:
                 pos = self.correct_x2.index(self.efcs.keys[i_x2])
@@ -278,9 +278,9 @@ class nastran:
         # Nastran
         Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
                 
-        Y = np.hstack((X[6:12], np.dot(PHIcg_norm, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, Nxyz[2]))    
+        Y = np.hstack((X[6:12], np.dot(PHIcg_norm, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, dUx2, Nxyz[2]))    
             
-        if type == 'trim':
+        if type in ['trim', 'integrate']:
             return Y
         elif type == 'full_output':
             response = {'X': X, 
@@ -308,12 +308,14 @@ class nastran:
             return response
     
             
-    def eval_equations(self, X_free, type='full_output'):
+    def eval_equations(self, X_free, time, type='full_output'):
         # this is a wrapper for the model equations 'eqn_basic'
-        
-        # get inputs from trimcond and apply inputs from fsolve 
-        X = np.array(self.trimcond_X[:,2], dtype='float')
-        X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
+        if type in ['trim', 'full_output']:
+            # get inputs from trimcond and apply inputs from fsolve 
+            X = np.array(self.trimcond_X[:,2], dtype='float')
+            X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
+        elif type == 'integrate':
+            X = X_free
         
         # evaluate model equations
         if type=='trim':
@@ -324,6 +326,12 @@ class nastran:
             Y_target_soll = np.array(self.trimcond_Y[:,2], dtype='float')[np.where((self.trimcond_Y[:,1] == 'target'))[0]]
             out = Y_target_ist - Y_target_soll
             return out
+        
+        elif type=='integrate':
+            print time
+            Y = self.equations(X, 'integrate')
+            return Y[:-1] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
+
             
         elif type=='full_output':
             response = self.equations(X, 'full_output')
@@ -338,7 +346,7 @@ class nastran:
             Pmac_cam  = np.dot(self.model.Dkx1.T, response['Pk_cam'])
             Pmac_cs   = np.dot(self.model.Dkx1.T, response['Pk_cs'])
             Pmac_f    = np.dot(self.model.Dkx1.T, response['Pk_f'])
-	    Pmac_cfd  = np.dot(self.model.Dkx1.T, response['Pk_cfd'])
+            Pmac_cfd  = np.dot(self.model.Dkx1.T, response['Pk_cfd'])
             
             A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
             Pmac_c = response['Pmac']/response['q_dyn']/A
@@ -353,7 +361,7 @@ class nastran:
             print 'Cz_cam: %.4f' % float(Pmac_cam[2]/response['q_dyn']/A)
             print 'Cz_cs: %.4f' % float(Pmac_cs[2]/response['q_dyn']/A)
             print 'Cz_f: %.4f' % float(Pmac_f[2]/response['q_dyn']/A)
-	    print 'Cz_cfd: %.4f' % float(Pmac_cfd[2]/response['q_dyn']/A)
+            print 'Cz_cfd: %.4f' % float(Pmac_cfd[2]/response['q_dyn']/A)
             print '--------------'
             print 'Cx: %.4f' % float(Pmac_c[0])
             print 'Cy: %.4f' % float(Pmac_c[1])

@@ -59,6 +59,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             trim_i = trim(model, jcl, jcl.trimcase[i])
             trim_i.set_trimcond()
             trim_i.exec_trim()
+            trim_i.exec_sim()
             response.append(trim_i.response)
             
         print '--> Saving response(s).'  
@@ -136,7 +137,7 @@ class Logger(object):
 
 if __name__ == "__main__":
 
-    run_kernel('jcl_ALLEGRA', pre=True, main=True, post=True, path_output='/scratch/kernel_Allegra/')
+    run_kernel('jcl_ALLEGRA', main=True, path_output='/scratch/test/')
     #run_kernel('jcl_ALLEGRA_CFD', pre=True, main=True, post=True, path_output='/scratch/kernel_Allegra_CFD/')
     #run_kernel('jcl_DLR_F19_manloads', pre=False, main=True, post=True, path_output='/scratch/kernel_Vergleich_Nastran/')
     #run_kernel('jcl_DLR_F19_CFD', pre=False, main=True, post=True, path_output='/scratch/kernel_Vergleich_AeroDB/')
