@@ -10,6 +10,7 @@ import cPickle
 import time  
 import imp
 import sys
+import scipy
 
 def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_input='../input/', path_output='../output/'):
     sys.stdout = Logger(path_output + 'log_' + job_name + ".txt")
@@ -88,6 +89,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             cPickle.dump(response, f, cPickle.HIGHEST_PROTOCOL)
         with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
             cPickle.dump(post_processing.monstations, f, cPickle.HIGHEST_PROTOCOL)
+        with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
+            scipy.io.savemat(f, post_processing.monstations)
+
             
         print '--> Saving auxiliary output data.'  
         post_processing.save_monstations(path_output + 'monstations_' + job_name + '.bdf')     
@@ -97,20 +101,19 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         print '--> Drawing some plots.'  
         post_processing.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf')
         post_processing.write_critical_trimcases(post_processing.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv')
-        post_processing.plot_forces_deformation_interactive()
+        #post_processing.plot_forces_deformation_interactive()
 
     if test:
         if not 'model' in locals():
-            model = load_model(job_name)
+            model = load_model(job_name, path_output)
         
         if not 'response' in locals():
             print '--> Loading response(s).'  
-            with open('../output/response_' + job_name + '.pickle', 'r') as f:
+            with open(path_output + 'response_' + job_name + '.pickle', 'r') as f:
                 response = cPickle.load(f)
         print 'test ready.' 
         # place code to test here
 
-        
     print 'AE Kernel finished.'
 
 def load_model(job_name, path_output):
@@ -133,10 +136,10 @@ class Logger(object):
 
 if __name__ == "__main__":
 
-    #run_kernel('jcl_ALLEGRA', pre=True, main=True, post=True, path_output='/scratch/kernel_Allegra/')
+    run_kernel('jcl_ALLEGRA', pre=True, main=True, post=True, path_output='/scratch/kernel_Allegra/')
     #run_kernel('jcl_ALLEGRA_CFD', pre=True, main=True, post=True, path_output='/scratch/kernel_Allegra_CFD/')
     #run_kernel('jcl_DLR_F19_manloads', pre=False, main=True, post=True, path_output='/scratch/kernel_Vergleich_Nastran/')
-    run_kernel('jcl_DLR_F19_CFD', pre=False, main=True, post=True, path_output='/scratch/kernel_Vergleich_AeroDB/')
+    #run_kernel('jcl_DLR_F19_CFD', pre=False, main=True, post=True, path_output='/scratch/kernel_Vergleich_AeroDB/')
     
     
     
