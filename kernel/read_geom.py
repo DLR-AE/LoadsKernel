@@ -548,8 +548,9 @@ def Nastran_MONPNT1(filename):
                 # erste Zeile
                 ID.append(i_ID) # Eigentlich haben MONPNTs keine IDs sondern nur Namen...
                 i_ID += 1
-                name.append(string.replace(read_string[8:16], ' ', ''))
-                label.append(string.replace(read_string[16:72], ' ', ''))
+                # An dieser Stelle reicht es nicht mehr aus, nur die Leerzeichen zu entfernen...
+                name.append(string.join((ch for ch in read_string[8:16] if ch in string.ascii_letters + string.digits + '_'), ''))
+                label.append(string.join((ch for ch in read_string[16:72] if ch in string.ascii_letters + string.digits + '_'), ''))
                 # zweite Zeile
                 read_string = fid.readline()
                 comp.append(string.replace(read_string[16:24], ' ', ''))
