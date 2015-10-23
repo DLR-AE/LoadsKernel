@@ -11,11 +11,12 @@ from trim_tools import *
 from scipy import interpolate
 
 class nastran:
-    def __init__(self, model, jcl, trimcase, trimcond_X, trimcond_Y):
+    def __init__(self, model, jcl, trimcase, trimcond_X, trimcond_Y, simcase = False):
         print 'Init model equations with linear EoM in Nastran-Style.'
         self.model = model
         self.jcl = jcl
         self.trimcase = trimcase
+        self.simcase = simcase
         self.trimcond_X = trimcond_X
         self.trimcond_Y = trimcond_Y
         self.counter = 0
@@ -66,7 +67,11 @@ class nastran:
                 print 'Hybrid aero is used for {}.'.format(x2_key)
                 #print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], self.aerodb_x2[-1]['q_dyn'], self.q_dyn)       
            
-                
+        if self.simcase and self.simcase['gust']:
+            V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD']
+            self.x0 = self.simcase['gust_para']['T1'] * self.Vtas 
+            self.WG_TAS, U_ds, V_gust = DesignGust_CS_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], rho, self.Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
+
         
     def equations(self, X, type):
         self.counter += 1
@@ -96,7 +101,7 @@ class nastran:
         Tgeo2body = np.zeros((6,6))
         Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
         Tgeo2body[3:6,3:6] = calc_drehmatrix(X[3], X[4], X[5])
-        Ucg      = np.dot(PHIcg_norm,np.dot(Tgeo2body, X[0:6] )) # x, y, z, phi, theta, psi bodyfixed
+        Ucg      = np.dot(PHIcg_norm,X[0:6] ) # x, y, z, phi, theta, psi bodyfixed
         dUcg_dt  = np.dot(PHIcg_norm,np.dot(Tgeo2body, X[6:12])) # u v w p q r bodyfixed
         Uf = np.array(X[12:12+n_modes])
         dUf_dt = np.array(X[12+n_modes:12+n_modes*2])
@@ -226,10 +231,42 @@ class nastran:
         
         Pk_f = np.dot(self.model.Dlk.T, Plf) * self.k_flex
         
+        
+        # ------------   
+        # --- Gust ---   
+        # ------------ 
+        if type == 'sim':
+            # Eintauchtiefe in die Boe berechnen
+            s_gust = (X[0] - self.model.aerogrid['offset_j'][:,0] - self.x0)
+            # downwash der 1-cos Boe auf ein jedes Panel berechnen
+            wj_gust = self.WG_TAS * 0.5 * (1-np.cos(np.pi * s_gust / self.simcase['gust_gradient']))
+            wj_gust[np.where(s_gust <= 0.0)] = 0.0
+            wj_gust[np.where(s_gust > 2*self.simcase['gust_gradient'])] = 0.0
+            # Ausrichtung der Boe fehlt noch
+            gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,-1]), calc_drehmatrix( my=self.simcase['gust_orientation']/180.0*np.pi, alpha=0.0, beta=0.0 )), axis=1)
+            wj_gust = wj_gust *  gust_direction_vector
+            flgust = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj_gust)
+            Plgust = np.zeros((6*self.model.aerogrid['n']))
+            Plgust[self.model.aerogrid['set_l'][:,0]] = flgust[0,:]
+            Plgust[self.model.aerogrid['set_l'][:,1]] = flgust[1,:]
+            Plgust[self.model.aerogrid['set_l'][:,2]] = flgust[2,:]
+            
+            Pk_gust = np.dot(self.model.Dlk.T, Plgust)
+        else:
+            Pk_gust = np.zeros(Pk_rbm.shape)
+        
+        
+        #[ -Mff*omega**2 + 1j*Dff*omega + Kff ] * Uf = Pf_gust + self.qdyn * Qff * Uf
+        #PHIkf =  np.dot(PHIk_strc, PHIf_strc.T)               
+        #Pf_gust = np.dot(PHIkf.T, Pk_gust)
+        #Qhh_times_Uf =  np.dot(PHIkf.T, Pk_f)
+        #np.dot(-Mff*omega**2 + 1j*Dff*omega + Kff , Uf) = Pf_gust + Qhh_times_Uf
+        
+        
         # --------------------------------   
         # --- summation of forces, EoM ---   
         # --------------------------------
-        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_cfd
+        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_cfd + Pk_gust
         Pmac = np.dot(Dkx1.T, Pk_aero)
         Pb = np.dot(PHImac_cg.T, Pmac)
 
@@ -280,7 +317,7 @@ class nastran:
                 
         Y = np.hstack((X[6:12], np.dot(PHIcg_norm, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, dUx2, Nxyz[2]))    
             
-        if type in ['trim', 'integrate']:
+        if type in ['trim', 'sim']:
             return Y
         elif type == 'full_output':
             response = {'X': X, 
@@ -291,6 +328,7 @@ class nastran:
                         'Pk_cs': Pk_cs,
                         'Pk_f': Pk_f,
                         'Pk_cfd': Pk_cfd,
+                        'Pk_gust': Pk_gust,
                         'q_dyn': self.q_dyn,
                         'Pb': Pb,
                         'Pmac': Pmac,
@@ -308,13 +346,13 @@ class nastran:
             return response
     
             
-    def eval_equations(self, X_free, time, type='full_output'):
+    def eval_equations(self, X_free, time, type='trim_full_output'):
         # this is a wrapper for the model equations 'eqn_basic'
-        if type in ['trim', 'full_output']:
+        if type in ['trim', 'trim_full_output']:
             # get inputs from trimcond and apply inputs from fsolve 
             X = np.array(self.trimcond_X[:,2], dtype='float')
             X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
-        elif type == 'integrate':
+        elif type in[ 'sim', 'sim_full_output']:
             X = X_free
         
         # evaluate model equations
@@ -327,13 +365,16 @@ class nastran:
             out = Y_target_ist - Y_target_soll
             return out
         
-        elif type=='integrate':
+        elif type=='sim':
             print time
-            Y = self.equations(X, 'integrate')
+            Y = self.equations(X, 'sim')
             return Y[:-1] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
-
             
-        elif type=='full_output':
+        elif type=='sim_full_output':
+            response = self.equations(X, 'full_output')
+            return response
+            
+        elif type=='trim_full_output':
             response = self.equations(X, 'full_output')
             # do something with this output, e.g. plotting, animations, saving, etc.            
             print ''            

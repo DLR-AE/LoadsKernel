@@ -8,11 +8,12 @@ import numpy as np
 import scipy.optimize as so
 
 class trim:
-    def __init__(self, model, jcl, trimcase):
+    def __init__(self, model, jcl, trimcase, simcase):
         self.model = model
         self.jcl = jcl
         self.trimcase = trimcase
-            
+        self.simcase = simcase     
+        
     def set_trimcond(self):
         # init
         i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
@@ -103,7 +104,7 @@ class trim:
                 for i_X in range(len(X_free)):
                     print self.trimcond_X[:,0][np.where((self.trimcond_X[:,1] == 'free'))[0]][i_X] + ': %.4f' % float(X_free[i_X])
                     
-                self.response = equations.eval_equations(X_free, time=0.0, type='full_output')
+                self.response = equations.eval_equations(X_free, time=0.0, type='trim_full_output')
             else:
                 self.response = 'Failure: ' + msg
                 # store response
@@ -111,17 +112,19 @@ class trim:
 
         
     def exec_sim(self):
-        print 'running integration...'
         import model_equations 
-        equations = model_equations.nastran(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
-
+        equations = model_equations.nastran(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+        
         X0 = self.response['X']        
-        t0 = 0.0        
-        dt = 0.01
-        t_final = 0.5
+        t0 = 0.0
+        dt = self.simcase['dt']
+        t_final = self.simcase['t_final']
         t = np.arange(t0,t_final+dt, dt)
+        print 'running time simulation for ' + str(t_final) + ' sec...'
 
-        # A
+        # A 
+        # scipy.integrate.ode ist schoener als odeint, da es mehr Moeglichkeiten gibt. 
+        # Nachteilig ist, dass die Zeit an erster Stelle im Funktionsaufruf steht: dx/dt = f(t,x)
 #        from scipy.integrate import ode
 #        integrator = ode(equations.eval_equations).set_integrator('vode', method='bdf')
 #        integrator.set_f_params('integrate')
@@ -130,19 +133,24 @@ class trim:
         
         # B
         from scipy.integrate import odeint
-        X_t, info = odeint(equations.eval_equations, X0, t, args=('integrate',), full_output=True, h0=0.001)
+        X_t, info = odeint(equations.eval_equations, X0, t, args=('sim',), full_output=True, h0=0.001)
         print info['message']
         print 'time steps: ' + str(t)
         print 'time step evaluatins: ' + str(info['nfe'])
         if info['message'] == 'Integration successful.':
+            for i_step in np.arange(1,len(X_t)):
+                response_step = equations.eval_equations(X_t[i_step], t[i_step], type='sim_full_output')
+                for key in self.response.keys():
+                    self.response[key] = np.vstack((self.response[key],response_step[key]))
             self.response['t'] = t
             self.response['t_cur'] = info['tcur']
-            self.response['X_t'] = X_t.T
+
         else:
-            self.response['X_t'] = info['message']
-            
+            self.response['t'] = 'Failure: ' + info['message']
             
         
-        
+                
+            
+    
         
         

@@ -56,7 +56,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             print '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')' 
             print '========================================' 
             t_start = time.time()
-            trim_i = trim(model, jcl, jcl.trimcase[i])
+            trim_i = trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
             trim_i.set_trimcond()
             trim_i.exec_trim()
             trim_i.exec_sim()
