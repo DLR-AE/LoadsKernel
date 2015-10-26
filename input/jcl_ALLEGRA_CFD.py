@@ -46,8 +46,9 @@ class jcl:
         self.matrix_aerodb['alpha']['MC'] = {   'markers': 'all', # 'all' or list of markers [1, 2, ...]
                                                 'filename_grid': '', # only if special markers are requested
                                                 'q_dyn': 0.5*0.5888*248.667589877509**2,                                
-                                                'values': [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-                                                'filenames_surface_pval': ['/work/hand_ve/Transfer/Arne/ALLEGRA/CFD/Allegra_v11_fl230ma08alp-3/Allegra_v11_fl230ma08.surface.pval.3395',
+                                                'values': [-4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+                                                'filenames_surface_pval': ['/work/hand_ve/Transfer/Arne/ALLEGRA/CFD/Allegra_v11_fl230ma08alp-4/Allegra_v11_fl230ma08.surface.pval.10000',
+                                                                           '/work/hand_ve/Transfer/Arne/ALLEGRA/CFD/Allegra_v11_fl230ma08alp-3/Allegra_v11_fl230ma08.surface.pval.3395',
                                                                            '/work/hand_ve/Transfer/Arne/ALLEGRA/CFD/Allegra_v11_fl230ma08alp-2/Allegra_v11_fl230ma08.surface.pval.3519',
                                                                            '/work/hand_ve/Transfer/Arne/ALLEGRA/CFD/Allegra_v11_fl230ma08alp-1/Allegra_v11_fl230ma08.surface.pval.3362',
                                                                            '/work/hand_ve/Transfer/Arne/ALLEGRA/CFD/Allegra_v11_fl230ma08alp0/Allegra_v11_fl230ma08.surface.pval.3552',
