@@ -73,9 +73,8 @@ class nastran:
             self.WG_TAS, U_ds, V_gust = DesignGust_CS_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], rho, self.Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
 
         
-    def equations(self, X, type):
+    def equations(self, X, t, type):
         self.counter += 1
-
         # Trim-spezifische Modelldaten holen, lange Namen abkuerzen
         Qjj        = self.model.aero['Qjj'][self.i_aero]    
        
@@ -107,7 +106,6 @@ class nastran:
         dUf_dt = np.array(X[12+n_modes:12+n_modes*2])
         
         dUmac_dt = np.dot(PHImac_cg, dUcg_dt) # auch bodyfixed
-        
         # ------------------------------    
         # --- aero rigid body motion ---   
         # ------------------------------ 
@@ -143,7 +141,7 @@ class nastran:
         Plx1[self.model.aerogrid['set_l'][:,1]] = flx1[1,:]
         Plx1[self.model.aerogrid['set_l'][:,2]] = flx1[2,:]
         
-        Pk_rbm = np.dot(self.model.Dlk.T, Plx1)
+        Pk_rbm = self.model.Dlk.T.dot(Plx1)
         
         # ----------------  
         # --- aero CFD ---   
@@ -156,7 +154,7 @@ class nastran:
             Pk_alpha = np.zeros(Pk_rbm.shape)   
              
         Pk_cfd = Pk_alpha
-        
+       
         # -----------------------------   
         # --- aero camber and twist ---   
         # -----------------------------
@@ -172,42 +170,38 @@ class nastran:
             Plcam[self.model.aerogrid['set_l'][:,1]] = flcam[1,:]
             Plcam[self.model.aerogrid['set_l'][:,2]] = flcam[2,:]
             
-            Pk_cam = np.dot(self.model.Dlk.T, Plcam) 
+            Pk_cam = self.model.Dlk.T.dot(Plcam) 
         
         # -----------------------------   
         # --- aero control surfaces ---   
         # -----------------------------    
     
         Pk_cs = np.zeros(np.shape(Pk_rbm))
+        wjx2 = np.zeros(np.shape(wjx1))
         Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
-        dUx2 = np.zeros(Ux2.shape)
+        dcommand= np.zeros(3)        # Hier gibt es zwei Wege und es wird je Steuerflaeche unterschieden:
+        # a) es liegen Daten in der AeroDB vor -> Kraefte werden interpoliert, dann zu Pk addiert, downwash vector bleibt unveraendert
+        # b) der downwash der Steuerflaeche wird berechnet, zum downwash vector addiert 
         for i_x2 in range(len(self.efcs.keys)):
             if self.efcs.keys[i_x2] in self.correct_x2:
                 pos = self.correct_x2.index(self.efcs.keys[i_x2])
                 x2_interpolation_function = self.aerodb_x2_interpolation_function[pos]
                 # Null-Loesung abziehen!
                 # Extrapolation sollte durch passend eingestellte Grenzen im EFCS verhindert werden. 
-                Pk_cs += (x2_interpolation_function(Ux2[i_x2]) - x2_interpolation_function(0.0) ) / self.aerodb_x2[pos]['q_dyn'] * self.q_dyn
+                Pk_cfd += (x2_interpolation_function(Ux2[i_x2]) - x2_interpolation_function(0.0) ) / self.aerodb_x2[pos]['q_dyn'] * self.q_dyn
             else:
                 # use DLM solution
                 Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
-                # Drehung der Normalenvektoren
-                #drehmatrix_N = np.dot(self.model.coord['dircos'][1], calc_drehmatrix(0,Ux2[i_x2],0))
-                #N_rot = []
-                #for i_N in self.model.aerogrid['N']:
-                #    N_rot.append(np.dot(drehmatrix_N, i_N))
-                #N_rot = np.array(N_rot)
-                wjx2 = np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]])  #* Vtas/Vtas
+                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]])  #* Vtas/Vtas
                 #wjx2 = np.sin(Ujx2[self.model.aerogrid['set_j'][:,(3)]]) + np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]]) + np.sin(Ujx2[self.model.aerogrid['set_j'][:,(5)]])  #* Vtas/Vtas
-                flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
-                #fjx2 = q_dyn * N_rot.T*self.model.aerogrid['A']*np.dot(self.model.aero['Qjj'][i_aero], wjx2)
-                Plx2 = np.zeros(np.shape(Plx1))
-                Plx2[self.model.aerogrid['set_l'][:,0]] = flx2[0,:]
-                Plx2[self.model.aerogrid['set_l'][:,1]] = flx2[1,:]
-                Plx2[self.model.aerogrid['set_l'][:,2]] = flx2[2,:]
-            
-                Pk_cs += np.dot(self.model.Dlk.T, Plx2)
-
+        flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
+        #fjx2 = q_dyn * N_rot.T*self.model.aerogrid['A']*np.dot(self.model.aero['Qjj'][i_aero], wjx2)
+        Plx2 = np.zeros(np.shape(Plx1))
+        Plx2[self.model.aerogrid['set_l'][:,0]] = flx2[0,:]
+        Plx2[self.model.aerogrid['set_l'][:,1]] = flx2[1,:]
+        Plx2[self.model.aerogrid['set_l'][:,2]] = flx2[2,:]
+    
+        Pk_cs += self.model.Dlk.T.dot(Plx2)
         
         # ---------------------   
         # --- aero flexible ---   
@@ -216,26 +210,23 @@ class nastran:
         # modale Verformung
         Ujf = np.dot(PHIjf, Uf )
         wjf_1 = np.sum(self.model.aerogrid['N'][:] * np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3]),axis=1) / self.Vtas
-        flf_1 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjf_1)       
-        
         # modale Bewegung
         # zu Ueberpruefen, da Trim bisher in statischer Ruhelage und somit  dUf_dt = 0
         dUjf_dt = np.dot(PHIjf, dUf_dt ) # viel schneller!
-        wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / self.Vtas
-        flf_2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjf_2)        
+        wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / self.Vtas * -1 
         
+        flf = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjf_1 + wjf_2)        
         Plf = np.zeros(np.shape(dUjf_dt))
-        Plf[self.model.aerogrid['set_l'][:,0]] = flf_1[0,:] + flf_2[0,:]
-        Plf[self.model.aerogrid['set_l'][:,1]] = flf_1[1,:] + flf_2[1,:]
-        Plf[self.model.aerogrid['set_l'][:,2]] = flf_1[2,:] + flf_2[2,:]
+        Plf[self.model.aerogrid['set_l'][:,0]] = flf[0,:]
+        Plf[self.model.aerogrid['set_l'][:,1]] = flf[1,:]
+        Plf[self.model.aerogrid['set_l'][:,2]] = flf[2,:]
         
-        Pk_f = np.dot(self.model.Dlk.T, Plf) * self.k_flex
-        
-        
+        Pk_f = self.model.Dlk.T.dot(Plf) * self.k_flex
+
         # ------------   
         # --- Gust ---   
         # ------------ 
-        if type == 'sim':
+        if self.simcase and self.simcase['gust']:
             # Eintauchtiefe in die Boe berechnen
             s_gust = (X[0] - self.model.aerogrid['offset_j'][:,0] - self.x0)
             # downwash der 1-cos Boe auf ein jedes Panel berechnen
@@ -251,7 +242,7 @@ class nastran:
             Plgust[self.model.aerogrid['set_l'][:,1]] = flgust[1,:]
             Plgust[self.model.aerogrid['set_l'][:,2]] = flgust[2,:]
             
-            Pk_gust = np.dot(self.model.Dlk.T, Plgust)
+            Pk_gust = self.model.Dlk.T.dot(Plgust)
         else:
             Pk_gust = np.zeros(Pk_rbm.shape)
         
@@ -261,8 +252,7 @@ class nastran:
         #Pf_gust = np.dot(PHIkf.T, Pk_gust)
         #Qhh_times_Uf =  np.dot(PHIkf.T, Pk_f)
         #np.dot(-Mff*omega**2 + 1j*Dff*omega + Kff , Uf) = Pf_gust + Qhh_times_Uf
-        
-        
+
         # --------------------------------   
         # --- summation of forces, EoM ---   
         # --------------------------------
@@ -306,7 +296,6 @@ class nastran:
         # linear, flexible EoM
         d2Uf_dt2 = np.dot( -np.linalg.inv(Mff),  ( np.dot(Dff, dUf_dt) + np.dot(Kff, Uf) - Pf  ) )
 
-
         # --------------   
         # --- output ---   
         # -------------- 
@@ -315,13 +304,14 @@ class nastran:
         # Nastran
         Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
                 
-        Y = np.hstack((X[6:12], np.dot(PHIcg_norm, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, dUx2, Nxyz[2]))    
+        Y = np.hstack((X[6:12], np.dot(PHIcg_norm, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, dcommand, Nxyz[2]))    
             
-        if type in ['trim', 'sim']:
+        if type == 'small_output':
             return Y
         elif type == 'full_output':
             response = {'X': X, 
                         'Y': Y,
+                        't': np.array([t]),
                         'Pk_rbm': Pk_rbm,
                         'Pk_cam': Pk_cam,
                         'Pk_aero': Pk_aero,
@@ -329,12 +319,12 @@ class nastran:
                         'Pk_f': Pk_f,
                         'Pk_cfd': Pk_cfd,
                         'Pk_gust': Pk_gust,
-                        'q_dyn': self.q_dyn,
+                        'q_dyn': np.array([self.q_dyn]),
                         'Pb': Pb,
                         'Pmac': Pmac,
                         'Pf': Pf,
-                        'alpha': alpha,
-                        'beta': beta,
+                        'alpha': np.array([alpha]),
+                        'beta': np.array([beta]),
                         'Pg_aero': Pg_aero,
                         'Ux2': Ux2,
                         'd2Ucg_dt2': d2Ucg_dt2,
@@ -345,6 +335,8 @@ class nastran:
                        }
             return response
     
+    def ode_arg_sorter(self, t, X):
+        return self.eval_equations(X, t, 'sim')
             
     def eval_equations(self, X_free, time, type='trim_full_output'):
         # this is a wrapper for the model equations 'eqn_basic'
@@ -357,7 +349,7 @@ class nastran:
         
         # evaluate model equations
         if type=='trim':
-            Y = self.equations(X, 'trim')
+            Y = self.equations(X, time, 'small_output')
             # get the current values from Y and substract tamlab.figure()
             # fsolve only finds the roots; Y = 0
             Y_target_ist = Y[np.where((self.trimcond_Y[:,1] == 'target'))[0]]
@@ -366,16 +358,15 @@ class nastran:
             return out
         
         elif type=='sim':
-            print time
-            Y = self.equations(X, 'sim')
+            Y = self.equations(X, time, 'small_output')
             return Y[:-1] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
             
         elif type=='sim_full_output':
-            response = self.equations(X, 'full_output')
+            response = self.equations(X, time, 'full_output')
             return response
             
         elif type=='trim_full_output':
-            response = self.equations(X, 'full_output')
+            response = self.equations(X, time, 'full_output')
             # do something with this output, e.g. plotting, animations, saving, etc.            
             print ''            
             print 'Y: '         

@@ -89,7 +89,7 @@ class trim:
         bypass = False
         if bypass:
             print 'running bypass...'
-            self.response = equations.eval_equations(X_free_0, time=0.0, type='full_output')
+            self.response = equations.eval_equations(X_free_0, time=0.0, type='trim_full_output')
         else:
             print 'running trim for ' + str(len(X_free_0)) + ' variables...'
             X_free, info, status, msg= so.fsolve(equations.eval_equations, X_free_0, args=(0.0, 'trim'), full_output=True)
@@ -115,38 +115,52 @@ class trim:
         import model_equations 
         equations = model_equations.nastran(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
         
-        X0 = self.response['X']        
-        t0 = 0.0
+        X0 = self.response['X'] 
         dt = self.simcase['dt']
         t_final = self.simcase['t_final']
-        t = np.arange(t0,t_final+dt, dt)
         print 'running time simulation for ' + str(t_final) + ' sec...'
-
-        # A 
-        # scipy.integrate.ode ist schoener als odeint, da es mehr Moeglichkeiten gibt. 
-        # Nachteilig ist, dass die Zeit an erster Stelle im Funktionsaufruf steht: dx/dt = f(t,x)
-#        from scipy.integrate import ode
-#        integrator = ode(equations.eval_equations).set_integrator('vode', method='bdf')
-#        integrator.set_f_params('integrate')
-#        integrator.set_initial_value(X0, 0.0)
-#        while integrator.successful() and integrator.t < t_final:  integrator.integrate(integrator.t+dt)
-        
-        # B
-        from scipy.integrate import odeint
-        X_t, info = odeint(equations.eval_equations, X0, t, args=('sim',), full_output=True, h0=0.001)
-        print info['message']
-        print 'time steps: ' + str(t)
-        print 'time step evaluatins: ' + str(info['nfe'])
-        if info['message'] == 'Integration successful.':
-            for i_step in np.arange(1,len(X_t)):
+        print 'Progress:'
+        from scipy.integrate import ode
+        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams') # non-stiff: 'adams', stiff: 'bdf'
+        integrator.set_initial_value(X0, 0.0)
+        X_t = []
+        t = []
+        while integrator.successful() and integrator.t < t_final:  
+            integrator.integrate(integrator.t+dt)
+            X_t.append(integrator.y)
+            t.append(integrator.t)
+            print str(integrator.t) + ' sec - ' + str(equations.counter) + ' function evaluations'
+            
+        if integrator.successful():
+            print 'Simulation finished.'
+            print 'running (again) with full outputs at selected time steps...' 
+            for i_step in np.arange(0,len(t)):
                 response_step = equations.eval_equations(X_t[i_step], t[i_step], type='sim_full_output')
                 for key in self.response.keys():
                     self.response[key] = np.vstack((self.response[key],response_step[key]))
-            self.response['t'] = t
-            self.response['t_cur'] = info['tcur']
+
 
         else:
-            self.response['t'] = 'Failure: ' + info['message']
+            self.response['t'] = 'Failure'
+            
+            
+            
+        # B
+#        from scipy.integrate import odeint
+#        X_t, info = odeint(equations.eval_equations, X0, t, args=('sim',), full_output=True, h0=0.001)
+#        print info['message']
+#        print 'time steps: ' + str(t)
+#        print 'time step evaluatins: ' + str(info['nfe'])
+#        if info['message'] == 'Integration successful.':
+#            for i_step in np.arange(1,len(X_t)):
+#                response_step = equations.eval_equations(X_t[i_step], t[i_step], type='sim_full_output')
+#                for key in self.response.keys():
+#                    self.response[key] = np.vstack((self.response[key],response_step[key]))
+#            self.response['t'] = t
+#            self.response['t_cur'] = info['tcur']
+#
+#        else:
+#            self.response['t'] = 'Failure: ' + info['message']
             
         
                 
