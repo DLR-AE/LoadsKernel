@@ -108,7 +108,7 @@ class jcl:
 #                          'pdot': 0.0, 
 #                          'qdot': 0.0, 
 #                        }]
-                        
+        self.simcase = [{},{},{},{},{},{},{},]                
         from numpy import array
         with open('/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S_selected/trim.trimcase_dict', 'r') as fid:
             trimcase_str = fid.read()
