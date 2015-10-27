@@ -229,12 +229,12 @@ class model:
         
             rules = spline_rules.rules_aeropanel(self.aerogrid)
             self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord)
-            self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord)
+            self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
             
             rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
             self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord)
             self.Djx1 = np.dot(self.Djk, self.Dkx1)
-            self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
+            #self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
 
             # AIC
             self.aero = {'key':[],
