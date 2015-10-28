@@ -11,9 +11,15 @@ import time
 import imp
 import sys
 import scipy
+import logger as logger_modul 
+import model as model_modul
+import trim as trim_modul
+import post_processing as post_processing_modul
+import plotting as plotting_modul
 
 def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_input='../input/', path_output='../output/'):
-    sys.stdout = Logger(path_output + 'log_' + job_name + ".txt")
+    reload(sys)
+    sys.stdout = logger_modul.logger(path_output + 'log_' + job_name + ".txt")
     
     print 'Starting AE Kernel with job: ' + job_name
     print 'pre:  ' + str(pre)
@@ -22,14 +28,13 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
     print 'test: ' + str(test)
 
     print '--> Reading parameters from JCL.'
-    jcl = imp.load_source('jcl', path_input + job_name + '.py')
-    jcl = jcl.jcl() 
+    jcl_modul = imp.load_source('jcl', path_input + job_name + '.py')
+    jcl = jcl_modul.jcl() 
         
     if pre: 
-        from model import model as model_obj
         print '--> Starting preprocessing.'   
         t_start = time.time()
-        model = model_obj(jcl)
+        model = model_modul.model(jcl)
         model.build_model()
         model.write_aux_data(path_output)
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
@@ -41,7 +46,6 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
     if main:
-        from trim import trim
         if not 'model' in locals():
             model = load_model(job_name, path_output)
         
@@ -56,7 +60,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             print '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')' 
             print '========================================' 
             
-            trim_i = trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+            trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
             trim_i.set_trimcond()
             trim_i.exec_trim()
             if 't_final' and 'dt' and 'gust' in jcl.simcase[i].keys():
@@ -69,7 +73,6 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
     
     if post:
-        from post_processing import post_processing as post_processing_obj
         if not 'model' in locals():
             model = load_model(job_name, path_output)
         
@@ -80,7 +83,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         
         print '--> Starting Post for %d trimcase(s).' % len(jcl.trimcase)
         t_start = time.time()
-        post_processing = post_processing_obj(jcl, model, response)
+        post_processing = post_processing_modul.post_processing(jcl, model, response)
         post_processing.force_summation_method() # trim + sim
         post_processing.cuttingforces() # trim + sim
         #post_processing.gather_monstations() # nur trim, wird zum plotten benoetigt
@@ -101,8 +104,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         #post_processing.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
         
         print '--> Drawing some plots.'  
-        from plotting import plotting as plotting_obj
-        plotting = plotting_obj(jcl, model, response)
+        plotting = plotting_modul.plotting(jcl, model, response)
         #plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') # nur trim
         #plotting.write_critical_trimcases(plotting.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') # nur trim
         #plotting.plot_forces_deformation_interactive() # nur trim
@@ -132,18 +134,10 @@ def load_model(job_name, path_output):
     print '--> Done in %.2f [sec].' % (time.time() - t_start)
     return model
 
-class Logger(object):
-    def __init__(self, filename):
-        self.terminal = sys.stdout
-        self.filename = filename
 
-    def write(self, message):
-        self.terminal.write(message)
-        with open(self.filename, "a") as log:
-            log.write(message)
 
 if __name__ == "__main__":
-    run_kernel('jcl_ALLEGRA', post=True, path_output='/scratch/test_gust/')
+    run_kernel('jcl_ALLEGRA', pre=True, main=True, path_output='/scratch/test/')
     #run_kernel('jcl_ALLEGRA', main=False, post=True, path_output='/scratch/test/')
     #run_kernel('jcl_ALLEGRA_CFD', pre=True, main=True, post=True, path_output='/scratch/kernel_Allegra_CFD/')
     #run_kernel('jcl_DLR_F19_manloads', pre=False, main=False, post=True, path_output='/scratch/test/')
