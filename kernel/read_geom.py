@@ -15,11 +15,11 @@ def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=Fal
     This methode parses a NASTRAN .f06 file and searches for eigenvalues and
     eigenvectors. (Basierend auf Script von Markus.)
     '''
-    
-    print 'Read modal data from f06 file: %s' %filename
     filesize = float(os.stat(filename).st_size)
+    print 'Read modal data from f06 file: %s with %.2f MB' %(filename, filesize/1024**2)
     percent = 0.
-    
+    print 'Progress [%]: ',
+
     eigenvalues = {"ModeNo":[],
                    "ExtractionOrder":[],
                    "Eigenvalue":[],
