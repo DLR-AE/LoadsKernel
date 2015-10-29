@@ -21,7 +21,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
     reload(sys)
     sys.stdout = logger_modul.logger(path_output + 'log_' + job_name + ".txt")
     
-    print 'Starting AE Kernel with job: ' + job_name
+    print 'Starting Loads Kernel with job: ' + job_name
     print 'pre:  ' + str(pre)
     print 'main: ' + str(main)
     print 'post: ' + str(post)
@@ -123,7 +123,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
 
 
 
-    print 'AE Kernel finished.'
+    print 'Loads Kernel finished.'
 
             
 def load_model(job_name, path_output):
@@ -137,12 +137,12 @@ def load_model(job_name, path_output):
 
 
 if __name__ == "__main__":
-    run_kernel('jcl_ALLEGRA', pre=True, main=True, path_output='/scratch/test/')
-    #run_kernel('jcl_ALLEGRA', main=False, post=True, path_output='/scratch/test/')
+    #run_kernel('jcl_ALLEGRA', main=True, post=True, path_output='/scratch/test/')
+    #run_kernel('jcl_ALLEGRA', post=True, path_output='/scratch/test/')
     #run_kernel('jcl_ALLEGRA_CFD', pre=True, main=True, post=True, path_output='/scratch/kernel_Allegra_CFD/')
     #run_kernel('jcl_DLR_F19_manloads', pre=False, main=False, post=True, path_output='/scratch/test/')
-    #run_kernel('jcl_DLR_F19_CFD', pre=False, main=True, post=True, path_output='/scratch/kernel_Vergleich_AeroDB/')
-    
+    run_kernel('jcl_DLR_F19_gust', pre=False, main=True, post=True, path_output='/scratch/test/')
+    #run_kernel('jcl_DLR_F19_gust',test=True, path_output='/scratch/test/')
     
     
     
