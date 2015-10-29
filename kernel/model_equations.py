@@ -7,6 +7,7 @@ Created on Thu Nov 27 15:43:35 2014
 
 import numpy as np
 import imp
+#import time
 from trim_tools import * 
 from scipy import interpolate
 
@@ -75,6 +76,9 @@ class nastran:
         
     def equations(self, X, t, type):
         self.counter += 1
+        #t_start = time.time()
+        #print 'flexible EoM in %.2f [sec].' % (time.time() - t_start)
+
         # Trim-spezifische Modelldaten holen, lange Namen abkuerzen
         Qjj        = self.model.aero['Qjj'][self.i_aero]    
        
@@ -89,7 +93,9 @@ class nastran:
         PHIf_strc  = self.model.mass['PHIf_strc'][self.i_mass]
         PHIstrc_cg = self.model.mass['PHIstrc_cg'][self.i_mass]
         Mgg        = self.model.mass['MGG'][self.i_mass]
+        Mfcg        = self.model.mass['Mfcg'][self.i_mass]
         PHIjf      = self.model.mass['PHIjf'][self.i_mass]
+        PHIkf      = self.model.mass['PHIkf'][self.i_mass]
         n_modes    = self.model.mass['n_modes'][self.i_mass] 
         
         PHIk_strc  = self.model.PHIk_strc
@@ -109,8 +115,8 @@ class nastran:
         # ------------------------------    
         # --- aero rigid body motion ---   
         # ------------------------------ 
-        alpha = X[4] - np.arctan(X[8]/X[6]) # alpha = theta - gamma
-        beta  = X[5] - np.arctan(X[7]/X[6])
+        alpha = np.arctan(dUcg_dt[2]/dUcg_dt[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
+        beta  = np.arctan(dUcg_dt[1]/dUcg_dt[0]) #X[5] - np.arctan(X[7]/X[6])
         my    = 0.0
         
         # dUmac_dt und Ux1 unterscheiden sich durch 
@@ -234,7 +240,7 @@ class nastran:
             wj_gust[np.where(s_gust <= 0.0)] = 0.0
             wj_gust[np.where(s_gust > 2*self.simcase['gust_gradient'])] = 0.0
             # Ausrichtung der Boe fehlt noch
-            gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,-1]), calc_drehmatrix( my=self.simcase['gust_orientation']/180.0*np.pi, alpha=0.0, beta=0.0 )), axis=1)
+            gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), calc_drehmatrix( my=self.simcase['gust_orientation']/180.0*np.pi, alpha=0.0, beta=0.0 )), axis=1)
             wj_gust = wj_gust *  gust_direction_vector
             flgust = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj_gust)
             Plgust = np.zeros((6*self.model.aerogrid['n']))
@@ -284,14 +290,14 @@ class nastran:
         d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(Mb)[0:3,0:3], Pb[0:3]) + g_cg
         d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(Mb)[3:6,3:6], Pb[3:6] )
         
-        
         # Aero- und Inertialkraefte verursachen elastische Verformungen. 
         # Das System ist in einer statischen Ruhelagen, wenn die modalen Beschleunigungen gleich Null sind.
-        # eventuell kann man diese Zeilen geschickter formulieren, um Rechenzeit zu sparen??
-        d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) )
-        Pg_iner_r = - Mgg.dot(d2Ug_dt2_r)
-        Pg_aero = np.dot(PHIk_strc.T, Pk_aero)
-        Pf = np.dot(PHIf_strc, Pg_aero + Pg_iner_r )
+
+        #d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) )
+        #Pg_iner_r = - Mgg.dot(d2Ug_dt2_r)
+        #Pg_aero = np.dot(PHIk_strc.T, Pk_aero)
+        #Pf = np.dot(PHIf_strc, Pg_aero + Pg_iner_r )
+        Pf = np.dot(PHIkf.T, Pk_aero) + Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
 
         # linear, flexible EoM
         d2Uf_dt2 = np.dot( -np.linalg.inv(Mff),  ( np.dot(Dff, dUf_dt) + np.dot(Kff, Uf) - Pf  ) )
@@ -325,7 +331,7 @@ class nastran:
                         'Pf': Pf,
                         'alpha': np.array([alpha]),
                         'beta': np.array([beta]),
-                        'Pg_aero': Pg_aero,
+                        #'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
                         'Ux2': Ux2,
                         'd2Ucg_dt2': d2Ucg_dt2,
                         'd2Uf_dt2': d2Uf_dt2,

@@ -40,6 +40,7 @@ class post_processing:
             if len(response['t']) > 1:
                 response['Pg_iner_r']   = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
                 response['Pg_iner_f']   = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+                response['Pg_aero']     = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
                 response['Pg']          = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
                 response['Ug_f']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
                 response['Ug_r']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
@@ -50,7 +51,7 @@ class post_processing:
                     # Fuer Bewegungsgleichungen z.B. von Waszack muessen die zusaetzlichen Terme hier ebenfalls beruecksichtigt werden!
                     d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][i_step,0:3] - response['g_cg'][i_step,:], response['d2Ucg_dt2'][i_step,3:6])) )
                     response['Pg_iner_r'][i_step,:] = - Mgg.dot(d2Ug_dt2_r)
-                    
+                    response['Pg_aero'][i_step,:] = np.dot(self.model.PHIk_strc.T, response['Pk_aero'][i_step,:])
                     d2Ug_dt2_f = PHIf_strc.T.dot(response['d2Uf_dt2'][i_step,:])
                     response['Pg_iner_f'][i_step,:] = - Mgg.dot(d2Ug_dt2_f)
                     response['Pg'][i_step,:] = response['Pg_aero'][i_step,:] + response['Pg_iner_r'][i_step,:] + response['Pg_iner_f'][i_step,:]
@@ -76,6 +77,8 @@ class post_processing:
                 #response['Ug_flex'] = PHIf_strc.T.dot(response['Uf'])
                 #response['Pg_flex'] = self.model.Kgg.dot(response['Ug_flex']) * 0.0
                 
+                response['Pg_aero'] = np.dot(self.model.PHIk_strc.T, response['Pk_aero'])
+
                 response['Pg'] = response['Pg_aero'] + response['Pg_iner_r'] + response['Pg_iner_f']
     
                 # das muss raus kommen:

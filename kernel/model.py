@@ -259,7 +259,8 @@ class model:
         if self.jcl.mass['method'] == 'mona':
             self.mass = {'key': [],
                          'Mb': [],
-                         'MGG': [],   
+                         'MGG': [],  
+                         'Mfcg': [],  
                          'cggrid': [],
                          'cggrid_norm': [],
                          'PHIstrc_cg': [],
@@ -269,6 +270,7 @@ class model:
                          'PHIcg_norm': [],
                          'PHIf_strc': [],
                          'PHIjf': [],
+                         'PHIkf': [],
                          'Mff': [],
                          'Kff': [],
                          'Dff': [],
@@ -332,11 +334,15 @@ class model:
                 PHIcg_norm = spline_functions.spline_rb(cggrid_norm, '', cggrid, '', rules, self.coord) 
                 
                 PHIjf = np.dot(self.Djk, np.dot(self.PHIk_strc, PHIf_strc.T))                
-                
+                PHIkf = np.dot(self.PHIk_strc, PHIf_strc.T)
+
+                Mfcg=PHIf_strc.dot(-MGG.dot(PHIstrc_cg))
+        
                 # save all matrices to data structure
                 self.mass['key'].append(self.jcl.mass['key'][i_mass])
                 self.mass['Mb'].append(Mb)
                 self.mass['MGG'].append(MGG)
+                self.mass['Mfcg'].append(Mfcg)
                 self.mass['cggrid'].append(cggrid)
                 self.mass['cggrid_norm'].append(cggrid_norm)
                 self.mass['PHIstrc_cg'].append(PHIstrc_cg)
@@ -346,6 +352,7 @@ class model:
                 self.mass['PHInorm_cg'].append(PHInorm_cg)
                 self.mass['PHIf_strc'].append(PHIf_strc) 
                 self.mass['PHIjf'].append(PHIjf)
+                self.mass['PHIkf'].append(PHIkf)
                 self.mass['Mff'].append(Mff) 
                 self.mass['Kff'].append(Kff) 
                 self.mass['Dff'].append(Dff) 
