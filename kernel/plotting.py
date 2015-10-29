@@ -86,15 +86,20 @@ class plotting:
 
     def plot_monstations(self, monstations, filename_pdf):
         # Allegra
-        potatos_Fz_Mx = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
-        potatos_Mx_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
-        potatos_Fz_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01', 'ZFCUT27', 'ZFCUT28']
-        cuttingforces_wing = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', ]
+        if self.jcl.general['aircraft'] == 'ALLEGRA':
+            potatos_Fz_Mx = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
+            potatos_Mx_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
+            potatos_Fz_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01', 'ZFCUT27', 'ZFCUT28']
+            cuttingforces_wing = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', ]
         # DLR-F19
-#        potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
-#        potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
-#        potatos_Fz_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON4', 'MON5']
-#        cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
+        elif self.jcl.general['aircraft'] == 'DLR F-19-S':
+            potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
+            potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
+            potatos_Fz_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON4', 'MON5']
+            cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
+        else:
+            print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
+            return
 
         print 'start potato-plotting...'
         # get data needed for plotting from monstations
@@ -233,15 +238,31 @@ class plotting:
             Pb_gust.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_gust'][i_step,:]))
         Pb_gust = np.array(Pb_gust)
         plt.figure()
-        plt.plot(self.response[0]['t'], self.response[0]['Nxyz'][:,2], 'b-')
-        plt.xlabel('t [sec]')
-        plt.ylabel('Nz')
-        plt.figure()
+        plt.subplot(2,1,1)
         plt.plot(self.response[0]['t'], Pb_gust[:,2], 'b-')
         plt.xlabel('t [sec]')
         plt.ylabel('Pb_gust [N]')
+        plt.grid('on')
+        plt.subplot(2,1,2)
+        plt.plot(self.response[0]['t'], self.response[0]['Nxyz'][:,2], 'b-')
+        plt.plot(self.response[0]['t'], self.response[0]['alpha']/np.pi*180.0, 'r-')
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,4]/np.pi*180.0, 'g-')
+        plt.plot(self.response[0]['t'], np.arctan(self.response[0]['X'][:,8]/self.response[0]['X'][:,6])/np.pi*180.0, 'k-')
+        plt.xlabel('t [sec]')
+        plt.legend(['Nz', 'alpha', 'theta', 'gamma'])
+        plt.grid('on')
+        plt.ylabel('[-]/[deg]')
+        #plt.show()
         
-
+        if self.jcl.general['aircraft'] == 'ALLEGRA':
+            lim=25.0
+            length=45
+        elif self.jcl.general['aircraft'] == 'DLR F-19-S':
+            lim=10.0
+            length=15
+        else:
+            print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
+            return
         # Set up data
         x = self.model.strcgrid['offset'][:,0] + self.response[0]['Ug'][:,self.model.strcgrid['set'][:,0]]
         y = self.model.strcgrid['offset'][:,1] + self.response[0]['Ug'][:,self.model.strcgrid['set'][:,1]]
@@ -252,26 +273,26 @@ class plotting:
         fig = plt.figure()
         ax1 = plt.subplot(1,2,1)
         line1, = ax1.plot([], [], 'r.')
-        time_text = ax1.text(-20,20, '')
-        ax1.set_xlim((-25, 25))
-        ax1.set_ylim((-25, 25))
+        time_text = ax1.text(-lim+2,lim-2, '')
+        ax1.set_xlim((-lim, lim))
+        ax1.set_ylim((-lim, lim))
         ax1.grid('on')
         
         ax2 = plt.subplot(1,2,2)
         line2, = ax2.plot([], [], 'r.')
-        ax2.set_ylim((-25, 25))
+        ax2.set_ylim((-lim, lim))
         ax2.grid('on')
         #update_line(0,data,line1, line2, t, time_text)
 
-        line_ani = animation.FuncAnimation(fig, self.update_line, fargs=(data, line1, line2, ax2, t, time_text), frames=101, interval=50, repeat=True, repeat_delay=3000)
+        line_ani = animation.FuncAnimation(fig, self.update_line, fargs=(data, line1, line2, ax2, t, time_text, length), frames=101, interval=50, repeat=True, repeat_delay=3000)
         # Set up formatting for the movie files
         #Writer = animation.writers['ffmpeg']
         #writer = Writer(fps=20, bitrate=2000)        
         #line_ani.save('ref.mp4', writer) 
         plt.show()
 
-    def update_line(self, num, data, line1, line2, ax2, t, time_text):
+    def update_line(self, num, data, line1, line2, ax2, t, time_text, length):
         line1.set_data(data[1,num,:], data[2,num,:])
         line2.set_data(data[0,num,:], data[2,num,:])
-        ax2.set_xlim((-5+data[0,num,0], 45+data[0,num,0]))
+        ax2.set_xlim((-5+data[0,num,0], length+data[0,num,0]))
         time_text.set_text('Time = ' + str(t[num,0]))   
