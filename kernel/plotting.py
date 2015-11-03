@@ -249,7 +249,7 @@ class plotting:
         plt.plot(self.response[0]['t'], self.response[0]['X'][:,4]/np.pi*180.0, 'g-')
         plt.plot(self.response[0]['t'], np.arctan(self.response[0]['X'][:,8]/self.response[0]['X'][:,6])/np.pi*180.0, 'k-')
         plt.xlabel('t [sec]')
-        plt.legend(['Nz', 'alpha', 'theta', 'gamma'])
+        plt.legend(['Nz', 'alpha', 'alpha/pitch', 'alpha/heave'])
         plt.grid('on')
         plt.ylabel('[-]/[deg]')
         #plt.show()
@@ -284,7 +284,7 @@ class plotting:
         ax2.grid('on')
         #update_line(0,data,line1, line2, t, time_text)
 
-        line_ani = animation.FuncAnimation(fig, self.update_line, fargs=(data, line1, line2, ax2, t, time_text, length), frames=101, interval=50, repeat=True, repeat_delay=3000)
+        line_ani = animation.FuncAnimation(fig, self.update_line, fargs=(data, line1, line2, ax2, t, time_text, length), frames=len(t), interval=50, repeat=True, repeat_delay=3000)
         # Set up formatting for the movie files
         #Writer = animation.writers['ffmpeg']
         #writer = Writer(fps=20, bitrate=2000)        
