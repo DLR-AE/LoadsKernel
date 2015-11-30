@@ -65,6 +65,7 @@ class jcl:
                                          '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AESURF'],
                      'filename_aelist': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.AELIST', 
                                          '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AELIST'],
+                     'method_AIC': 'nastran', # 'nastran', 'ae' - provide 'filename_AIC' with OP4 files if method = 'nastran'
                      'filename_AIC': ['/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ01.dat', \
                                       '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ02.dat', \
                                       '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ03.dat', \

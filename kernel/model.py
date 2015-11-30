@@ -134,6 +134,8 @@ class model:
                     self.aerogrid['CD'] = np.hstack((self.aerogrid['CD'],subgrid['CD']))
                     self.aerogrid['CP'] = np.hstack((self.aerogrid['CP'],subgrid['CP']))
                     self.aerogrid['n'] += subgrid['n']
+                    self.aerogrid['cornerpoint_panels'] = np.vstack((self.aerogrid['cornerpoint_panels'],subgrid['cornerpoint_panels']))
+                    self.aerogrid['cornerpoint_grids'] = np.vstack((self.aerogrid['cornerpoint_grids'],subgrid['cornerpoint_grids']))
                        
             # Correctionfor camber and twist, W2GJ
             if self.jcl.aero['filename_deriv_4_W2GJ']:
@@ -201,60 +203,68 @@ class model:
 #            ax.auto_scale_xyz([0, 50], [-25, 25], [0, 50])
 #            plt.show()
             
+        else:
+            print 'Unknown aero method: ' + str(self.jcl.aero['method'])
             
-            # splines 
-            
-            # PHIk_strc with 'nearest_neighbour', 'rbf' or 'nastran'
-            if self.jcl.spline['method'] in ['rbf', 'nearest_neighbour']:
-                if self.jcl.spline['splinegrid'] == True:
-                    # this optin is only valid if spline['method'] == 'rbf' or 'rb'
-                    print 'Coupling aerogrid to strcgrid via splinegrid:'
-                    self.splinegrid = build_splinegrid.build_splinegrid(self.strcgrid, self.jcl.spline['filename_splinegrid'])
-                    # self.splinegrid = build_splinegrid.grid_thin_out_random(self.splinegrid, 0.05)
-                    # self.splinegrid = build_splinegrid.grid_thin_out_radius(self.splinegrid, 0.5)
-                else:
-                    print 'Coupling aerogrid directly. Doing cleanup/thin out of strcgrid to avoid singularities (safety first!)'
-                    self.splinegrid = build_splinegrid.grid_thin_out_radius(self.strcgrid, 0.01)
-
-            if self.jcl.spline['method'] == 'rbf': 
-                self.PHIk_strc = spline_functions.spline_rbf(self.splinegrid, '',self.aerogrid, '_k', 'tps', dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6] )
-                # rbf-spline not (yet) stable for translation of forces and moments to structure grid, so use rb-spline with nearest neighbour search instead
-            elif self.jcl.spline['method'] == 'nearest_neighbour':
-                rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.aerogrid, '_k')    
-                self.PHIk_strc = spline_functions.spline_rb(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6])
-            elif self.jcl.spline['method'] == 'nastran': 
-                self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
-            else:
-                print 'Unknown spline method.'
+        # AIC
+        self.aero = {'key':[], 'Qjj':[],'interp_wj_corrfac_alpha': []}
         
-            rules = spline_rules.rules_aeropanel(self.aerogrid)
-            self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord)
-            self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
-            
-            rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
-            self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord)
-            self.Djx1 = np.dot(self.Djk, self.Dkx1)
-            #self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
-
-            # AIC
-            self.aero = {'key':[],
-                         'Qjj':[],
-                         'interp_wj_corrfac_alpha': [],
-                        }
+        if self.jcl.aero['method_AIC'] == 'nastran':
             for i_aero in range(len(self.jcl.aero['key'])):
                 Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)  
                 Qjj = np.linalg.inv(Ajj.T)
                 self.aero['key'].append(self.jcl.aero['key'][i_aero])
                 self.aero['Qjj'].append(Qjj)
-                
-            if self.jcl.aero['method'] == 'hybrid':   
-                print 'Building aero db...'
-                self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
-                    
-                
+        elif self.jcl.aero['method_AIC'] == 'ae':
+            print 'Calculating steady AIC matrices ({} panels, k=0.0) with ae_getaic.m for {} Mach numbers...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) )
+            from oct2py import octave 
+            #AIC = ae_getaic(aerogrid, Mach, k);
+            out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], [0.0])
+            for i_aero in range(len(self.jcl.aero['key'])): 
+                self.aero['key'].append(self.jcl.aero['key'][i_aero])
+                self.aero['Qjj'].append(out[:,:,0,i_aero])
         else:
-            print 'Unknown aero method: ' + str(self.jcl.aero['method'])
-            
+            print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
+
+        
+        # Aero DB    
+        if self.jcl.aero['method'] == 'hybrid':   
+            print 'Building aero db...'
+            self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
+        
+        # splines 
+        # PHIk_strc with 'nearest_neighbour', 'rbf' or 'nastran'
+        if self.jcl.spline['method'] in ['rbf', 'nearest_neighbour']:
+            if self.jcl.spline['splinegrid'] == True:
+                # this optin is only valid if spline['method'] == 'rbf' or 'rb'
+                print 'Coupling aerogrid to strcgrid via splinegrid:'
+                self.splinegrid = build_splinegrid.build_splinegrid(self.strcgrid, self.jcl.spline['filename_splinegrid'])
+                # self.splinegrid = build_splinegrid.grid_thin_out_random(self.splinegrid, 0.05)
+                # self.splinegrid = build_splinegrid.grid_thin_out_radius(self.splinegrid, 0.5)
+            else:
+                print 'Coupling aerogrid directly. Doing cleanup/thin out of strcgrid to avoid singularities (safety first!)'
+                self.splinegrid = build_splinegrid.grid_thin_out_radius(self.strcgrid, 0.01)
+
+        if self.jcl.spline['method'] == 'rbf': 
+            self.PHIk_strc = spline_functions.spline_rbf(self.splinegrid, '',self.aerogrid, '_k', 'tps', dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6] )
+            # rbf-spline not (yet) stable for translation of forces and moments to structure grid, so use rb-spline with nearest neighbour search instead
+        elif self.jcl.spline['method'] == 'nearest_neighbour':
+            rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.aerogrid, '_k')    
+            self.PHIk_strc = spline_functions.spline_rb(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6])
+        elif self.jcl.spline['method'] == 'nastran': 
+            self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
+        else:
+            print 'Unknown spline method.'
+    
+        rules = spline_rules.rules_aeropanel(self.aerogrid)
+        self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord)
+        self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
+        
+        rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
+        self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord)
+        self.Djx1 = np.dot(self.Djk, self.Dkx1)
+        #self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
+  
         print 'Building mass model...'
         if self.jcl.mass['method'] == 'mona':
             self.mass = {'key': [],

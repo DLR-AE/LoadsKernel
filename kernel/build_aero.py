@@ -132,6 +132,8 @@ def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4'):
                 'CP': caero_panels['CP'],
                 'n': n,
                 'coord_desc': 'bodyfixed',
+                'cornerpoint_panels': caero_panels['cornerpoints'],
+                'cornerpoint_grids': np.hstack((caero_grid['ID'][:,None],caero_grid['offset']))
                }   
     #import matplotlib.pyplot as plt
     #fig = plt.figure()
