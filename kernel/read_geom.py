@@ -253,7 +253,12 @@ def Nastran_CAERO1(filename):
                 panels['CD'].append(caerocard['CP'])
                 panels['cornerpoints'].append([ grids_map[i_row, i_strip], grids_map[i_row+1, i_strip], grids_map[i_row+1, i_strip+1], grids_map[i_row, i_strip+1] ])
                 panel_ID += 1 
-
+    panels['ID'] = np.array(panels['ID'])
+    panels['CP'] = np.array(panels['CP'])
+    panels['CD'] = np.array(panels['CD'])
+    panels['cornerpoints'] = np.array(panels['cornerpoints'])
+    grids['ID'] = np.array(grids['ID'])
+    grids['offset'] = np.array(grids['offset'])
     return grids, panels      
     
 def nastran_number_converter(string_in, type, default=0):
