@@ -29,7 +29,7 @@ class trim:
             ['y',        'fix',  0.0,],
             ['z',        'fix',  z  ,],
             ['phi',      'fix',  0.0,],
-            ['theta',    'free', 1.0/180*np.pi,],
+            ['theta',    'free', 0.5/180*np.pi,],
             ['psi',      'fix',  0.0,],
             ['u',        'fix',  u,  ],
             ['v',        'fix',  0.0,],
