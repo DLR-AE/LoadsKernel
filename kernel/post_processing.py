@@ -151,7 +151,7 @@ class post_processing:
             #np.savetxt(fid, self.model.strcgrid['offset'])
         
         for i_trimcase in range(len(self.jcl.trimcase)):
-            with open(filename+'_subcase_'+str(i_trimcase+1)+'_Uf_x10.dat', 'w') as fid: 
+            with open(filename+'_subcase_'+str(self.jcl.trimcase[i_trimcase]['subcase'])+'_Uf_x10.dat', 'w') as fid: 
                 defo = np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'] + self.response[i_trimcase]['Ug_f'][self.model.strcgrid['set'][:,0:3]] * 10.0 ))
                 np.savetxt(fid, defo)
                 #np.savetxt(fid, defo[:,1:4])
@@ -160,16 +160,16 @@ class post_processing:
         print 'saving nodal loads as Nastarn cards...'
         with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
-                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg'], i_trimcase+1)
+                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg'], self.jcl.trimcase[i_trimcase]['subcase'])
 #        with open(filename+'_Pg_aero', 'w') as fid: 
 #            for i_trimcase in range(len(self.jcl.trimcase)):
-#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_aero'], i_trimcase+1)
+#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_aero'], self.jcl.trimcase[i_trimcase]['subcase'])
 #        with open(filename+'_Pg_iner_r', 'w') as fid: 
 #            for i_trimcase in range(len(self.jcl.trimcase)):
-#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_r'], i_trimcase+1) 
+#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_r'], self.jcl.trimcase[i_trimcase]['subcase']) 
 #        with open(filename+'_Pg_iner_f', 'w') as fid: 
 #            for i_trimcase in range(len(self.jcl.trimcase)):
-#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_f'], i_trimcase+1)
+#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_f'], self.jcl.trimcase[i_trimcase]['subcase'])
     
     
 
