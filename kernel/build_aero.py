@@ -171,7 +171,7 @@ def build_macgrid(aerogrid, b_ref):
               }
     return macgrid
 
-def plot_aerogrid(aerogrid, cp = '', value_min = '', value_max = ''):
+def plot_aerogrid(aerogrid, cp = '', colormap = 'jet', value_min = '', value_max = ''):
     # This function plots aerogrids as used in the Loads Kernel
     # - By default, the panales are plotted as a wireframe.
     # - If a pressure distribution (or any numpy array with n values) is given, 
@@ -180,7 +180,7 @@ def plot_aerogrid(aerogrid, cp = '', value_min = '', value_max = ''):
     #   which is useful to compare severeal plots.  
     
     if len(cp) == aerogrid['n']:
-        colors = plt.cm.get_cmap(name='jet')  
+        colors = plt.cm.get_cmap(name=colormap)  
         if value_min == '':
             value_min = cp.min()
         if value_max == '':
@@ -217,5 +217,6 @@ def plot_aerogrid(aerogrid, cp = '', value_min = '', value_max = ''):
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     ax.view_init(elev=90, azim=-90) 
+    fig.tight_layout()
     
     return ax
