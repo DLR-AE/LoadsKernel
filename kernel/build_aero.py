@@ -9,6 +9,8 @@ import read_geom
 import spline_rules
 import spline_functions
 import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
 
 def build_x2grid(jcl_aero, aerogrid, coord):
     
@@ -169,3 +171,51 @@ def build_macgrid(aerogrid, b_ref):
               }
     return macgrid
 
+def plot_aerogrid(aerogrid, cp = '', value_min = '', value_max = ''):
+    # This function plots aerogrids as used in the Loads Kernel
+    # - By default, the panales are plotted as a wireframe.
+    # - If a pressure distribution (or any numpy array with n values) is given, 
+    #   the panels are colored according to this value.
+    # - It is possible to give a min and max value for the color distirbution, 
+    #   which is useful to compare severeal plots.  
+    
+    if len(cp) == aerogrid['n']:
+        colors = plt.cm.get_cmap(name='jet')  
+        if value_min == '':
+            value_min = cp.min()
+        if value_max == '':
+            value_max = cp.max()   
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    # plot evry panel seperatly
+    # (plotting all at once is much more complicated!)
+    for i_panel in range(aerogrid['n']):
+        # construct matrices xx, yy and zz from cornerpoints for each panale
+        point0 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel,0],1:]
+        point1 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel,1],1:]
+        point2 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel,2],1:]
+        point3 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel,3],1:]
+        xx = np.array(([point0[0,0], point1[0,0]], [point3[0,0], point2[0,0]]))
+        yy = np.array(([point0[0,1], point1[0,1]], [point3[0,1], point2[0,1]]))
+        zz = np.array(([point0[0,2], point1[0,2]], [point3[0,2], point2[0,2]]))
+        # determine the color of the panel according to pressure coefficient
+        # (by default, panels are colored according to its z-component)
+        if len(cp) == aerogrid['n']:
+            color_i = colors(np.int(np.round( colors.N / (value_max - value_min ) * (cp[i_panel] - value_min ) )))
+            ax.plot_surface(xx, yy, zz, rstride=1, cstride=1, linewidth=0, color=color_i )
+        else:
+            ax.plot_wireframe(xx, yy, zz, rstride=1, cstride=1)
+            
+    if len(cp) == aerogrid['n']:
+        # plot one dummy element that is colored by using the colormap
+        # (this is required to build a colorbar)
+        surf = ax.plot_surface([0],[0],[0], rstride=1, cstride=1, linewidth=0, cmap=colors, vmin=value_min, vmax=value_max)
+        fig.colorbar(surf, shrink=0.5) 
+    
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.view_init(elev=90, azim=-90) 
+    
+    return ax
