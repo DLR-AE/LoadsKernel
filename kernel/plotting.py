@@ -32,7 +32,7 @@ class plotting:
             z = self.model.aerogrid['offset_k'][:,2]
             fx, fy, fz = response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]],response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
             f_scale = 0.002 # vectors
-            p_scale = 0.3 # points
+            p_scale = 0.03 # points
             mlab.figure()
             mlab.points3d(x, y, z, scale_factor=p_scale)
             mlab.quiver3d(x, y, z, response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=f_scale)            
@@ -57,8 +57,13 @@ class plotting:
             
             mlab.figure()   
             mlab.points3d(x, y, z, scale_factor=p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_cfd'][self.model.aerogrid['set_k'][:,0]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,1]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,2]], color=(1,1,1), scale_factor=f_scale)
+            mlab.quiver3d(x, y, z, response['Pk_cfd'][self.model.aerogrid['set_k'][:,0]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,1]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=f_scale)
             mlab.title('Pk_cfd', size=0.2, height=0.95)
+            
+            mlab.figure()   
+            mlab.points3d(x, y, z, scale_factor=p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_aero'][self.model.aerogrid['set_k'][:,0]], response['Pk_aero'][self.model.aerogrid['set_k'][:,1]], response['Pk_aero'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=f_scale)
+            mlab.title('Pk_aero', size=0.2, height=0.95)
             
             x = self.model.strcgrid['offset'][:,0]
             y = self.model.strcgrid['offset'][:,1]
@@ -75,11 +80,11 @@ class plotting:
             mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=p_scale)
             mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=p_scale)
             mlab.title('rbm (green) and flexible deformation x10 (blue)', size=0.2, height=0.95)
-            
+
             mlab.figure()   
-            mlab.points3d(x, y, z, color=(0,0,0), scale_factor=p_scale)
-            mlab.quiver3d(x, y, z, response['Pg_aero'][self.model.strcgrid['set'][:,0]], response['Pg_aero'][self.model.strcgrid['set'][:,1]], response['Pg_aero'][self.model.strcgrid['set'][:,2]], color=(0,1,0), scale_factor=f_scale)
-            mlab.title('Pg_aero', size=0.2, height=0.95)
+            mlab.points3d(x, y, z, color=(0,0,0), scale_factor=p_scale/5.0)
+            mlab.quiver3d(x, y, z, response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]], color=(1,1,0), scale_factor=f_scale)
+            mlab.title('Pg', size=0.2, height=0.95)
             
             mlab.show()
                 
@@ -120,14 +125,17 @@ class plotting:
                 points = np.vstack((loads[i_station][:,2], loads[i_station][:,3])).T
                 labels = ['Fz [N]', 'Mx [Nm]' ]
                 # --- plot ---
-                hull = ConvexHull(points) # calculated convex hull from scattered points
                 plt.figure()
                 plt.scatter(points[:,0], points[:,1], color='cornflowerblue') # plot points
-                for simplex in hull.simplices:                   # plot convex hull
-                    plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
-                for i_case in range(hull.nsimplex):              # plot text   
-                    plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
-                    self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                if points.shape[0] >= 3:
+                    hull = ConvexHull(points) # calculated convex hull from scattered points
+                    for simplex in hull.simplices:                   # plot convex hull
+                        plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
+                    for i_case in range(hull.nsimplex):              # plot text   
+                        plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
+                        self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                else:
+                    self.crit_trimcases += monstations[potato[i_station]]['subcase'][:]
                 plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
                 plt.title(potato[i_station])
@@ -140,14 +148,16 @@ class plotting:
                 points = np.vstack((loads[i_station][:,3], loads[i_station][:,4])).T
                 labels = ['Mx [N]', 'My [Nm]' ]
                 # --- plot ---
-                hull = ConvexHull(points) # calculated convex hull from scattered points
                 plt.figure()
                 plt.scatter(points[:,0], points[:,1], color='cornflowerblue') # plot points
-                for simplex in hull.simplices:                   # plot convex hull
-                    plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
-                for i_case in range(hull.nsimplex):              # plot text   
-                    plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
-                    self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                if points.shape[0] >= 3:
+                    for simplex in hull.simplices:                   # plot convex hull
+                        plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
+                    for i_case in range(hull.nsimplex):              # plot text   
+                        plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
+                        self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                else:
+                    self.crit_trimcases += monstations[potato[i_station]]['subcase'][:]
                 plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
                 plt.title(potato[i_station])
@@ -161,14 +171,16 @@ class plotting:
                 points = np.vstack((loads[i_station][:,2], loads[i_station][:,4])).T
                 labels = ['Fz [N]', 'My [Nm]' ]
                 # --- plot ---
-                hull = ConvexHull(points) # calculated convex hull from scattered points
                 plt.figure()
                 plt.scatter(points[:,0], points[:,1], color='cornflowerblue') # plot points
-                for simplex in hull.simplices:                   # plot convex hull
-                    plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
-                for i_case in range(hull.nsimplex):              # plot text   
-                    plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
-                    self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                if points.shape[0] >= 3:
+                    for simplex in hull.simplices:                   # plot convex hull
+                        plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
+                    for i_case in range(hull.nsimplex):              # plot text   
+                        plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
+                        self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                else:
+                    self.crit_trimcases += monstations[potato[i_station]]['subcase'][:]
                 plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
                 plt.title(potato[i_station])
