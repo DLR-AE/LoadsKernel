@@ -203,7 +203,7 @@ def plot_aerogrid(aerogrid, cp = '', colormap = 'jet', value_min = '', value_max
         # (by default, panels are colored according to its z-component)
         if len(cp) == aerogrid['n']:
             color_i = colors(np.int(np.round( colors.N / (value_max - value_min ) * (cp[i_panel] - value_min ) )))
-            ax.plot_surface(xx, yy, zz, rstride=1, cstride=1, linewidth=0, color=color_i )
+            ax.plot_surface(xx, yy, zz, rstride=1, cstride=1, linewidth=0, color=color_i, shade=False )
         else:
             ax.plot_wireframe(xx, yy, zz, rstride=1, cstride=1)
             
