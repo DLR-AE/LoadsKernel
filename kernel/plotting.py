@@ -11,6 +11,7 @@ import matplotlib.animation as animation
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
 import csv
+import build_aero
 
 
 class plotting:
@@ -18,7 +19,25 @@ class plotting:
         self.jcl = jcl
         self.model = model
         self.response = response
-
+        
+    def plot_pressure_distribution(self):
+        for i_trimcase in range(len(self.jcl.trimcase)):
+            response   = self.response[i_trimcase]
+            trimcase   = self.jcl.trimcase[i_trimcase]
+            print 'interactive plotting of resulting pressure distributions for trim {:s}'.format(trimcase['desc'])
+            Pk = response['Pk_aero'] #response['Pk_rbm'] + response['Pk_cam']
+            i_atmo = self.model.atmo['key'].index(trimcase['altitude'])
+            rho = self.model.atmo['rho'][i_atmo]
+            Vtas = trimcase['Ma'] * self.model.atmo['a'][i_atmo]
+            F = np.linalg.norm(Pk[self.model.aerogrid['set_k'][:,:3]], axis=1)
+            cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
+            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'jet', -0.5, 0.5)
+            ax.set_title('Cp for {:s}'.format(trimcase['desc']))
+            ax.set_xlim(0, 16)
+            ax.set_ylim(-8, 8)
+            plt.show()
+    
+    
     def plot_forces_deformation_interactive(self):
         from mayavi import mlab
 
