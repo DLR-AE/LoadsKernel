@@ -88,7 +88,8 @@ class model:
                 print 'Warning: No Monitoring Stations are created!'
             
             self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
-                
+            #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord) 
+               
         print 'Building atmo model...'
         if self.jcl.atmo['method']=='ISA':
             self.atmo = {'key':[],

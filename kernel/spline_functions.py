@@ -260,7 +260,42 @@ def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='',
     else:
         return splinematrix.toarray() 
         
+def plot_splinerules(grid_i,  set_i,  grid_d, set_d, splinerules, coord):
+
+    # transfer points into common coord
+    offset_dest_i = []
+    for i_point in range(len(grid_i['ID'])):
+        pos_coord = coord['ID'].index(grid_i['CP'][i_point])
+        offset_dest_i.append(np.dot(coord['dircos'][pos_coord],grid_i['offset'+set_i][i_point])+coord['offset'][pos_coord])
+    offset_dest_i = np.array(offset_dest_i)
     
+    offset_dest_d = []
+    for i_point in range(len(grid_d['ID'])):
+        pos_coord = coord['ID'].index(grid_d['CP'][i_point])
+        offset_dest_d.append(np.dot(coord['dircos'][pos_coord],grid_d['offset'+set_d][i_point])+coord['offset'][pos_coord])
+    offset_dest_d = np.array(offset_dest_d)
+    
+    position_d = []
+    position_i = []
+    for i_i in range(len(splinerules['ID_i'])):
+        for i_d in range(len(splinerules['ID_d'][i_i])): 
+            position_d.append( np.where(grid_d['ID']==splinerules['ID_d'][i_i][i_d])[0][0] )
+            position_i.append( np.where(grid_i['ID']==splinerules['ID_i'][i_i])[0][0] )
+   
+    x = offset_dest_i[position_i,0]
+    y = offset_dest_i[position_i,1]
+    z = offset_dest_i[position_i,2]
+    u = offset_dest_d[position_d,0] - x
+    v = offset_dest_d[position_d,1] - y
+    w = offset_dest_d[position_d,2] - z
+    
+    from mayavi import mlab
+    p_scale = 0.05 # points
+    mlab.figure()
+    mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2], scale_factor=p_scale*2, color=(1,0,0))
+    mlab.points3d(grid_d['offset'+set_d][:,0], grid_d['offset'+set_d][:,1], grid_d['offset'+set_d][:,2], scale_factor=p_scale, color=(0,0,1))
+    mlab.quiver3d(x,y,z,u,v,w, mode='2ddash', scale_factor=1.0, color=(0,0,0), opacity=0.4)
+    mlab.show()
 
 
 def sparse_insert(sparsematrix, submatrix, idx1, idx2):

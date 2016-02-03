@@ -86,7 +86,9 @@ def process_matrix(model, matrix, plot=False):
                     # build spline
                     rules = spline_rules.nearest_neighbour( model.aerogrid, '_k', cfdgrid, '')    
                     PHIcfd_k = spline_functions.spline_rb(model.aerogrid, '_k', cfdgrid, '', rules, model.coord,  sparse_output=True) 
-                    
+                    if plot:
+                        spline_functions.plot_splinerules(model.aerogrid, '_k', cfdgrid, '', rules, model.coord) 
+
                 # store spline
                 matrix[param][aero_key]['PHIcfd_k'].append(PHIcfd_k)
                     
@@ -113,14 +115,14 @@ def process_matrix(model, matrix, plot=False):
                     Cmac[3] = Pmac[3] / q_dyn / model.macgrid['A_ref'] / model.macgrid['b_ref']
                     Cmac[4] = Pmac[4] / q_dyn / model.macgrid['A_ref'] / model.macgrid['c_ref']
                     Cmac[5] = Pmac[5] / q_dyn / model.macgrid['A_ref'] / model.macgrid['b_ref']
-                    
+                     
                     Cx_tau = np.sum(ncfile_pval.variables['x-force'][:][pos]) / q_dyn / model.macgrid['A_ref']
                     Cy_tau = np.sum(ncfile_pval.variables['y-force'][:][pos]) / q_dyn / model.macgrid['A_ref']
                     Cz_tau = np.sum(ncfile_pval.variables['z-force'][:][pos]) / q_dyn / model.macgrid['A_ref']
-                    
+                     
                     x_k = model.aerogrid['offset_k'][:,0]
                     y_k = model.aerogrid['offset_k'][:,1]
-                    
+                     
                     plt.figure(1)
                     plt.scatter(x_k, y_k, c=Pk[model.aerogrid['set_k'][:,0]], s=50, linewidths=0.0, cmap='jet')
                     plt.title('Fx after splining to DLM mesh')
@@ -128,7 +130,7 @@ def process_matrix(model, matrix, plot=False):
                     plt.text(0, -8, desc)
                     plt.text(0, -8.5, 'Cx: {:.4}, Cx_tau: {:.4}'.format(float(Cmac[0]), Cx_tau))
                     plt.colorbar()
-                    
+                     
                     plt.figure(2)
                     plt.scatter(x_k, y_k, c=Pk[model.aerogrid['set_k'][:,1]], s=50, linewidths=0.0, cmap='jet')
                     plt.title('Fy after splining to DLM mesh')
@@ -136,7 +138,7 @@ def process_matrix(model, matrix, plot=False):
                     plt.text(0, -8, desc)
                     plt.text(0, -8.5, 'Cy: {:.4}, Cy_tau: {:.4}'.format(float(Cmac[1]), Cy_tau))
                     plt.colorbar()
-                    
+                     
                     plt.figure(3)
                     plt.scatter(x_k, y_k, c=Pk[model.aerogrid['set_k'][:,2]], s=50, linewidths=0.0, cmap='jet')
                     plt.title('Fz after splining to DLM mesh')
@@ -144,7 +146,7 @@ def process_matrix(model, matrix, plot=False):
                     plt.text(0, -8, desc)
                     plt.text(0, -8.5, 'Cz: {:.4}, Cz_tau: {:.4}'.format(float(Cmac[2]), Cz_tau))
                     plt.colorbar()
-                    
+                     
                     plt.show()
                     
                 ncfile_pval.close()
