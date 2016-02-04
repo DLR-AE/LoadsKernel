@@ -227,12 +227,6 @@ class model:
         else:
             print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
 
-        
-        # Aero DB    
-        if self.jcl.aero['method'] == 'hybrid':   
-            print 'Building aero db...'
-            self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
-        
         # splines 
         # PHIk_strc with 'nearest_neighbour', 'rbf' or 'nastran'
         if self.jcl.spline['method'] in ['rbf', 'nearest_neighbour']:
@@ -265,6 +259,11 @@ class model:
         self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord)
         self.Djx1 = np.dot(self.Djk, self.Dkx1)
         #self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
+        
+        # Aero DB    
+        if self.jcl.aero['method'] == 'hybrid':   
+            print 'Building aero db...'
+            self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
   
         print 'Building mass model...'
         if self.jcl.mass['method'] == 'mona':

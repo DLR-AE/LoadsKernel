@@ -12,6 +12,7 @@ import numpy as np
 
 import spline_rules
 import spline_functions
+from build_aero import plot_aerogrid
 
 def process_matrix(model, matrix, plot=False):
 
@@ -108,7 +109,7 @@ def process_matrix(model, matrix, plot=False):
                 #np.sum(ncfile_pval.variables['z-force'][:])
 
                 if plot:
-                    q_dyn = 0.5*1.225*265.030316756404**2
+                    q_dyn = matrix[param][aero_key]['q_dyn']
                     Pmac = np.dot(model.Dkx1.T, Pk)
                     Cmac = Pmac * 0.0
                     Cmac[0:3] = Pmac[0:3] / q_dyn / model.macgrid['A_ref']
@@ -119,35 +120,27 @@ def process_matrix(model, matrix, plot=False):
                     Cx_tau = np.sum(ncfile_pval.variables['x-force'][:][pos]) / q_dyn / model.macgrid['A_ref']
                     Cy_tau = np.sum(ncfile_pval.variables['y-force'][:][pos]) / q_dyn / model.macgrid['A_ref']
                     Cz_tau = np.sum(ncfile_pval.variables['z-force'][:][pos]) / q_dyn / model.macgrid['A_ref']
-                     
-                    x_k = model.aerogrid['offset_k'][:,0]
-                    y_k = model.aerogrid['offset_k'][:,1]
-                     
-                    plt.figure(1)
-                    plt.scatter(x_k, y_k, c=Pk[model.aerogrid['set_k'][:,0]], s=50, linewidths=0.0, cmap='jet')
-                    plt.title('Fx after splining to DLM mesh')
+                                    
                     desc = 'param = ' + param + ', value = ' + str(matrix[param][aero_key]['values'][i_value]) + ', ' + aero_key
-                    plt.text(0, -8, desc)
-                    plt.text(0, -8.5, 'Cx: {:.4}, Cx_tau: {:.4}'.format(float(Cmac[0]), Cx_tau))
-                    plt.colorbar()
+                    print desc
+                    print 'Cx: {:.4}, Cx_tau: {:.4}'.format(float(Cmac[0]), Cx_tau)
+                    print 'Cy: {:.4}, Cy_tau: {:.4}'.format(float(Cmac[1]), Cy_tau)
+                    print 'Cz: {:.4}, Cz_tau: {:.4}'.format(float(Cmac[2]), Cz_tau)
                      
-                    plt.figure(2)
-                    plt.scatter(x_k, y_k, c=Pk[model.aerogrid['set_k'][:,1]], s=50, linewidths=0.0, cmap='jet')
-                    plt.title('Fy after splining to DLM mesh')
-                    desc = 'param = ' + param + ', value = ' + str(matrix[param][aero_key]['values'][i_value]) + ', ' + aero_key
-                    plt.text(0, -8, desc)
-                    plt.text(0, -8.5, 'Cy: {:.4}, Cy_tau: {:.4}'.format(float(Cmac[1]), Cy_tau))
-                    plt.colorbar()
-                     
-                    plt.figure(3)
-                    plt.scatter(x_k, y_k, c=Pk[model.aerogrid['set_k'][:,2]], s=50, linewidths=0.0, cmap='jet')
-                    plt.title('Fz after splining to DLM mesh')
-                    desc = 'param = ' + param + ', value = ' + str(matrix[param][aero_key]['values'][i_value]) + ', ' + aero_key
-                    plt.text(0, -8, desc)
-                    plt.text(0, -8.5, 'Cz: {:.4}, Cz_tau: {:.4}'.format(float(Cmac[2]), Cz_tau))
-                    plt.colorbar()
-                     
+                    cp = Pk[model.aerogrid['set_k'][:,0]] / q_dyn / model.aerogrid['A']
+                    ax1 = plot_aerogrid(model.aerogrid, cp, 'jet', -0.5, 0.5)
+                    ax1.set_title('CP_x after splining to VLM/DLM panels')
+                    
+                    cp = Pk[model.aerogrid['set_k'][:,1]] / q_dyn / model.aerogrid['A']
+                    ax2 = plot_aerogrid(model.aerogrid, cp, 'jet', -0.5, 0.5)
+                    ax2.set_title('CP_y after splining to VLM/DLM panels')
+                    
+                    cp = Pk[model.aerogrid['set_k'][:,2]] / q_dyn / model.aerogrid['A']
+                    ax3 = plot_aerogrid(model.aerogrid, cp, 'jet', -0.5, 0.5)
+                    ax3.set_title('CP_z after splining to VLM/DLM panels')
+
                     plt.show()
+                    
                     
                 ncfile_pval.close()
     return matrix
