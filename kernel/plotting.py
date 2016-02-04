@@ -170,6 +170,7 @@ class plotting:
                 plt.figure()
                 plt.scatter(points[:,0], points[:,1], color='cornflowerblue') # plot points
                 if points.shape[0] >= 3:
+                    hull = ConvexHull(points) # calculated convex hull from scattered points
                     for simplex in hull.simplices:                   # plot convex hull
                         plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
                     for i_case in range(hull.nsimplex):              # plot text   
@@ -193,6 +194,7 @@ class plotting:
                 plt.figure()
                 plt.scatter(points[:,0], points[:,1], color='cornflowerblue') # plot points
                 if points.shape[0] >= 3:
+                    hull = ConvexHull(points) # calculated convex hull from scattered points
                     for simplex in hull.simplices:                   # plot convex hull
                         plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
                     for i_case in range(hull.nsimplex):              # plot text   
