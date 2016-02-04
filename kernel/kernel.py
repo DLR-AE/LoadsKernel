@@ -4,13 +4,9 @@ Created on Thu Nov 27 14:00:31 2014
 
 @author: voss_ar
 """
-import numpy as np
-#import pickle
-import cPickle
-import time  
-import imp
-import sys
+import cPickle, time, imp, sys, os
 import scipy
+import numpy as np
 import logger as logger_modul 
 import model as model_modul
 import trim as trim_modul
@@ -18,6 +14,8 @@ import post_processing as post_processing_modul
 import plotting as plotting_modul
 
 def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_input='../input/', path_output='../output/'):
+    path_input = check_path(path_input) 
+    path_output = check_path(path_output)    
     reload(sys)
     sys.stdout = logger_modul.logger(path_output + 'log_' + job_name + ".txt")
     
@@ -26,8 +24,10 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
     print 'main: ' + str(main)
     print 'post: ' + str(post)
     print 'test: ' + str(test)
+   
 
     print '--> Reading parameters from JCL.'
+    # import jcl dynamically by filename
     jcl_modul = imp.load_source('jcl', path_input + job_name + '.py')
     jcl = jcl_modul.jcl() 
         
@@ -86,29 +86,30 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         post_processing = post_processing_modul.post_processing(jcl, model, response)
         post_processing.force_summation_method() # trim + sim
         post_processing.cuttingforces() # trim + sim
-        #post_processing.gather_monstations() # nur trim, wird zum plotten benoetigt
+        post_processing.gather_monstations() # nur trim, wird zum plotten benoetigt
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
         print '--> Saving response(s) and monstations.'  
         with open(path_output + 'response_' + job_name + '.pickle', 'w') as f:
             cPickle.dump(response, f, cPickle.HIGHEST_PROTOCOL)
-        #with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
-        #    cPickle.dump(post_processing.monstations, f, cPickle.HIGHEST_PROTOCOL)
-        #with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
-        #    scipy.io.savemat(f, post_processing.monstations)
+        with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
+            cPickle.dump(post_processing.monstations, f, cPickle.HIGHEST_PROTOCOL)
+        with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
+            scipy.io.savemat(f, post_processing.monstations)
 
             
         print '--> Saving auxiliary output data.'  # nur trim
-        #post_processing.save_monstations(path_output + 'monstations_' + job_name + '.bdf')     
-        #post_processing.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
-        #post_processing.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
+        post_processing.save_monstations(path_output + 'monstations_' + job_name + '.bdf')     
+        post_processing.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
+        post_processing.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
         
         print '--> Drawing some plots.'  
         plotting = plotting_modul.plotting(jcl, model, response)
-        #plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') # nur trim
-        #plotting.write_critical_trimcases(plotting.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') # nur trim
-        #plotting.plot_forces_deformation_interactive() # nur trim
-        plotting.plot_time_animation()
+        plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') # nur trim
+        plotting.write_critical_trimcases(plotting.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') # nur trim
+        # plotting.plot_pressure_distribution() # nur trim
+        # plotting.plot_forces_deformation_interactive() # nur trim
+        # plotting.plot_time_animation() # nur sim
 
     if test:
         if not 'model' in locals():
@@ -121,9 +122,11 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         print 'test ready.' 
         # place code to test here
 
-
-
+        # from vergleich_druckverteilung import vergleich_druckverteilung
+        # vergleich_druckverteilung(model, jcl.trimcase[0])
+               
     print 'Loads Kernel finished.'
+    print_logo()
 
             
 def load_model(job_name, path_output):
@@ -134,17 +137,27 @@ def load_model(job_name, path_output):
     print '--> Done in %.2f [sec].' % (time.time() - t_start)
     return model
 
-
-
+def check_path(path):
+    if os.path.isdir(path) and os.access(os.path.dirname(path), os.W_OK):
+        return os.path.join(path, './') # sicherstellen, dass der Pfad mit / endet
+    else:
+        print 'Path ' + str(path)  + ' not valid. Exit.'
+        sys.exit()
+        
+def print_logo():
+    print ''
+    print '       (  )'    
+    print '      (    )'
+    print ''    
+    print '              (   )' 
+    print '             (     )'
+    print ''   
+    print '         _|_'    
+    print ' ---------O---------'
+    print ''
+    print ''         
+    
 if __name__ == "__main__":
-    #run_kernel('jcl_ALLEGRA', main=True, post=True, path_output='/scratch/test/')
-    #run_kernel('jcl_ALLEGRA', post=True, path_output='/scratch/test/')
-    #run_kernel('jcl_ALLEGRA_CFD', pre=True, main=True, post=True, path_output='/scratch/kernel_Allegra_CFD/')
-    #run_kernel('jcl_DLR_F19_manloads', pre=False, main=False, post=True, path_output='/scratch/test/')
-    run_kernel('jcl_DLR_F19_gust', pre=False, main=True, post=True, path_output='/scratch/test/')
-    #run_kernel('jcl_DLR_F19_gust',test=True, path_output='/scratch/test/')
-    
-    
-    
-    
+    print "Please use the launch-script 'launch.py' from your input directory."
+    sys.exit()
     

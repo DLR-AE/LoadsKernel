@@ -6,7 +6,7 @@ Created on Thu Nov 27 15:43:35 2014
 """
 
 import numpy as np
-import imp
+import importlib
 #import time
 from trim_tools import * 
 from scipy import interpolate
@@ -49,11 +49,12 @@ class nastran:
         else:
             self.correct_alpha = False      
        
+        # import aircraft-specific class from efcs.py dynamically 
+        module = importlib.import_module('efcs')
+        efcs_class = getattr(module, jcl.efcs['version'])
+        
         # init efcs
-        #from efcs import mephisto
-        #self.efcs = mephisto()     
-        efcs_module = imp.load_source(jcl.efcs['version'], './efcs.py')
-        self.efcs =  eval('efcs_module.' + jcl.efcs['version'] +'()')
+        self.efcs =  efcs_class() 
         
         # init aero db for hybrid aero: control surfaces x2
         # because there are several control surfaces, lists are used
@@ -140,7 +141,7 @@ class nastran:
         wjx1 = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / self.Vtas * -1 
         flx1 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx1)
         # Bemerkung: greifen die Luftkraefte bei j,l oder k an?
-        # Dies würde das Cmy beeinflussen!
+        # Dies w��rde das Cmy beeinflussen!
         # Gewaehlt: l
         Plx1 = np.zeros(np.shape(Ujx1))
         Plx1[self.model.aerogrid['set_l'][:,0]] = flx1[0,:]
