@@ -16,7 +16,7 @@ from  atmo_isa import atmo_isa
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import cPickle
+import cPickle, sys
 
 class model:
     def __init__(self,jcl):
@@ -219,8 +219,11 @@ class model:
         elif self.jcl.aero['method_AIC'] == 'ae':
             print 'Calculating steady AIC matrices ({} panels, k=0.0) with ae_getaic.m for {} Mach numbers...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) )
             from oct2py import octave 
+            for dir in sys.path:
+                octave.addpath(dir) # add path in octave so the m-file will be found
             #AIC = ae_getaic(aerogrid, Mach, k);
             out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], [0.0])
+            octave.exit()
             for i_aero in range(len(self.jcl.aero['key'])): 
                 self.aero['key'].append(self.jcl.aero['key'][i_aero])
                 self.aero['Qjj'].append(out[:,:,0,i_aero])
