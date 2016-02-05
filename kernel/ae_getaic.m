@@ -321,18 +321,18 @@ r2z= bsxfun(@minus,P0(:,3),P3(:,3)');
 
 % vortex line lengths
 r0x = P3(:,1) - P1(:,1);
-r0x = repmat(r0x,1,length(P0))';
+r0x = repmat(r0x,1,size(P0,1))';
 
 r0y = P3(:,2) - P1(:,2);
-r0y = repmat(r0y,1,length(P0))';
+r0y = repmat(r0y,1,size(P0,1))';
 
 r0z = P3(:,3) - P1(:,3);
-r0z = repmat(r0z,1,length(P0))';
+r0z = repmat(r0z,1,size(P0,1))';
 
 % get normal vectors
-n_hat_w = repmat(n_hat_w,1,length(P0));  % indicates cosine of panel dihedrals 
+n_hat_w = repmat(n_hat_w,1,size(P0,1));  % indicates cosine of panel dihedrals 
                                          % (1 for wing, 0 for winglet panels)
-n_hat_wl = repmat(n_hat_wl,1,length(P0)); % sine of panel dihedrals 
+n_hat_wl = repmat(n_hat_wl,1,size(P0,1)); % sine of panel dihedrals 
 
 %% induced velocity due to finite vortex line
 r1Xr2_x = (r1y.*r2z) - (r2y.*r1z);
@@ -420,7 +420,9 @@ D = D1 + D2 + D3;
 
 % Multiply additional factors to ensure that the D matrix maps pressure diff. 
 % (rather than vortex strength) to downwash (ref Katz & Plodkin)  
-deltaY = (P3(:,2) - P1(:,2)) + (P3(:,3) - P1(:,3));  % panel spans
+% BUG found 05.02.2016, A. Voss
+% deltaY = (P3(:,2) - P1(:,2)) + (P3(:,3) - P1(:,3));  % panel spans
+deltaY = sqrt((P3(:,2) - P1(:,2)).^2 + (P3(:,3) - P1(:,3)).^2);  % panel spans
 F = 0.5*PAreas./deltaY;
 F = repmat(F,1,length(P0))';
 Dfinal = D.*F;   
