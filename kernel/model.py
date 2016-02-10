@@ -4,6 +4,7 @@ Created on Fri Nov 28 10:53:48 2014
 
 @author: voss_ar
 """
+import build_mass
 import build_aero
 import build_aerodb
 import spline_rules
@@ -13,14 +14,18 @@ import read_geom
 import write_functions
 from grid_trafo import grid_trafo
 from  atmo_isa import atmo_isa
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import cPickle, sys
+from oct2py import octave 
 
 class model:
     def __init__(self,jcl):
         self.jcl = jcl
+        for dir in sys.path:
+            octave.addpath(dir) # add path in octave so the m-file(s) are found
     
     def write_aux_data(self, path_output):
         with open(path_output + 'monitoring_stations.bdf', 'w') as fid:
@@ -77,6 +82,7 @@ class model:
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_moncoord'], self.coord)
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
                 self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
+                self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
                     
             elif not self.jcl.geom['filename_monpnt'] == '':
                 print 'Reading Monitoring Stations from MONPNTs...' 
@@ -84,12 +90,11 @@ class model:
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_monpnt'], self.coord)
                 rules = spline_rules.monstations_from_aecomp(self.mongrid, self.jcl.geom['filename_monpnt'])
                 self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
+                self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
+                #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord) 
             else: 
                 print 'Warning: No Monitoring Stations are created!'
-            
-            self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
-            #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord) 
-               
+
         print 'Building atmo model...'
         if self.jcl.atmo['method']=='ISA':
             self.atmo = {'key':[],
@@ -218,12 +223,9 @@ class model:
                 self.aero['Qjj'].append(Qjj)
         elif self.jcl.aero['method_AIC'] == 'ae':
             print 'Calculating steady AIC matrices ({} panels, k=0.0) with ae_getaic.m for {} Mach numbers...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) )
-            from oct2py import octave 
-            for dir in sys.path:
-                octave.addpath(dir) # add path in octave so the m-file will be found
+            
             #AIC = ae_getaic(aerogrid, Mach, k);
             out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], [0.0])
-            octave.exit()
             for i_aero in range(len(self.jcl.aero['key'])): 
                 self.aero['key'].append(self.jcl.aero['key'][i_aero])
                 self.aero['Qjj'].append(out[:,:,0,i_aero])
@@ -269,10 +271,10 @@ class model:
             self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
   
         print 'Building mass model...'
-        if self.jcl.mass['method'] == 'mona':
+        if self.jcl.mass['method'] in ['mona', 'modalanalysis']:
             self.mass = {'key': [],
                          'Mb': [],
-                         'MGG': [],  
+                         'MGG': [],
                          'Mfcg': [],  
                          'cggrid': [],
                          'cggrid_norm': [],
@@ -289,50 +291,58 @@ class model:
                          'Dff': [],
                          'n_modes': []
                         }   
-            
+            bm = build_mass.build_mass(self.jcl, self.strcgrid, self.coord)
+            if self.jcl.mass['method'] == 'modalanalysis': 
+                # KAA, GM and uset are actually geometry dependent and should go into the geometry section.
+                # However, the they are only required for modal analysis...
+                print 'Read USET from OP2-file {} with get_uset.m ...'.format( self.jcl.geom['filename_uset'] )
+                self.uset = octave.get_uset(self.jcl.geom['filename_uset'])
+                self.KAA = read_geom.Nastran_OP4(self.jcl.geom['filename_KAA'], sparse_output=True, sparse_format=True)
+                #self.KGG = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True)
+                self.KGG = '' # dummy
+                self.GM  = read_geom.Nastran_OP4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True) 
+                
+                # run initial steps for modal analysis
+                bm.init_modalanalysis(self.uset, self.GM, self.KAA, self.KGG )
+                
             for i_mass in range(len(self.jcl.mass['key'])):
-                # Mff, Kff and PHIstrc_f
-                eigenvalues, eigenvectors, node_ids_all = read_geom.NASTRAN_f06_modal(self.jcl.mass['filename_S103'][i_mass])
-                nodes_selection = self.strcgrid['ID']
-                modes_selection = self.jcl.mass['modes'][i_mass]           
-                if self.jcl.mass['omit_rb_modes']:
-                    modes_selection += 6
-                eigenvalues, eigenvectors = read_geom.reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection)
-                Mff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedMass']
-                Kff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedStiffness']
-                Dff = Kff * 0.0
-                PHIf_strc = np.zeros((len(self.jcl.mass['modes'][i_mass]), len(self.strcgrid['ID'])*6))
-                for i_mode in range(len(modes_selection)):
-                    eigenvector = eigenvectors[str(modes_selection[i_mode])][:,1:]
-                    PHIf_strc[i_mode,:] = eigenvector.reshape((1,-1))[0]
+                print ' - mass configuration: {} '.format(self.jcl.mass['key'][i_mass])
+                # loop over mass configurations
+                
                 MGG = read_geom.Nastran_OP4(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
+                if self.jcl.mass['method'] == 'mona': 
+                    # read results from Nastran's SOL103 for current mass configuration i_mass
+                    Mff, Kff, Dff, PHIf_strc, Mb, cggrid, cggrid_norm = bm.mass_from_SOL103(i_mass)
+                elif self.jcl.mass['method'] == 'modalanalysis': 
+                    # run modal analysis for current mass configuration i_mass
+                    MAA = read_geom.Nastran_OP4(self.jcl.mass['filename_MAA'][i_mass], sparse_output=True, sparse_format=True) 
+                    Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
+                    Mff, Kff, Dff, PHIf_strc = bm.modalanalysis(i_mass, MAA)
+                    print 'bla'  
                 
-                # Mb        
-                massmatrix_0, inertia, offset_cg, CID = read_geom.Nastran_weightgenerator(self.jcl.mass['filename_S103'][i_mass])  
-                cggrid = {"ID": np.array([9000+i_mass]),
-                          "offset": np.array([offset_cg]),
-                          "set": np.array([[0, 1, 2, 3, 4, 5]]),
-                          'CD': np.array([CID]),
-                          'CP': np.array([CID]),
-                          'coord_desc': 'bodyfixed',
-                          }
-                cggrid_norm = {"ID": np.array([9300+i_mass]),
-                          "offset": np.array([[-offset_cg[0], offset_cg[1], -offset_cg[2]]]),
-                          "set": np.array([[0, 1, 2, 3, 4, 5]]),
-                          'CD': np.array([9300]),
-                          'CP': np.array([9300]),
-                          'coord_desc': 'bodyfixed_DIN9300',
-                          } 
-                          
-                          
-                # assemble mass matrix about center of gravity, relativ to the axis of the basic coordinate system
-                # switsch signs for coupling terms of I to suite EoMs
-                Mb = np.zeros((6,6))
-                Mb[0,0] = massmatrix_0[0,0]
-                Mb[1,1] = massmatrix_0[0,0]
-                Mb[2,2] = massmatrix_0[0,0]
-                Mb[3:6,3:6] = inertia #np.array([[1,-1,-1],[-1,1,-1],[-1,-1,1]]) * inertia
+#                 from mayavi import mlab
+#                 for i_mode in range(12):
+#                     Uf = np.zeros(12)
+#                     Uf[i_mode] += 10.0
+#                     
+#                     Ug = PHIf_strc.T.dot(Uf)
+#                     Ugx = self.strcgrid['offset'][:,0] + Ug[self.strcgrid['set'][:,0]].T
+#                     Ugy = self.strcgrid['offset'][:,1] + Ug[self.strcgrid['set'][:,1]].T
+#                     Ugz = self.strcgrid['offset'][:,2] + Ug[self.strcgrid['set'][:,2]].T
+#                     
+#                     Ug2 = PHIf_strc2.T.dot(Uf) 
+#                     Ugx2 = self.strcgrid['offset'][:,0] + Ug2[self.strcgrid['set'][:,0]].T
+#                     Ugy2 = self.strcgrid['offset'][:,1] + Ug2[self.strcgrid['set'][:,1]].T
+#                     Ugz2 = self.strcgrid['offset'][:,2] + Ug2[self.strcgrid['set'][:,2]].T
+#                     
+#                     mlab.figure(0+i_mode)
+#                     mlab.points3d(self.strcgrid['offset'][:,0], self.strcgrid['offset'][:,1], self.strcgrid['offset'][:,2], scale_factor=0.05)
+#                     mlab.points3d(Ugx, Ugy, Ugz, scale_factor=0.05, color=(0,0,1))
+#                     mlab.points3d(Ugx2, Ugy2, Ugz2, scale_factor=0.05, color=(0,1,0))  
+#                 
+#                 mlab.show()
                 
+                 
                 rules = spline_rules.rules_point(cggrid, self.strcgrid)
                 PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
                 
@@ -369,7 +379,8 @@ class model:
                 self.mass['Mff'].append(Mff) 
                 self.mass['Kff'].append(Kff) 
                 self.mass['Dff'].append(Dff) 
-                self.mass['n_modes'].append(len(modes_selection))
+                self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
                 
-
+        else:
+            print 'Unknown mass method: ' + str(self.jcl.mass['method'])
             
