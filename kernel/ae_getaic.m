@@ -1,13 +1,4 @@
 function AJJ = ae_getaic(aerogrid, Mach, k)
-% This function computes the AIC Matrix using ref. 1 as the primary
-% reference for doublet lattice (DLM) implementation and ref 2 for vortex lattice   
-% (VLM) implementation. 
-%
-% ref 1: Albano and Rodden - A Doublet-Lattic Method for Calculating 
-%        Lift Distributions on Oscillating Surfaces in Subsonic Flows
-% 
-% ref 2: Katz & Plodkin, 'Low speed aerodynamics', second edition (for VLM
-%        implementation)
 
 % Modifications by Arne Voss (11/2015) to adapt to data structure of Loads Kernel. 
 % Original function see below. The code was tested in octave 3.6.4. 
@@ -37,50 +28,6 @@ for im = 1:length(Mach)
 end
 
 end
-
-% function AJJ = ae_getaic(AEM)
-% % This function computes the AIC Matrix using ref. 1 as the primary
-% % reference for doublet lattice (DLM) implementation and ref 2 for vortex lattice   
-% % (VLM) implementation. 
-% %
-% % ref 1: Albano and Rodden - A Doublet-Lattic Method for Calculating 
-% %        Lift Distributions on Oscillating Surfaces in Subsonic Flows
-% % 
-% % ref 2: Katz & Plodkin, 'Low speed aerodynamics', second edition (for VLM
-% %        implementation)
-% 
-% Panel = AEM.Elt(2:end,[7 1 4 2 3]);
-% Node  = AEM.Node(1:end,[1 5 6 7]);
-% Mach  = AEM.Ma;
-% cref  = AEM.cref;
-% k     = imag(AEM.kr);
-% S     = AEM.barea; 
-% ncos  = AEM.Normals(1:end,3);
-% nsin  = -AEM.Normals(1:end,2);
-% 
-% AJJ = zeros(size(Panel,1),size(Panel,1)); 
-% for im = 1:length(Mach)
-%     Ma = Mach(im);
-%     for ik = 1:length(k)
-%         tic
-%         kr = k(ik);
-%         AJJ(:,:,ik,im) = getAIC(Panel,Node,Ma,kr/cref,S,ncos,nsin);
-%         t1 = toc;
-%         fprintf('AIC : t = %5.3e\n',t1);
-% %         if im <= 9
-% %             AJJname = ['AJJ0' num2str(im)];
-% %         else
-% %             AJJname = ['AJJ' num2str(im)];
-% %         end
-% %         if ik <= 9
-% %             AJJname = [AJJname '0' num2str(ik) '.mat'];
-% %         else
-% %             AJJname = [AJJname num2str(ik) '.mat'];
-% %         end
-% %         disp(['storing AIC ' AJJname ' ...']);
-% %         save('-mat',AJJname, 'AJJ','kr','Ma','cref');
-%     end
-% end
 
 function [AIC] = getAIC(Panel,Node,Mach,k,S,n_hat_w,n_hat_wl)
 % This function computes the AIC Matrix using ref. 1 as the primary
@@ -118,6 +65,20 @@ function [AIC] = getAIC(Panel,Node,Mach,k,S,n_hat_w,n_hat_wl)
 % Outputs
 % AIC = aerodynamic influence coefficient matrix
 %
+% Code written by
+% Aditya Kotikalpudi
+% Graduate Assistant
+% University of Minnesota
+%
+%
+% Code based on:
+% Original code by Frank R. Chavez, Iowa State University (~2002)
+% Modified version by:
+% Brian P. Danowsky
+% P. Chase Schulze
+% (c) Systems Technology, Inc. 2014
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % determine number of aero panels present
 [N,m]=size(Panel);
