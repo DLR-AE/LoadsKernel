@@ -393,7 +393,8 @@ def Nastran_OP4(filename, sparse_output=False, sparse_format=False ):
                     elif type_complex:
                         data[i_col, i_row + i_item] = np.complex(nastran_number_converter(row[:16], 'float'), nastran_number_converter(row[16:32], 'float'))
                         row = row[32:]
-
+        if sparse_output:
+            data = data.tocsc() # better sparse format than lil_matrix
         if not sparse_output:
             data = data.toarray()
     print 'Done.'       
