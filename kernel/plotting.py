@@ -33,8 +33,8 @@ class plotting:
             cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
             ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'jet', -0.5, 0.5)
             ax.set_title('Cp for {:s}'.format(trimcase['desc']))
-            ax.set_xlim(0, 16)
-            ax.set_ylim(-8, 8)
+#             ax.set_xlim(0, 16)
+#             ax.set_ylim(-8, 8)
             plt.show()
     
     
