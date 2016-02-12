@@ -271,7 +271,7 @@ class model:
             self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
   
         print 'Building mass model...'
-        if self.jcl.mass['method'] in ['mona', 'modalanalysis']:
+        if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan']:
             self.mass = {'key': [],
                          'Mb': [],
                          'MGG': [],
@@ -291,57 +291,30 @@ class model:
                          'Dff': [],
                          'n_modes': []
                         }   
-            bm = build_mass.build_mass(self.jcl, self.strcgrid, self.coord)
+            bm = build_mass.build_mass(self.jcl, self.strcgrid, self.coord, octave)
+            
             if self.jcl.mass['method'] == 'modalanalysis': 
-                # KAA, GM and uset are actually geometry dependent and should go into the geometry section.
-                # However, the they are only required for modal analysis...
-                print 'Read USET from OP2-file {} with get_uset.m ...'.format( self.jcl.geom['filename_uset'] )
-                self.uset = octave.get_uset(self.jcl.geom['filename_uset'])
-                self.KAA = read_geom.Nastran_OP4(self.jcl.geom['filename_KAA'], sparse_output=True, sparse_format=True)
-                #self.KGG = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True)
-                self.KGG = '' # dummy
-                self.GM  = read_geom.Nastran_OP4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True) 
-                
-                # run initial steps for modal analysis
-                bm.init_modalanalysis(self.uset, self.GM, self.KAA, self.KGG )
-                
+                bm.init_modalanalysis()
+            elif self.jcl.mass['method'] == 'guyan':
+                bm.init_modalanalysis()
+                bm.init_guyanreduction()
+            
+            # loop over mass configurations
             for i_mass in range(len(self.jcl.mass['key'])):
-                print ' - mass configuration: {} '.format(self.jcl.mass['key'][i_mass])
-                # loop over mass configurations
-                
+                print 'Mass configuration {} of {}: {} '.format(i_mass+1, len(self.jcl.mass['key']), self.jcl.mass['key'][i_mass])
                 MGG = read_geom.Nastran_OP4(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
+                
                 if self.jcl.mass['method'] == 'mona': 
-                    # read results from Nastran's SOL103 for current mass configuration i_mass
                     Mff, Kff, Dff, PHIf_strc, Mb, cggrid, cggrid_norm = bm.mass_from_SOL103(i_mass)
                 elif self.jcl.mass['method'] == 'modalanalysis': 
-                    # run modal analysis for current mass configuration i_mass
-                    MAA = read_geom.Nastran_OP4(self.jcl.mass['filename_MAA'][i_mass], sparse_output=True, sparse_format=True) 
                     Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
-                    Mff, Kff, Dff, PHIf_strc = bm.modalanalysis(i_mass, MAA)
-                    print 'bla'  
-                
-#                 from mayavi import mlab
-#                 for i_mode in range(12):
-#                     Uf = np.zeros(12)
-#                     Uf[i_mode] += 10.0
-#                     
-#                     Ug = PHIf_strc.T.dot(Uf)
-#                     Ugx = self.strcgrid['offset'][:,0] + Ug[self.strcgrid['set'][:,0]].T
-#                     Ugy = self.strcgrid['offset'][:,1] + Ug[self.strcgrid['set'][:,1]].T
-#                     Ugz = self.strcgrid['offset'][:,2] + Ug[self.strcgrid['set'][:,2]].T
-#                     
-#                     Ug2 = PHIf_strc2.T.dot(Uf) 
-#                     Ugx2 = self.strcgrid['offset'][:,0] + Ug2[self.strcgrid['set'][:,0]].T
-#                     Ugy2 = self.strcgrid['offset'][:,1] + Ug2[self.strcgrid['set'][:,1]].T
-#                     Ugz2 = self.strcgrid['offset'][:,2] + Ug2[self.strcgrid['set'][:,2]].T
-#                     
-#                     mlab.figure(0+i_mode)
-#                     mlab.points3d(self.strcgrid['offset'][:,0], self.strcgrid['offset'][:,1], self.strcgrid['offset'][:,2], scale_factor=0.05)
-#                     mlab.points3d(Ugx, Ugy, Ugz, scale_factor=0.05, color=(0,0,1))
-#                     mlab.points3d(Ugx2, Ugy2, Ugz2, scale_factor=0.05, color=(0,1,0))  
-#                 
-#                 mlab.show()
-                
+                    # a-set is equal to f-set, no further reduction
+                    MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
+                    Mff, Kff, Dff, PHIf_strc = bm.modalanalysis(i_mass, MFF)
+                elif self.jcl.mass['method'] == 'guyan': 
+                    Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
+                    MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
+                    Mff, Kff, Dff, PHIf_strc, Maa = bm.guyanreduction(i_mass, MFF)              
                  
                 rules = spline_rules.rules_point(cggrid, self.strcgrid)
                 PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
@@ -384,3 +357,5 @@ class model:
         else:
             print 'Unknown mass method: ' + str(self.jcl.mass['method'])
             
+            
+        octave.exit() # closes and cleans up octave session

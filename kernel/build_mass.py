@@ -9,10 +9,11 @@ import sys
 
 class build_mass:
     
-    def __init__(self, jcl, strcgrid, coord):
+    def __init__(self, jcl, strcgrid, coord, octave):
         self.jcl = jcl
         self.strcgrid = strcgrid
         self.coord = coord
+        self.octave = octave
         
     def mass_from_SOL103(self, i_mass):
           # Mff, Kff and PHIstrc_f
@@ -57,25 +58,104 @@ class build_mass:
           
           return Mff, Kff, Dff, PHIf_strc, Mb, cggrid, cggrid_norm 
 
+    def init_guyanreduction(self):
+        # In a first step, the positions of the a- and o-set DoFs are prepared.
+        # Then the equations are solved for the stiffness matrix.
+        # References: 
+        # R. Guyan, "Reduction of Stiffness and Mass Matrices," AIAA Journal, vol. 3, no. 2, p. 280, 1964.
+        # MSC.Software Corporation, "Matrix Operations," in MSC Nastran Linear Static Analysis User's Guide, vol. 2003, D. M. McLean, Ed. 2003, p. 473.
 
-
-    def init_modalanalysis(self, uset, GM, Kaa, Kgg):
-        self.uset = uset
-        self.GM = GM
-        self.Kaa = Kaa
-        self.Kgg = Kgg
+        print "Guyan reduction of stiffness matrix Kff --> Kaa ..."
+        self.aset = read_geom.Nastran_SET1(self.jcl.geom['filename_aset'])
+        id_a = [np.where(self.strcgrid['ID'] == x)[0][0] for x in set(self.aset['values'][0])] # take the set of the b-set because IDs might be given repeatedly
+        pos_a = self.strcgrid['set'][id_a,:].reshape((1,-1))[0]
+        self.pos_a = np.intersect1d(self.pos_f, pos_a) # make sure DoFs of a-set are really in f-set (e.g. due to faulty user input)
+        self.pos_o = np.setdiff1d(self.pos_f, self.pos_a) # the remainders will be omitted
+        print ' - prepare a-set ({} DoFs) and o-set ({} DoFs)'.format(len(self.pos_a), len(self.pos_o) )
+        self.pos_f2a = [np.where(self.pos_f == x)[0][0] for x in self.pos_a]
+        self.pos_f2o = [np.where(self.pos_f == x)[0][0] for x in self.pos_o] # takes much time if o-set is big... is there anything faster??
+        print ' - splitting Kff'
+        K = {}
+        K['A']       = self.KFF[self.pos_f2a,:][:,self.pos_f2a]
+        K['B']       = self.KFF[self.pos_f2a,:][:,self.pos_f2o]
+        K['B_trans'] = self.KFF[self.pos_f2o,:][:,self.pos_f2a]
+        K['C']       = self.KFF[self.pos_f2o,:][:,self.pos_f2o]
+        # nach Nastran
+        # Anstelle die Inverse zu bilden, wird ein Gleichungssystem geloest. Das ist schneller!
+        print " - solve for Goa = C^-1 * B'"
+        self.Goa = - scipy.sparse.linalg.spsolve(K['C'], K['B_trans'])
+        self.Kaa = K['A'] + K['B'].dot(self.Goa)
         
-        # Annahmen
-        # - es gibt das a-, s- & m-set
-        # - jeder Punkt gehoert mit allen 6 DoFs nur einem Set an
+    def guyanreduction(self, i_mass, MFF):
+        # First, Guyan's equations are solved for the current mass matrix.
+        # In a second step, the eigenvalue-eigenvector problem is solved. According to Guyan, the solution is closely  but not exactly preserved.
+        # Next, the eigenvector for the g-set/strcgrid is reconstructed.
+        # In a final step, the generalized mass and stiffness matrices are calculated.
+        # The nomenclature might be a little confusing at this point, because the flexible mode shapes and Nastran's free DoFs (f-set) are both labeled with the subscript 'f'...
+        print "Guyan reduction of mass matrix Mff --> Maa ..."
+        M = {}
+        M['A']       = MFF[self.pos_f2a,:][:,self.pos_f2a]
+        M['B']       = MFF[self.pos_f2a,:][:,self.pos_f2o]
+        M['B_trans'] = MFF[self.pos_f2o,:][:,self.pos_f2a]
+        M['C']       = MFF[self.pos_f2o,:][:,self.pos_f2o]
+        Maa = M['A'] - M['B'].dot(self.Goa) - self.Goa.T.dot( M['B_trans'] - M['C'].dot(self.Goa) )
+        
+        modes_selection = self.jcl.mass['modes'][i_mass]           
+        if self.jcl.mass['omit_rb_modes']: 
+              modes_selection += 6
+        eigenvalue, eigenvector = self.calc_modes(self.Kaa, Maa, modes_selection.max())
+        print 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection)
+        # reconstruct modal matrix for g-set / strcgrid
+        PHIf_strc = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
+        for i_mode in modes_selection - 1:
+            # deformation of a-set due to i_mode is the ith column of the eigenvector
+            Ua = eigenvector[:,i_mode].real.reshape((-1,1))
+            # calc ommitted grids with Guyan
+            Uo = self.Goa.dot(Ua)
+            # assemble deflections of a and o to f
+            Uf = np.zeros((len(self.pos_f),1))
+            Uf[self.pos_f2a] = Ua
+            Uf[self.pos_f2o] = Uo
+            # deflection of s-set is zero, because that's the sense of an SPC ...
+            Us = np.zeros((len(self.pos_s),1))
+            # assemble deflections of s and f to n
+            Un = np.zeros((6*self.strcgrid['n'],1))
+            Un[self.pos_f] = Uf
+            Un[self.pos_s] = Us
+            Un = Un[self.pos_n]
+            # calc remaining deflections with GM
+            Um = self.GM.T.dot(Un)
+            # assemble everything to Ug
+            Ug = np.zeros((6*self.strcgrid['n'],1))
+            Ug[self.pos_f] = Uf
+            Ug[self.pos_s] = Us
+            Ug[self.pos_m] = Um
+            # store vector in modal matrix
+            PHIf_strc[:,i_mode] = Ug.squeeze()
+        # calc modal mass and stiffness
+        Mff = np.dot( eigenvector.real.T, Maa.dot(eigenvector.real) )
+        Kff = np.dot( eigenvector.real.T, self.Kaa.dot(eigenvector.real) )
+        Dff = Kff * 0.0
+        return Mff, Kff, Dff, PHIf_strc.T, Maa
+        
+        
+
+    def init_modalanalysis(self):
+        # KFF, GM and uset are actually geometry dependent and should go into the geometry section.
+        # However, the they are only required for modal analysis...
+        self.KFF = read_geom.Nastran_OP4(self.jcl.geom['filename_KFF'], sparse_output=True, sparse_format=True)
+        self.GM  = read_geom.Nastran_OP4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True) 
+        print 'Read USET from OP2-file {} with get_uset.m ...'.format( self.jcl.geom['filename_uset'] )
+        self.uset = self.octave.get_uset(self.jcl.geom['filename_uset'])
+        # Annahme: es gibt (nur) das a-, s- & m-set
         bitposes = self.uset['bitpos'] #.reshape((-1,6))
         i = 0
-        self.pos_a = []
+        self.pos_f = []
         self.pos_s = []
         self.pos_m = []
         for bitpos in bitposes:
             if bitpos==31: # 'S'
-                self.pos_a.append(i)
+                self.pos_f.append(i)
             elif bitpos==22: # 'SB'
                 self.pos_s.append(i)
             elif bitpos==32: # 'M'
@@ -83,49 +163,52 @@ class build_mass:
             else:
                 print 'Error: Unknown set of grid point {}'.format(bitpos)
             i += 1
-        self.pos_n = np.sort(np.hstack((self.pos_s, self.pos_a)))
-      
-    def modalanalysis(self, i_mass, Maa):
+        self.pos_n = np.sort(np.hstack((self.pos_s, self.pos_f)))
+
+    def modalanalysis(self, i_mass, MFF):
         modes_selection = self.jcl.mass['modes'][i_mass]           
-        if self.jcl.mass['omit_rb_modes']:
+        if self.jcl.mass['omit_rb_modes']: 
               modes_selection += 6
-        n_modes = modes_selection.max()
-        # perform modal analysis on a-set
-        print 'Modal analysis for first {} modes...'.format( n_modes )
-        eigenvalue, eigenvector = scipy.sparse.linalg.eigs(A=self.Kaa, M=Maa , k=n_modes, sigma=0) 
-        print 'Found {} modes with the following frequencies [Hz]:'.format(len(eigenvalue))
-        print np.real(eigenvalue)**0.5 /2/np.pi
-        print 'From these {} modes, the following {} modes are selected: {}'.format(n_modes, len(modes_selection), modes_selection)
-        
+        eigenvalue, eigenvector = self.calc_modes(self.KFF, MFF, modes_selection.max())
+        print 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection)
+        # reconstruct modal matrix for g-set / strcgrid
         PHIf_strc = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
         for i_mode in modes_selection - 1:
-            # deformation of a-set due to i_mode is the ith column of the eigenvector
-            Ua = eigenvector[:,i_mode].real.reshape((-1,1))
+            # deformation of f-set due to i_mode is the ith column of the eigenvector
+            Uf = eigenvector[:,i_mode].real.reshape((-1,1))
             # deflection of s-set is zero, because that's the sense of an SPC ...
             Us = np.zeros((len(self.pos_s),1))
-            # assemble deflections of s and a to n
+            # assemble deflections of s and f to n
             Un = np.zeros((6*self.strcgrid['n'],1))
-            Un[self.pos_a] = Ua
+            Un[self.pos_f] = Uf
             Un[self.pos_s] = Us
             Un = Un[self.pos_n]
             # calc remaining deflections with GM
             Um = self.GM.T.dot(Un)
             # assemble everything to Ug
             Ug = np.zeros((6*self.strcgrid['n'],1))
-            Ug[self.pos_a] = Ua
+            Ug[self.pos_f] = Uf
             Ug[self.pos_s] = Us
             Ug[self.pos_m] = Um
-            
+            # store vector in modal matrix
             PHIf_strc[:,i_mode] = Ug.squeeze()
-            
-        #Mff = np.dot (PHIf_strc.T, Mgg.dot(PHIf_strc))  
-        #Kff = np.dot (PHIf_strc.T, self.Kgg.dot(PHIf_strc))  
-        # zur Kontrolle, sollte das Gleiche raus kommen
-        Mff = np.dot( eigenvector.real.T, Maa.dot(eigenvector.real) )
-        Kff = np.dot( eigenvector.real.T, self.Kaa.dot(eigenvector.real) )
+        # calc modal mass and stiffness
+        Mff = np.dot( eigenvector.real.T, MFF.dot(eigenvector.real) )
+        Kff = np.dot( eigenvector.real.T, self.KFF.dot(eigenvector.real) )
         Dff = Kff * 0.0
         return Mff, Kff, Dff, PHIf_strc.T
-          
+    
+    def calc_modes(self, K, M, n_modes):
+        # perform modal analysis on a-set
+        print 'Modal analysis for first {} modes...'.format( n_modes )
+        eigenvalue, eigenvector = scipy.sparse.linalg.eigs(A=K, M=M , k=n_modes, sigma=0) 
+        idx_sort = np.argsort(eigenvalue) # sort result by eigenvalue
+        eigenvalue = eigenvalue[idx_sort]
+        eigenvector = eigenvector[:,idx_sort]
+        print 'Found {} modes with the following frequencies [Hz]:'.format(len(eigenvalue))
+        print np.real(eigenvalue)**0.5 /2/np.pi
+        return eigenvalue, eigenvector
+    
     def calc_cg(self, i_mass, Mgg):
         print 'Calculate center of gravity, mass and inertia (GRDPNT)...'
         # First step: calculate M0
@@ -148,14 +231,14 @@ class build_mass:
                   'CD': np.array([0]),
                   'CP': np.array([0]),
                   'coord_desc': 'bodyfixed',
-                    }
+                 }
         cggrid_norm = {"ID": np.array([9300+i_mass]),
-                    "offset": np.array([[-offset_cg[0], offset_cg[1], -offset_cg[2]]]),
-                    "set": np.array([[0, 1, 2, 3, 4, 5]]),
-                    'CD': np.array([9300]),
-                    'CP': np.array([9300]),
-                    'coord_desc': 'bodyfixed_DIN9300',
-                    } 
+                       "offset": np.array([[-offset_cg[0], offset_cg[1], -offset_cg[2]]]),
+                       "set": np.array([[0, 1, 2, 3, 4, 5]]),
+                       'CD': np.array([9300]),
+                       'CP': np.array([9300]),
+                       'coord_desc': 'bodyfixed_DIN9300',
+                      } 
         # Third step: calculate Mb
         rules = spline_rules.rules_point(cggrid, self.strcgrid)
         PHIstrc_mb = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)                    
@@ -173,7 +256,16 @@ class build_mass:
         
         return Mb, cggrid, cggrid_norm
     
-    
+    def calc_MAC(self, X, Y):
+        MAC = np.zeros((X.shape[1],Y.shape[1]))
+        for jj in range(Y.shape[1]):
+            for ii in range(X.shape[1]):
+                q1 = np.dot(np.conj(X[:,ii].T), X[:,ii])
+                q2 = np.dot(np.conj(Y[:,jj].T), Y[:,jj])
+                q3 = np.dot(np.conj(X[:,ii].T), Y[:,jj])
+                MAC[ii,jj]  = np.conj(q3)*q3/q1/q2
+        MAC = np.abs(MAC)
+        return MAC
     
     
     
