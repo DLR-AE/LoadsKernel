@@ -34,11 +34,6 @@ class jcl:
                                       '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/Klappenanbindung.bdf',
                                       '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/Einspannung.bdf',
                                       ],
-                     'filename_KGG':'',
-                     'filename_KFF':'/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/KAA_clamped.dat',
-                     'filename_uset': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/uset_clamped.op2',
-                     'filename_GM': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/GM_clamped.dat',
-                     'filename_aset': '',
                      'filename_monpnt': '',
                      'filename_mongrid': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_grids.bdf',
                      'filename_moncoord':'/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_coords.bdf',
@@ -71,30 +66,26 @@ class jcl:
                      'filename_aelist': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.AELIST', 
                                          '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AELIST'],
                      'method_AIC': 'ae', # 'nastran', 'ae' - provide 'filename_AIC' with OP4 files if method = 'nastran'
-                     'filename_AIC': ['/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ01.dat', \
-                                      '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ02.dat', \
-                                      '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ03.dat', \
-                                      '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ04.dat', \
-                                     ],
+                     'filename_AIC': [],
                     }
         self.spline = {'method': 'nearest_neighbour', # 'nearest_neighbour', 'rbf', 'nastran'
                        'filename_f06': '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/trim_matrices_aio.f06',
                        'splinegrid': True, # if true, provide filename_grid, not valid and ignored when spline method = 'nastran'
                        'filename_splinegrid': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/SplineKnoten/splinegrid.bdf'
                       }
-        self.mass = {'method': 'modalanalysis', # 'mona', 'modalanalysis'
+        self.mass = {'method': 'mona', # 'mona', 'modalanalysis'
                        'key': ['M', 'MT1rT2rT1lT2l', 'MT1rT2rPrT1lT2lPl', 'MPrPl', 'BFDM'],
                        'filename_MGG':['/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MGG_M_clamped.dat',
                                        '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MGG_MT1rT2rT1lT2l_clamped.dat',
                                        '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MGG_MT1rT2rPrT1lT2lPl_cla.dat',
                                        '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MGG_MPrPl_clamped.dat',
                                        '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MGG_BFDM_clamped.dat'],
-                       'filename_MFF':['/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MAA_M_clamped.dat',
-                                       '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MAA_MT1rT2rT1lT2l_clamped.dat',
-                                       '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MAA_MT1rT2rPrT1lT2lPl_cla.dat',
-                                       '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MAA_MPrPl_clamped.dat',
-                                       '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MAA_BFDM_clamped.dat'],
-                       'filename_S103':[], 
+                       'filename_S103':['/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/dim_crosscheck_SOL103_M_clamped.f06', 
+                                        '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/dim_crosscheck_SOL103_MT1rT2rT1lT2l_clamped.f06',
+                                        '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/dim_crosscheck_SOL103_MT1rT2rPrT1lT2lPl_clamped.f06',
+                                        '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/dim_crosscheck_SOL103_MPrPl_clamped.f06',
+                                        '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/dim_crosscheck_SOL103_BFDM_clamped.f06',
+                                       ], 
                        'omit_rb_modes': False, 
                        'modes':[np.arange(1,13), np.arange(1,16), np.arange(1,15), np.arange(1,12), np.arange(1,12)]           
                       }

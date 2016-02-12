@@ -38,7 +38,7 @@ class jcl:
                      'filename_KFF':'/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/KAA_clamped.dat',
                      'filename_uset': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/uset_clamped.op2',
                      'filename_GM': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/GM_clamped.dat',
-                     'filename_aset': '',
+                     'filename_aset': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/aset.bdf',
                      'filename_monpnt': '',
                      'filename_mongrid': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_grids.bdf',
                      'filename_moncoord':'/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/monstations/monstations_coords.bdf',
@@ -82,7 +82,7 @@ class jcl:
                        'splinegrid': True, # if true, provide filename_grid, not valid and ignored when spline method = 'nastran'
                        'filename_splinegrid': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/SplineKnoten/splinegrid.bdf'
                       }
-        self.mass = {'method': 'modalanalysis', # 'mona', 'modalanalysis'
+        self.mass = {'method': 'guyan', # 'mona', 'modalanalysis', 'guyan'
                        'key': ['M', 'MT1rT2rT1lT2l', 'MT1rT2rPrT1lT2lPl', 'MPrPl', 'BFDM'],
                        'filename_MGG':['/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MGG_M_clamped.dat',
                                        '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/nastran/MGG_MT1rT2rT1lT2l_clamped.dat',
