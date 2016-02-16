@@ -7,7 +7,6 @@ from scipy.sparse import linalg
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
-from statsmodels.sandbox.regression.kernridgeregress_class import plt_closeall
 
 class build_mass:
     
