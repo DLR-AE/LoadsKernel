@@ -115,6 +115,7 @@ class build_mass:
         print 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection)
         # reconstruct modal matrix for g-set / strcgrid
         PHIf_strc = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
+        i = 0 # counter selected modes
         for i_mode in modes_selection - 1:
             # deformation of a-set due to i_mode is the ith column of the eigenvector
             Ua = eigenvector[:,i_mode].real.reshape((-1,1))
@@ -139,22 +140,27 @@ class build_mass:
             Ug[self.pos_s] = Us
             Ug[self.pos_m] = Um
             # store vector in modal matrix
-            PHIf_strc[:,i_mode] = Ug.squeeze()
+            PHIf_strc[:,i] = Ug.squeeze()
+            i += 1
         # calc modal mass and stiffness
-        Mff = np.dot( eigenvector.real.T, Maa.dot(eigenvector.real) )
-        Kff = np.dot( eigenvector.real.T, self.Kaa.dot(eigenvector.real) )
+        Mff = np.dot( eigenvector[:,modes_selection - 1].real.T,      Maa.dot(eigenvector[:,modes_selection - 1].real) )
+        Kff = np.dot( eigenvector[:,modes_selection - 1].real.T, self.Kaa.dot(eigenvector[:,modes_selection - 1].real) )
         Dff = Kff * 0.0
         return Mff, Kff, Dff, PHIf_strc.T, Maa
         
         
 
     def init_modalanalysis(self):
+        # Prepare some data required for modal analysis which is not mass case dependent. 
         # KFF, GM and uset are actually geometry dependent and should go into the geometry section.
         # However, the they are only required for modal analysis...
         self.KFF = read_geom.Nastran_OP4(self.jcl.geom['filename_KFF'], sparse_output=True, sparse_format=True)
         self.GM  = read_geom.Nastran_OP4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True) 
         print 'Read USET from OP2-file {} with get_uset.m ...'.format( self.jcl.geom['filename_uset'] )
         self.uset = self.octave.get_uset(self.jcl.geom['filename_uset'])
+        # Reference:
+        # National Aeronautics and Space Administration, The Nastran Programmer's Manual, NASA SP-223(01). Washington, D.C.: COSMIC, 1972.
+        # Section 2.3.13.3 USET (TABLE), page 2.3-61
         # Annahme: es gibt (nur) das a-, s- & m-set
         bitposes = self.uset['bitpos'] #.reshape((-1,6))
         i = 0
@@ -171,8 +177,9 @@ class build_mass:
             else:
                 print 'Error: Unknown set of grid point {}'.format(bitpos)
             i += 1
-        self.pos_n = np.sort(np.hstack((self.pos_s, self.pos_f)))
-
+        self.pos_n = self.pos_s + self.pos_f
+        self.pos_n.sort()
+        
     def modalanalysis(self, i_mass, MFF):
         modes_selection = self.jcl.mass['modes'][i_mass]           
         if self.jcl.mass['omit_rb_modes']: 
@@ -181,6 +188,7 @@ class build_mass:
         print 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection)
         # reconstruct modal matrix for g-set / strcgrid
         PHIf_strc = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
+        i = 0 # counter selected modes
         for i_mode in modes_selection - 1:
             # deformation of f-set due to i_mode is the ith column of the eigenvector
             Uf = eigenvector[:,i_mode].real.reshape((-1,1))
@@ -199,10 +207,11 @@ class build_mass:
             Ug[self.pos_s] = Us
             Ug[self.pos_m] = Um
             # store vector in modal matrix
-            PHIf_strc[:,i_mode] = Ug.squeeze()
+            PHIf_strc[:,i] = Ug.squeeze()
+            i += 1
         # calc modal mass and stiffness
-        Mff = np.dot( eigenvector.real.T, MFF.dot(eigenvector.real) )
-        Kff = np.dot( eigenvector.real.T, self.KFF.dot(eigenvector.real) )
+        Mff = np.dot( eigenvector[:,modes_selection - 1].real.T,      MFF.dot(eigenvector[:,modes_selection - 1].real) )
+        Kff = np.dot( eigenvector.real[:,modes_selection - 1].T, self.KFF.dot(eigenvector[:,modes_selection - 1].real) )
         Dff = Kff * 0.0
         return Mff, Kff, Dff, PHIf_strc.T
     
