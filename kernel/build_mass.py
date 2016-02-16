@@ -75,9 +75,11 @@ class build_mass:
         self.pos_a = pos_a[np.in1d(pos_a, self.pos_f)] # make sure DoFs of a-set are really in f-set (e.g. due to faulty user input)
         self.pos_o = np.setdiff1d(self.pos_f, self.pos_a) # the remainders will be omitted
         print ' - prepare a-set ({} DoFs) and o-set ({} DoFs)'.format(len(self.pos_a), len(self.pos_o) )
-        self.pos_f2a = [np.where(self.pos_f == x)[0][0] for x in self.pos_a]
-        self.pos_f2o = [np.where(self.pos_f == x)[0][0] for x in self.pos_o] # takes much time if o-set is big... is there anything faster??
-        print ' - splitting Kff'
+        # Convert to ndarray and then use list comprehension. This is the fastest way of finding indices.
+        pos_f_ndarray = np.array(self.pos_f) 
+        self.pos_f2a = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_a]
+        self.pos_f2o = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_o]
+        print ' - partitioning'
         K = {}
         K['A']       = self.KFF[self.pos_f2a,:][:,self.pos_f2a]
         K['B']       = self.KFF[self.pos_f2a,:][:,self.pos_f2o]
@@ -85,7 +87,7 @@ class build_mass:
         K['C']       = self.KFF[self.pos_f2o,:][:,self.pos_f2o]
         # nach Nastran
         # Anstelle die Inverse zu bilden, wird ein Gleichungssystem geloest. Das ist schneller!
-        print " - solve for Goa = C^-1 * B'"
+        print " - solving"
         self.Goa = - scipy.sparse.linalg.spsolve(K['C'], K['B_trans'])
         self.Kaa = K['A'] + K['B'].dot(self.Goa)
         
@@ -96,12 +98,13 @@ class build_mass:
         # In a final step, the generalized mass and stiffness matrices are calculated.
         # The nomenclature might be a little confusing at this point, because the flexible mode shapes and Nastran's free DoFs (f-set) are both labeled with the subscript 'f'...
         print "Guyan reduction of mass matrix Mff --> Maa ..."
+        print ' - partitioning'
         M = {}
         M['A']       = MFF[self.pos_f2a,:][:,self.pos_f2a]
         M['B']       = MFF[self.pos_f2a,:][:,self.pos_f2o]
         M['B_trans'] = MFF[self.pos_f2o,:][:,self.pos_f2a]
         M['C']       = MFF[self.pos_f2o,:][:,self.pos_f2o]
-        
+        print " - solving"
         # a) original formulation according to R. Guyan
         # Maa = M['A'] - M['B'].dot(self.Goa) - self.Goa.T.dot( M['B_trans'] - M['C'].dot(self.Goa) )
         
