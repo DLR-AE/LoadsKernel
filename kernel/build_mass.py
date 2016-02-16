@@ -6,6 +6,8 @@ from scipy import sparse
 from scipy.sparse import linalg
 import numpy as np
 import sys
+import matplotlib.pyplot as plt
+from statsmodels.sandbox.regression.kernridgeregress_class import plt_closeall
 
 class build_mass:
     
@@ -64,12 +66,14 @@ class build_mass:
         # References: 
         # R. Guyan, "Reduction of Stiffness and Mass Matrices," AIAA Journal, vol. 3, no. 2, p. 280, 1964.
         # MSC.Software Corporation, "Matrix Operations," in MSC Nastran Linear Static Analysis User's Guide, vol. 2003, D. M. McLean, Ed. 2003, p. 473.
+        # MSC.Software Corporation, "Theoretical Basis for Reduction Methods," in MSC.Nastran Version 70 Advanced Dynamic Analysis User's Guide, Version 70., H. David N., Ed. p. 63.
 
         print "Guyan reduction of stiffness matrix Kff --> Kaa ..."
         self.aset = read_geom.Nastran_SET1(self.jcl.geom['filename_aset'])
-        id_a = [np.where(self.strcgrid['ID'] == x)[0][0] for x in set(self.aset['values'][0])] # take the set of the b-set because IDs might be given repeatedly
-        pos_a = self.strcgrid['set'][id_a,:].reshape((1,-1))[0]
-        self.pos_a = np.intersect1d(self.pos_f, pos_a) # make sure DoFs of a-set are really in f-set (e.g. due to faulty user input)
+        self.aset['values_unique'] = np.unique(self.aset['values'][0]) # take the set of the a-set because IDs might be given repeatedly
+        id_g2a = [np.where(self.strcgrid['ID'] == x)[0][0] for x in self.aset['values_unique']] 
+        pos_a = self.strcgrid['set'][id_g2a,:].reshape((1,-1))[0]
+        self.pos_a = pos_a[np.in1d(pos_a, self.pos_f)] # make sure DoFs of a-set are really in f-set (e.g. due to faulty user input)
         self.pos_o = np.setdiff1d(self.pos_f, self.pos_a) # the remainders will be omitted
         print ' - prepare a-set ({} DoFs) and o-set ({} DoFs)'.format(len(self.pos_a), len(self.pos_o) )
         self.pos_f2a = [np.where(self.pos_f == x)[0][0] for x in self.pos_a]
@@ -98,7 +102,12 @@ class build_mass:
         M['B']       = MFF[self.pos_f2a,:][:,self.pos_f2o]
         M['B_trans'] = MFF[self.pos_f2o,:][:,self.pos_f2a]
         M['C']       = MFF[self.pos_f2o,:][:,self.pos_f2o]
-        Maa = M['A'] - M['B'].dot(self.Goa) - self.Goa.T.dot( M['B_trans'] - M['C'].dot(self.Goa) )
+        
+        # a) original formulation according to R. Guyan
+        # Maa = M['A'] - M['B'].dot(self.Goa) - self.Goa.T.dot( M['B_trans'] - M['C'].dot(self.Goa) )
+        
+        # b) General Dynamic Reduction as implemented in Nastran (signs are switched!)
+        Maa = M['A'] + M['B'].dot(self.Goa) + self.Goa.T.dot( M['B_trans'] + M['C'].dot(self.Goa) )
         
         modes_selection = self.jcl.mass['modes'][i_mass]           
         if self.jcl.mass['omit_rb_modes']: 
@@ -256,7 +265,7 @@ class build_mass:
         
         return Mb, cggrid, cggrid_norm
     
-    def calc_MAC(self, X, Y):
+    def calc_MAC(self, X, Y, plot=True):
         MAC = np.zeros((X.shape[1],Y.shape[1]))
         for jj in range(Y.shape[1]):
             for ii in range(X.shape[1]):
@@ -265,7 +274,16 @@ class build_mass:
                 q3 = np.dot(np.conj(X[:,ii].T), Y[:,jj])
                 MAC[ii,jj]  = np.conj(q3)*q3/q1/q2
         MAC = np.abs(MAC)
-        return MAC
+        
+        if plot:
+            plt.figure()
+            plt.pcolor(MAC, cmap='hot_r')
+            plt.colorbar()
+            plt.grid('on')
+            
+            return MAC, plt
+        else:   
+            return MAC
     
     
     
