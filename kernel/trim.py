@@ -82,7 +82,7 @@ class trim:
     
                 
         import model_equations # Warum muss der import hier stehen??
-        equations = model_equations.nastran(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+        equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
 
         X_free_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]]
         
@@ -113,9 +113,19 @@ class trim:
         
     def exec_sim(self):
         import model_equations 
-        equations = model_equations.nastran(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
+            equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+        elif self.jcl.aero['method'] in [ 'mona_unsteady']:
+            equations = model_equations.unsteady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+        else:
+            print 'Unknown aero method: ' + str(self.jcl.aero['method'])
         
-        X0 = self.response['X'] 
+        # initialize lag states with zero and extend steady response vectors X and Y
+        lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
+        self.response['X'] = np.hstack((self.response['X'], lag_states ))
+        self.response['Y'] = np.hstack((self.response['Y'], lag_states ))
+        
+        X0 = self.response['X']
         dt = self.simcase['dt']
         t_final = self.simcase['t_final']
         print 'running time simulation for ' + str(t_final) + ' sec...'
