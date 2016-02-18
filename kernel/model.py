@@ -117,7 +117,7 @@ class model:
             print 'Unknown atmo method: ' + str(self.jcl.aero['method'])
               
         print 'Building aero model...'
-        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             # grids
             for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
                 if self.jcl.aero.has_key('method_caero'):
@@ -167,6 +167,15 @@ class model:
                 self.macgrid['b_ref'] = self.jcl.general['b_ref']
             if self.jcl.general.has_key('MAC_ref'):
                 self.macgrid['offset'] = np.array([self.jcl.general['MAC_ref']])
+            
+            rules = spline_rules.rules_aeropanel(self.aerogrid)
+            self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord)
+            self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
+            
+            rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
+            self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord)
+            self.Djx1 = np.dot(self.Djk, self.Dkx1)
+            #self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
             
             # control surfaces
             self.x2grid, self.coord = build_aero.build_x2grid(self.jcl.aero, self.aerogrid, self.coord)            
@@ -221,17 +230,37 @@ class model:
                 Qjj = np.linalg.inv(Ajj.T)
                 self.aero['key'].append(self.jcl.aero['key'][i_aero])
                 self.aero['Qjj'].append(Qjj)
-        elif self.jcl.aero['method_AIC'] in ['vlm', 'ae']:
-            print 'Calculating steady AIC matrices ({} panels, k=0.0) with ae_getaic.m for {} Mach numbers...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) )
-            
+        elif self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae']:
+            print 'Calculating steady AIC matrices ({} panels, k=0.0) with ae_getaic.m for {} Mach number(s)...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) )
             #AIC = ae_getaic(aerogrid, Mach, k);
             out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], [0.0])
-            for i_aero in range(len(self.jcl.aero['key'])): 
-                self.aero['key'].append(self.jcl.aero['key'][i_aero])
-                self.aero['Qjj'].append(out[:,:,0,i_aero])
+            self.aero['key'] = self.jcl.aero['key']
+            self.aero['Qjj'] = [out[i_aero,0,:,:,] for i_aero in range(len(self.jcl.aero['key']))] # dim: Ma,n,n
         else:
             print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
+        
+        if self.jcl.aero['method_AIC'] == 'dlm':
+            print 'Calculating unsteady AIC matrices ({} panels, k={}) with ae_getaic.m for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) )
+            out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], self.jcl.aero['k_red'])
+            self.aero['Qjj_unsteady'] = out # dim: Ma,k,n,n
+            self.aero['k_red'] =  self.jcl.aero['k_red']
+            
+        if self.jcl.aero['method'] == 'mona_unsteady':
+            # perform rfa
+            self.aero['B'] = []
+            for i_aero in range(len(self.jcl.aero['key'])):
+                B, n_poles, betas = build_aero.rfa(self.aero['Qjj_unsteady'][i_aero,:,:,:], self.aero['k_red'])
+                self.aero['B'].append(B)
+            self.aero['n_poles'] = n_poles
+            self.aero['betas'] =  betas
+        else:
+            self.aero['n_poles'] = 0
 
+        # Aero DB    
+        if self.jcl.aero['method'] == 'hybrid':   
+            print 'Building aero db...'
+            self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
+            
         # splines 
         # PHIk_strc with 'nearest_neighbour', 'rbf' or 'nastran'
         if self.jcl.spline['method'] in ['rbf', 'nearest_neighbour']:
@@ -255,21 +284,7 @@ class model:
             self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
         else:
             print 'Unknown spline method.'
-    
-        rules = spline_rules.rules_aeropanel(self.aerogrid)
-        self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord)
-        self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
-        
-        rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
-        self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord)
-        self.Djx1 = np.dot(self.Djk, self.Dkx1)
-        #self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
-        
-        # Aero DB    
-        if self.jcl.aero['method'] == 'hybrid':   
-            print 'Building aero db...'
-            self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
-  
+
         print 'Building mass model...'
         if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan']:
             self.mass = {'key': [],

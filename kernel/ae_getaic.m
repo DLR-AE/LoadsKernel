@@ -19,11 +19,11 @@ S = aerogrid.A'; % panel areas
 n_hat_w = aerogrid.N(:,3); % normal vector part in vertical direction
 n_hat_wl = aerogrid.N(:,2); % normal vector part in lateral direction
 
-AJJ = zeros(size(Panel,1),size(Panel,1)); 
+AJJ = zeros(length(Mach), length(k), size(Panel,1),size(Panel,1)); 
 for im = 1:length(Mach)
     for ik = 1:length(k)
         disp(['Ma = ',num2str(Mach(im))])
-        AJJ(:,:,ik,im) = getAIC(Panel,Node,Mach(im),k(ik),S,n_hat_w,n_hat_wl); 
+        AJJ(im,ik,:,:) = getAIC(Panel,Node,Mach(im),k(ik),S,n_hat_w,n_hat_wl); 
     end
 end
 
