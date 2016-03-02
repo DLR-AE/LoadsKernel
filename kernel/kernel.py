@@ -102,13 +102,14 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         post_processing.save_monstations(path_output + 'monstations_' + job_name + '.bdf')     
         post_processing.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
         post_processing.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
+        post_processing.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
         
         print '--> Drawing some plots.'  
         plotting = plotting_modul.plotting(jcl, model, response)
         plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') # nur trim
         plotting.write_critical_trimcases(plotting.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') # nur trim
         # plotting.plot_pressure_distribution() # nur trim
-        # plotting.plot_forces_deformation_interactive() # nur trim
+        plotting.plot_forces_deformation_interactive() # nur trim
         # plotting.plot_time_animation() # nur sim
 
     if test:
@@ -122,8 +123,8 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         print 'test ready.' 
         # place code to test here
 
-        # from vergleich_druckverteilung import vergleich_druckverteilung
-        # vergleich_druckverteilung(model, jcl.trimcase[0])
+        from vergleich_druckverteilung import vergleich_druckverteilung
+        vergleich_druckverteilung(model, jcl.trimcase[0])
                
     print 'Loads Kernel finished.'
     print_logo()
