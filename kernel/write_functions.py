@@ -59,10 +59,7 @@ class cpacs_functions:
     def __init__(self, tixi):
         self.tixi = tixi
         
-    def write_cpacs_loadsvector(self, parent, grid, Pg, name, description):
-        self.addElem(parent, 'name', name, 'double')
-        self.addElem(parent, 'description', description, 'text')
-        self.addElem(parent, 'uID', grid['ID'], 'vector_int')
+    def write_cpacs_loadsvector(self, parent, grid, Pg, ):
         self.addElem(parent, 'fx', Pg[grid['set'][:,0]], 'vector')
         self.addElem(parent, 'fy', Pg[grid['set'][:,1]], 'vector')
         self.addElem(parent, 'fz', Pg[grid['set'][:,2]], 'vector')
