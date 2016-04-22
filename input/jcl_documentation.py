@@ -33,6 +33,7 @@ class jcl:
                      'filename_deriv_4_W2GJ': ['filename.deriv_4_W2GJ'],    # ModGen output for camber and twist correction. Same order as the aerogrid.
                      'filename_aesurf': ['filename.AESURF'],                # bdf file(s) with AESURF-cards
                      'filename_aelist': ['filename.AELIST'],                # bdf file(s) with AELIST-cards
+                     'hingeline': 'z',                                      # The hingeline of a CS is given by a CORD. Either the y- or the z-axis is taken as hingeline. 'y', 'z' 
                      'method_AIC': 'vlm', # 'vlm' or 'nastran'
                      'key':['VC', 'MC'],
                      'Ma': [0.8, 0.9],
@@ -67,7 +68,7 @@ class jcl:
                      'key':['FL000','FL055', 'FL075', 'FL200', 'FL300', 'FL450'],
                      'h': ft2m([0, 5500, 7500, 20000, 30000, 45000]), # altitude in meters
                     }
-        self.trimcase = [{'desc': 'CC.BFDM.OVCFL000.Vergleichsfall53', # description of maneuver case, e.g. according to G. Pinho Chiozzotto, “Kriterien für die Erstellung eines Lastenkatalogs,” Institute of Aeroelasticity, iLOADs MS1.2, Feb. 2014.
+        self.trimcase = [{'desc': 'CC.BFDM.OVCFL000.Vergleichsfall53', # description of maneuver case, e.g. according to G. Pinho Chiozzotto, "Kriterien fuer die Erstellung eines Lastenkatalogs," Institute of Aeroelasticity, iLOADs MS1.2, Feb. 2014.
                           'manoeuver': '',      # unused
                           'subcase': 53,        # ID number
                           'Ma': 0.8,            # Mach number
@@ -78,8 +79,10 @@ class jcl:
                           # velocities and accelerations given in ISO 9300 coordinate system (right-handed, forward-right-down)
                           'p': 34.3/180.0*np.pi,        # roll rate in rad/s
                           'q': 28.6/180.0*np.pi,        # pitch rate in rad/s
+                          'r': 0.0,                     # yaw rate in rad/s
                           'pdot': -286.5/180.0*np.pi,   # roll acceleration in rad/s^2
                           'qdot': 0.0,                  # pitch acceleration in rad/s^2
+                          'rdot': 0.0,                  # yaw acceleration in rad/s^2
                          },
                         ]
         self.simcase = [{}] # under development

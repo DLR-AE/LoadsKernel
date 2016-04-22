@@ -70,8 +70,10 @@ class jcl:
                           # velocities and accelerations given in ISO 9300 coordinate system (right-handed, forward-right-down)
                           'p': 0.0,        # roll rate in rad/s
                           'q': 0.0,        # pitch rate in rad/s
+                          'r': 30.0/180*np.pi,
                           'pdot': 0.0,     # roll acceleration in rad/s^2
                           'qdot': 0.0,     # pitch acceleration in rad/s^2
+                          'rdot': 0.0
                          },
                         ]
         self.simcase = [{}] # under development
