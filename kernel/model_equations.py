@@ -212,7 +212,6 @@ class hybrid:
                 wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])  #* Vtas/Vtas
                 wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])  #* Vtas/Vtas
         flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
-        #fjx2 = q_dyn * N_rot.T*self.model.aerogrid['A']*np.dot(self.model.aero['Qjj'][i_aero], wjx2)
         Plx2 = np.zeros(np.shape(Plx1))
         Plx2[self.model.aerogrid['set_l'][:,0]] = flx2[0,:]
         Plx2[self.model.aerogrid['set_l'][:,1]] = flx2[1,:]
@@ -456,6 +455,13 @@ class steady:
             self.k_flex = 1.0
         else:
             self.k_flex = 0.0
+        
+        if self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'y':
+            self.hingeline = 'y'
+        elif self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'z':
+            self.hingeline = 'z'
+        else: # default
+            self.hingeline = 'y'
  
         # import aircraft-specific class from efcs.py dynamically 
         module = importlib.import_module('efcs')
@@ -557,11 +563,15 @@ class steady:
         # a) es liegen Daten in der AeroDB vor -> Kraefte werden interpoliert, dann zu Pk addiert, downwash vector bleibt unveraendert
         # b) der downwash der Steuerflaeche wird berechnet, zum downwash vector addiert 
         for i_x2 in range(len(self.efcs.keys)):
-            Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
-            wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]])  #* Vtas/Vtas
-            #wjx2 = np.sin(Ujx2[self.model.aerogrid['set_j'][:,(3)]]) + np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]]) + np.sin(Ujx2[self.model.aerogrid['set_j'][:,(5)]])  #* Vtas/Vtas
+            # use DLM solution
+                if self.hingeline == 'y':
+                    Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
+                elif self.hingeline == 'z':
+                    Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
+                # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
+                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])  #* Vtas/Vtas
+                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])  #* Vtas/Vtas        flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
         flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
-        #fjx2 = q_dyn * N_rot.T*self.model.aerogrid['A']*np.dot(self.model.aero['Qjj'][i_aero], wjx2)
         Plx2 = np.zeros(np.shape(Plx1))
         Plx2[self.model.aerogrid['set_l'][:,0]] = flx2[0,:]
         Plx2[self.model.aerogrid['set_l'][:,1]] = flx2[1,:]
@@ -740,6 +750,7 @@ class steady:
             print 'Cmy: %.4f' % float(Pmac_c[4]/self.model.macgrid['c_ref'])
             print 'Cmz: %.4f' % float(Pmac_c[5]/self.model.macgrid['b_ref'])
             print 'alpha: %.4f [deg]' % float(response['alpha']/np.pi*180)
+            print 'beta: %.4f [deg]' % float(response['beta']/np.pi*180)
             print 'Cd: %.4f' % float(Cd)
             print 'Cl: %.4f' % float(Cl)
             print 'command_xi: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])
@@ -777,7 +788,14 @@ class unsteady:
             self.k_flex = 1.0
         else:
             self.k_flex = 0.0
- 
+        
+        if self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'y':
+            self.hingeline = 'y'
+        elif self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'z':
+            self.hingeline = 'z'
+        else: # default
+            self.hingeline = 'y'
+            
         # import aircraft-specific class from efcs.py dynamically 
         module = importlib.import_module('efcs')
         efcs_class = getattr(module, jcl.efcs['version'])
@@ -893,11 +911,15 @@ class unsteady:
         # a) es liegen Daten in der AeroDB vor -> Kraefte werden interpoliert, dann zu Pk addiert, downwash vector bleibt unveraendert
         # b) der downwash der Steuerflaeche wird berechnet, zum downwash vector addiert 
         for i_x2 in range(len(self.efcs.keys)):
-            Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
-            wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]])  #* Vtas/Vtas
-            #wjx2 = np.sin(Ujx2[self.model.aerogrid['set_j'][:,(3)]]) + np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]]) + np.sin(Ujx2[self.model.aerogrid['set_j'][:,(5)]])  #* Vtas/Vtas
+           # use DLM solution
+                if self.hingeline == 'y':
+                    Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
+                elif self.hingeline == 'z':
+                    Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
+                # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
+                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])  #* Vtas/Vtas
+                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])  #* Vtas/Vtas        flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
         flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
-        #fjx2 = q_dyn * N_rot.T*self.model.aerogrid['A']*np.dot(self.model.aero['Qjj'][i_aero], wjx2)
         Plx2 = np.zeros(np.shape(Plx1))
         Plx2[self.model.aerogrid['set_l'][:,0]] = flx2[0,:]
         Plx2[self.model.aerogrid['set_l'][:,1]] = flx2[1,:]
