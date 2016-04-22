@@ -199,8 +199,8 @@ def Modgen_CQUAD4(filename):
              }
     return panels
     
-def Nastran_CAERO1(filename):
-    print 'Read CAERO1 data from Nastran file: %s' %filename
+def CAERO(filename):
+    print 'Read CAERO1 and/or CAERO7 cards from Nastran/ZAERO bdf: %s' %filename
     caerocards = []
     with open(filename, 'r') as fid:
         while True:
@@ -221,6 +221,29 @@ def Nastran_CAERO1(filename):
                 caerocard['X2'] = caerocard['X1'] + np.array([caerocard['length12'], 0.0, 0.0])
                 caerocard['X4'] =np.array([nastran_number_converter(read_string[40:48], 'float'), nastran_number_converter(read_string[48:56], 'float'), nastran_number_converter(read_string[56:64], 'float')])
                 caerocard['length43'] = nastran_number_converter(read_string[64:72], 'float')
+                caerocard['X3'] = caerocard['X4'] + np.array([caerocard['length43'], 0.0, 0.0])
+                caerocards.append(caerocard)
+            if string.find(read_string, 'CAERO7') !=-1 and read_string[0] != '$':
+                # The CAERO7 cards of ZAERO is nearly identical to Nastran'S CAERO1 card. 
+                # However, it uses 3 lines, which makes the card more readable to the human eye.
+                # Also, not the number of boxes but the number of divisions is given (n_boxes = n_division-1)
+                # read first line of CAERO card
+                caerocard = {'EID': nastran_number_converter(read_string[8:16], 'ID'),
+                             'CP': nastran_number_converter(read_string[24:32], 'ID'),
+                             'n_span': nastran_number_converter(read_string[32:40], 'ID') - 1,
+                             'n_chord': nastran_number_converter(read_string[40:48], 'ID') - 1,
+                            }
+                if np.any([caerocard['n_span'] == 0, caerocard['n_chord'] == 0]):
+                    print 'Error: Assumption of equal spaced CAERO panels is violated!'
+                # read second line of CAERO card
+                read_string = fid.readline()  
+                caerocard['X1'] = np.array([nastran_number_converter(read_string[ 8:16], 'float'), nastran_number_converter(read_string[16:24], 'float'), nastran_number_converter(read_string[24:32], 'float')])
+                caerocard['length12'] = nastran_number_converter(read_string[32:40], 'float')
+                caerocard['X2'] = caerocard['X1'] + np.array([caerocard['length12'], 0.0, 0.0])
+                # read third line of CAERO card
+                read_string = fid.readline()  
+                caerocard['X4'] =np.array([nastran_number_converter(read_string[ 8:16], 'float'), nastran_number_converter(read_string[16:24], 'float'), nastran_number_converter(read_string[24:32], 'float')])
+                caerocard['length43'] = nastran_number_converter(read_string[32:40], 'float')
                 caerocard['X3'] = caerocard['X4'] + np.array([caerocard['length43'], 0.0, 0.0])
                 caerocards.append(caerocard)
             elif read_string == '':
@@ -282,10 +305,10 @@ def nastran_number_converter(string_in, type, default=0):
                 else:
                     out = float(string_in.replace('+', 'E+'))
             elif string_in == '':
-                print "Warning: could not interprete the following number: '" + string_in + "' -> setting value to zero."
+                print "Warning: could not interpret the following number: '" + string_in + "' -> setting value to zero."
                 out = float(default)
             else: 
-                print "ERROR: could not interprete the following number: " + string_in
+                print "ERROR: could not interpret the following number: " + string_in
                 return
     elif type in ['int', 'ID', 'CD', 'CP']:
         try:

@@ -37,6 +37,13 @@ class hybrid:
             self.k_flex = 1.0
         else:
             self.k_flex = 0.0
+            
+        if self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'y':
+            self.hingeline = 'y'
+        elif self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'z':
+            self.hingeline = 'z'
+        else: # default
+            self.hingeline = 'y'
         
         # init aero db for hybrid aero: alpha
         if self.jcl.aero['method'] == 'hybrid' and self.model.aerodb.has_key('alpha') and self.trimcase['aero'] in self.model.aerodb['alpha']:
@@ -197,9 +204,13 @@ class hybrid:
                 Pk_cfd += (x2_interpolation_function(Ux2[i_x2]) - x2_interpolation_function(0.0) ) / self.aerodb_x2[pos]['q_dyn'] * self.q_dyn
             else:
                 # use DLM solution
-                Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
-                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]])  #* Vtas/Vtas
-                #wjx2 = np.sin(Ujx2[self.model.aerogrid['set_j'][:,(3)]]) + np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]]) + np.sin(Ujx2[self.model.aerogrid['set_j'][:,(5)]])  #* Vtas/Vtas
+                if self.hingeline == 'y':
+                    Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
+                elif self.hingeline == 'z':
+                    Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
+                # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
+                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])  #* Vtas/Vtas
+                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])  #* Vtas/Vtas
         flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
         #fjx2 = q_dyn * N_rot.T*self.model.aerogrid['A']*np.dot(self.model.aero['Qjj'][i_aero], wjx2)
         Plx2 = np.zeros(np.shape(Plx1))
@@ -927,6 +938,9 @@ class unsteady:
             # Ausrichtung der Boe fehlt noch
             gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), calc_drehmatrix( my=self.simcase['gust_orientation']/180.0*np.pi, alpha=0.0, beta=0.0 )), axis=1)
             wj_gust = wj_gust *  gust_direction_vector
+            wj_gust = wj_gust * 0.0
+            if t > 0.01:
+                wj_gust += 0.05*(1-np.cos(t*200*np.pi))
             flgust = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj_gust)
             Plgust = np.zeros((6*self.model.aerogrid['n']))
             Plgust[self.model.aerogrid['set_l'][:,0]] = flgust[0,:]
@@ -943,7 +957,12 @@ class unsteady:
         
         # gather data
         wj = wj_gust #wjx1 + wj_cam + wjx2 + wjf_1 + wjf_2 + wj_gust
-        lag_states = X[12+n_modes*2+3:12+n_modes*2+3+n_j*4].reshape((n_j,n_poles))
+        
+        
+        
+        
+        lag_states = X[12+n_modes*2+3:12+n_modes*2+3+n_j*n_poles].reshape((n_j,n_poles))
+        c_over_Vtas = (0.5*c_ref)/self.Vtas
         
         # calc derivatives dlag_states
         if t <= 0.0:
@@ -951,22 +970,27 @@ class unsteady:
             self.t_old  = np.copy(t)
             self.wj_old = np.copy(wj) 
         
-        dwj = wj - self.wj_old
         dt = t - self.t_old
-        dlag_states = dwj.repeat(n_poles).reshape((n_j, n_poles))/((dt)*2*np.pi) - betas*lag_states*1/(self.Vtas/(0.5*c_ref))
+        dwj = -(wj - self.wj_old) / (dt)
+        dwj[np.isnan(dwj)] = 0.0 # guard for NaNs as we divide by dt, which might be zero...
+            
+        #dlag_states = dwj.repeat(n_poles).reshape((n_j, n_poles)) / (dt*2*np.pi) - betas*lag_states*c_over_Vtas
+        dlag_states = dwj.repeat(n_poles).reshape((n_j, n_poles)) - betas*lag_states*c_over_Vtas
         dlag_states = dlag_states.reshape((-1))
-        dlag_states[np.isnan(dlag_states)] = 0.0 # guard for NaNs as we divide by dt, which might be zero...
         
+        #if dlag_states.sum() != 0.0:
+#         if t > 0.01:
+#             print 'sum dwj: ' + str(dwj.sum()*4.0) +  ' / sum dlag: ' + str(dlag_states.sum()) + ' / sum lag: ' + str(lag_states.sum())
+         
         if t > 0.0:
             # save for next step
             self.t_old  = np.copy(t)
             self.wj_old = np.copy(wj) 
-            
-        #if dwj.sum() > 0.0:
-        #    print dwj.sum()
-        
+
         D = B[3,:,:].dot(lag_states[:,0]) + B[4,:,:].dot(lag_states[:,1]) + B[5,:,:].dot(lag_states[:,2]) + B[6,:,:].dot(lag_states[:,3])
-        cp_unsteady = B[1,:,:].dot(((0.5*c_ref)/self.Vtas)*dwj) - D/(self.Vtas/(0.5*c_ref))**2
+        #cp_unsteady = B[1,:,:].dot((c_over_Vtas)*dwj) - D/(c_over_Vtas)**2
+        #cp_unsteady = B[1,:,:].dot((c_over_Vtas)*dwj)
+        cp_unsteady = - D /(c_over_Vtas)**2
         flunsteady = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*cp_unsteady
 
         Plunsteady = np.zeros(np.shape(Ujx1))
@@ -979,7 +1003,7 @@ class unsteady:
         # --------------------------------   
         # --- summation of forces, EoM ---   
         # --------------------------------
-        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_cfd + Pk_gust + Pk_unsteady
+        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_cfd + Pk_gust #+ Pk_unsteady
         Pmac = np.dot(Dkx1.T, Pk_aero)
         Pb = np.dot(PHImac_cg.T, Pmac)
 
@@ -1007,7 +1031,7 @@ class unsteady:
         # Nastran
         Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
                 
-        Y = np.hstack((X[6:12], np.dot(PHIcg_norm, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, dcommand, Nxyz[2], dlag_states ))    
+        Y = np.hstack((X[6:12], np.dot(PHIcg_norm, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, dcommand, dlag_states, Nxyz[2] ))    
             
         if type == 'small_output':
             return Y

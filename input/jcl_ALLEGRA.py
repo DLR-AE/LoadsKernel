@@ -28,17 +28,20 @@ class jcl:
                      'filename_moncoord':'', # if no MONPNTs are available: additional coordiante systems
                      'filename_monstations': [], # if no MONPNTs are available: one file per MONPNT containing all GRIDs to be integrated
                     }
-        self.aero = {'method': 'mona_steady', # 'mona_steady', 'hybrid'
+        self.aero = {'method': 'mona_unsteady', # 'mona_steady', 'hybrid'
                      'flex': True,
-                     'key':['MC',],
-                     'Ma': [0.7966,],
+                     'key':['MC'],
+                     'Ma': [0.7966],
                      'method_caero': 'CAERO1', # 'CAERO1', 'CQUAD4'
                      'filename_caero_bdf': ['/work/hand_ve/Transfer/Arne/ALLEGRA/allegra-s_CAERO1_1g-flight-shape_with_1fuse.bdf'],
                      'filename_deriv_4_W2GJ': [],
                      'filename_aesurf': ['/work/hand_ve/Transfer/Arne/ALLEGRA/allegra-s_CAERO1_1g-flight-shape_with_1fuse.bdf'],
                      'filename_aelist': ['/work/hand_ve/Transfer/Arne/ALLEGRA/allegra-s_CAERO1_1g-flight-shape_with_1fuse.bdf'],
-                     'filename_AIC': ['/work/hand_ve/Transfer/Arne/ALLEGRA/OC230/AJJ01.dat', ],
+                     'method_AIC': 'dlm',
+                     'k_red': [0.001, 0.01, 0.02, 0.05, 0.01, 0.2, 0.5, 1.0, 2.0, 4.0, 8.0],
+                     'filename_AIC': [],
                     }
+        
         self.efcs = {'version': 'allegra'}
                     
         self.matrix_aerodb = {}
@@ -78,7 +81,7 @@ class jcl:
                          't_final': 1.0,
                          'gust': True, 
                          'gust_gradient': ft2m(100),
-                         'gust_orientation': 180, # degree, 0/360° = gust from top
+                         'gust_orientation': 180, # degree, 0/360° = gust from bottom
                          'gust_para':gust_para,
                         }]
 

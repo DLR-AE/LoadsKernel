@@ -267,15 +267,20 @@ class plotting:
         
     def plot_time_animation(self):
         Pb_gust = []
+        Pb_unsteady = []
         for i_step in range(len(self.response[0]['t'])):        
             Pb_gust.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_gust'][i_step,:]))
+            Pb_unsteady.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_unsteady'][i_step,:]))
         Pb_gust = np.array(Pb_gust)
+        Pb_unsteady = np.array(Pb_unsteady)
         plt.figure()
         plt.subplot(2,1,1)
         plt.plot(self.response[0]['t'], Pb_gust[:,2], 'b-')
+        plt.plot(self.response[0]['t'], Pb_unsteady[:,2], 'r-')
         plt.xlabel('t [sec]')
-        plt.ylabel('Pb_gust [N]')
+        plt.ylabel('Pb [N]')
         plt.grid('on')
+        plt.legend(['Pb_gust', 'Pb_unsteady'])
         plt.subplot(2,1,2)
         plt.plot(self.response[0]['t'], self.response[0]['Nxyz'][:,2], 'b-')
         plt.plot(self.response[0]['t'], self.response[0]['alpha']/np.pi*180.0, 'r-')

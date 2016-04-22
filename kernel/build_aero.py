@@ -67,10 +67,10 @@ def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4'):
         caero_grid = read_geom.Modgen_GRID(filename_caero_bdf)
         # four grid points are assembled to one panel, this is expressed as CQUAD4s 
         caero_panels = read_geom.Modgen_CQUAD4(filename_caero_bdf)
-    elif method_caero == 'CAERO1':
-        caero_grid, caero_panels = read_geom.Nastran_CAERO1(filename_caero_bdf)
+    elif method_caero in ['CAERO1', 'CAERO7']:
+        caero_grid, caero_panels = read_geom.CAERO(filename_caero_bdf)
     else:
-        print "Error: Method %s not implemented. Availble options are 'CQUAD4' and 'CAERO1'" % method_caero
+        print "Error: Method %s not implemented. Available options are 'CQUAD4', 'CAERO1' and 'CAERO7'" % method_caero
     print ' - from corner points and aero panels, constructing aerogrid'
     ID = []
     l = [] # length of panel
@@ -225,8 +225,8 @@ def rfa(Qjj, k, n_poles=4):
     print 'Performing rational function approximation (RFA) on AIC matrices with {} poles...'.format(n_poles)
     k = np.array(k)
     ik = k * 1j
-    #beta = np.max(k)/np.arange(1,n_poles+1)
-    betas = 1.7*np.max(k)*(np.arange(1,n_poles+1)/(n_poles+1.0))**2.0
+    betas = np.max(k)/np.arange(1,n_poles+1)
+    #betas = 1.7*np.max(k)*(np.arange(1,n_poles+1)/(n_poles+1.0))**2.0
     
     # B = A*x
     # B ist die gegebene AIC, A die roger-Aproxination, x sind die zu findenden Koeffizienten B0,B1,...B7
