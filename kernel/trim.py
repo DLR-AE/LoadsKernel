@@ -36,14 +36,14 @@ class trim:
             ['w',        'fix',  0.0,],
             ['p',        'fix',  self.trimcase['p'],],
             ['q',        'fix',  self.trimcase['q'],],
-            ['r',        'fix',  0.0,],
+            ['r',        'fix',  self.trimcase['r'],],
             ])
         for i_mode in range(n_modes):
             self.trimcond_X = np.vstack((self.trimcond_X ,  ['Uf'+str(i_mode), 'free', 0.0]))
         for i_mode in range(n_modes):
             self.trimcond_X = np.vstack((self.trimcond_X ,  ['dUf_dt'+str(i_mode), 'free', 0.0]))
             
-        self.trimcond_X = np.vstack((self.trimcond_X , ['command_xi',   'fix', 0.0,],  ['command_eta',   'free',  0.0,], ['command_zeta',   'fix',  0.0,]))
+        self.trimcond_X = np.vstack((self.trimcond_X , ['command_xi',   'free', 0.0,],  ['command_eta',   'free',  0.0,], ['command_zeta',   'free',  0.0,]))
             
         # outputs
         self.trimcond_Y = np.array([ 
@@ -52,13 +52,13 @@ class trim:
             ['w',        'fix',    0.0,],
             ['p',        'fix',    self.trimcase['p'],],
             ['q',        'fix',    self.trimcase['q'],],
-            ['r',        'fix',    0.0,],
+            ['r',        'fix',    self.trimcase['r'],],
             ['du',       'free',   0.0,],
-            ['dv',       'fix',    0.0,],
+            ['dv',       'free',   0.0,],
             ['dw',       'free',   0.0,],
-            ['dp',       'free', self.trimcase['pdot'],],
+            ['dp',       'target', self.trimcase['pdot'],],
             ['dq',       'target', self.trimcase['qdot'],],
-            ['dr',       'fix',    0.0,],
+            ['dr',       'target', self.trimcase['rdot'],],
             ])
             
         for i_mode in range(n_modes):
