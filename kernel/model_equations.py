@@ -209,8 +209,9 @@ class nastran:
                     Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
                 elif self.hingeline == 'z':
                     Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
-                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]])  #* Vtas/Vtas
-                #wjx2 = np.sin(Ujx2[self.model.aerogrid['set_j'][:,(3)]]) + np.sin(Ujx2[self.model.aerogrid['set_j'][:,(4)]]) + np.sin(Ujx2[self.model.aerogrid['set_j'][:,(5)]])  #* Vtas/Vtas
+                # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
+                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])  #* Vtas/Vtas
+                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])  #* Vtas/Vtas
         flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
         #fjx2 = q_dyn * N_rot.T*self.model.aerogrid['A']*np.dot(self.model.aero['Qjj'][i_aero], wjx2)
         Plx2 = np.zeros(np.shape(Plx1))
