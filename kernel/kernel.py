@@ -86,32 +86,42 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         post_processing = post_processing_modul.post_processing(jcl, model, response)
         post_processing.force_summation_method() # trim + sim
         post_processing.cuttingforces() # trim + sim
-        post_processing.gather_monstations() # nur trim, wird zum plotten benoetigt
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
-        print '--> Saving response(s) and monstations.'  
+        print '--> Saving response(s).'  
         with open(path_output + 'response_' + job_name + '.pickle', 'w') as f:
             cPickle.dump(response, f, cPickle.HIGHEST_PROTOCOL)
-        with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
-            cPickle.dump(post_processing.monstations, f, cPickle.HIGHEST_PROTOCOL)
-        with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
-            scipy.io.savemat(f, post_processing.monstations)
-
             
-        print '--> Saving auxiliary output data.'  # nur trim
-        post_processing.save_monstations(path_output + 'monstations_' + job_name + '.bdf')     
-        post_processing.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
-        post_processing.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
-        post_processing.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
+        if not ('t_final' and 'dt' in jcl.simcase[i].keys()):
+            # nur trim
+            print '--> Saving monstation(s).'  
+            post_processing.gather_monstations() # wird zum plotten benoetigt
+            with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
+                cPickle.dump(post_processing.monstations, f, cPickle.HIGHEST_PROTOCOL)
+            with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
+                scipy.io.savemat(f, post_processing.monstations)
+
+            print '--> Saving auxiliary output data.'  # nur trim
+            post_processing.save_monstations(path_output + 'monstations_' + job_name + '.bdf')     
+            post_processing.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
+            post_processing.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
+            post_processing.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
         
         print '--> Drawing some plots.'  
         plotting = plotting_modul.plotting(jcl, model, response)
-        plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') # nur trim
-        plotting.write_critical_trimcases(plotting.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') # nur trim
-        # plotting.plot_pressure_distribution() # nur trim
-        plotting.plot_forces_deformation_interactive() # nur trim
-        # plotting.plot_time_animation() # nur sim
+        
+        if 't_final' and 'dt' in jcl.simcase[i].keys():
+            # nur sim
+            plotting.plot_cs_signal()
+            plotting.plot_time_animation() 
+        else:
+            # nur trim
+            plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') # nur trim
+            plotting.write_critical_trimcases(plotting.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') # nur trim
+            plotting.plot_pressure_distribution() # nur trim
+            plotting.plot_forces_deformation_interactive() # nur trim
 
+        
     if test:
         if not 'model' in locals():
             model = load_model(job_name, path_output)
