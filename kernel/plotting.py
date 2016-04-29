@@ -50,8 +50,8 @@ class plotting:
             y = self.model.aerogrid['offset_k'][:,1]
             z = self.model.aerogrid['offset_k'][:,2]
             fx, fy, fz = response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]],response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
-            f_scale = 0.002 # vectors
-            p_scale = 0.03 # points
+            f_scale = 0.02 # vectors
+            p_scale = 0.1 # points
             mlab.figure()
             mlab.points3d(x, y, z, scale_factor=p_scale)
             mlab.quiver3d(x, y, z, response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=f_scale)            
@@ -95,13 +95,13 @@ class plotting:
             z_f = self.model.strcgrid['offset'][:,2] + response['Ug_f'][self.model.strcgrid['set'][:,2]] * 10.0
             
             mlab.figure()
-            mlab.points3d(x, y, z, color=(0,0,0), scale_factor=p_scale)
+            mlab.points3d(x, y, z, scale_factor=p_scale)
             mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=p_scale)
             mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=p_scale)
             mlab.title('rbm (green) and flexible deformation x10 (blue)', size=0.2, height=0.95)
 
             mlab.figure()   
-            mlab.points3d(x, y, z, color=(0,0,0), scale_factor=p_scale/5.0)
+            mlab.points3d(x, y, z, scale_factor=p_scale)
             mlab.quiver3d(x, y, z, response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]], color=(1,1,0), scale_factor=f_scale)
             mlab.title('Pg', size=0.2, height=0.95)
             
@@ -121,6 +121,12 @@ class plotting:
             potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
             potatos_Fz_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON4', 'MON5']
             cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
+        # Discus2c
+        elif self.jcl.general['aircraft'] == 'Discus2c':
+            potatos_Fz_Mx = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
+            potatos_Mx_My = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
+            potatos_Fz_My = ['MON102']
+            cuttingforces_wing = ['MON646', 'MON644', 'MON641', 'MON541', 'MON544', 'MON546']
         else:
             print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
             return
@@ -268,36 +274,104 @@ class plotting:
     def plot_time_animation(self):
         Pb_gust = []
         Pb_unsteady = []
+        Pb_aero = []
         for i_step in range(len(self.response[0]['t'])):        
-            Pb_gust.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_gust'][i_step,:]))
-            Pb_unsteady.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_unsteady'][i_step,:]))
-        Pb_gust = np.array(Pb_gust)
-        Pb_unsteady = np.array(Pb_unsteady)
+#             Pb_gust.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_gust'][i_step,:]))
+#             Pb_unsteady.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_unsteady'][i_step,:]))
+            Pb_aero.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_aero'][i_step,:]))
+#         Pb_gust = np.array(Pb_gust)
+#         Pb_unsteady = np.array(Pb_unsteady)
+        Pb_aero = np.array(Pb_aero)
         plt.figure()
-        plt.subplot(2,1,1)
-        plt.plot(self.response[0]['t'], Pb_gust[:,2], 'b-')
-        plt.plot(self.response[0]['t'], Pb_unsteady[:,2], 'r-')
+        plt.subplot(3,1,1)
+#         plt.plot(self.response[0]['t'], Pb_gust[:,2], 'b-')
+#         plt.plot(self.response[0]['t'], Pb_unsteady[:,2], 'r-')
+        plt.plot(self.response[0]['t'], Pb_aero[:,2], 'g-')
         plt.xlabel('t [sec]')
         plt.ylabel('Pb [N]')
         plt.grid('on')
-        plt.legend(['Pb_gust', 'Pb_unsteady'])
-        plt.subplot(2,1,2)
+#         plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_aero'])
+        plt.subplot(3,1,2)
+        plt.plot(self.response[0]['t'], self.response[0]['q_dyn'], 'k-')
+        plt.xlabel('t [sec]')
+        plt.ylabel('[Pa]')
+        plt.grid('on')
+        plt.legend(['q_dyn'])
+        plt.subplot(3,1,3)
         plt.plot(self.response[0]['t'], self.response[0]['Nxyz'][:,2], 'b-')
         plt.plot(self.response[0]['t'], self.response[0]['alpha']/np.pi*180.0, 'r-')
         plt.plot(self.response[0]['t'], self.response[0]['X'][:,4]/np.pi*180.0, 'g-')
         plt.plot(self.response[0]['t'], np.arctan(self.response[0]['X'][:,8]/self.response[0]['X'][:,6])/np.pi*180.0, 'k-')
+        plt.plot(self.response[0]['t'], self.response[0]['beta']/np.pi*180.0, 'r-')
         plt.xlabel('t [sec]')
-        plt.legend(['Nz', 'alpha', 'alpha/pitch', 'alpha/heave'])
+        plt.legend(['Nz', 'alpha', 'alpha/pitch', 'alpha/heave', 'beta'])
         plt.grid('on')
         plt.ylabel('[-]/[deg]')
-        #plt.show()
         
+        
+        plt.figure()
+        plt.subplot(2,1,1)
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,0], 'b-')
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,1], 'g-')
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,2], 'r-')
+        plt.xlabel('t [sec]')
+        plt.ylabel('[m]')
+        plt.grid('on')
+        plt.legend(['x', 'y', 'z'])
+        plt.subplot(2,1,2)
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,3]/np.pi*180.0, 'b-')
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,4]/np.pi*180.0, 'g-')
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,5]/np.pi*180.0, 'r-')
+        plt.xlabel('t [sec]')
+        plt.ylabel('[deg]')
+        plt.grid('on')
+        plt.legend(['phi', 'theta', 'psi'])
+        
+        plt.figure()
+        plt.subplot(2,1,1)
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,6], 'b-')
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,7], 'g-')
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,8], 'r-')
+        plt.xlabel('t [sec]')
+        plt.ylabel('[m/s]')
+        plt.grid('on')
+        plt.legend(['u', 'v', 'w'])
+        plt.subplot(2,1,2)
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,9]/np.pi*180.0, 'b-')
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,10]/np.pi*180.0, 'g-')
+        plt.plot(self.response[0]['t'], self.response[0]['X'][:,11]/np.pi*180.0, 'r-')
+        plt.xlabel('t [sec]')
+        plt.ylabel('[deg/s]')
+        plt.grid('on')
+        plt.legend(['p', 'q', 'r'])
+        
+        plt.figure()
+        plt.subplot(2,1,1)
+        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,6], 'b-')
+        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,7], 'g-')
+        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,8], 'r-')
+        plt.xlabel('t [sec]')
+        plt.ylabel('[m/s^2]')
+        plt.grid('on')
+        plt.legend(['du', 'dv', 'dw'])
+        plt.subplot(2,1,2)
+        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,9]/np.pi*180.0, 'b-')
+        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,10]/np.pi*180.0, 'g-')
+        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,11]/np.pi*180.0, 'r-')
+        plt.xlabel('t [sec]')
+        plt.ylabel('[deg/s^2]')
+        plt.grid('on')
+        plt.legend(['dp', 'dq', 'dr'])
+                
         if self.jcl.general['aircraft'] == 'ALLEGRA':
             lim=25.0
             length=45
         elif self.jcl.general['aircraft'] == 'DLR F-19-S':
             lim=10.0
             length=15
+        elif self.jcl.general['aircraft'] == 'Discus2c':
+            lim=10.0
+            length=5.0
         else:
             print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
             return
@@ -319,18 +393,59 @@ class plotting:
         ax2 = plt.subplot(1,2,2)
         line2, = ax2.plot([], [], 'r.')
         ax2.set_ylim((-lim, lim))
-        ax2.grid('on')
+        #ax2.grid('on')
         #update_line(0,data,line1, line2, t, time_text)
 
         line_ani = animation.FuncAnimation(fig, self.update_line, fargs=(data, line1, line2, ax2, t, time_text, length), frames=len(t), interval=50, repeat=True, repeat_delay=3000)
         # Set up formatting for the movie files
-        #Writer = animation.writers['ffmpeg']
-        #writer = Writer(fps=20, bitrate=2000)        
-        #line_ani.save('ref.mp4', writer) 
+#         Writer = animation.writers['ffmpeg']
+#         writer = Writer(fps=20, bitrate=2000)        
+#         line_ani.save('/scratch/Discus2c_LoadsKernel/Elev3211_B_4sec.mp4', writer) 
         plt.show()
 
     def update_line(self, num, data, line1, line2, ax2, t, time_text, length):
         line1.set_data(data[1,num,:], data[2,num,:])
         line2.set_data(data[0,num,:], data[2,num,:])
-        ax2.set_xlim((-5+data[0,num,0], length+data[0,num,0]))
+        ax2.set_xlim((-10+data[0,num,0], length+data[0,num,0]))
         time_text.set_text('Time = ' + str(t[num,0]))   
+    
+    def plot_cs_signal(self):
+        from efcs import discus2c
+        discus2c = discus2c()
+        discus2c.cs_signal_init(self.jcl.trimcase[0]['desc'])
+        line0 = np.argmin(np.abs(discus2c.data[:,0] - discus2c.tstart))
+        line1 = np.argmin(np.abs(discus2c.data[:,0] - discus2c.tstart - self.jcl.simcase[0]['t_final']))
+        
+        i_mass     = self.model.mass['key'].index(self.jcl.trimcase[0]['mass'])
+        n_modes    = self.model.mass['n_modes'][i_mass] 
+        
+        cs_states = []
+        for i_step in range(len(self.response[0]['t'])):
+            cs_states.append(self.response[0]['X'][i_step, 12+n_modes*2:12+n_modes*2+3])
+        cs_states = np.array(cs_states)/np.pi*180.0
+        
+        plt.figure()
+        plt.subplot(2,1,1)
+        plt.plot(discus2c.data[line0:line1,0], discus2c.data[line0:line1,(1,2)]/np.pi*180.0, 'r')
+        plt.plot(discus2c.data[line0:line1,0], discus2c.data[line0:line1,3]/np.pi*180.0, 'c')
+        plt.plot(discus2c.data[line0:line1,0], discus2c.data[line0:line1,4]/np.pi*180.0, 'b')
+        plt.xlabel('t [sec]')
+        plt.ylabel('[deg]')
+        plt.grid('on')
+        plt.title('CS Measurement Signals')
+        plt.legend(['xi_l_corr', 'xi_r_corr', 'eta_corr', 'zeta_corr'])
+        plt.subplot(2,1,2)
+        plt.plot(self.response[0]['t'], cs_states[:,0], 'r')
+        plt.plot(self.response[0]['t'], cs_states[:,1], 'c')
+        plt.plot(self.response[0]['t'], cs_states[:,2], 'b')
+        plt.xlabel('t [sec]')
+        plt.ylabel('[deg]')
+        plt.grid('on')
+        plt.title('CS Commands in Loads Kernel')
+        plt.legend(['Xi', 'Eta', 'Zeta'])
+       
+        
+        #plt.show()        
+        
+        
+        
