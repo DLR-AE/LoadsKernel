@@ -106,7 +106,6 @@ class plotting:
             mlab.title('Pg', size=0.2, height=0.95)
             
             mlab.show()
-                
 
     def plot_monstations(self, monstations, filename_pdf):
         # Allegra
@@ -130,7 +129,17 @@ class plotting:
         else:
             print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
             return
-
+        
+        # launch plotting
+        pp = PdfPages(filename_pdf)
+        self.potatos(monstations, pp, potatos_Fz_Mx, potatos_Mx_My, potatos_Fz_My)
+        self.cuttingforces_wing(monstations, pp, cuttingforces_wing)
+        pp.close()
+        print 'plots saved as ' + filename_pdf
+        #print 'opening '+ filename_pdf
+        #os.system('evince ' + filename_pdf + ' &')
+        
+    def potatos(self, monstations, pp, potatos_Fz_Mx, potatos_Mx_My, potatos_Fz_My):
         print 'start potato-plotting...'
         # get data needed for plotting from monstations
         loads = []
@@ -142,7 +151,6 @@ class plotting:
         loads = np.array(loads)
         offsets = np.array(offsets)
         
-        pp = PdfPages(filename_pdf)
         self.crit_trimcases = []
         for i_station in range(len(potato)):
             
@@ -215,9 +223,9 @@ class plotting:
                 plt.xlabel(labels[0])
                 plt.ylabel(labels[1])
                 pp.savefig()
-                plt.close()   
-        
-        
+                plt.close()  
+          
+    def cuttingforces_wing(self, monstations, pp, cuttingforces_wing):
         print 'start plotting cutting forces...'
         cuttingforces = ['Fx [N]', 'Fy [N]', 'Fz [N]', 'Mx [Nm]', 'My [Nm]', 'Mz [Nm]']
         
@@ -250,14 +258,7 @@ class plotting:
             #plt.show()
             pp.savefig()
             plt.close()
-            
-        pp.close()
-        print 'plots saved as ' + filename_pdf
-        #print 'opening '+ filename_pdf
-        #os.system('evince ' + filename_pdf + ' &')
-        return 
-        
-        
+           
     def write_critical_trimcases(self, crit_trimcases, trimcases, filename_csv):
         
         crit_trimcases_info = []
@@ -445,7 +446,42 @@ class plotting:
         plt.legend(['Xi', 'Eta', 'Zeta'])
        
         
-        #plt.show()        
+    def plot_monstations_time(self, monstations, filename_pdf):
+        pp = PdfPages(filename_pdf)
+        for key in monstations.keys():
+            monstation = monstations[key]
+            
+            loads = np.array(monstation['loads'][0])
+            t = monstation['t'][0]
+            
+            plt.figure()
+            plt.subplot(3,1,1)
+            plt.title(key)
+            plt.plot(t, loads[:,2], 'b')
+            plt.xlabel('t [sec]')
+            plt.ylabel('Fz [N]')
+            plt.grid('on')
+            plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            plt.subplot(3,1,2)
+            plt.plot(t, loads[:,3], 'g')
+            plt.xlabel('t [sec]')
+            plt.ylabel('Mx [N]')
+            plt.grid('on')
+            plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            plt.subplot(3,1,3)
+            plt.plot(t, loads[:,4], 'r')
+            plt.xlabel('t [sec]')
+            plt.ylabel('My [N]')
+            plt.grid('on')
+            plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            
+            pp.savefig()
+            plt.close()
+        pp.close()
+        print 'plots saved as ' + filename_pdf
         
         
         
