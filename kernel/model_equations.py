@@ -444,13 +444,6 @@ class steady:
         self.i_aero     = self.model.aero['key'].index(self.trimcase['aero'])
         self.i_mass     = self.model.mass['key'].index(self.trimcase['mass'])
         
-        # q_dyn aus trim condition berechnen
-        # es erfolg spaeter kein update mehr, sollte sich die Geschwindigkeit aendern !
-        uvw = np.array(self.trimcond_X[6:9,2], dtype='float')
-        self.Vtas = sum(uvw**2)**0.5
-        rho = self.model.atmo['rho'][self.i_atmo]
-        self.q_dyn = rho/2.0*self.Vtas**2
-        
         if self.jcl.aero.has_key('flex') and self.jcl.aero['flex'] == True:
             self.k_flex = 1.0
         else:
@@ -470,9 +463,16 @@ class steady:
         self.efcs =  efcs_class() 
                    
         if self.simcase and self.simcase['gust']:
+            # Vtas aus trim condition berechnen
+            uvw = np.array(self.trimcond_X[6:9,2], dtype='float')
+            Vtas = sum(uvw**2)**0.5
+        
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD']
-            self.x0 = self.simcase['gust_para']['T1'] * self.Vtas 
-            self.WG_TAS, U_ds, V_gust = DesignGust_CS_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], rho, self.Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
+            self.x0 = self.simcase['gust_para']['T1'] * Vtas 
+            self.WG_TAS, U_ds, V_gust = DesignGust_CS_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], rho, Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
+        
+        if self.simcase and self.simcase['cs_signal']:
+            self.efcs.cs_signal_init(self.trimcase['desc'])
         
     def equations(self, X, t, type):
         self.counter += 1
@@ -511,6 +511,13 @@ class steady:
         dUf_dt = np.array(X[12+n_modes:12+n_modes*2])
         
         dUmac_dt = np.dot(PHImac_cg, dUcg_dt) # auch bodyfixed
+        
+        # aktuelle Vtas und q_dyn berechnen
+        uvw = X[6:9]
+        Vtas = sum(uvw**2)**0.5
+        rho = self.model.atmo['rho'][self.i_atmo]
+        q_dyn = rho/2.0*Vtas**2
+        #q_dyn = 482.0
         # ------------------------------    
         # --- aero rigid body motion ---   
         # ------------------------------ 
@@ -526,8 +533,8 @@ class steady:
             
         # der downwash wj ist nur die Komponente von Uj, welche senkrecht zum Panel steht! 
         # --> mit N multiplizieren und danach die Norm bilden    
-        wjx1 = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / self.Vtas * -1 
-        flx1 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx1)
+        wjx1 = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1 
+        flx1 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx1)
         # Bemerkung: greifen die Luftkraefte bei j,l oder k an?
         # Dies w��rde das Cmy beeinflussen!
         # Gewaehlt: l
@@ -543,7 +550,7 @@ class steady:
         # -----------------------------
 
         wj_cam = np.sin(self.model.camber_twist['cam_rad'] )
-        flcam = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj_cam)
+        flcam = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj_cam)
         Plcam = np.zeros(np.shape(Ujx1))
         Plcam[self.model.aerogrid['set_l'][:,0]] = flcam[0,:]
         Plcam[self.model.aerogrid['set_l'][:,1]] = flcam[1,:]
@@ -558,7 +565,10 @@ class steady:
         Pk_cs = np.zeros(np.shape(Pk_rbm))
         wjx2 = np.zeros(np.shape(wjx1))
         Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
-        dcommand= np.zeros(3)        
+        if self.simcase and self.simcase['cs_signal']:
+            dcommand = self.efcs.cs_signal(t)
+        else:
+            dcommand= np.zeros(3)        
         # Hier gibt es zwei Wege und es wird je Steuerflaeche unterschieden:
         # a) es liegen Daten in der AeroDB vor -> Kraefte werden interpoliert, dann zu Pk addiert, downwash vector bleibt unveraendert
         # b) der downwash der Steuerflaeche wird berechnet, zum downwash vector addiert 
@@ -570,8 +580,8 @@ class steady:
                     Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
                 # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
                 wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])  #* Vtas/Vtas
-                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])  #* Vtas/Vtas        flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
-        flx2 = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
+                wjx2 += np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])  #* Vtas/Vtas
+        flx2 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjx2)
         Plx2 = np.zeros(np.shape(Plx1))
         Plx2[self.model.aerogrid['set_l'][:,0]] = flx2[0,:]
         Plx2[self.model.aerogrid['set_l'][:,1]] = flx2[1,:]
@@ -585,13 +595,13 @@ class steady:
                
         # modale Verformung
         Ujf = np.dot(PHIjf, Uf )
-        wjf_1 = np.sum(self.model.aerogrid['N'][:] * np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3]),axis=1) / self.Vtas
+        wjf_1 = np.sum(self.model.aerogrid['N'][:] * np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3]),axis=1) / Vtas
         # modale Bewegung
         # zu Ueberpruefen, da Trim bisher in statischer Ruhelage und somit  dUf_dt = 0
         dUjf_dt = np.dot(PHIjf, dUf_dt ) # viel schneller!
-        wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / self.Vtas * -1 
+        wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1 
         
-        flf = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjf_1 + wjf_2)        
+        flf = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wjf_1 + wjf_2)        
         Plf = np.zeros(np.shape(dUjf_dt))
         Plf[self.model.aerogrid['set_l'][:,0]] = flf[0,:]
         Plf[self.model.aerogrid['set_l'][:,1]] = flf[1,:]
@@ -612,7 +622,7 @@ class steady:
             # Ausrichtung der Boe fehlt noch
             gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), calc_drehmatrix( my=self.simcase['gust_orientation']/180.0*np.pi, alpha=0.0, beta=0.0 )), axis=1)
             wj_gust = wj_gust *  gust_direction_vector
-            flgust = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj_gust)
+            flgust = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj_gust)
             Plgust = np.zeros((6*self.model.aerogrid['n']))
             Plgust[self.model.aerogrid['set_l'][:,0]] = flgust[0,:]
             Plgust[self.model.aerogrid['set_l'][:,1]] = flgust[1,:]
@@ -669,7 +679,7 @@ class steady:
                         'Pk_cfd': Pk_rbm * 0.0,
                         'Pk_gust': Pk_gust,
                         'Pk_unsteady': Pk_rbm * 0.0,
-                        'q_dyn': np.array([self.q_dyn]),
+                        'q_dyn': np.array([q_dyn]),
                         'Pb': Pb,
                         'Pmac': Pmac,
                         'Pf': Pf,
@@ -736,6 +746,9 @@ class steady:
             Cd = Pmac_c[2]*np.sin(response['alpha'])+Pmac_c[0]*np.cos(response['alpha'])
             
             print ''
+            print '--------------------' 
+            print 'q_dyn: %.4f [Pa]' % float(response['q_dyn'])
+            print '--------------------' 
             print 'aero derivatives:'
             print '--------------------' 
             print 'Cz_rbm: %.4f' % float(Pmac_rbm[2]/response['q_dyn']/A)
@@ -758,6 +771,7 @@ class steady:
             print 'command_zeta: %.4f' % float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
             print 'CS deflections [deg]: ' + str(response['Ux2']/np.pi*180)
             print 'dCz_da: %.4f' % float(Pmac_c[2]/response['alpha'])
+            print 'dCmy_da: %.4f' % float(Pmac_c[4]/self.model.macgrid['c_ref']/response['alpha'])
             print '--------------------' 
             
             return response
