@@ -86,21 +86,20 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         post_processing = post_processing_modul.post_processing(jcl, model, response)
         post_processing.force_summation_method() # trim + sim
         post_processing.cuttingforces() # trim + sim
+        post_processing.gather_monstations() # trim + sim, wird zum plotten benoetigt
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
         print '--> Saving response(s).'  
         with open(path_output + 'response_' + job_name + '.pickle', 'w') as f:
             cPickle.dump(response, f, cPickle.HIGHEST_PROTOCOL)
+        print '--> Saving monstation(s).'  
+        with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
+            cPickle.dump(post_processing.monstations, f, cPickle.HIGHEST_PROTOCOL)
+        with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
+            scipy.io.savemat(f, post_processing.monstations)
             
-        if not ('t_final' and 'dt' in jcl.simcase[i].keys()):
+        if not ('t_final' and 'dt' in jcl.simcase[0].keys()):
             # nur trim
-            print '--> Saving monstation(s).'  
-            post_processing.gather_monstations() # wird zum plotten benoetigt
-            with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
-                cPickle.dump(post_processing.monstations, f, cPickle.HIGHEST_PROTOCOL)
-            with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
-                scipy.io.savemat(f, post_processing.monstations)
-
             print '--> Saving auxiliary output data.'  # nur trim
             post_processing.save_monstations(path_output + 'monstations_' + job_name + '.bdf')     
             post_processing.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
@@ -109,11 +108,11 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         
         print '--> Drawing some plots.'  
         plotting = plotting_modul.plotting(jcl, model, response)
-        
-        if 't_final' and 'dt' in jcl.simcase[i].keys():
+        if 't_final' and 'dt' in jcl.simcase[0].keys():
             # nur sim
+            plotting.plot_monstations_time(post_processing.monstations, path_output + 'monstations_time_' + job_name + '.pdf') # nur trim
             plotting.plot_cs_signal()
-            plotting.plot_time_animation() 
+#             plotting.plot_time_animation() 
         else:
             # nur trim
             plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') # nur trim
