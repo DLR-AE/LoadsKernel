@@ -113,7 +113,6 @@ class post_processing:
                     response['Pmon_global'][i_step,:] = self.model.PHIstrc_mon.T.dot(response['Pg'][i_step,:])
                     response['Pmon_local'][i_step,:] = force_trafo(self.model.mongrid, self.model.coord, response['Pmon_global'][i_step,:])
             else:
-                response = self.response[i_trimcase]
                 response['Pmon_global'] = self.model.PHIstrc_mon.T.dot(response['Pg'])
                 response['Pmon_local'] = force_trafo(self.model.mongrid, self.model.coord, response['Pmon_global'])
         
@@ -126,11 +125,18 @@ class post_processing:
                           'offset': self.model.mongrid['offset'][i_station], 
                           'subcase': [],  
                           'loads':[],
+                          't':[]
                          }
             for i_trimcase in range(len(self.jcl.trimcase)):
-                monstation['loads'].append(self.response[i_trimcase]['Pmon_local'][self.model.mongrid['set'][i_station,:]])
                 monstation['subcase'].append(self.jcl.trimcase[i_trimcase]['subcase'])
-            
+                monstation['t'].append(self.response[i_trimcase]['t'])
+                response = self.response[i_trimcase]
+                # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
+                if len(self.response[i_trimcase]['t']) > 1:
+                    monstation['loads'].append(response['Pmon_local'][:,self.model.mongrid['set'][i_station,:]])
+                else:
+                    monstation['loads'].append(response['Pmon_local'][self.model.mongrid['set'][i_station,:]])
+                
             if not self.model.mongrid.has_key('name'):
                 name = 'MON{:s}'.format(str(int(self.model.mongrid['ID'][i_station]))) # make up a name
             else:
