@@ -23,6 +23,10 @@ class trim:
         z = -self.model.atmo['h'][i_atmo]
         #q = (self.trimcase['Nz'] - 1.0)*9.81/u
         
+        # ---------------
+        # --- default --- 
+        # ---------------
+        # Bedingung: free parameters in trimcond_X == target parameters in trimcond_Y
         # inputs
         self.trimcond_X = np.array([
             ['x',        'fix',  0.0,],
@@ -67,9 +71,20 @@ class trim:
             self.trimcond_Y = np.vstack((self.trimcond_Y ,  ['d2Uf_d2t'+str(i_mode), 'target', 0.0]))
         self.trimcond_Y = np.vstack((self.trimcond_Y , ['dcommand_xi',   'fix', 0.0,],  ['dcommand_eta',   'fix',  0.0,], ['dcommand_zeta',   'fix',  0.0,]))
 
-        
         self.trimcond_Y = np.vstack((self.trimcond_Y , ['Nz',       'target',  self.trimcase['Nz'],]))
-
+        
+        # ------------------
+        # --- segelflug --- 
+        # -----------------
+        # Sinken (w) wird erlaubt, damit die Geschwindigkeit konstant bleibt (du = 0.0)
+        # Eigentlich muesste Vtas konstant sein, ist aber momentan nicht als trimcond vorgesehen... Das wird auch schwierig, da die Machzahl vorgegeben ist.
+        if self.trimcase['manoeuver'] == 'segelflug':
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],1] = 'free'
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'w'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'du'))[0][0],1] = 'target'
+        
         
     
     def exec_trim(self):
@@ -82,8 +97,14 @@ class trim:
     
                 
         import model_equations # Warum muss der import hier stehen??
-        equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
-
+        
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady']:
+            equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+        elif self.jcl.aero['method'] in [ 'hybrid']:
+            equations = model_equations.hybrid(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+        else:
+            print 'Unknown aero method: ' + str(self.jcl.aero['method'])
+        
         X_free_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]]
         
         bypass = False
@@ -113,8 +134,10 @@ class trim:
         
     def exec_sim(self):
         import model_equations 
-        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
+        if self.jcl.aero['method'] in [ 'mona_steady']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+        elif self.jcl.aero['method'] in [ 'hybrid']:
+            equations = model_equations.hybrid(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             equations = model_equations.unsteady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
         else:
