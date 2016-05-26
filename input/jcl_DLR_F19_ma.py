@@ -71,7 +71,11 @@ class jcl:
                      'filename_aelist': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.AELIST', 
                                          '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AELIST'],
                      'method_AIC': 'ae', # 'nastran', 'ae' - provide 'filename_AIC' with OP4 files if method = 'nastran'
-                     'filename_AIC': [],
+                     'filename_AIC': ['/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ01.dat', \
+                                      '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ02.dat', \
+                                      '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ03.dat', \
+                                      '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ04.dat', \
+                                     ],
                     }
         self.spline = {'method': 'nearest_neighbour', # 'nearest_neighbour', 'rbf', 'nastran'
                        'filename_f06': '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/trim_matrices_aio.f06',

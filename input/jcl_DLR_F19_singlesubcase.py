@@ -18,9 +18,8 @@ class jcl:
                         'b_ref': 15.375,
                         'c_ref': 4.79,
                         'A_ref': 77,
-                        'MAC_ref': [6.0, 0.0, 0.0],
+                        'MAC_ref': [0.0, 0.0, 0.0],
                        }
-        self.efcs = {'version': 'mephisto'}
         self.geom = {'method': 'mona',
                      'filename_grid':['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.GRID',
                                       '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.GRID',
@@ -54,7 +53,6 @@ class jcl:
                                                  ],
                     }
         self.aero = {'method': 'mona_steady',
-                     'flex': False,
                      'key':['VC', 'MC', 'VD', 'MD'],
                      'Ma': [0.8, 0.9, 0.89, 0.97],
                      'filename_caero_bdf': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.CAERO1_bdf', 
@@ -65,14 +63,13 @@ class jcl:
                                          '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AESURF'],
                      'filename_aelist': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.AELIST', 
                                          '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AELIST'],
-                     'method_AIC': 'nastran', # 'nastran', 'ae' - provide 'filename_AIC' with OP4 files if method = 'nastran'
                      'filename_AIC': ['/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ01.dat', \
                                       '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ02.dat', \
                                       '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ03.dat', \
                                       '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ04.dat', \
                                      ],
                     }
-        self.spline = {'method': 'nearest_neighbour', # 'nearest_neighbour', 'rbf', 'nastran'
+        self.spline = {'method': 'nastran', # 'nearest_neighbour', 'rbf', 'nastran'
                        'filename_f06': '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/trim_matrices_aio.f06',
                        'splinegrid': True, # if true, provide filename_grid, not valid and ignored when spline method = 'nastran'
                        'filename_splinegrid': '/scratch/DLR-F19-S_150217_work/assembly_DLR-F-19-S/SplineKnoten/splinegrid.bdf'
@@ -97,22 +94,28 @@ class jcl:
                      'key':['FL000','FL055', 'FL075', 'FL200', 'FL300', 'FL450'],
                      'h': ft2m([0, 5500, 7500, 20000, 30000, 45000]),
                     }
-        self.simcase = [{}]
-        self.trimcase = [{'desc': 'CC.BFDM.OVCFL000.Vergleichsfall53', 
-                          'manoeuver': 'Vergleichsfall53', 
-                          'subcase': 53,
-                          'Ma': 0.8, 
-                          'aero': 'VC', 
-                          'altitude': 'FL000', 
-                          'mass': 'BFDM',
-                          'Nz': 5.0, 
-                          'p': 34.3/180.0*np.pi,
-                          'q': 28.6/180.0*np.pi, 
-                          'pdot': -286.5/180.0*np.pi, 
-                          'qdot': 0.0, 
-                         },
-                        ]
-
+#        self.trimcase = [{
+#        'manoeuver': 'Des2-002', 
+#        'desc': 'CC.BFDM.OVDFL000.Des2-002', 
+#        'mass': 'BFDM',
+#        'altitude': 'FL000', 
+#        'subcase': 1, 
+#        'aero': 'MC', 
+#        'Ma': 0.9, 
+#        'Nz': 5.0, 
+#        'p': -0.6,
+#        'pdot': -5.0, 
+#        'q': 0.5, 
+#        'qdot': 0.0,
+#        }] 
+                        
+        from numpy import array
+        with open('/scratch/DLR-F19-S_150217_work/manloads_DLR-F19-S/trim.trimcase_dict', 'r') as fid:
+            trimcase_str = fid.read()
+        self.trimcase = eval(trimcase_str)
+        #self.trimcase = [self.trimcase[24], self.trimcase[25], self.trimcase[26], self.trimcase[27]]
+        self.trimcase = [self.trimcase[108], self.trimcase[109], self.trimcase[118]]
+        #self.trimcase = [self.trimcase[62]]
         # End
 
     

@@ -37,7 +37,6 @@ class jcl:
                      'filename_deriv_4_W2GJ': [],
                      'filename_aesurf': ['/work/hand_ve/Transfer/Arne/ALLEGRA/allegra-s_CAERO1_1g-flight-shape_with_1fuse.bdf'],
                      'filename_aelist': ['/work/hand_ve/Transfer/Arne/ALLEGRA/allegra-s_CAERO1_1g-flight-shape_with_1fuse.bdf'],
-                     'method_AIC': 'nastran',
                      'filename_AIC': ['/work/hand_ve/Transfer/Arne/ALLEGRA/AJJ01.dat', ],
                     }
         self.efcs = {'version': 'allegra'}
