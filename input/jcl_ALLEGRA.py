@@ -75,10 +75,10 @@ class jcl:
                         ] 
         gust_para = {'Z_mo': ft2m(45000), 'MLW': 100000, 'MTOW': 120000, 'MZFW': 50000, 'MD': 0.95, 'T1': 0.02}
         self.simcase = [{'dt': 0.01, 
-                         't_final': 1.0,
-                         'gust': True, 
-                         'gust_gradient': ft2m(100),
-                         'gust_orientation': 180, # degree, 0/360° = gust from top
+                         't_final': 2.0,
+                         'gust': False, 
+                         'gust_gradient': 35,
+                         'gust_orientation': 360, # degree, 0/360° = gust from bottom
                          'gust_para':gust_para,
                         }]
 
