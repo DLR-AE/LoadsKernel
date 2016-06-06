@@ -8,7 +8,7 @@ import spline_rules
 import spline_functions
 from build_aero import plot_aerogrid
 
-def controlsurface_meshdefo(model, jcl, path_output):
+def controlsurface_meshdefo(model, jcl, job_name, path_output):
         
     if jcl.aero.has_key('hingeline') and jcl.aero['hingeline'] == 'y':
         hingeline = 'y'
@@ -73,7 +73,7 @@ def controlsurface_meshdefo(model, jcl, path_output):
 #                 mlab.points3d(cfdgrid['offset'][:,0] + Ucfd[cfdgrid['set'][:,0]], cfdgrid['offset'][:,1] + Ucfd[cfdgrid['set'][:,1]], cfdgrid['offset'][:,2] + Ucfd[cfdgrid['set'][:,2]], scale_factor=p_scale/5.0, color=(0,0,1))
 #                 mlab.show()
                 
-                filename_defo = path_output + 'surface_defo_' + x2_key + '_' + str(value) + '.nc'
+                filename_defo = path_output + 'surface_defo_' + job_name + '_' + x2_key + '_' + str(value) + '.nc'
                 print 'Writing ' + filename_defo
                 f = netcdf.netcdf_file(filename_defo, 'w')
                 f.history = 'Surface deformations created by Loads Kernel'
