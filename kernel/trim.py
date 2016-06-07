@@ -33,7 +33,7 @@ class trim:
             ['y',        'fix',  0.0,],
             ['z',        'fix',  z  ,],
             ['phi',      'fix',  0.0,],
-            ['theta',    'free', 1.0/180*np.pi,],
+            ['theta',    'free', 0.0,],
             ['psi',      'fix',  0.0,],
             ['u',        'fix',  u,  ],
             ['v',        'fix',  0.0,],
@@ -79,12 +79,35 @@ class trim:
         # Sinken (w) wird erlaubt, damit die Geschwindigkeit konstant bleibt (du = 0.0)
         # Eigentlich muesste Vtas konstant sein, ist aber momentan nicht als trimcond vorgesehen... Das wird auch schwierig, da die Machzahl vorgegeben ist.
         if self.trimcase['manoeuver'] == 'segelflug':
+            print 'setting trim conditions to "segelflug"'
             # inputs
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],1] = 'free'
             # outputs
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'w'))[0][0],1] = 'free'
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'du'))[0][0],1] = 'target'
         
+        # --------------
+        # --- bypass --- 
+        # --------------
+        # Die Steuerkommandos xi, eta und zeta werden vorgegeben und die resultierenden Beschleunigungen sind frei. 
+        elif self.trimcase['manoeuver'] == 'bypass':
+            print 'setting trim conditions to "bypass"'
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'theta'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'theta'))[0][0],2] = self.trimcase['theta']
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_xi'))[0][0],2] = self.trimcase['command_xi']
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_eta'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_eta'))[0][0],2] = self.trimcase['command_eta']
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],2] = self.trimcase['command_zeta']
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'Nz'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dp'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dq'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+        else:
+            print 'setting trim conditions to "default"'
         
     
     def exec_trim(self):
