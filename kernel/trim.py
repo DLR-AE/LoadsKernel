@@ -73,12 +73,35 @@ class trim:
 
         self.trimcond_Y = np.vstack((self.trimcond_Y , ['Nz',       'target',  self.trimcase['Nz'],]))
         
+        
+        # ------------------
+        # --- pitch only --- 
+        # ------------------
+        if self.trimcase['manoeuver'] == 'pitch':
+            print 'setting trim conditions to "pitch"'
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dp'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+            
+        # -----------------------------------
+        # --- pitch and roll only, no yaw --- 
+        # -----------------------------------
+        elif self.trimcase['manoeuver'] == 'pitch&roll':
+            print 'setting trim conditions to "pitch&roll"'
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+        
         # ------------------
         # --- segelflug --- 
         # -----------------
         # Sinken (w) wird erlaubt, damit die Geschwindigkeit konstant bleibt (du = 0.0)
         # Eigentlich muesste Vtas konstant sein, ist aber momentan nicht als trimcond vorgesehen... Das wird auch schwierig, da die Machzahl vorgegeben ist.
-        if self.trimcase['manoeuver'] == 'segelflug':
+        elif self.trimcase['manoeuver'] == 'segelflug':
             print 'setting trim conditions to "segelflug"'
             # inputs
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],1] = 'free'
