@@ -240,8 +240,11 @@ class model:
             print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
         
         if self.jcl.aero['method_AIC'] == 'dlm':
-            print 'Calculating unsteady AIC matrices ({} panels, k={}) with ae_getaic.m for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) )
-            out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], self.jcl.aero['k_red'])
+            print 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) with ae_getaic.m for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) )
+            # Definitions for reduced frequencies:
+            # ae_getaic: k = omega/U 
+            # Nastran:   k = 0.5*cref*omega/U
+            out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
             self.aero['Qjj_unsteady'] = out # dim: Ma,k,n,n
             self.aero['k_red'] =  self.jcl.aero['k_red']
             
