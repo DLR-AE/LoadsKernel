@@ -19,11 +19,66 @@ S = aerogrid.A'; % panel areas
 n_hat_w = aerogrid.N(:,3); % normal vector part in vertical direction
 n_hat_wl = aerogrid.N(:,2); % normal vector part in lateral direction
 
+% Folgende Zeile sind aus der Funktion getAIC kopiert, da die Funktionen getVLM und getDLM direkt aufgerufen werden.
+% Dadurch werden unnoetige Aufrufe der Funktionen getVLM und getDLM vermieden und die Rechenzeit beschleunigt.
+
+% determine number of aero panels present
+[N,m]=size(Panel);
+
+% rows of D are the downwash locations while columns define the effects of
+% each aero panels doublet line/horseshoe vortex on that rows' downwash location
+
+% define downwash location (3/4 chord and half span of the aero panel)
+P0 = zeros(N,3);
+P0(:,1) = (Node(Panel(:,2),2)+Node(Panel(:,3),2) + ...
+        3*(Node(Panel(:,4),2)+Node(Panel(:,5),2)))/8; %xcp
+P0(:,2) = (Node(Panel(:,2),3)+Node(Panel(:,3),3))/2; %ycp
+P0(:,3) = (Node(Panel(:,2),4)+Node(Panel(:,3),4))/2; %zcp
+
+% define doublet locations (1/4 chord and 0, half span and full span of the
+% aero panel), kernel is computed at that 3 points and a parabolic function
+% is fitted to approximate the kernel along the doublet line (ref 1,
+% equation 7).
+P1 = zeros(N,3);
+P1(:,1) = Node(Panel(:,2),2)+ ...
+         (Node(Panel(:,4),2) - Node(Panel(:,2),2))/4; %xp1
+P1(:,2) = Node(Panel(:,2),3); %yp1
+P1(:,3) = Node(Panel(:,2),4); %zp1
+
+% P3 is doublet point at tip of the panel
+P3 = zeros(N,3);
+P3(:,1) = Node(Panel(:,3),2)+ ...
+         (Node(Panel(:,5),2) - Node(Panel(:,3),2))/4; %xp3
+P3(:,2) = Node(Panel(:,3),3); %yp3
+P3(:,3) = Node(Panel(:,3),4); %zp3
+
+% P2 is doublet point at the half-span location of the panel
+P2 = zeros(N,3);
+P2(:,1) = (P1(:,1)+P3(:,1))/2;
+P2(:,2) = (P1(:,2)+P3(:,2))/2;
+P2(:,3) = (P1(:,3)+P3(:,3))/2;
+
+% define half span length and chord at centerline for each panel
+s = (0.5*((Node(Panel(:,3),3) - Node(Panel(:,2),3))' + ...
+          (Node(Panel(:,3),4) - Node(Panel(:,2),4))'));
+c = (     (Node(Panel(:,4),2) - Node(Panel(:,2),2) + ...
+           Node(Panel(:,5),2) - Node(Panel(:,3),2))/2)';
+
+% get the downwash effect from DLM and VLM implementations for the defined geometry 
+
 AJJ = zeros(length(Mach), length(k), size(Panel,1),size(Panel,1)); 
 for im = 1:length(Mach)
+    disp(['Ma = ',num2str(Mach(im))])
+    Dv  = getVLM(P0,P1,P3,S,Mach(im),n_hat_w,n_hat_wl); % VLM (steady state effects)
     for ik = 1:length(k)
-        disp(['Ma = ',num2str(Mach(im))])
-        AJJ(im,ik,:,:) = getAIC(Panel,Node,Mach(im),k(ik),S,n_hat_w,n_hat_wl); 
+	if k(ik) == 0.0
+	    Dd  = zeros(size(Panel,1),size(Panel,1)) % kein Anteil aus DLM, da steady state
+	else
+	    Dd  = getDLM(P0,P1,P2,P3,s,c,k(ik),Mach(im));           % DLM (oscillatory effects)
+	end
+        D   = Dv + Dd;
+	AIC = -inv(D);
+        AJJ(im,ik,:,:) = AIC;
     end
 end
 
