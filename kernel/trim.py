@@ -185,22 +185,22 @@ class trim:
         elif self.jcl.aero['method'] in [ 'hybrid']:
             equations = model_equations.hybrid(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
+            # initialize lag states with zero and extend steady response vectors X and Y
+            lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
+            self.response['X'] = np.hstack((self.response['X'], lag_states ))
+            self.response['Y'] = np.hstack((self.response['Y'], lag_states ))
             equations = model_equations.unsteady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
         else:
             print 'Unknown aero method: ' + str(self.jcl.aero['method'])
-        
-        # initialize lag states with zero and extend steady response vectors X and Y
-        lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
-        self.response['X'] = np.hstack((self.response['X'], lag_states ))
-        self.response['Y'] = np.hstack((self.response['Y'], lag_states ))
-        
+
         X0 = self.response['X']
         dt = self.simcase['dt']
         t_final = self.simcase['t_final']
         print 'running time simulation for ' + str(t_final) + ' sec...'
         print 'Progress:'
         from scipy.integrate import ode
-        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams') # non-stiff: 'adams', stiff: 'bdf'
+#         integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=0.01 ) # non-stiff: 'adams', stiff: 'bdf'
+        integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=0.01) # non-stiff: 'adams', stiff: 'bdf'
         integrator.set_initial_value(X0, 0.0)
         X_t = []
         t = []
