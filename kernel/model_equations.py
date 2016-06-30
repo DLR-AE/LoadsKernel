@@ -469,7 +469,7 @@ class steady:
         
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD']
             self.x0 = self.simcase['gust_para']['T1'] * Vtas 
-            self.WG_TAS, U_ds, V_gust = DesignGust_CS_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], rho, Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
+            self.WG_TAS, U_ds, V_gust = DesignGust_CS_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], self.model.atmo['rho'][self.i_atmo], Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
         
         if self.simcase and self.simcase['cs_signal']:
             self.efcs.cs_signal_init(self.trimcase['desc'])
@@ -679,6 +679,8 @@ class steady:
                         'Pk_cfd': Pk_rbm * 0.0,
                         'Pk_gust': Pk_gust,
                         'Pk_unsteady': Pk_rbm * 0.0,
+                        'Pk_unsteady_B': Pk_rbm * 0.0,
+                        'Pk_unsteady_D': Pk_rbm * 0.0,
                         'q_dyn': np.array([q_dyn]),
                         'Pb': Pb,
                         'Pmac': Pmac,
@@ -971,12 +973,16 @@ class unsteady:
             wj_gust = self.WG_TAS * 0.5 * (1-np.cos(np.pi * s_gust / self.simcase['gust_gradient']))
             wj_gust[np.where(s_gust <= 0.0)] = 0.0
             wj_gust[np.where(s_gust > 2*self.simcase['gust_gradient'])] = 0.0
+            
+#             if t > 0.02 :
+#                 wj_gust = np.ones(wj_gust.shape) / self.Vtas
+            
+#             wj_gust = wj_gust * 0.0
+#             wj_gust += 4.0/self.Vtas*(1-np.cos(t*28*np.pi))
+                
             # Ausrichtung der Boe fehlt noch
             gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), calc_drehmatrix( my=self.simcase['gust_orientation']/180.0*np.pi, alpha=0.0, beta=0.0 )), axis=1)
             wj_gust = wj_gust *  gust_direction_vector
-            wj_gust = wj_gust * 0.0
-            if t > 0.01:
-                wj_gust += 0.05*(1-np.cos(t*200*np.pi))
             flgust = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj_gust)
             Plgust = np.zeros((6*self.model.aerogrid['n']))
             Plgust[self.model.aerogrid['set_l'][:,0]] = flgust[0,:]
@@ -992,54 +998,63 @@ class unsteady:
         # ---------------- 
         
         # gather data
-        wj = wj_gust #wjx1 + wj_cam + wjx2 + wjf_1 + wjf_2 + wj_gust
-        
-        
-        
-        
+        wj = wjx1 + wj_cam + wjx2 + wjf_1 + wjf_2 + wj_gust
         lag_states = X[12+n_modes*2+3:12+n_modes*2+3+n_j*n_poles].reshape((n_j,n_poles))
         c_over_Vtas = (0.5*c_ref)/self.Vtas
-        
-        # calc derivatives dlag_states
-        if t <= 0.0:
-            # initial step
-            self.t_old  = np.copy(t)
+        if t <= 0.0: # initial step
+            self.t_old  = np.copy(t) 
             self.wj_old = np.copy(wj) 
-        
-        dt = t - self.t_old
-        dwj = -(wj - self.wj_old) / (dt)
-        dwj[np.isnan(dwj)] = 0.0 # guard for NaNs as we divide by dt, which might be zero...
+            self.dwj_dt_old = np.zeros(n_j)
+            self.dlag_states_dt_old = np.zeros(n_j*n_poles)
             
-        #dlag_states = dwj.repeat(n_poles).reshape((n_j, n_poles)) / (dt*2*np.pi) - betas*lag_states*c_over_Vtas
-        dlag_states = dwj.repeat(n_poles).reshape((n_j, n_poles)) - betas*lag_states*c_over_Vtas
-        dlag_states = dlag_states.reshape((-1))
+        dt = t - self.t_old
+
+        # dwj_dt mittels "backward differences" berechnen
+        if dt > 0.0: # solver läuft vorwärts
+            dwj_dt = (wj - self.wj_old) / dt
+            self.dwj_dt_old = np.copy(dwj_dt)
+        else: # solver bleibt stehen oder läuft zurück
+            dwj_dt = self.dwj_dt_old
+            
+#         dwj_dt = (wj - self.wj_old) / dt
+#         # guard for NaNs and Infs as we divide by dt, which might be zero...
+#         dwj_dt[np.isnan(dwj_dt)] = 0.0 
+#         dwj_dt[np.isinf(dwj_dt)] = 0.0
         
-        #if dlag_states.sum() != 0.0:
-#         if t > 0.01:
-#             print 'sum dwj: ' + str(dwj.sum()*4.0) +  ' / sum dlag: ' + str(dlag_states.sum()) + ' / sum lag: ' + str(lag_states.sum())
-         
-        if t > 0.0:
-            # save for next step
-            self.t_old  = np.copy(t)
-            self.wj_old = np.copy(wj) 
+        # save for next step
+        self.t_old  = np.copy(t)
+        self.wj_old = np.copy(wj)
+        
+        # Änderung der lag states für Verzögerung mit A3-An
+        dlag_states_dt = dwj_dt.repeat(n_poles).reshape((n_j, n_poles)) - betas*lag_states/c_over_Vtas
+        dlag_states_dt = dlag_states_dt.reshape((-1))
 
-        D = B[3,:,:].dot(lag_states[:,0]) + B[4,:,:].dot(lag_states[:,1]) + B[5,:,:].dot(lag_states[:,2]) + B[6,:,:].dot(lag_states[:,3])
-        #cp_unsteady = B[1,:,:].dot((c_over_Vtas)*dwj) - D/(c_over_Vtas)**2
-        #cp_unsteady = B[1,:,:].dot((c_over_Vtas)*dwj)
-        cp_unsteady = - D /(c_over_Vtas)**2
+#         if dlag_states_dt.sum() != 0.0:
+#             print 't: ' + str(t) + ' / dt: ' + str(dt) + ' / sum dwj_dt: ' + str(dwj_dt.sum()) +  ' / sum dlag: ' + str(dlag_states_dt.sum()) + ' / sum lag: ' + str(lag_states.sum())
+
+        cp_unsteady = B[1,:,:].dot(dwj_dt) * c_over_Vtas * -1.0
         flunsteady = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*cp_unsteady
-
         Plunsteady = np.zeros(np.shape(Ujx1))
         Plunsteady[self.model.aerogrid['set_l'][:,0]] = flunsteady[0,:]
         Plunsteady[self.model.aerogrid['set_l'][:,1]] = flunsteady[1,:]
         Plunsteady[self.model.aerogrid['set_l'][:,2]] = flunsteady[2,:]
+        Pk_unsteady_B = self.model.Dlk.T.dot(Plunsteady)
         
-        Pk_unsteady = self.model.Dlk.T.dot(Plunsteady)
+        D = B[3,:,:].dot(lag_states[:,0]) + B[4,:,:].dot(lag_states[:,1]) + B[5,:,:].dot(lag_states[:,2]) + B[6,:,:].dot(lag_states[:,3])
+        cp_unsteady = D #* c_over_Vtas * -1.0
+        flunsteady = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*cp_unsteady
+        Plunsteady = np.zeros(np.shape(Ujx1))
+        Plunsteady[self.model.aerogrid['set_l'][:,0]] = flunsteady[0,:]
+        Plunsteady[self.model.aerogrid['set_l'][:,1]] = flunsteady[1,:]
+        Plunsteady[self.model.aerogrid['set_l'][:,2]] = flunsteady[2,:]
+        Pk_unsteady_D = self.model.Dlk.T.dot(Plunsteady)
+        
+        Pk_unsteady = Pk_unsteady_D # Pk_unsteady_B + 
 
         # --------------------------------   
         # --- summation of forces, EoM ---   
         # --------------------------------
-        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_cfd + Pk_gust #+ Pk_unsteady
+        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_cfd + Pk_gust + Pk_unsteady
         Pmac = np.dot(Dkx1.T, Pk_aero)
         Pb = np.dot(PHImac_cg.T, Pmac)
 
@@ -1067,7 +1082,7 @@ class unsteady:
         # Nastran
         Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
                 
-        Y = np.hstack((X[6:12], np.dot(PHIcg_norm, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, dcommand, dlag_states, Nxyz[2] ))    
+        Y = np.hstack((X[6:12], np.dot(PHIcg_norm, np.dot(Tgeo2body.T, d2Ucg_dt2)), dUf_dt, d2Uf_dt2, dcommand, dlag_states_dt, Nxyz[2] ))    
             
         if type == 'small_output':
             return Y
@@ -1083,6 +1098,8 @@ class unsteady:
                         'Pk_cfd': Pk_rbm * 0.0,
                         'Pk_gust': Pk_gust,
                         'Pk_unsteady': Pk_unsteady,
+                        'Pk_unsteady_B': Pk_unsteady_B,
+                        'Pk_unsteady_D': Pk_unsteady_D,
                         'q_dyn': np.array([self.q_dyn]),
                         'Pb': Pb,
                         'Pmac': Pmac,
