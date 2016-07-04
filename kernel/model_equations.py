@@ -835,7 +835,7 @@ class unsteady:
         Qjj         = self.model.aero['Qjj'][self.i_aero]    
         n_poles     = self.model.aero['n_poles']
         betas       = self.model.aero['betas']
-        B           = self.model.aero['B'][self.i_aero]
+        ABCD        = self.model.aero['ABCD'][self.i_aero]
        
         PHImac_cg   = self.model.mass['PHImac_cg'][self.i_mass]
         PHIcg_mac   = self.model.mass['PHIcg_mac'][self.i_mass]
@@ -975,7 +975,7 @@ class unsteady:
             wj_gust[np.where(s_gust > 2*self.simcase['gust_gradient'])] = 0.0
             
 #             if t > 0.02 :
-#                 wj_gust = np.ones(wj_gust.shape) / self.Vtas
+#                 wj_gust = 20.0 * np.ones(wj_gust.shape) / self.Vtas
             
 #             wj_gust = wj_gust * 0.0
 #             wj_gust += 4.0/self.Vtas*(1-np.cos(t*28*np.pi))
@@ -1025,14 +1025,11 @@ class unsteady:
         self.t_old  = np.copy(t)
         self.wj_old = np.copy(wj)
         
-        # Änderung der lag states für Verzögerung mit A3-An
-        dlag_states_dt = dwj_dt.repeat(n_poles).reshape((n_j, n_poles)) - betas*lag_states/c_over_Vtas
-        dlag_states_dt = dlag_states_dt.reshape((-1))
-
 #         if dlag_states_dt.sum() != 0.0:
 #             print 't: ' + str(t) + ' / dt: ' + str(dt) + ' / sum dwj_dt: ' + str(dwj_dt.sum()) +  ' / sum dlag: ' + str(dlag_states_dt.sum()) + ' / sum lag: ' + str(lag_states.sum())
-
-        cp_unsteady = B[1,:,:].dot(dwj_dt) * c_over_Vtas * -1.0
+        
+        # B
+        cp_unsteady = ABCD[1,:,:].dot(dwj_dt) * c_over_Vtas * -1.0
         flunsteady = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*cp_unsteady
         Plunsteady = np.zeros(np.shape(Ujx1))
         Plunsteady[self.model.aerogrid['set_l'][:,0]] = flunsteady[0,:]
@@ -1040,8 +1037,15 @@ class unsteady:
         Plunsteady[self.model.aerogrid['set_l'][:,2]] = flunsteady[2,:]
         Pk_unsteady_B = self.model.Dlk.T.dot(Plunsteady)
         
-        D = B[3,:,:].dot(lag_states[:,0]) + B[4,:,:].dot(lag_states[:,1]) + B[5,:,:].dot(lag_states[:,2]) + B[6,:,:].dot(lag_states[:,3])
-        cp_unsteady = D #* c_over_Vtas * -1.0
+        # D
+        # Änderung der lag states für Verzögerung mit D1-Dn
+        dlag_states_dt = dwj_dt.repeat(n_poles).reshape((n_j, n_poles)) - betas*lag_states/c_over_Vtas
+        dlag_states_dt = dlag_states_dt.reshape((-1))
+        
+        D_dot_lag = np.zeros(n_j)
+        for i_pole in np.arange(0,self.model.aero['n_poles']):
+            D_dot_lag += ABCD[3+i_pole,:,:].dot(lag_states[:,i_pole])
+        cp_unsteady = D_dot_lag 
         flunsteady = self.q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*cp_unsteady
         Plunsteady = np.zeros(np.shape(Ujx1))
         Plunsteady[self.model.aerogrid['set_l'][:,0]] = flunsteady[0,:]
@@ -1049,8 +1053,7 @@ class unsteady:
         Plunsteady[self.model.aerogrid['set_l'][:,2]] = flunsteady[2,:]
         Pk_unsteady_D = self.model.Dlk.T.dot(Plunsteady)
         
-        Pk_unsteady = Pk_unsteady_D # Pk_unsteady_B + 
-
+        Pk_unsteady = Pk_unsteady_D #+ Pk_unsteady_B 
         # --------------------------------   
         # --- summation of forces, EoM ---   
         # --------------------------------

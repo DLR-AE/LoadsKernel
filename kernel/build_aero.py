@@ -221,17 +221,19 @@ def plot_aerogrid(aerogrid, cp = '', colormap = 'jet', value_min = '', value_max
     
     return ax
 
-def rfa(Qjj, k, n_poles=4):
+def rfa(Qjj, k, n_poles=2):
+    # B = A*x
+    # B ist die gegebene AIC, A die roger-Aproxination, x sind die zu findenden Koeffizienten B0,B1,...B7
     print 'Performing rational function approximation (RFA) on AIC matrices with {} poles...'.format(n_poles)
     k = np.array(k)
     ik = k * 1j
-    betas = np.max(k)/np.arange(1,n_poles+1)
-    #betas = 1.7*np.max(k)*(np.arange(1,n_poles+1)/(n_poles+1.0))**2.0
+    betas = np.max(k)/np.arange(1,n_poles+1) # Roger
+#     betas = 1.7*np.max(k)*(np.arange(1,n_poles+1)/(n_poles+1.0))**2.0 # Karpel / ZAERO
     
-    # B = A*x
-    # B ist die gegebene AIC, A die roger-Aproxination, x sind die zu findenden Koeffizienten B0,B1,...B7
-    Ajj_real = np.array([np.ones(len(k)), np.zeros(len(k)), -k**2])
-    Ajj_imag = np.array([np.zeros(len(k)), k, np.zeros(len(k))])
+#     Ajj_real = np.array([np.ones(len(k)), np.zeros(len(k)), -k**2]) # voll
+#     Ajj_imag = np.array([np.zeros(len(k)), k, np.zeros(len(k))]) # voll
+    Ajj_real = np.array([np.ones(len(k)), np.zeros(len(k)), np.zeros(len(k))]) # ohne Beschleunigungsterm
+    Ajj_imag = np.array([np.zeros(len(k)), np.zeros(len(k)), np.zeros(len(k))]) # ohne Dämpfungsterm
     for beta in betas:
         Ajj_real = np.vstack(( Ajj_real, k**2/(k**2+beta**2)   ))
         Ajj_imag = np.vstack(( Ajj_imag, k*beta/(k**2+beta**2) ))
@@ -242,19 +244,28 @@ def rfa(Qjj, k, n_poles=4):
     
     print '- solving B = A*x with least-squares method'
     solution, residuals, rank, s = np.linalg.lstsq(Ajj, Qjj_reshaped)
-    B = solution.reshape(7, Qjj.shape[1], Qjj.shape[2])
+    ABCD = solution.reshape(3 + n_poles, Qjj.shape[1], Qjj.shape[2])
     
     # Kontrolle
 #     k_i = 0
-#     n_i = 20
+#     n_i = 0
 #     qjj = Qjj[:,n_i,0]
-#     qjj_aprox = np.dot(Ajj_real, B[:,n_i,0]) + np.dot(Ajj_imag, B[:,n_i,0])*1j
-# 
+#     qjj_aprox = np.dot(Ajj_real.T, B[:,n_i,0]) + np.dot(Ajj_imag.T, B[:,n_i,0])*1j
+#    
 #     plt.figure()
 #     plt.plot(np.real(qjj), np.imag(qjj), 'b.-')
 #     plt.plot(np.real(qjj_aprox), np.imag(qjj_aprox), 'r.-')
 #     plt.xlabel('real')
 #     plt.ylabel('imag')
 #     plt.show()
+#       
+#     plt.figure()
+#     plt.plot(k, np.real(qjj_aprox), 'b.-')
+#     plt.ylabel('real')
+#     plt.figure()
+#     plt.plot(k, np.imag(qjj_aprox), 'b.-')
+#     plt.ylabel('imag')
+#  
+#     plt.show()
     
-    return B, n_poles, betas
+    return ABCD, n_poles, betas

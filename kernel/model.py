@@ -250,10 +250,10 @@ class model:
             
         if self.jcl.aero['method'] == 'mona_unsteady':
             # perform rfa
-            self.aero['B'] = []
+            self.aero['ABCD'] = []
             for i_aero in range(len(self.jcl.aero['key'])):
-                B, n_poles, betas = build_aero.rfa(self.aero['Qjj_unsteady'][i_aero,:,:,:], self.aero['k_red'])
-                self.aero['B'].append(B)
+                ABCD, n_poles, betas = build_aero.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], k = self.aero['k_red'], n_poles = self.jcl.aero['n_poles'])
+                self.aero['ABCD'].append(ABCD)
             self.aero['n_poles'] = n_poles
             self.aero['betas'] =  betas
         else:
