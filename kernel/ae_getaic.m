@@ -72,7 +72,7 @@ for im = 1:length(Mach)
     Dv  = getVLM(P0,P1,P3,S,Mach(im),n_hat_w,n_hat_wl); % VLM (steady state effects)
     for ik = 1:length(k)
 	if k(ik) == 0.0
-	    Dd  = zeros(size(Panel,1),size(Panel,1)) % kein Anteil aus DLM, da steady state
+	    Dd  = zeros(size(Panel,1),size(Panel,1)); % kein Anteil aus DLM, da steady state
 	else
 	    Dd  = getDLM(P0,P1,P2,P3,s,c,k(ik),Mach(im));           % DLM (oscillatory effects)
 	end
