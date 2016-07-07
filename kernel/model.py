@@ -18,7 +18,7 @@ from  atmo_isa import atmo_isa
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import cPickle, sys
+import cPickle, sys, time
 from oct2py import octave 
 
 class model:
@@ -231,20 +231,24 @@ class model:
                 self.aero['key'].append(self.jcl.aero['key'][i_aero])
                 self.aero['Qjj'].append(Qjj)
         elif self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae']:
-            print 'Calculating steady AIC matrices ({} panels, k=0.0) with ae_getaic.m for {} Mach number(s)...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) )
+            print 'Calculating steady AIC matrices ({} panels, k=0.0) for {} Mach number(s)...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) ),
             #AIC = ae_getaic(aerogrid, Mach, k);
+            t_start = time.time()
             out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], [0.0])
+            print 'done in %.2f [sec].' % (time.time() - t_start)
             self.aero['key'] = self.jcl.aero['key']
             self.aero['Qjj'] = [out[i_aero,0,:,:,] for i_aero in range(len(self.jcl.aero['key']))] # dim: Ma,n,n
         else:
             print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
         
         if self.jcl.aero['method_AIC'] == 'dlm':
-            print 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) with ae_getaic.m for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) )
+            print 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) ),
             # Definitions for reduced frequencies:
             # ae_getaic: k = omega/U 
             # Nastran:   k = 0.5*cref*omega/U
+            t_start = time.time()
             out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
+            print 'done in %.2f [sec].' % (time.time() - t_start)
             self.aero['Qjj_unsteady'] = out # dim: Ma,k,n,n
             self.aero['k_red'] =  self.jcl.aero['k_red']
             
