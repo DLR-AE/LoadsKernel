@@ -226,46 +226,75 @@ def rfa(Qjj, k, n_poles=2):
     # B ist die gegebene AIC, A die roger-Aproxination, x sind die zu findenden Koeffizienten B0,B1,...B7
     print 'Performing rational function approximation (RFA) on AIC matrices with {} poles...'.format(n_poles)
     k = np.array(k)
+    n_k = len(k)
     ik = k * 1j
     betas = np.max(k)/np.arange(1,n_poles+1) # Roger
 #     betas = 1.7*np.max(k)*(np.arange(1,n_poles+1)/(n_poles+1.0))**2.0 # Karpel / ZAERO
-    
-#     Ajj_real = np.array([np.ones(len(k)), np.zeros(len(k)), -k**2]) # voll
-#     Ajj_imag = np.array([np.zeros(len(k)), k, np.zeros(len(k))]) # voll
-    Ajj_real = np.array([np.ones(len(k)), np.zeros(len(k)), np.zeros(len(k))]) # ohne Beschleunigungsterm
-    Ajj_imag = np.array([np.zeros(len(k)), np.zeros(len(k)), np.zeros(len(k))]) # ohne Dämpfungsterm
-    for beta in betas:
-        Ajj_real = np.vstack(( Ajj_real, k**2/(k**2+beta**2)   ))
-        Ajj_imag = np.vstack(( Ajj_imag, k*beta/(k**2+beta**2) ))
+    option = 2
+    if option == 1: # voll
+        Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), -k**2]) 
+        Ajj_imag = np.array([np.zeros(n_k), k, np.zeros(n_k)]) 
+    elif option == 2: # ohne Beschleunigungsterm
+        Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), np.zeros(n_k)]) 
+        Ajj_imag = np.array([np.zeros(n_k), k, np.zeros(n_k)]) 
+    elif option == 3: # ohne Beschleunigungsterm und Dämpfungsterm
+        Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), np.zeros(n_k)]) 
+        Ajj_imag = np.array([np.zeros(n_k), np.zeros(n_k), np.zeros(n_k)]) 
+        
+    for beta in betas: Ajj_real = np.vstack(( Ajj_real, k**2/(k**2+beta**2)   ))
+    for beta in betas: Ajj_imag = np.vstack(( Ajj_imag, k*beta/(k**2+beta**2) ))
     Ajj = np.vstack((Ajj_real.T, Ajj_imag.T))
     
     # komplette AIC-Matrix: hierzu wird die AIC mit nj*nj umgeformt in einen Vektor nj**2 
-    Qjj_reshaped = np.vstack(( np.real(Qjj.reshape(len(k),-1)), np.imag(Qjj.reshape(len(k),-1)) ))
+    Qjj_reshaped = np.vstack(( np.real(Qjj.reshape(n_k,-1)), np.imag(Qjj.reshape(n_k,-1)) ))
+    n_j = Qjj.shape[1]
     
     print '- solving B = A*x with least-squares method'
     solution, residuals, rank, s = np.linalg.lstsq(Ajj, Qjj_reshaped)
-    ABCD = solution.reshape(3 + n_poles, Qjj.shape[1], Qjj.shape[2])
+    ABCD = solution.reshape(3 + n_poles, n_j, n_j)
     
     # Kontrolle
-#     k_i = 0
-#     n_i = 0
-#     qjj = Qjj[:,n_i,0]
-#     qjj_aprox = np.dot(Ajj_real.T, B[:,n_i,0]) + np.dot(Ajj_imag.T, B[:,n_i,0])*1j
-#    
-#     plt.figure()
-#     plt.plot(np.real(qjj), np.imag(qjj), 'b.-')
-#     plt.plot(np.real(qjj_aprox), np.imag(qjj_aprox), 'r.-')
-#     plt.xlabel('real')
-#     plt.ylabel('imag')
-#     plt.show()
-#       
-#     plt.figure()
-#     plt.plot(k, np.real(qjj_aprox), 'b.-')
-#     plt.ylabel('real')
-#     plt.figure()
-#     plt.plot(k, np.imag(qjj_aprox), 'b.-')
-#     plt.ylabel('imag')
-#  
-#     plt.show()
+    Qjj_aprox = np.dot(Ajj, solution)
+    print '- root-mean-square error(s): '
+    for k_i in range(n_k):
+        RMSE_real = np.sqrt( ((Qjj_aprox[k_i    ,:].reshape(n_j, n_j) - np.real(Qjj[k_i,:,:]))**2).sum(axis=None) / n_j**2 )
+        RMSE_imag = np.sqrt( ((Qjj_aprox[k_i+n_k,:].reshape(n_j, n_j) - np.imag(Qjj[k_i,:,:]))**2).sum(axis=None) / n_j**2 )
+        print '  k = {:<6}, RMSE_real = {:<20}, RMSE_imag = {:<20}'.format(k[k_i], RMSE_real, RMSE_imag)
+    
+    
+    # Vergrößerung des Frequenzbereichs
+    k = np.arange(0.0,(k.max()*2.0), 0.01)
+    n_k = len(k)
+    
+    if option == 1: # voll
+        Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), -k**2]) 
+        Ajj_imag = np.array([np.zeros(n_k), k, np.zeros(n_k)]) 
+    elif option == 2: # ohne Beschleunigungsterm
+        Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), np.zeros(n_k)]) 
+        Ajj_imag = np.array([np.zeros(n_k), k, np.zeros(n_k)]) 
+    elif option == 3: # ohne Beschleunigungsterm und Dämpfungsterm
+        Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), np.zeros(n_k)]) 
+        Ajj_imag = np.array([np.zeros(n_k), np.zeros(n_k), np.zeros(n_k)]) 
+        
+    for beta in betas: Ajj_real = np.vstack(( Ajj_real, k**2/(k**2+beta**2)   ))
+    for beta in betas: Ajj_imag = np.vstack(( Ajj_imag, k*beta/(k**2+beta**2) ))
+    
+    # Plots vom Real- und Imaginärteil der ersten m_n*n_n Panels
+    m_n = 3
+    n_n = 3
+    plt.figure()
+    for m_i in range(m_n):
+        for n_i in  range(n_n):
+            qjj = Qjj[:,n_i,m_i]
+            qjj_aprox = np.dot(Ajj_real.T, ABCD[:,n_i,m_i]) + np.dot(Ajj_imag.T, ABCD[:,n_i,m_i])*1j
+            plt.subplot(m_n, n_n, m_n*m_i+n_i+1)
+            plt.plot(np.real(qjj), np.imag(qjj), 'b.-')
+            plt.plot(np.real(qjj_aprox), np.imag(qjj_aprox), 'r-')
+            plt.xlabel('real')
+            plt.ylabel('imag')
+            plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+      
+    plt.show()
     
     return ABCD, n_poles, betas
