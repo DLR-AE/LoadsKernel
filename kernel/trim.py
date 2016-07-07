@@ -186,6 +186,7 @@ class trim:
             equations = model_equations.hybrid(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             # initialize lag states with zero and extend steady response vectors X and Y
+            print 'adding {} x {} unsteady lag states to the system'.format(self.model.aerogrid['n'],self.model.aero['n_poles'])
             lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
             self.response['X'] = np.hstack((self.response['X'], lag_states ))
             self.response['Y'] = np.hstack((self.response['Y'], lag_states ))
@@ -199,8 +200,8 @@ class trim:
         print 'running time simulation for ' + str(t_final) + ' sec...'
         print 'Progress:'
         from scipy.integrate import ode
-#         integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=0.01 ) # non-stiff: 'adams', stiff: 'bdf'
-        integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=0.01) # non-stiff: 'adams', stiff: 'bdf'
+        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
+#         integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=1e-4)
         integrator.set_initial_value(X0, 0.0)
         X_t = []
         t = []
