@@ -255,10 +255,12 @@ def rfa(Qjj, k, n_poles=2):
     
     # Kontrolle
     Qjj_aprox = np.dot(Ajj, solution)
+    RMSE = []
     print '- root-mean-square error(s): '
     for k_i in range(n_k):
         RMSE_real = np.sqrt( ((Qjj_aprox[k_i    ,:].reshape(n_j, n_j) - np.real(Qjj[k_i,:,:]))**2).sum(axis=None) / n_j**2 )
         RMSE_imag = np.sqrt( ((Qjj_aprox[k_i+n_k,:].reshape(n_j, n_j) - np.imag(Qjj[k_i,:,:]))**2).sum(axis=None) / n_j**2 )
+        RMSE.append([RMSE_real,RMSE_imag ])
         print '  k = {:<6}, RMSE_real = {:<20}, RMSE_imag = {:<20}'.format(k[k_i], RMSE_real, RMSE_imag)
     
     
@@ -297,4 +299,4 @@ def rfa(Qjj, k, n_poles=2):
       
     plt.show()
     
-    return ABCD, n_poles, betas
+    return ABCD, n_poles, betas, RMSE

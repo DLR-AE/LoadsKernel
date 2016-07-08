@@ -220,14 +220,16 @@ class model:
             
         else:
             print 'Unknown aero method: ' + str(self.jcl.aero['method'])
-            
-        # AIC
+        # -----------    
+        # --- AIC ---
+        # -----------
         self.aero = {'key':[], 'Qjj':[],'interp_wj_corrfac_alpha': []}
         
+        # steady
         if self.jcl.aero['method_AIC'] == 'nastran':
             for i_aero in range(len(self.jcl.aero['key'])):
-                Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)  
-                Qjj = np.linalg.inv(Ajj.T)
+                Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)
+                Qjj = np.linalg.inv(np.real(Ajj).T)
                 self.aero['key'].append(self.jcl.aero['key'][i_aero])
                 self.aero['Qjj'].append(Qjj)
         elif self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae']:
@@ -241,29 +243,42 @@ class model:
         else:
             print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
         
-        if self.jcl.aero['method_AIC'] == 'dlm':
-            print 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) ),
-            # Definitions for reduced frequencies:
-            # ae_getaic: k = omega/U 
-            # Nastran:   k = 0.5*cref*omega/U
-            t_start = time.time()
-            out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
-            print 'done in %.2f [sec].' % (time.time() - t_start)
-            self.aero['Qjj_unsteady'] = out # dim: Ma,k,n,n
-            self.aero['k_red'] =  self.jcl.aero['k_red']
-            
+        # unsteady
         if self.jcl.aero['method'] == 'mona_unsteady':
-            # perform rfa
+            if self.jcl.aero['method_AIC'] == 'dlm':
+                print 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) ),
+                # Definitions for reduced frequencies:
+                # ae_getaic: k = omega/U 
+                # Nastran:   k = 0.5*cref*omega/U
+                t_start = time.time()
+                out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
+                print 'done in %.2f [sec].' % (time.time() - t_start)
+                self.aero['Qjj_unsteady'] = out # dim: Ma,k,n,n
+            elif self.jcl.aero['method_AIC'] == 'nastran':
+                self.aero['Qjj_unsteady'] = np.zeros((len(self.jcl.aero['key']), len(self.jcl.aero['k_red']), self.aerogrid['n'], self.aerogrid['n'] ), dtype=complex)
+                for i_aero in range(len(self.jcl.aero['key'])):
+                    for i_k in range(len(self.jcl.aero['k_red'])):
+                        Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC_unsteady'][i_aero][i_k], sparse_output=False, sparse_format=False)  
+                        Qjj = np.linalg.inv(Ajj.T)
+                        self.aero['Qjj_unsteady'][i_aero,i_k,:,:] = Qjj 
+            else:
+                print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
+            self.aero['k_red'] =  self.jcl.aero['k_red']
+            # rfa
             self.aero['ABCD'] = []
+            self.aero['RMSE'] = []
             for i_aero in range(len(self.jcl.aero['key'])):
-                ABCD, n_poles, betas = build_aero.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], k = self.aero['k_red'], n_poles = self.jcl.aero['n_poles'])
+                ABCD, n_poles, betas, RMSE = build_aero.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], k = self.jcl.aero['k_red'], n_poles = self.jcl.aero['n_poles'])
                 self.aero['ABCD'].append(ABCD)
+                self.aero['RMSE'].append(RMSE)
             self.aero['n_poles'] = n_poles
             self.aero['betas'] =  betas
+            
         else:
             self.aero['n_poles'] = 0
-
-        # Aero DB    
+        # ----------------
+        # ---- Aero DB ---
+        # ----------------    
         if self.jcl.aero['method'] == 'hybrid':   
             print 'Building aero db...'
             self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
