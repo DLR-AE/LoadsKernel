@@ -22,6 +22,18 @@ def calc_drehmatrix( my=0.0, alpha=0.0, beta=0.0 ):
 def DesignGust_CS_25_341(gust_gradient, Alt, rho, V, Z_mo, V_D, MLW, MTOW, MZFW):
     # Gust Calculation from CS 25.341
     # adapted from matlab-script by Vega Handojo, DLR-AE-LAE, 2015
+    
+    # convert (possible) integer to float
+    gust_gradient = np.float(gust_gradient)
+    Alt = np.float(Alt)
+    rho = np.float(rho)
+    V = np.float(V)
+    Z_mo = np.float(Z_mo)
+    V_D = np.float(V_D)
+    MLW = np.float(MLW)
+    MTOW = np.float(MTOW)
+    MZFW = np.float(MZFW)
+
     p0, rho0, T0, a0 = atmo_isa(0.0)
     #rho0 = 1.225    
     R1 = MLW/MTOW;
