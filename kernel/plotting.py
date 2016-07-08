@@ -29,7 +29,8 @@ class plotting:
             i_atmo = self.model.atmo['key'].index(trimcase['altitude'])
             rho = self.model.atmo['rho'][i_atmo]
             Vtas = trimcase['Ma'] * self.model.atmo['a'][i_atmo]
-            F = np.linalg.norm(Pk[self.model.aerogrid['set_k'][:,:3]], axis=1)
+#             F = np.linalg.norm(Pk[self.model.aerogrid['set_k'][:,:3]], axis=1)
+            F = Pk[self.model.aerogrid['set_k'][:,2]] # * -1.0
             cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
             ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'jet', -0.5, 0.5)
             ax.set_title('Cp for {:s}'.format(trimcase['desc']))
@@ -271,27 +272,68 @@ class plotting:
             w.writeheader()
             w.writerows(crit_trimcases_info)
         return
+    
+    def plot_time_animation_unsteady_forces(self):
+        for i_simcase in range(len(self.jcl.simcase)):
+            Pb_gust = []
+            Pb_unsteady = []
+            Pb_unsteady_B = []
+            Pb_unsteady_D = []
+            Pb_aero = []
+            for i_step in range(len(self.response[i_simcase]['t'])):        
+                Pb_gust.append(np.dot(self.model.Dkx1.T, self.response[i_simcase]['Pk_gust'][i_step,:]))
+                Pb_unsteady.append(np.dot(self.model.Dkx1.T, self.response[i_simcase]['Pk_unsteady'][i_step,:]))
+                Pb_unsteady_B.append(np.dot(self.model.Dkx1.T, self.response[i_simcase]['Pk_unsteady_B'][i_step,:]))
+                Pb_unsteady_D.append(np.dot(self.model.Dkx1.T, self.response[i_simcase]['Pk_unsteady_D'][i_step,:]))
+                Pb_aero.append(np.dot(self.model.Dkx1.T, self.response[i_simcase]['Pk_aero'][i_step,:]))
+            Pb_gust = np.array(Pb_gust)
+            Pb_unsteady = np.array(Pb_unsteady)
+            Pb_unsteady_B = np.array(Pb_unsteady_B)
+            Pb_unsteady_D = np.array(Pb_unsteady_D)
+            Pb_aero = np.array(Pb_aero)
+            plt.figure()
+            plt.plot(self.response[i_simcase]['t'], Pb_gust[:,2], 'b-')
+            plt.plot(self.response[i_simcase]['t'], Pb_unsteady[:,2], 'r-')
+            plt.plot(self.response[i_simcase]['t'], Pb_gust[:,2] + Pb_unsteady[:,2], 'b--')
+            plt.plot(self.response[i_simcase]['t'], Pb_unsteady_B[:,2], 'm-')
+            plt.plot(self.response[i_simcase]['t'], Pb_unsteady_D[:,2], 'c-')
+            plt.plot(self.response[i_simcase]['t'], Pb_aero[:,2], 'g-')
+            plt.plot(self.response[i_simcase]['t'], Pb_aero[:,2] - Pb_unsteady[:,2], 'k--')
+            plt.xlabel('t [sec]')
+            plt.ylabel('Pb [N]')
+            plt.grid('on')
+            plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_unsteady_B', 'Pb_unsteady_D', 'Pb_aero'])
+        plt.show()
         
     def plot_time_animation(self):
         Pb_gust = []
         Pb_unsteady = []
+        Pb_unsteady_B = []
+        Pb_unsteady_D = []
         Pb_aero = []
         for i_step in range(len(self.response[0]['t'])):        
-#             Pb_gust.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_gust'][i_step,:]))
-#             Pb_unsteady.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_unsteady'][i_step,:]))
+            Pb_gust.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_gust'][i_step,:]))
+            Pb_unsteady.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_unsteady'][i_step,:]))
+            Pb_unsteady_B.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_unsteady_B'][i_step,:]))
+            Pb_unsteady_D.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_unsteady_D'][i_step,:]))
             Pb_aero.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_aero'][i_step,:]))
-#         Pb_gust = np.array(Pb_gust)
-#         Pb_unsteady = np.array(Pb_unsteady)
+        Pb_gust = np.array(Pb_gust)
+        Pb_unsteady = np.array(Pb_unsteady)
+        Pb_unsteady_B = np.array(Pb_unsteady_B)
+        Pb_unsteady_D = np.array(Pb_unsteady_D)
         Pb_aero = np.array(Pb_aero)
         plt.figure()
         plt.subplot(3,1,1)
-#         plt.plot(self.response[0]['t'], Pb_gust[:,2], 'b-')
-#         plt.plot(self.response[0]['t'], Pb_unsteady[:,2], 'r-')
+        plt.plot(self.response[0]['t'], Pb_gust[:,2], 'b-')
+        plt.plot(self.response[0]['t'], Pb_unsteady[:,2], 'r-')
+        plt.plot(self.response[0]['t'], Pb_unsteady_B[:,2], 'm-')
+        plt.plot(self.response[0]['t'], Pb_unsteady_D[:,2], 'c-')
         plt.plot(self.response[0]['t'], Pb_aero[:,2], 'g-')
+        plt.plot(self.response[0]['t'], Pb_aero[:,2] - Pb_unsteady[:,2], 'k--')
         plt.xlabel('t [sec]')
         plt.ylabel('Pb [N]')
         plt.grid('on')
-#         plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_aero'])
+        plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_unsteady_B', 'Pb_unsteady_D', 'Pb_aero'])
         plt.subplot(3,1,2)
         plt.plot(self.response[0]['t'], self.response[0]['q_dyn'], 'k-')
         plt.xlabel('t [sec]')
@@ -384,30 +426,39 @@ class plotting:
         t = self.response[0]['t']
         # Set up plot
         fig = plt.figure()
-        ax1 = plt.subplot(1,2,1)
+        ax1 = plt.subplot(1,3,1)
         line1, = ax1.plot([], [], 'r.')
         time_text = ax1.text(-lim+2,lim-2, '')
         ax1.set_xlim((-lim, lim))
         ax1.set_ylim((-lim, lim))
         ax1.grid('on')
+        ax1.set_title('Back')
         
-        ax2 = plt.subplot(1,2,2)
+        ax2 = plt.subplot(1,3,2)
         line2, = ax2.plot([], [], 'r.')
         ax2.set_ylim((-lim, lim))
+        ax2.set_title('Side')
         #ax2.grid('on')
         #update_line(0,data,line1, line2, t, time_text)
+        
+        ax3 = plt.subplot(1,3,3)
+        line3, = ax3.plot([], [], 'r.')
+        ax3.set_ylim((-lim, lim))
+        ax3.set_title('Top')
 
-        line_ani = animation.FuncAnimation(fig, self.update_line, fargs=(data, line1, line2, ax2, t, time_text, length), frames=len(t), interval=50, repeat=True, repeat_delay=3000)
+        line_ani = animation.FuncAnimation(fig, self.update_line, fargs=(data, line1, line2, line3, ax2, ax3, t, time_text, length), frames=len(t), interval=50, repeat=True, repeat_delay=3000)
         # Set up formatting for the movie files
 #         Writer = animation.writers['ffmpeg']
 #         writer = Writer(fps=20, bitrate=2000)        
 #         line_ani.save('/scratch/Discus2c_LoadsKernel/Elev3211_B_4sec.mp4', writer) 
         plt.show()
 
-    def update_line(self, num, data, line1, line2, ax2, t, time_text, length):
+    def update_line(self, num, data, line1, line2, line3, ax2, ax3, t, time_text, length):
         line1.set_data(data[1,num,:], data[2,num,:])
         line2.set_data(data[0,num,:], data[2,num,:])
+        line3.set_data(data[0,num,:], data[1,num,:])
         ax2.set_xlim((-10+data[0,num,0], length+data[0,num,0]))
+        ax3.set_xlim((-10+data[0,num,0], length+data[0,num,0]))
         time_text.set_text('Time = ' + str(t[num,0]))   
     
     def plot_cs_signal(self):
@@ -450,33 +501,33 @@ class plotting:
         pp = PdfPages(filename_pdf)
         for key in monstations.keys():
             monstation = monstations[key]
-            
-            loads = np.array(monstation['loads'][0])
-            t = monstation['t'][0]
-            
             plt.figure()
-            plt.subplot(3,1,1)
-            plt.title(key)
-            plt.plot(t, loads[:,2], 'b')
-            plt.xlabel('t [sec]')
-            plt.ylabel('Fz [N]')
-            plt.grid('on')
-            plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            plt.subplot(3,1,2)
-            plt.plot(t, loads[:,3], 'g')
-            plt.xlabel('t [sec]')
-            plt.ylabel('Mx [N]')
-            plt.grid('on')
-            plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            plt.subplot(3,1,3)
-            plt.plot(t, loads[:,4], 'r')
-            plt.xlabel('t [sec]')
-            plt.ylabel('My [N]')
-            plt.grid('on')
-            plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            for i_simcase in range(len(self.jcl.simcase)):
+                loads = np.array(monstation['loads'][i_simcase])
+                t = monstation['t'][i_simcase]
+                
+                plt.subplot(3,1,1)
+                plt.title(key)
+                plt.plot(t, loads[:,2], 'b')
+                plt.xlabel('t [sec]')
+                plt.ylabel('Fz [N]')
+                plt.grid('on')
+                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+                plt.subplot(3,1,2)
+                plt.plot(t, loads[:,3], 'g')
+                plt.xlabel('t [sec]')
+                plt.ylabel('Mx [N]')
+                plt.grid('on')
+                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+                plt.subplot(3,1,3)
+                plt.plot(t, loads[:,4], 'r')
+                plt.xlabel('t [sec]')
+                plt.ylabel('My [N]')
+                plt.grid('on')
+                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             
             pp.savefig()
             plt.close()
