@@ -59,8 +59,8 @@ P2(:,2) = (P1(:,2)+P3(:,2))/2;
 P2(:,3) = (P1(:,3)+P3(:,3))/2;
 
 % define half span length and chord at centerline for each panel
-s = (0.5*((Node(Panel(:,3),3) - Node(Panel(:,2),3))' + ...
-          (Node(Panel(:,3),4) - Node(Panel(:,2),4))'));
+s = (0.5*sqrt((Node(Panel(:,3),3) - Node(Panel(:,2),3)).^2 + ...
+          (Node(Panel(:,3),4) - Node(Panel(:,2),4)).^2))';
 c = (     (Node(Panel(:,4),2) - Node(Panel(:,2),2) + ...
            Node(Panel(:,5),2) - Node(Panel(:,3),2))/2)';
 
