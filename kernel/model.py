@@ -229,7 +229,10 @@ class model:
         if self.jcl.aero['method_AIC'] == 'nastran':
             for i_aero in range(len(self.jcl.aero['key'])):
                 Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)
-                Qjj = np.linalg.inv(np.real(Ajj).T)
+                if self.jcl.aero.has_key('given_AIC_is_transposed') and self.jcl.aero['given_AIC_is_transposed']:
+                    Qjj = np.linalg.inv(np.real(Ajj))
+                else:
+                    Qjj = np.linalg.inv(np.real(Ajj).T)
                 self.aero['key'].append(self.jcl.aero['key'][i_aero])
                 self.aero['Qjj'].append(Qjj)
         elif self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae']:
@@ -259,7 +262,10 @@ class model:
                 for i_aero in range(len(self.jcl.aero['key'])):
                     for i_k in range(len(self.jcl.aero['k_red'])):
                         Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC_unsteady'][i_aero][i_k], sparse_output=False, sparse_format=False)  
-                        Qjj = np.linalg.inv(Ajj.T)
+                        if self.jcl.aero.has_key('given_AIC_is_transposed') and self.jcl.aero['given_AIC_is_transposed']:
+                            Qjj = np.linalg.inv(Ajj)
+                        else:
+                            Qjj = np.linalg.inv(Ajj.T)
                         self.aero['Qjj_unsteady'][i_aero,i_k,:,:] = Qjj 
             else:
                 print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
