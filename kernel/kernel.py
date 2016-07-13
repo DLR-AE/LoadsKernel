@@ -107,18 +107,22 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             post_processing.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
         
         print '--> Drawing some plots.'  
-        plotting = plotting_modul.plotting(jcl, model, response)
+        
         if 't_final' and 'dt' in jcl.simcase[0].keys():
             # nur sim
-            plotting.plot_monstations_time(post_processing.monstations, path_output + 'monstations_time_' + job_name + '.pdf') # nur trim
-            plotting.plot_cs_signal()
-#             plotting.plot_time_animation() 
+            plotting_sim = plotting_modul.plotting_sim(jcl, model, response)
+            #plotting_sim.plot_monstations_time(post_processing.monstations, path_output + 'monstations_time_' + job_name + '.pdf')
+            #plotting_sim.plot_cs_signal() # Discus2c spezifisch
+            #plotting_sim.plot_time_animation()
+            plotting_sim.plot_time_animation_3d()
+            
         else:
+            plotting_trim = plotting_modul.plotting_trim(jcl, model, response)
             # nur trim
-            plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') # nur trim
-            plotting.write_critical_trimcases(plotting.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') # nur trim
-            plotting.plot_pressure_distribution() # nur trim
-            plotting.plot_forces_deformation_interactive() # nur trim
+            #plotting_trim.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') 
+            #plotting_trim.write_critical_trimcases(plotting.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') 
+            #plotting_trim.plot_pressure_distribution()
+            plotting_trim.plot_forces_deformation_interactive() 
 
         
     if test:
@@ -131,9 +135,19 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
                 response = cPickle.load(f)
         print 'test ready.' 
         # place code to test here
+        
+#         plotting_sim = plotting_modul.plotting_sim(jcl, model, response)
+#         plotting_sim.plot_time_animation_3d()
 
-        from vergleich_druckverteilung import vergleich_druckverteilung
-        vergleich_druckverteilung(model, jcl.trimcase[0])
+        
+#         import test_smarty
+#         test_smarty.interpolate_pkcfd(model, jcl)
+        
+#         import build_meshdefo
+#         build_meshdefo.controlsurface_meshdefo(model, jcl, job_name, path_output)
+        
+#         from vergleich_druckverteilung import vergleich_druckverteilung
+#         vergleich_druckverteilung(model, jcl.trimcase[0])
                
     print 'Loads Kernel finished.'
     print_logo()

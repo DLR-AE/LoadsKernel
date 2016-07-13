@@ -14,7 +14,7 @@ import csv
 import build_aero
 
 
-class plotting:
+class plotting_trim:
     def __init__(self, jcl, model, response):
         self.jcl = jcl
         self.model = model
@@ -37,8 +37,7 @@ class plotting:
 #             ax.set_xlim(0, 16)
 #             ax.set_ylim(-8, 8)
             plt.show()
-    
-    
+      
     def plot_forces_deformation_interactive(self):
         from mayavi import mlab
 
@@ -272,9 +271,54 @@ class plotting:
             w.writeheader()
             w.writerows(crit_trimcases_info)
         return
-    
-    def plot_time_animation_unsteady_forces(self):
+
+class plotting_sim:   
+    def __init__(self, jcl, model, response):
+        self.jcl = jcl
+        self.model = model
+        self.response = response
+        
+    def plot_monstations_time(self, monstations, filename_pdf):
+        pp = PdfPages(filename_pdf)
+        for key in monstations.keys():
+            monstation = monstations[key]
+            plt.figure()
+            for i_simcase in range(len(self.jcl.simcase)):
+                loads = np.array(monstation['loads'][i_simcase])
+                t = monstation['t'][i_simcase]
+                
+                plt.subplot(3,1,1)
+                plt.title(key)
+                plt.plot(t, loads[:,2], 'b')
+                plt.xlabel('t [sec]')
+                plt.ylabel('Fz [N]')
+                plt.grid('on')
+                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+                plt.subplot(3,1,2)
+                plt.plot(t, loads[:,3], 'g')
+                plt.xlabel('t [sec]')
+                plt.ylabel('Mx [N]')
+                plt.grid('on')
+                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+                plt.subplot(3,1,3)
+                plt.plot(t, loads[:,4], 'r')
+                plt.xlabel('t [sec]')
+                plt.ylabel('My [N]')
+                plt.grid('on')
+                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            
+            pp.savefig()
+            plt.close()
+        pp.close()
+        print 'plots saved as ' + filename_pdf   
+        
+    def plot_time_animation(self):
         for i_simcase in range(len(self.jcl.simcase)):
+            trimcase = self.jcl.trimcase[i_simcase]
+            print 'plotting for simulation {:s}'.format(trimcase['desc'])
             Pb_gust = []
             Pb_unsteady = []
             Pb_unsteady_B = []
@@ -303,155 +347,126 @@ class plotting:
             plt.ylabel('Pb [N]')
             plt.grid('on')
             plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_unsteady_B', 'Pb_unsteady_D', 'Pb_aero'])
-        plt.show()
         
-    def plot_time_animation(self):
-        Pb_gust = []
-        Pb_unsteady = []
-        Pb_unsteady_B = []
-        Pb_unsteady_D = []
-        Pb_aero = []
-        for i_step in range(len(self.response[0]['t'])):        
-            Pb_gust.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_gust'][i_step,:]))
-            Pb_unsteady.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_unsteady'][i_step,:]))
-            Pb_unsteady_B.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_unsteady_B'][i_step,:]))
-            Pb_unsteady_D.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_unsteady_D'][i_step,:]))
-            Pb_aero.append(np.dot(self.model.Dkx1.T, self.response[0]['Pk_aero'][i_step,:]))
-        Pb_gust = np.array(Pb_gust)
-        Pb_unsteady = np.array(Pb_unsteady)
-        Pb_unsteady_B = np.array(Pb_unsteady_B)
-        Pb_unsteady_D = np.array(Pb_unsteady_D)
-        Pb_aero = np.array(Pb_aero)
-        plt.figure()
-        plt.subplot(3,1,1)
-        plt.plot(self.response[0]['t'], Pb_gust[:,2], 'b-')
-        plt.plot(self.response[0]['t'], Pb_unsteady[:,2], 'r-')
-        plt.plot(self.response[0]['t'], Pb_unsteady_B[:,2], 'm-')
-        plt.plot(self.response[0]['t'], Pb_unsteady_D[:,2], 'c-')
-        plt.plot(self.response[0]['t'], Pb_aero[:,2], 'g-')
-        plt.plot(self.response[0]['t'], Pb_aero[:,2] - Pb_unsteady[:,2], 'k--')
-        plt.xlabel('t [sec]')
-        plt.ylabel('Pb [N]')
-        plt.grid('on')
-        plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_unsteady_B', 'Pb_unsteady_D', 'Pb_aero'])
-        plt.subplot(3,1,2)
-        plt.plot(self.response[0]['t'], self.response[0]['q_dyn'], 'k-')
-        plt.xlabel('t [sec]')
-        plt.ylabel('[Pa]')
-        plt.grid('on')
-        plt.legend(['q_dyn'])
-        plt.subplot(3,1,3)
-        plt.plot(self.response[0]['t'], self.response[0]['Nxyz'][:,2], 'b-')
-        plt.plot(self.response[0]['t'], self.response[0]['alpha']/np.pi*180.0, 'r-')
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,4]/np.pi*180.0, 'g-')
-        plt.plot(self.response[0]['t'], np.arctan(self.response[0]['X'][:,8]/self.response[0]['X'][:,6])/np.pi*180.0, 'k-')
-        plt.plot(self.response[0]['t'], self.response[0]['beta']/np.pi*180.0, 'r-')
-        plt.xlabel('t [sec]')
-        plt.legend(['Nz', 'alpha', 'alpha/pitch', 'alpha/heave', 'beta'])
-        plt.grid('on')
-        plt.ylabel('[-]/[deg]')
-        
-        
-        plt.figure()
-        plt.subplot(2,1,1)
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,0], 'b-')
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,1], 'g-')
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,2], 'r-')
-        plt.xlabel('t [sec]')
-        plt.ylabel('[m]')
-        plt.grid('on')
-        plt.legend(['x', 'y', 'z'])
-        plt.subplot(2,1,2)
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,3]/np.pi*180.0, 'b-')
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,4]/np.pi*180.0, 'g-')
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,5]/np.pi*180.0, 'r-')
-        plt.xlabel('t [sec]')
-        plt.ylabel('[deg]')
-        plt.grid('on')
-        plt.legend(['phi', 'theta', 'psi'])
-        
-        plt.figure()
-        plt.subplot(2,1,1)
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,6], 'b-')
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,7], 'g-')
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,8], 'r-')
-        plt.xlabel('t [sec]')
-        plt.ylabel('[m/s]')
-        plt.grid('on')
-        plt.legend(['u', 'v', 'w'])
-        plt.subplot(2,1,2)
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,9]/np.pi*180.0, 'b-')
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,10]/np.pi*180.0, 'g-')
-        plt.plot(self.response[0]['t'], self.response[0]['X'][:,11]/np.pi*180.0, 'r-')
-        plt.xlabel('t [sec]')
-        plt.ylabel('[deg/s]')
-        plt.grid('on')
-        plt.legend(['p', 'q', 'r'])
-        
-        plt.figure()
-        plt.subplot(2,1,1)
-        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,6], 'b-')
-        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,7], 'g-')
-        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,8], 'r-')
-        plt.xlabel('t [sec]')
-        plt.ylabel('[m/s^2]')
-        plt.grid('on')
-        plt.legend(['du', 'dv', 'dw'])
-        plt.subplot(2,1,2)
-        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,9]/np.pi*180.0, 'b-')
-        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,10]/np.pi*180.0, 'g-')
-        plt.plot(self.response[0]['t'], self.response[0]['Y'][:,11]/np.pi*180.0, 'r-')
-        plt.xlabel('t [sec]')
-        plt.ylabel('[deg/s^2]')
-        plt.grid('on')
-        plt.legend(['dp', 'dq', 'dr'])
-                
-        if self.jcl.general['aircraft'] == 'ALLEGRA':
-            lim=25.0
-            length=45
-        elif self.jcl.general['aircraft'] == 'DLR F-19-S':
-            lim=10.0
-            length=15
-        elif self.jcl.general['aircraft'] == 'Discus2c':
-            lim=10.0
-            length=5.0
-        else:
-            print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
-            return
-        # Set up data
-        x = self.model.strcgrid['offset'][:,0] + self.response[0]['Ug'][:,self.model.strcgrid['set'][:,0]]
-        y = self.model.strcgrid['offset'][:,1] + self.response[0]['Ug'][:,self.model.strcgrid['set'][:,1]]
-        z = self.model.strcgrid['offset'][:,2] + self.response[0]['Ug'][:,self.model.strcgrid['set'][:,2]]
-        data = np.array([x,y,z])
-        t = self.response[0]['t']
-        # Set up plot
-        fig = plt.figure()
-        ax1 = plt.subplot(1,3,1)
-        line1, = ax1.plot([], [], 'r.')
-        time_text = ax1.text(-lim+2,lim-2, '')
-        ax1.set_xlim((-lim, lim))
-        ax1.set_ylim((-lim, lim))
-        ax1.grid('on')
-        ax1.set_title('Back')
-        
-        ax2 = plt.subplot(1,3,2)
-        line2, = ax2.plot([], [], 'r.')
-        ax2.set_ylim((-lim, lim))
-        ax2.set_title('Side')
-        #ax2.grid('on')
-        #update_line(0,data,line1, line2, t, time_text)
-        
-        ax3 = plt.subplot(1,3,3)
-        line3, = ax3.plot([], [], 'r.')
-        ax3.set_ylim((-lim, lim))
-        ax3.set_title('Top')
-
-        line_ani = animation.FuncAnimation(fig, self.update_line, fargs=(data, line1, line2, line3, ax2, ax3, t, time_text, length), frames=len(t), interval=50, repeat=True, repeat_delay=3000)
-        # Set up formatting for the movie files
-#         Writer = animation.writers['ffmpeg']
-#         writer = Writer(fps=20, bitrate=2000)        
-#         line_ani.save('/scratch/Discus2c_LoadsKernel/Elev3211_B_4sec.mp4', writer) 
-        plt.show()
+            plt.figure()
+            plt.subplot(2,1,1)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['q_dyn'], 'k-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[Pa]')
+            plt.grid('on')
+            plt.legend(['q_dyn'])
+            plt.subplot(2,1,2)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['Nxyz'][:,2], 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['alpha']/np.pi*180.0, 'r-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,4]/np.pi*180.0, 'g-')
+            plt.plot(self.response[i_simcase]['t'], np.arctan(self.response[i_simcase]['X'][:,8]/self.response[i_simcase]['X'][:,6])/np.pi*180.0, 'k-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['beta']/np.pi*180.0, 'r-')
+            plt.xlabel('t [sec]')
+            plt.legend(['Nz', 'alpha', 'alpha/pitch', 'alpha/heave', 'beta'])
+            plt.grid('on')
+            plt.ylabel('[-]/[deg]')
+            
+            
+            plt.figure()
+            plt.subplot(2,1,1)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,0], 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,1], 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,2], 'r-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[m]')
+            plt.grid('on')
+            plt.legend(['x', 'y', 'z'])
+            plt.subplot(2,1,2)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,3]/np.pi*180.0, 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,4]/np.pi*180.0, 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,5]/np.pi*180.0, 'r-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[deg]')
+            plt.grid('on')
+            plt.legend(['phi', 'theta', 'psi'])
+            
+            plt.figure()
+            plt.subplot(2,1,1)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,6], 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,7], 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,8], 'r-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[m/s]')
+            plt.grid('on')
+            plt.legend(['u', 'v', 'w'])
+            plt.subplot(2,1,2)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,9]/np.pi*180.0, 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,10]/np.pi*180.0, 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,11]/np.pi*180.0, 'r-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[deg/s]')
+            plt.grid('on')
+            plt.legend(['p', 'q', 'r'])
+            
+            plt.figure()
+            plt.subplot(2,1,1)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['Y'][:,6], 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['Y'][:,7], 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['Y'][:,8], 'r-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[m/s^2]')
+            plt.grid('on')
+            plt.legend(['du', 'dv', 'dw'])
+            plt.subplot(2,1,2)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['Y'][:,9]/np.pi*180.0, 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['Y'][:,10]/np.pi*180.0, 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['Y'][:,11]/np.pi*180.0, 'r-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[deg/s^2]')
+            plt.grid('on')
+            plt.legend(['dp', 'dq', 'dr'])
+                    
+            if self.jcl.general['aircraft'] == 'ALLEGRA':
+                lim=25.0
+                length=45
+            elif self.jcl.general['aircraft'] == 'DLR F-19-S':
+                lim=10.0
+                length=15
+            elif self.jcl.general['aircraft'] == 'Discus2c':
+                lim=10.0
+                length=5.0
+            else:
+                print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
+                return
+            # Set up data
+            x = self.model.strcgrid['offset'][:,0] + self.response[i_simcase]['Ug'][:,self.model.strcgrid['set'][:,0]]
+            y = self.model.strcgrid['offset'][:,1] + self.response[i_simcase]['Ug'][:,self.model.strcgrid['set'][:,1]]
+            z = self.model.strcgrid['offset'][:,2] + self.response[i_simcase]['Ug'][:,self.model.strcgrid['set'][:,2]]
+            data = np.array([x,y,z])
+            t = self.response[i_simcase]['t']
+            # Set up plot
+            fig = plt.figure()
+            ax1 = plt.subplot(1,3,1)
+            line1, = ax1.plot([], [], 'r.')
+            time_text = ax1.text(-lim+2,lim-2, '')
+            ax1.set_xlim((-lim, lim))
+            ax1.set_ylim((-lim, lim))
+            ax1.grid('on')
+            ax1.set_title('Back')
+            
+            ax2 = plt.subplot(1,3,2)
+            line2, = ax2.plot([], [], 'r.')
+            ax2.set_ylim((-lim, lim))
+            ax2.set_title('Side')
+            #ax2.grid('on')
+            #update_line(0,data,line1, line2, t, time_text)
+            
+            ax3 = plt.subplot(1,3,3)
+            line3, = ax3.plot([], [], 'r.')
+            ax3.set_ylim((-lim, lim))
+            ax3.set_title('Top')
+    
+            line_ani = animation.FuncAnimation(fig, self.update_line, fargs=(data, line1, line2, line3, ax2, ax3, t, time_text, length), frames=len(t), interval=50, repeat=True, repeat_delay=3000)
+            # Set up formatting for the movie files
+    #         Writer = animation.writers['ffmpeg']
+    #         writer = Writer(fps=20, bitrate=2000)        
+    #         line_ani.save('/scratch/Discus2c_LoadsKernel/Elev3211_B_4sec.mp4', writer) 
+            plt.show()
 
     def update_line(self, num, data, line1, line2, line3, ax2, ax3, t, time_text, length):
         line1.set_data(data[1,num,:], data[2,num,:])
@@ -497,42 +512,51 @@ class plotting:
         plt.legend(['Xi', 'Eta', 'Zeta'])
        
         
-    def plot_monstations_time(self, monstations, filename_pdf):
-        pp = PdfPages(filename_pdf)
-        for key in monstations.keys():
-            monstation = monstations[key]
-            plt.figure()
-            for i_simcase in range(len(self.jcl.simcase)):
-                loads = np.array(monstation['loads'][i_simcase])
-                t = monstation['t'][i_simcase]
-                
-                plt.subplot(3,1,1)
-                plt.title(key)
-                plt.plot(t, loads[:,2], 'b')
-                plt.xlabel('t [sec]')
-                plt.ylabel('Fz [N]')
-                plt.grid('on')
-                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-                plt.subplot(3,1,2)
-                plt.plot(t, loads[:,3], 'g')
-                plt.xlabel('t [sec]')
-                plt.ylabel('Mx [N]')
-                plt.grid('on')
-                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-                plt.subplot(3,1,3)
-                plt.plot(t, loads[:,4], 'r')
-                plt.xlabel('t [sec]')
-                plt.ylabel('My [N]')
-                plt.grid('on')
-                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    def plot_time_animation_3d(self):
+        # To Do: show simulation time in animation
+        from mayavi import mlab
+        #@mlab.show  
+        @mlab.animate(delay=50)
+        def anim(points, vectors, cones, fig, x_t, y_t, z_t, fx_t, fy_t, fz_t, f_scale):
+            while True:
+                for (x, y, z, fx, fy, fz) in zip(x_t, y_t, z_t, fx_t, fy_t, fz_t):
+                    fig.scene.disable_render = True
+                    points.mlab_source.set(x=x, y=y, z=z)
+                    vectors.mlab_source.set(x=x, y=y, z=z, u=fx*f_scale, v=fy*f_scale, w=fz*f_scale)
+                    cones.mlab_source.set(x=x+fx*f_scale, y=y+fy*f_scale, z=z+fz*f_scale, u=fx*f_scale, v=fy*f_scale, w=fz*f_scale)
+                    #text.mlab_source.set(text='t = {} [s]'.format(str(t[0])) )
+                    fig.scene.disable_render = False
+                    yield
+                    
+        for i_trimcase in range(len(self.jcl.trimcase)):
+            response   = self.response[i_trimcase]
+            trimcase   = self.jcl.trimcase[i_trimcase]
+            simcase   = self.jcl.simcase[i_trimcase]
+            print 'interactive plotting of forces and deformations for simulation {:s}'.format(trimcase['desc'])
             
-            pp.savefig()
-            plt.close()
-        pp.close()
-        print 'plots saved as ' + filename_pdf
+            x_t = self.model.strcgrid['offset'][:,0] + response['Ug_f'][:,self.model.strcgrid['set'][:,0]]
+            y_t = self.model.strcgrid['offset'][:,1] + response['Ug_r'][:,self.model.strcgrid['set'][:,1]] + response['Ug_f'][:,self.model.strcgrid['set'][:,1]]
+            z_t = self.model.strcgrid['offset'][:,2] + response['Ug_r'][:,self.model.strcgrid['set'][:,2]] + response['Ug_f'][:,self.model.strcgrid['set'][:,2]]
+            fx_t = response['Pg'][:,self.model.strcgrid['set'][:,0]]
+            fy_t = response['Pg'][:,self.model.strcgrid['set'][:,1]]
+            fz_t = response['Pg'][:,self.model.strcgrid['set'][:,2]]
+            f_scale = 0.002 # vectors
+            p_scale = 0.4 # points
+            fig = mlab.figure()
+            mlab.points3d(x_t[0,:], y_t[0,:], z_t[0,:], color=(1,1,1), opacity=0.4, scale_factor=p_scale)
+            points = mlab.points3d(x_t[0,:], y_t[0,:], z_t[0,:], color=(0,0,1), scale_factor=p_scale)
+            view = mlab.view()
+            vectors = mlab.quiver3d(x_t[0,:],                   y_t[0,:],                   z_t[0,:],                   fx_t[0,:]*f_scale, fy_t[0,:]*f_scale, fz_t[0,:]*f_scale, color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+            cones   = mlab.quiver3d(x_t[0,:]+fx_t[0,:]*f_scale, y_t[0,:]+fy_t[0,:]*f_scale, z_t[0,:]+fz_t[0,:]*f_scale, fx_t[0,:]*f_scale, fy_t[0,:]*f_scale, fz_t[0,:]*f_scale, color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
+            mlab.view(*view)
+            #t = response['t']
+            #text = mlab.text(0.1, 0.1, text='t = 0.0 [s]')
+            anim(points, vectors, cones, fig, x_t, y_t, z_t, fx_t, fy_t, fz_t, f_scale)
+            mlab.show()
+            
+    
         
+    
+    
         
         
