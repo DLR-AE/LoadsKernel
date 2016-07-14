@@ -166,8 +166,8 @@ def Modgen_GRID(filename):
         lines = fid.readlines()
     for line in lines:
         if line[0] != '$' and string.find(line[:8], 'GRID') !=-1 :
-            if string.find(line[48:56], '\n') != -1: # if CD is missing, fix with CP
-                line = line[:48] + line[16:24]
+            if len(line) <= 48: # if CD is missing, fix with CP
+                line = line + '        '
             grids.append([nastran_number_converter(line[8:16], 'ID'), nastran_number_converter(line[16:24], 'CP'), nastran_number_converter(line[24:32], 'float'), nastran_number_converter(line[32:40], 'float'), nastran_number_converter(line[40:48], 'float'), nastran_number_converter(line[48:56], 'CD')])
             
     grids = np.array(grids)
