@@ -11,7 +11,10 @@ def grid_trafo(grid, coord, dest_coord):
     
     for i_point in range(len(grid['ID'])):
         pos_coord = coord['ID'].index(grid['CP'][i_point])
-        grid['offset'][i_point] = np.dot(coord['dircos'][pos_coord],grid['offset'][i_point])+coord['offset'][pos_coord]
+        pos_coord_dest = coord['ID'].index(dest_coord)
+        offset_tmp = np.dot(coord['dircos'][pos_coord],grid['offset'][i_point])+coord['offset'][pos_coord]
+        offset = np.dot(coord['dircos'][pos_coord_dest].T,offset_tmp)+coord['offset'][pos_coord_dest]
+        grid['offset'][i_point] = offset
         grid['CP'][i_point] = dest_coord
     
 def force_trafo(grid, coord, forcevector):
