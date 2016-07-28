@@ -91,10 +91,11 @@ class model:
                 rules = spline_rules.monstations_from_aecomp(self.mongrid, self.jcl.geom['filename_monpnt'])
                 self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
                 self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
-                #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord) 
+                
             else: 
                 print 'Warning: No Monitoring Stations are created!'
-
+            #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord) 
+        
         print 'Building atmo model...'
         if self.jcl.atmo['method']=='ISA':
             self.atmo = {'key':[],
@@ -198,25 +199,20 @@ class model:
                 rules = spline_rules.rules_point(hingegrid, surfgrid)
                 self.Djx2.append(spline_functions.spline_rb(hingegrid, '', surfgrid, '_j', rules, self.coord, dimensions))
                 
-#            Djx2_test = self.Djx2[0]
-#            Uj = np.dot(Djx2_test,[0,0,0,0,20.0/180*np.pi,0])      
-#            Djx2_test = self.Djx2[1]
-#            Uj = np.dot(Djx2_test,[0,0,0,0,20.0/180*np.pi,0])  
-#            Djx2_test = self.Djx2[2]
-#            Uj = np.dot(Djx2_test,[0,0,0,0,20.0/180*np.pi,0])   
-#            U_strc_x = self.aerogrid['offset_j'][:,0] + Uj[self.aerogrid['set_j'][:,0]]
-#            U_strc_y = self.aerogrid['offset_j'][:,1] + Uj[self.aerogrid['set_j'][:,1]]
-#            U_strc_z = self.aerogrid['offset_j'][:,2] + Uj[self.aerogrid['set_j'][:,2]]
-#            
-#            fig = plt.figure()
-#            ax = fig.add_subplot(111, projection='3d')
-#            ax.scatter(self.aerogrid['offset_j'][:,0], self.aerogrid['offset_j'][:,1], self.aerogrid['offset_j'][:,2], color='g', marker='.' )
-#            ax.scatter(U_strc_x, U_strc_y, U_strc_z, color='r', marker='.' )
-#            ax.set_xlabel('x')
-#            ax.set_ylabel('y')
-#            ax.set_zlabel('z')
-#            ax.auto_scale_xyz([0, 50], [-25, 25], [0, 50])
-#            plt.show()
+#                 Uj = np.dot(self.Djx2[i_surf],[0,0,0,0,0,20.0/180*np.pi])      
+#                 Ux = self.aerogrid['offset_j'][:,0] + Uj[self.aerogrid['set_j'][:,0]]
+#                 Uy = self.aerogrid['offset_j'][:,1] + Uj[self.aerogrid['set_j'][:,1]]
+#                 Uz = self.aerogrid['offset_j'][:,2] + Uj[self.aerogrid['set_j'][:,2]]
+#                  
+#                 fig = plt.figure()
+#                 ax = fig.add_subplot(111, projection='3d')
+#                 ax.scatter(self.aerogrid['offset_j'][:,0], self.aerogrid['offset_j'][:,1], self.aerogrid['offset_j'][:,2], color='g', marker='.' )
+#                 ax.scatter(Ux, Uy, Uz, color='r', marker='.' )
+#                 ax.set_xlabel('x')
+#                 ax.set_ylabel('y')
+#                 ax.set_zlabel('z')
+#                 ax.auto_scale_xyz([0, 9], [-9, 9], [0, 2])
+#             plt.show()
             
         else:
             print 'Unknown aero method: ' + str(self.jcl.aero['method'])
@@ -239,10 +235,11 @@ class model:
             print 'Calculating steady AIC matrices ({} panels, k=0.0) for {} Mach number(s)...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) ),
             #AIC = ae_getaic(aerogrid, Mach, k);
             t_start = time.time()
-            out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], [0.0])
+            Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], [0.0])
             print 'done in %.2f [sec].' % (time.time() - t_start)
             self.aero['key'] = self.jcl.aero['key']
-            self.aero['Qjj'] = [out[i_aero,0,:,:,] for i_aero in range(len(self.jcl.aero['key']))] # dim: Ma,n,n
+            self.aero['Qjj'] = [Qjj[i_aero,0,:,:,] for i_aero in range(len(self.jcl.aero['key']))] # dim: Ma,n,n
+            self.aero['Bjj'] = [Bjj[i_aero,:,:,] for i_aero in range(len(self.jcl.aero['key']))] # dim: Ma,n,n
         else:
             print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
         
@@ -254,9 +251,9 @@ class model:
                 # ae_getaic: k = omega/U 
                 # Nastran:   k = 0.5*cref*omega/U
                 t_start = time.time()
-                out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
+                Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
                 print 'done in %.2f [sec].' % (time.time() - t_start)
-                self.aero['Qjj_unsteady'] = out # dim: Ma,k,n,n
+                self.aero['Qjj_unsteady'] = Qjj # dim: Ma,k,n,n
             elif self.jcl.aero['method_AIC'] == 'nastran':
                 self.aero['Qjj_unsteady'] = np.zeros((len(self.jcl.aero['key']), len(self.jcl.aero['k_red']), self.aerogrid['n'], self.aerogrid['n'] ), dtype=complex)
                 for i_aero in range(len(self.jcl.aero['key'])):
@@ -306,7 +303,8 @@ class model:
             self.PHIk_strc = spline_functions.spline_rbf(self.splinegrid, '',self.aerogrid, '_k', 'tps', dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6] )
             # rbf-spline not (yet) stable for translation of forces and moments to structure grid, so use rb-spline with nearest neighbour search instead
         elif self.jcl.spline['method'] == 'nearest_neighbour':
-            rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.aerogrid, '_k')    
+            rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.aerogrid, '_k') 
+            #spline_functions.plot_splinerules(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord)    
             self.PHIk_strc = spline_functions.spline_rb(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6])
         elif self.jcl.spline['method'] == 'nastran': 
             self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  

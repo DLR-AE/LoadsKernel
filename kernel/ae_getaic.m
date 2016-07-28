@@ -1,4 +1,4 @@
-function AJJ = ae_getaic(aerogrid, Mach, k)
+function [QJJ, BJJ] = ae_getaic(aerogrid, Mach, k)
 
 % Modifications by Arne Voss (11/2015) to adapt to data structure of Loads Kernel. 
 % Original function see below. The code was tested in octave 3.6.4. 
@@ -66,10 +66,12 @@ c = (     (Node(Panel(:,4),2) - Node(Panel(:,2),2) + ...
 
 % get the downwash effect from DLM and VLM implementations for the defined geometry 
 
-AJJ = zeros(length(Mach), length(k), size(Panel,1),size(Panel,1)); 
+QJJ = zeros(length(Mach), length(k), size(Panel,1),size(Panel,1)); 
+BJJ = zeros(length(Mach), size(Panel,1),size(Panel,1)); 
 for im = 1:length(Mach)
     disp(['Ma = ',num2str(Mach(im))])
-    Dv  = getVLM(P0,P1,P3,S,Mach(im),n_hat_w,n_hat_wl); % VLM (steady state effects)
+    [Dv, D_induced_drag]  = getVLM(P0,P1,P3,S,Mach(im),n_hat_w,n_hat_wl); % VLM (steady state effects)
+    BJJ(im,:,:) = D_induced_drag;
     for ik = 1:length(k)
 	if k(ik) == 0.0
 	    Dd  = zeros(size(Panel,1),size(Panel,1)); % kein Anteil aus DLM, da steady state
@@ -78,7 +80,7 @@ for im = 1:length(Mach)
 	end
         D   = Dv + Dd;
 	AIC = -inv(D);
-        AJJ(im,ik,:,:) = AIC;
+        QJJ(im,ik,:,:) = AIC;
     end
 end
 
@@ -300,7 +302,7 @@ D = repmat(cav,N,1).*I/(pi*8);
 end
 
 
-function Dfinal = getVLM(P0,P1,P3,PAreas,M,n_hat_w,n_hat_wl)
+function [Dfinal, D_induced_drag] = getVLM(P0,P1,P3,PAreas,M,n_hat_w,n_hat_wl)
 % code developed using Katz & Plodkin as reference. 
 % ends the D matrix (downwash coeff) matrix, inverse of which gives the
 % influence coeff matrix
@@ -442,6 +444,7 @@ deltaY = sqrt((P3(:,2) - P1(:,2)).^2 + (P3(:,3) - P1(:,3)).^2);  % panel spans
 F = 0.5*PAreas./deltaY;
 F = repmat(F,1,length(P0))';
 Dfinal = D.*F;   
+D_induced_drag = (D2 + D3).*F;
 
 end
 

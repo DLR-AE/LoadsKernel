@@ -92,6 +92,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         print '--> Saving response(s).'  
         with open(path_output + 'response_' + job_name + '.pickle', 'w') as f:
             cPickle.dump(response, f, cPickle.HIGHEST_PROTOCOL)
+        for i in range(len(jcl.trimcase)):
+            with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f:
+                scipy.io.savemat(f, response[i])
         print '--> Saving monstation(s).'  
         with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
             cPickle.dump(post_processing.monstations, f, cPickle.HIGHEST_PROTOCOL)
@@ -111,18 +114,17 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         if 't_final' and 'dt' in jcl.simcase[0].keys():
             # nur sim
             plotting_sim = plotting_modul.plotting_sim(jcl, model, response)
-            #plotting_sim.plot_monstations_time(post_processing.monstations, path_output + 'monstations_time_' + job_name + '.pdf')
+            plotting_sim.plot_monstations_time(post_processing.monstations, path_output + 'monstations_time_' + job_name + '.pdf')
             #plotting_sim.plot_cs_signal() # Discus2c spezifisch
-            #plotting_sim.plot_time_animation()
-            plotting_sim.plot_time_animation_3d()
+            #plotting_sim.plot_time_animation(animation_dimensions = '3D')
             
         else:
             plotting_trim = plotting_modul.plotting_trim(jcl, model, response)
             # nur trim
-            #plotting_trim.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') 
-            #plotting_trim.write_critical_trimcases(plotting.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') 
+            plotting_trim.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') 
+            plotting_trim.write_critical_trimcases(plotting_trim.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') 
             #plotting_trim.plot_pressure_distribution()
-            plotting_trim.plot_forces_deformation_interactive() 
+            #plotting_trim.plot_forces_deformation_interactive() 
 
         
     if test:
@@ -134,6 +136,10 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             with open(path_output + 'response_' + job_name + '.pickle', 'r') as f:
                 response = cPickle.load(f)
         print 'test ready.' 
+        
+        with open(path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
+                monstations = cPickle.load(f)
+        
         # place code to test here
         
 #         plotting_sim = plotting_modul.plotting_sim(jcl, model, response)

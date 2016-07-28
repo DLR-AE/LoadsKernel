@@ -10,7 +10,7 @@ import matplotlib.animation as animation
 #from mayavi import mlab
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
-import csv
+import csv, time
 import build_aero
 
 
@@ -36,11 +36,28 @@ class plotting_trim:
             ax.set_title('Cp for {:s}'.format(trimcase['desc']))
 #             ax.set_xlim(0, 16)
 #             ax.set_ylim(-8, 8)
+            F = response['Pk_idrag'][self.model.aerogrid['set_k'][:,0]]
+            cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
+            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'jet', -0.01, 0.03)
+            ax.set_title('Cd_ind for {:s}'.format(trimcase['desc']))
             plt.show()
       
     def plot_forces_deformation_interactive(self):
         from mayavi import mlab
-
+        
+        if self.jcl.general['aircraft'] == 'ALLEGRA':
+            f_scale = 0.002 # vectors
+            p_scale = 0.4 # points
+        elif self.jcl.general['aircraft'] in ['DLR F-19-S', 'MULDICON']:
+            f_scale = 0.002 # vectors
+            p_scale = 0.04 # points
+        elif self.jcl.general['aircraft'] == 'Discus2c':
+            f_scale = 0.1 # vectors
+            p_scale = 0.05 # points
+        else:
+            print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
+            return
+        
         for i_trimcase in range(len(self.jcl.trimcase)):
             response   = self.response[i_trimcase]
             trimcase   = self.jcl.trimcase[i_trimcase]
@@ -50,8 +67,7 @@ class plotting_trim:
             y = self.model.aerogrid['offset_k'][:,1]
             z = self.model.aerogrid['offset_k'][:,2]
             fx, fy, fz = response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]],response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
-            f_scale = 0.02 # vectors
-            p_scale = 0.1 # points
+
             mlab.figure()
             mlab.points3d(x, y, z, scale_factor=p_scale)
             mlab.quiver3d(x, y, z, response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=f_scale)            
@@ -90,12 +106,12 @@ class plotting_trim:
             x_r = self.model.strcgrid['offset'][:,0] + response['Ug_r'][self.model.strcgrid['set'][:,0]]
             y_r = self.model.strcgrid['offset'][:,1] + response['Ug_r'][self.model.strcgrid['set'][:,1]]
             z_r = self.model.strcgrid['offset'][:,2] + response['Ug_r'][self.model.strcgrid['set'][:,2]]
-            x_f = self.model.strcgrid['offset'][:,0] + response['Ug_f'][self.model.strcgrid['set'][:,0]] * 10.0
-            y_f = self.model.strcgrid['offset'][:,1] + response['Ug_f'][self.model.strcgrid['set'][:,1]] * 10.0
-            z_f = self.model.strcgrid['offset'][:,2] + response['Ug_f'][self.model.strcgrid['set'][:,2]] * 10.0
+            x_f = self.model.strcgrid['offset'][:,0] + response['Ug'][self.model.strcgrid['set'][:,0]]
+            y_f = self.model.strcgrid['offset'][:,1] + response['Ug'][self.model.strcgrid['set'][:,1]]
+            z_f = self.model.strcgrid['offset'][:,2] + response['Ug'][self.model.strcgrid['set'][:,2]]
             
             mlab.figure()
-            mlab.points3d(x, y, z, scale_factor=p_scale)
+            #mlab.points3d(x, y, z, scale_factor=p_scale)
             mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=p_scale)
             mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=p_scale)
             mlab.title('rbm (green) and flexible deformation x10 (blue)', size=0.2, height=0.95)
@@ -126,6 +142,12 @@ class plotting_trim:
             potatos_Mx_My = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
             potatos_Fz_My = ['MON102']
             cuttingforces_wing = ['MON646', 'MON644', 'MON641', 'MON541', 'MON544', 'MON546']
+        # DLR-F19
+        elif self.jcl.general['aircraft'] == 'MULDICON':
+            potatos_Fz_Mx = ['MON9']
+            potatos_Mx_My = ['MON9']
+            potatos_Fz_My = ['MON9']
+            cuttingforces_wing = ['MON9']
         else:
             print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
             return
@@ -315,7 +337,7 @@ class plotting_sim:
         pp.close()
         print 'plots saved as ' + filename_pdf   
         
-    def plot_time_animation(self):
+    def plot_time_animation(self, animation_dimensions = '2D'):
         for i_simcase in range(len(self.jcl.simcase)):
             trimcase = self.jcl.trimcase[i_simcase]
             print 'plotting for simulation {:s}'.format(trimcase['desc'])
@@ -358,11 +380,11 @@ class plotting_sim:
             plt.subplot(2,1,2)
             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['Nxyz'][:,2], 'b-')
             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['alpha']/np.pi*180.0, 'r-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,4]/np.pi*180.0, 'g-')
-            plt.plot(self.response[i_simcase]['t'], np.arctan(self.response[i_simcase]['X'][:,8]/self.response[i_simcase]['X'][:,6])/np.pi*180.0, 'k-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['beta']/np.pi*180.0, 'r-')
+            #plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,4]/np.pi*180.0, 'g-') # 'alpha/pitch'
+            #plt.plot(self.response[i_simcase]['t'], np.arctan(self.response[i_simcase]['X'][:,8]/self.response[i_simcase]['X'][:,6])/np.pi*180.0, 'k-') # 'alpha/heave'
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['beta']/np.pi*180.0, 'c-')
             plt.xlabel('t [sec]')
-            plt.legend(['Nz', 'alpha', 'alpha/pitch', 'alpha/heave', 'beta'])
+            plt.legend(['Nz', 'alpha', 'beta']) 
             plt.grid('on')
             plt.ylabel('[-]/[deg]')
             
@@ -420,11 +442,60 @@ class plotting_sim:
             plt.ylabel('[deg/s^2]')
             plt.grid('on')
             plt.legend(['dp', 'dq', 'dr'])
-                    
+            
+            plt.figure()
+            plt.subplot(2,1,1)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,0], 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,1], 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,2], 'r-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[m/s]')
+            plt.grid('on')
+            plt.legend(['u_body', 'v_body', 'w_body'])
+            plt.subplot(2,1,2)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,3]/np.pi*180.0, 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,4]/np.pi*180.0, 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,5]/np.pi*180.0, 'r-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[deg/s]')
+            plt.grid('on')
+            plt.legend(['p_body', 'q_body', 'r_body'])
+            
+            plt.figure()
+            plt.subplot(2,1,1)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,0], 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,1], 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,2], 'r-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[m/s^2]')
+            plt.grid('on')
+            plt.legend(['du_body', 'dv_body', 'dw_body'])
+            plt.subplot(2,1,2)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,3]/np.pi*180.0, 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,4]/np.pi*180.0, 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,5]/np.pi*180.0, 'r-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[deg/s^2]')
+            plt.grid('on')
+            plt.legend(['dp_body', 'dq_body', 'dr_body'])
+            
+            # show time plots
+            plt.ion()
+            plt.show()
+            plt.ioff()
+            
+            # plot animation
+            if animation_dimensions == '2D':
+                self.plot_time_animation_2d(i_simcase)
+            elif animation_dimensions == '3D':
+                self.plot_time_animation_3d(i_simcase)
+            plt.close('all')
+            
+    def plot_time_animation_2d(self, i_simcase):        
             if self.jcl.general['aircraft'] == 'ALLEGRA':
                 lim=25.0
                 length=45
-            elif self.jcl.general['aircraft'] == 'DLR F-19-S':
+            elif self.jcl.general['aircraft'] in ['DLR F-19-S', 'MULDICON']:
                 lim=10.0
                 length=15
             elif self.jcl.general['aircraft'] == 'Discus2c':
@@ -433,6 +504,15 @@ class plotting_sim:
             else:
                 print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
                 return
+            
+            def update_line(num, data, line1, line2, line3, ax2, ax3, t, time_text, length):
+                line1.set_data(data[1,num,:], data[2,num,:])
+                line2.set_data(data[0,num,:], data[2,num,:])
+                line3.set_data(data[0,num,:], data[1,num,:])
+                ax2.set_xlim((-10+data[0,num,0], length+data[0,num,0]))
+                ax3.set_xlim((-10+data[0,num,0], length+data[0,num,0]))
+                time_text.set_text('Time = ' + str(t[num,0]))   
+                
             # Set up data
             x = self.model.strcgrid['offset'][:,0] + self.response[i_simcase]['Ug'][:,self.model.strcgrid['set'][:,0]]
             y = self.model.strcgrid['offset'][:,1] + self.response[i_simcase]['Ug'][:,self.model.strcgrid['set'][:,1]]
@@ -461,20 +541,14 @@ class plotting_sim:
             ax3.set_ylim((-lim, lim))
             ax3.set_title('Top')
     
-            line_ani = animation.FuncAnimation(fig, self.update_line, fargs=(data, line1, line2, line3, ax2, ax3, t, time_text, length), frames=len(t), interval=50, repeat=True, repeat_delay=3000)
+            line_ani = animation.FuncAnimation(fig, update_line, fargs=(data, line1, line2, line3, ax2, ax3, t, time_text, length), frames=len(t), interval=50, repeat=True, repeat_delay=3000)
             # Set up formatting for the movie files
     #         Writer = animation.writers['ffmpeg']
     #         writer = Writer(fps=20, bitrate=2000)        
     #         line_ani.save('/scratch/Discus2c_LoadsKernel/Elev3211_B_4sec.mp4', writer) 
             plt.show()
 
-    def update_line(self, num, data, line1, line2, line3, ax2, ax3, t, time_text, length):
-        line1.set_data(data[1,num,:], data[2,num,:])
-        line2.set_data(data[0,num,:], data[2,num,:])
-        line3.set_data(data[0,num,:], data[1,num,:])
-        ax2.set_xlim((-10+data[0,num,0], length+data[0,num,0]))
-        ax3.set_xlim((-10+data[0,num,0], length+data[0,num,0]))
-        time_text.set_text('Time = ' + str(t[num,0]))   
+    
     
     def plot_cs_signal(self):
         from efcs import discus2c
@@ -512,51 +586,71 @@ class plotting_sim:
         plt.legend(['Xi', 'Eta', 'Zeta'])
        
         
-    def plot_time_animation_3d(self):
+    def plot_time_animation_3d(self, i_trimcase):
         # To Do: show simulation time in animation
         from mayavi import mlab
+        
+        if self.jcl.general['aircraft'] == 'ALLEGRA':
+            self.f_scale = 0.002 # vectors
+            self.p_scale = 0.4 # points
+        elif self.jcl.general['aircraft'] in ['DLR F-19-S', 'MULDICON']:
+            self.f_scale = 0.002 # vectors
+            self.p_scale = 0.04 # points
+        elif self.jcl.general['aircraft'] == 'Discus2c':
+            self.f_scale = 0.02 # vectors
+            self.p_scale = 0.2 # points
+        else:
+            print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
+            return
+            
         #@mlab.show  
         @mlab.animate(delay=50)
-        def anim(points, vectors, cones, fig, x_t, y_t, z_t, fx_t, fy_t, fz_t, f_scale):
+        def anim(self):
+            # internal function that actually updates the animation
             while True:
-                for (x, y, z, fx, fy, fz) in zip(x_t, y_t, z_t, fx_t, fy_t, fz_t):
-                    fig.scene.disable_render = True
-                    points.mlab_source.set(x=x, y=y, z=z)
-                    vectors.mlab_source.set(x=x, y=y, z=z, u=fx*f_scale, v=fy*f_scale, w=fz*f_scale)
-                    cones.mlab_source.set(x=x+fx*f_scale, y=y+fy*f_scale, z=z+fz*f_scale, u=fx*f_scale, v=fy*f_scale, w=fz*f_scale)
+                for (x, y, z, f1x, f1y, f1z, f2x, f2y, f2z) in zip(self.x_t, self.y_t, self.z_t, self.f1x_t, self.f1y_t, self.f1z_t, self.f2x_t, self.f2y_t, self.f2z_t):
+                    self.fig.scene.disable_render = True
+                    self.points.mlab_source.set(x=x, y=y, z=z)
+                    self.vectors1.mlab_source.set(x=x, y=y, z=z, u=f1x*self.f_scale, v=f1y*self.f_scale, w=f1z*self.f_scale)
+                    self.cones1.mlab_source.set(x=x+f1x*self.f_scale, y=y+f1y*self.f_scale, z=z+f1z*self.f_scale, u=f1x*self.f_scale, v=f1y*self.f_scale, w=f1z*self.f_scale)
+                    self.vectors2.mlab_source.set(x=x, y=y, z=z, u=f2x*self.f_scale, v=f2y*self.f_scale, w=f2z*self.f_scale)
+                    self.cones2.mlab_source.set(x=x+f2x*self.f_scale, y=y+f2y*self.f_scale, z=z+f2z*self.f_scale, u=f2x*self.f_scale, v=f2y*self.f_scale, w=f2z*self.f_scale)
                     #text.mlab_source.set(text='t = {} [s]'.format(str(t[0])) )
-                    fig.scene.disable_render = False
+                    self.fig.scene.disable_render = False
                     yield
-                    
-        for i_trimcase in range(len(self.jcl.trimcase)):
-            response   = self.response[i_trimcase]
-            trimcase   = self.jcl.trimcase[i_trimcase]
-            simcase   = self.jcl.simcase[i_trimcase]
-            print 'interactive plotting of forces and deformations for simulation {:s}'.format(trimcase['desc'])
+                #time.sleep(1.0)
+        response   = self.response[i_trimcase]
+        trimcase   = self.jcl.trimcase[i_trimcase]
+        simcase   = self.jcl.simcase[i_trimcase]
+        print 'interactive plotting of forces and deformations for simulation {:s}'.format(trimcase['desc'])
+        # get deformations and forces
+        # x-component without rigid body motion so that the aircraft does not fly out of sight
+        self.x_t = self.model.strcgrid['offset'][:,0] + response['Ug'][:,self.model.strcgrid['set'][:,0]]# - response['X'][:,0].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
+        self.y_t = self.model.strcgrid['offset'][:,1] + response['Ug'][:,self.model.strcgrid['set'][:,1]]
+        self.z_t = self.model.strcgrid['offset'][:,2] + response['Ug'][:,self.model.strcgrid['set'][:,2]]# - response['X'][:,2].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
+        self.f1x_t = response['Pg_aero_global'][:,self.model.strcgrid['set'][:,0]]
+        self.f1y_t = response['Pg_aero_global'][:,self.model.strcgrid['set'][:,1]]
+        self.f1z_t = response['Pg_aero_global'][:,self.model.strcgrid['set'][:,2]]
+        self.f2x_t = response['Pg_iner_global'][:,self.model.strcgrid['set'][:,0]]
+        self.f2y_t = response['Pg_iner_global'][:,self.model.strcgrid['set'][:,1]]
+        self.f2z_t = response['Pg_iner_global'][:,self.model.strcgrid['set'][:,2]]
+        # set up animation
+        self.fig = mlab.figure()
+        mlab.points3d(self.x_t[0,:], self.y_t[0,:], self.z_t[0,:], color=(1,1,1), opacity=0.4, scale_factor=self.p_scale) # intital position of aircraft, remains as a shadow in the animation for better comparision
+        self.points = mlab.points3d(self.x_t[0,:], self.y_t[0,:], self.z_t[0,:], color=(0,0,1), scale_factor=self.p_scale)
+        view = mlab.view() # get view of aircraft without force vectors
+        self.vectors1 = mlab.quiver3d(self.x_t[0,:],self.y_t[0,:], self.z_t[0,:], self.f1x_t[0,:]*self.f_scale, self.f1y_t[0,:]*self.f_scale, self.f1z_t[0,:]*self.f_scale, color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+        self.cones1   = mlab.quiver3d(self.x_t[0,:]+self.f1x_t[0,:]*self.f_scale, self.y_t[0,:]+self.f1y_t[0,:]*self.f_scale, self.z_t[0,:]+self.f1z_t[0,:]*self.f_scale, self.f1x_t[0,:]*self.f_scale, self.f1y_t[0,:]*self.f_scale, self.f1z_t[0,:]*self.f_scale, color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.2, resolution=16)
+        self.vectors2 = mlab.quiver3d(self.x_t[0,:],self.y_t[0,:], self.z_t[0,:], self.f2x_t[0,:]*self.f_scale, self.f2y_t[0,:]*self.f_scale, self.f2z_t[0,:]*self.f_scale, color=(0,1,1),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+        self.cones2   = mlab.quiver3d(self.x_t[0,:]+self.f2x_t[0,:]*self.f_scale, self.y_t[0,:]+self.f2y_t[0,:]*self.f_scale, self.z_t[0,:]+self.f2z_t[0,:]*self.f_scale, self.f2x_t[0,:]*self.f_scale, self.f2y_t[0,:]*self.f_scale, self.f2z_t[0,:]*self.f_scale, color=(0,1,1),  mode='cone', scale_mode='scalar', scale_factor=0.2, resolution=16)
+
+        mlab.view(*view) # reset view
+        #t = response['t']
+        #text = mlab.text(0.1, 0.1, text='t = 0.0 [s]')
+       
+        # launch animation
+        anim(self)
+        mlab.show()
             
-            x_t = self.model.strcgrid['offset'][:,0] + response['Ug_f'][:,self.model.strcgrid['set'][:,0]]
-            y_t = self.model.strcgrid['offset'][:,1] + response['Ug_r'][:,self.model.strcgrid['set'][:,1]] + response['Ug_f'][:,self.model.strcgrid['set'][:,1]]
-            z_t = self.model.strcgrid['offset'][:,2] + response['Ug_r'][:,self.model.strcgrid['set'][:,2]] + response['Ug_f'][:,self.model.strcgrid['set'][:,2]]
-            fx_t = response['Pg'][:,self.model.strcgrid['set'][:,0]]
-            fy_t = response['Pg'][:,self.model.strcgrid['set'][:,1]]
-            fz_t = response['Pg'][:,self.model.strcgrid['set'][:,2]]
-            f_scale = 0.002 # vectors
-            p_scale = 0.4 # points
-            fig = mlab.figure()
-            mlab.points3d(x_t[0,:], y_t[0,:], z_t[0,:], color=(1,1,1), opacity=0.4, scale_factor=p_scale)
-            points = mlab.points3d(x_t[0,:], y_t[0,:], z_t[0,:], color=(0,0,1), scale_factor=p_scale)
-            view = mlab.view()
-            vectors = mlab.quiver3d(x_t[0,:],                   y_t[0,:],                   z_t[0,:],                   fx_t[0,:]*f_scale, fy_t[0,:]*f_scale, fz_t[0,:]*f_scale, color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-            cones   = mlab.quiver3d(x_t[0,:]+fx_t[0,:]*f_scale, y_t[0,:]+fy_t[0,:]*f_scale, z_t[0,:]+fz_t[0,:]*f_scale, fx_t[0,:]*f_scale, fy_t[0,:]*f_scale, fz_t[0,:]*f_scale, color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
-            mlab.view(*view)
-            #t = response['t']
-            #text = mlab.text(0.1, 0.1, text='t = 0.0 [s]')
-            anim(points, vectors, cones, fig, x_t, y_t, z_t, fx_t, fy_t, fz_t, f_scale)
-            mlab.show()
-            
     
-        
-    
-    
-        
         
