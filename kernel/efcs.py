@@ -11,8 +11,8 @@ class mephisto:
     def __init__(self):
         self.keys = ['AIL-S1', 'AIL-S2', 'AIL-S3', 'AIL-S4']
         self.Ux2_0 = np.array([0.0, 0.0, 0.0, 0.0])
-        self.Ux2_lower = np.array([-5.0, -5.0,-5.0,-5.0])/180*np.pi
-        self.Ux2_upper = np.array([ 5.0,  5.0, 5.0, 5.0])/180*np.pi
+        self.Ux2_lower = np.array([-20.0, -20.0,-20.0,-20.0])/180*np.pi
+        self.Ux2_upper = np.array([ 20.0,  20.0, 20.0, 20.0])/180*np.pi
         
         self.alpha_lower = -5.0/180*np.pi
         self.alpha_upper = 10.0/180*np.pi
@@ -38,10 +38,13 @@ class mephisto:
         delta_AILS4 -= command_eta
         
         # zeta - Gierachse
-        #delta_AILS1 -= command_zeta
-        #delta_AILS2 -= command_zeta
-        #delta_AILS3 -= command_zeta
-        #delta_AILS4 -= command_zeta
+        if command_zeta < 0.0:
+            # Rechtskurve -> rechts "bremsen"
+            delta_AILS1 -= command_zeta
+            delta_AILS2 += command_zeta
+        else:
+            delta_AILS3 -= command_zeta
+            delta_AILS4 += command_zeta
         
         Ux2 = np.array([delta_AILS1, delta_AILS2, delta_AILS3, delta_AILS4])
         
@@ -125,13 +128,15 @@ class discus2c:
         self.alpha_upper = 10.0 / 180 * np.pi
     
     def cs_signal_init(self, case_desc):
-        cases = ['FT-P1', 'FT-P2', 'FT-P3', 'Elev3211_A', 'Elev3211_B']
+        cases = ['FT-P1', 'FT-P2', 'FT-P3', 'Elev3211_A', 'Elev3211_B', 'B2B_1-10A', 'B2B_1-10B']
         files = ['/scratch/Discus2c_Data+Info/FT-P1_Pilot1.txt',
                  '/scratch/Discus2c_Data+Info/FT-P2_Pilot2.txt',
                  '/scratch/Discus2c_Data+Info/FT-P3_Pilot1.txt',
                  '/scratch/Discus2c_Data+Info/Elev3211_2-15A_Pilot1.txt',
-                 '/scratch/Discus2c_Data+Info/Elev3211_2-15B_Pilot1.txt']
-        tstart = [80.0, 190.0, 168.0, 911.0, 933.0]
+                 '/scratch/Discus2c_Data+Info/Elev3211_2-15B_Pilot1.txt',
+                 '/scratch/Discus2c_Data+Info/B2B_1-10A_Pilot2.txt',
+                 '/scratch/Discus2c_Data+Info/B2B_1-10B_Pilot2.txt']
+        tstart = [80.0, 190.0, 168.0, 912.0, 933.0, 1236.5, 1255.0]
         
         if case_desc not in cases:
             print 'Warning, no time signal for cs deflections found!'
@@ -157,8 +162,13 @@ class discus2c:
         deta = - (self.data[line1,3] - self.data[line0,3]) / (t1 - t0)
         dzeta = (self.data[line1,4] - self.data[line0,4]) / (t1 - t0)
 
-        return [dxi, deta, dzeta]
-                
+        return [dxi, deta, dzeta*0.0]
+    
+    def controller(self, angular_acc, angular_acc_soll = np.array([0.0, 0.0, 0.0]) ):
+        k = np.array([-10.0, 10.0, 10.0])
+        dcommand = k * (angular_acc_soll - angular_acc)
+        return dcommand
+
     def efcs(self, command_xi, command_eta, command_zeta):
 
         # Ausgangsposition
@@ -171,10 +181,16 @@ class discus2c:
         delta_RUDD = self.Ux2_0[6]
         
         # xi - Rollachse
-        delta_AIL_Rin -= command_xi
-        delta_AIL_Rout -= command_xi
-        delta_AIL_Lin += command_xi
-        delta_AIL_Lout += command_xi
+        if command_xi < 0.0: # Rolle nach links
+            delta_AIL_Rin  -= command_xi*0.6
+            delta_AIL_Rout -= command_xi*0.6
+            delta_AIL_Lin  += command_xi*1.4
+            delta_AIL_Lout += command_xi*1.4
+        else:
+            delta_AIL_Rin  -= command_xi*1.4
+            delta_AIL_Rout -= command_xi*1.4
+            delta_AIL_Lin  += command_xi*0.6
+            delta_AIL_Lout += command_xi*0.6
         
         # eta - Nickachse
         delta_ELEV_R -= command_eta
@@ -187,12 +203,12 @@ class discus2c:
         
         violation_lower = Ux2 < self.Ux2_lower
         if np.any(violation_lower):
-            print 'Warning: commanded CS deflection not possible, violation of lower Ux2 bounds!'
+            #print 'Warning: commanded CS deflection not possible, violation of lower Ux2 bounds!'
             Ux2[violation_lower] = self.Ux2_lower[violation_lower]
             
         violation_upper = Ux2 > self.Ux2_upper
         if np.any(violation_upper):
-            print 'Warning: commanded CS deflection not possible, violation of upper Ux2 bounds!'
+            #print 'Warning: commanded CS deflection not possible, violation of upper Ux2 bounds!'
             Ux2[violation_upper] = self.Ux2_upper[violation_upper]
             
         return Ux2
