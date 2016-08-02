@@ -54,11 +54,12 @@ class post_processing:
                 response['d2Ug_dt2']    = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
     
                 for i_step in range(len(response['t'])):
-                    # Formel bezogen auf die linearen Bewegungsgleichungen Nastrans. 
-                    # Fuer Bewegungsgleichungen z.B. von Waszack muessen die zusaetzlichen Terme hier ebenfalls beruecksichtigt werden!
-                    d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][i_step,0:3] - response['g_cg'][i_step,:], response['d2Ucg_dt2'][i_step,3:6])) ) # Nastran
-#                     d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][i_step,0:3] - response['g_cg'][i_step,:] - np.cross(response['dUcg_dt'][i_step,0:3], response['dUcg_dt'][i_step,3:6]), 
-#                                                             response['d2Ucg_dt2'][i_step,3:6] ))  ) # Waszak
+                    if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
+                        # Fuer Bewegungsgleichungen z.B. von Waszack muessen die zusaetzlichen Terme hier ebenfalls beruecksichtigt werden!
+                        d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][i_step,0:3] - response['g_cg'][i_step,:] - np.cross(response['dUcg_dt'][i_step,0:3], response['dUcg_dt'][i_step,3:6]), 
+                                                                response['d2Ucg_dt2'][i_step,3:6] ))  ) 
+                    else:
+                        d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][i_step,0:3] - response['g_cg'][i_step,:], response['d2Ucg_dt2'][i_step,3:6])) ) # Nastran
                     response['d2Ug_dt2_r'][i_step,:] = d2Ug_dt2_r
                     response['Pg_iner_r'][i_step,:] = - Mgg.dot(d2Ug_dt2_r)
                     response['Pg_aero'][i_step,:] = np.dot(self.model.PHIk_strc.T, response['Pk_aero'][i_step,:])
@@ -95,11 +96,12 @@ class post_processing:
                     response['Ug'][i_step,:] = response['Ug_r'][i_step,:] + response['Ug_f'][i_step,:]
                     response['d2Ug_dt2'][i_step,:] = response['d2Ug_dt2_r'][i_step,:] + response['d2Ug_dt2_f'][i_step,:]
             else:
-                # Formel bezogen auf die linearen Bewegungsgleichungen Nastrans. 
-                # Fuer Bewegungsgleichungen z.B. von Waszack muessen die zusaetzlichen Terme hier ebenfalls beruecksichtigt werden!
-                d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'], response['d2Ucg_dt2'][3:6])) ) # Nastran
-#                 d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'] - np.cross(response['dUcg_dt'][0:3], response['dUcg_dt'][3:6]), 
-#                                                         response['d2Ucg_dt2'][3:6] ))  ) # Waszak
+                if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
+                    # Fuer Bewegungsgleichungen z.B. von Waszack muessen die zusaetzlichen Terme hier ebenfalls beruecksichtigt werden!
+                    d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'] - np.cross(response['dUcg_dt'][0:3], response['dUcg_dt'][3:6]), 
+                                                            response['d2Ucg_dt2'][3:6] ))  ) 
+                else:
+                    d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'], response['d2Ucg_dt2'][3:6])) ) # Nastran                
                 response['Pg_iner_r'] = - Mgg.dot(d2Ug_dt2_r)
                 response['d2Ug_dt2_r'] = d2Ug_dt2_r
                 d2Ug_dt2_f = PHIf_strc.T.dot(response['d2Uf_dt2'])
@@ -225,6 +227,9 @@ class post_processing:
         with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
                 write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg'], self.jcl.trimcase[i_trimcase]['subcase'])
+        with open(filename+'_subcases', 'w') as fid:         
+            for i_trimcase in range(len(self.jcl.trimcase)):
+                write_functions.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
 #        with open(filename+'_Pg_aero', 'w') as fid: 
 #            for i_trimcase in range(len(self.jcl.trimcase)):
 #                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_aero'], self.jcl.trimcase[i_trimcase]['subcase'])

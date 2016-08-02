@@ -152,10 +152,8 @@ class trim:
                 
         import model_equations # Warum muss der import hier stehen??
         
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
-        elif self.jcl.aero['method'] in [ 'hybrid']:
-            equations = model_equations.hybrid(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
         else:
             print 'Unknown aero method: ' + str(self.jcl.aero['method'])
         
@@ -188,10 +186,8 @@ class trim:
         
     def exec_sim(self):
         import model_equations 
-        if self.jcl.aero['method'] in [ 'mona_steady']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
-        elif self.jcl.aero['method'] in [ 'hybrid']:
-            equations = model_equations.hybrid(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             # initialize lag states with zero and extend steady response vectors X and Y
             print 'adding {} x {} unsteady lag states to the system'.format(self.model.aerogrid['n'],self.model.aero['n_poles'])
@@ -227,32 +223,6 @@ class trim:
                 for key in self.response.keys():
                     self.response[key] = np.vstack((self.response[key],response_step[key]))
 
-
         else:
             self.response['t'] = 'Failure'
             
-            
-            
-        # B
-#        from scipy.integrate import odeint
-#        X_t, info = odeint(equations.eval_equations, X0, t, args=('sim',), full_output=True, h0=0.001)
-#        print info['message']
-#        print 'time steps: ' + str(t)
-#        print 'time step evaluatins: ' + str(info['nfe'])
-#        if info['message'] == 'Integration successful.':
-#            for i_step in np.arange(1,len(X_t)):
-#                response_step = equations.eval_equations(X_t[i_step], t[i_step], type='sim_full_output')
-#                for key in self.response.keys():
-#                    self.response[key] = np.vstack((self.response[key],response_step[key]))
-#            self.response['t'] = t
-#            self.response['t_cur'] = info['tcur']
-#
-#        else:
-#            self.response['t'] = 'Failure: ' + info['message']
-            
-        
-                
-            
-    
-        
-        
