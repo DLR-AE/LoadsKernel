@@ -351,18 +351,19 @@ class model:
                     Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
                     # a-set is equal to f-set, no further reduction
                     MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
-                    Mff, Kff, Dff, PHIf_strc = bm.modalanalysis(i_mass, MFF)
+                    Mff, Kff, Dff, PHIf_strc = bm.modalanalysis(i_mass, MFF, plot=False)
                 elif self.jcl.mass['method'] == 'guyan': 
                     Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
                     MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
-                    Mff, Kff, Dff, PHIf_strc, Maa = bm.guyanreduction(i_mass, MFF)              
+                    Mff, Kff, Dff, PHIf_strc, Maa = bm.guyanreduction(i_mass, MFF, plot=False)              
                     # Vergleich mit SOL103:
-                    # Mff2, Kff2, Dff2, PHIf_strc2, Mb2, cggrid2, cggrid_norm2 = bm.mass_from_SOL103(i_mass)
-                    # MAC, plt = bm.calc_MAC( PHIf_strc.T, PHIf_strc2.T)
-                    # plt.title('MAC bm guyan vs. SOL103 aset')
-                    # MAC, plt = bm.calc_MAC( PHIf_strc.T, PHIf_strc2.T)
-                    # plt.title('Auto-MAC bm guyan')
-                    # plt.show()
+                    #Mff2, Kff2, Dff2, PHIf_strc2, Mb2, cggrid2, cggrid_norm2 = bm.mass_from_SOL103(i_mass)
+                    #Mff2, Kff2, Dff2, PHIf_strc2 = bm.modalanalysis(i_mass, MFF)
+                    #MAC, plt = bm.calc_MAC( PHIf_strc.T, PHIf_strc2.T)
+                    #plt.title('MAC guyan vs. Vollmodell')
+                    #MAC, plt = bm.calc_MAC( PHIf_strc.T, PHIf_strc.T)
+                    #plt.title('Auto-MAC bm guyan')
+                    #plt.show()
 
                 rules = spline_rules.rules_point(cggrid, self.strcgrid)
                 PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
