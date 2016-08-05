@@ -205,7 +205,7 @@ def plot_aerogrid(aerogrid, cp = '', colormap = 'jet', value_min = '', value_max
             color_i = colors(np.int(np.round( colors.N / (value_max - value_min ) * (cp[i_panel] - value_min ) )))
             ax.plot_surface(xx, yy, zz, rstride=1, cstride=1, linewidth=0, color=color_i, shade=False )
         else:
-            ax.plot_wireframe(xx, yy, zz, rstride=1, cstride=1)
+            ax.plot_wireframe(xx, yy, zz, rstride=1, cstride=1, color='black')
             
     if len(cp) == aerogrid['n']:
         # plot one dummy element that is colored by using the colormap
@@ -213,6 +213,17 @@ def plot_aerogrid(aerogrid, cp = '', colormap = 'jet', value_min = '', value_max
         surf = ax.plot_surface([0],[0],[0], rstride=1, cstride=1, linewidth=0, cmap=colors, vmin=value_min, vmax=value_max)
         fig.colorbar(surf, shrink=0.5) 
     
+    X,Y,Z = aerogrid['cornerpoint_grids'][:,1], aerogrid['cornerpoint_grids'][:,2], aerogrid['cornerpoint_grids'][:,3]
+    # Create cubic bounding box to simulate equal aspect ratio
+    # see http://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to
+    max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max() / 2.0
+    mid_x = (X.max()+X.min()) * 0.5
+    mid_y = (Y.max()+Y.min()) * 0.5
+    mid_z = (Z.max()+Z.min()) * 0.5
+    ax.set_xlim(mid_x - max_range, mid_x + max_range)
+    ax.set_ylim(mid_y - max_range, mid_y + max_range)
+    ax.set_zlim(mid_z - max_range, mid_z + max_range)
+   
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
