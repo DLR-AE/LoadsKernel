@@ -10,7 +10,7 @@ import matplotlib.animation as animation
 #from mayavi import mlab
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
-import csv, time
+import csv, time, os
 import build_aero
 
 
@@ -337,7 +337,8 @@ class plotting_sim:
         pp.close()
         print 'plots saved as ' + filename_pdf   
         
-    def plot_time_animation(self, animation_dimensions = '2D'):
+    def plot_time_animation(self, animation_dimensions = '2D', path_output='./', movie=False):
+        self.path_output = path_output
         for i_simcase in range(len(self.jcl.simcase)):
             trimcase = self.jcl.trimcase[i_simcase]
             print 'plotting for simulation {:s}'.format(trimcase['desc'])
@@ -488,7 +489,7 @@ class plotting_sim:
             if animation_dimensions == '2D':
                 self.plot_time_animation_2d(i_simcase)
             elif animation_dimensions == '3D':
-                self.plot_time_animation_3d(i_simcase)
+                self.plot_time_animation_3d(i_simcase, movie)
             plt.close('all')
             
     def plot_time_animation_2d(self, i_simcase):        
@@ -586,7 +587,7 @@ class plotting_sim:
         plt.legend(['Xi', 'Eta', 'Zeta'])
        
         
-    def plot_time_animation_3d(self, i_trimcase):
+    def plot_time_animation_3d(self, i_trimcase, movie=False):
         # To Do: show simulation time in animation
         from mayavi import mlab
         
@@ -602,9 +603,12 @@ class plotting_sim:
         else:
             print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
             return
-            
+        response   = self.response[i_trimcase]
+        trimcase   = self.jcl.trimcase[i_trimcase]
+        simcase    = self.jcl.simcase[i_trimcase] 
+           
         #@mlab.show  
-        @mlab.animate(delay=50)
+        @mlab.animate(delay=int(simcase['dt']*1000.0), ui=True)
         def anim(self):
             # internal function that actually updates the animation
             while True:
@@ -619,13 +623,29 @@ class plotting_sim:
                     self.fig.scene.disable_render = False
                     yield
                 #time.sleep(1.0)
-        response   = self.response[i_trimcase]
-        trimcase   = self.jcl.trimcase[i_trimcase]
-        simcase   = self.jcl.simcase[i_trimcase]
-        print 'interactive plotting of forces and deformations for simulation {:s}'.format(trimcase['desc'])
+                
+        def anim_movie(self, trimcase):
+            # internal function that actually updates the animation
+            i_frame = 0
+            #while True:
+            for (x, y, z, f1x, f1y, f1z, f2x, f2y, f2z) in zip(self.x_t, self.y_t, self.z_t, self.f1x_t, self.f1y_t, self.f1z_t, self.f2x_t, self.f2y_t, self.f2z_t):
+                self.points.mlab_source.set(x=x, y=y, z=z)
+                self.vectors1.mlab_source.set(x=x, y=y, z=z, u=f1x*self.f_scale, v=f1y*self.f_scale, w=f1z*self.f_scale)
+                self.cones1.mlab_source.set(x=x+f1x*self.f_scale, y=y+f1y*self.f_scale, z=z+f1z*self.f_scale, u=f1x*self.f_scale, v=f1y*self.f_scale, w=f1z*self.f_scale)
+                self.vectors2.mlab_source.set(x=x, y=y, z=z, u=f2x*self.f_scale, v=f2y*self.f_scale, w=f2z*self.f_scale)
+                self.cones2.mlab_source.set(x=x+f2x*self.f_scale, y=y+f2y*self.f_scale, z=z+f2z*self.f_scale, u=f2x*self.f_scale, v=f2y*self.f_scale, w=f2z*self.f_scale)
+                #text.mlab_source.set(text='t = {} [s]'.format(str(t[0])) )
+                self.fig.scene.render()
+                self.fig.scene.save_png('{}anim/subcase_{}_frame_{:06d}.png'.format(self.path_output, trimcase['subcase'], i_frame))
+                i_frame += 1
+        if movie:
+            print 'rendering simulation {:s} offscreen ...'.format(trimcase['desc'])
+            mlab.options.offscreen = True
+        else:
+            print 'interactive plotting of forces and deformations for simulation {:s}'.format(trimcase['desc'])
         # get deformations and forces
         # x-component without rigid body motion so that the aircraft does not fly out of sight
-        self.x_t = self.model.strcgrid['offset'][:,0] + response['Ug'][:,self.model.strcgrid['set'][:,0]]# - response['X'][:,0].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
+        self.x_t = self.model.strcgrid['offset'][:,0] + response['Ug'][:,self.model.strcgrid['set'][:,0]] - response['X'][:,0].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
         self.y_t = self.model.strcgrid['offset'][:,1] + response['Ug'][:,self.model.strcgrid['set'][:,1]]
         self.z_t = self.model.strcgrid['offset'][:,2] + response['Ug'][:,self.model.strcgrid['set'][:,2]]# - response['X'][:,2].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
         self.f1x_t = response['Pg_aero_global'][:,self.model.strcgrid['set'][:,0]]
@@ -635,22 +655,33 @@ class plotting_sim:
         self.f2y_t = response['Pg_iner_global'][:,self.model.strcgrid['set'][:,1]]
         self.f2z_t = response['Pg_iner_global'][:,self.model.strcgrid['set'][:,2]]
         # set up animation
-        self.fig = mlab.figure()
+        self.fig = mlab.figure(size=(1920, 1080))
         mlab.points3d(self.x_t[0,:], self.y_t[0,:], self.z_t[0,:], color=(1,1,1), opacity=0.4, scale_factor=self.p_scale) # intital position of aircraft, remains as a shadow in the animation for better comparision
         self.points = mlab.points3d(self.x_t[0,:], self.y_t[0,:], self.z_t[0,:], color=(0,0,1), scale_factor=self.p_scale)
-        view = mlab.view() # get view of aircraft without force vectors
+        #view = mlab.view() # get view of aircraft without force vectors
         self.vectors1 = mlab.quiver3d(self.x_t[0,:],self.y_t[0,:], self.z_t[0,:], self.f1x_t[0,:]*self.f_scale, self.f1y_t[0,:]*self.f_scale, self.f1z_t[0,:]*self.f_scale, color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
         self.cones1   = mlab.quiver3d(self.x_t[0,:]+self.f1x_t[0,:]*self.f_scale, self.y_t[0,:]+self.f1y_t[0,:]*self.f_scale, self.z_t[0,:]+self.f1z_t[0,:]*self.f_scale, self.f1x_t[0,:]*self.f_scale, self.f1y_t[0,:]*self.f_scale, self.f1z_t[0,:]*self.f_scale, color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.2, resolution=16)
         self.vectors2 = mlab.quiver3d(self.x_t[0,:],self.y_t[0,:], self.z_t[0,:], self.f2x_t[0,:]*self.f_scale, self.f2y_t[0,:]*self.f_scale, self.f2z_t[0,:]*self.f_scale, color=(0,1,1),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-        self.cones2   = mlab.quiver3d(self.x_t[0,:]+self.f2x_t[0,:]*self.f_scale, self.y_t[0,:]+self.f2y_t[0,:]*self.f_scale, self.z_t[0,:]+self.f2z_t[0,:]*self.f_scale, self.f2x_t[0,:]*self.f_scale, self.f2y_t[0,:]*self.f_scale, self.f2z_t[0,:]*self.f_scale, color=(0,1,1),  mode='cone', scale_mode='scalar', scale_factor=0.2, resolution=16)
-
-        mlab.view(*view) # reset view
+        self.cones2   = mlab.quiver3d(self.x_t[0,:]+self.f2x_t[0,:]*self.f_scale, self.y_t[0,:]+self.f2y_t[0,:]*self.f_scale, self.z_t[0,:]+self.f2z_t[0,:]*self.f_scale, self.f2x_t[0,:]*self.f_scale, self.f2y_t[0,:]*self.f_scale, self.f2z_t[0,:]*self.f_scale, color=(0,1,1),  mode='cone', scale_mode='scalar', scale_factor=0.2, resolution=16)       
+        mlab.orientation_axes()
+        
         #t = response['t']
         #text = mlab.text(0.1, 0.1, text='t = 0.0 [s]')
-       
-        # launch animation
-        anim(self)
-        mlab.show()
+        
+        #mlab.view(azimuth=180.0, elevation=90.0, roll=-90.0, distance=70.0, focalpoint=np.array([self.x_t.mean(),self.y_t.mean(),self.z_t.mean()])) # back view
+        mlab.view(azimuth=135.0, elevation=120.0, roll=-120.0, distance=70.0, focalpoint=np.array([self.x_t.mean(),self.y_t.mean(),self.z_t.mean()])) # view from right and above
+
+        if movie:
+            if not os.path.exists('{}anim/'.format(self.path_output)):
+                os.makedirs('{}anim/'.format(self.path_output))
+            anim_movie(self, trimcase) # launch movie
+            mlab.close()
+            os.system('ffmpeg -framerate {} -i {}anim/subcase_{}_frame_%06d.png  -r 30 -y {}anim/subcase_{}.mov'.format( 0.1/simcase['dt'], self.path_output, trimcase['subcase'], self.path_output, trimcase['subcase']) )
+        else:
+            #mlab.view(*view) # reset view
+            
+            anim(self) # launch animation
+            mlab.show()
             
     
         
