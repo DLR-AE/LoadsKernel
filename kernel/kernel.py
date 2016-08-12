@@ -117,6 +117,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             plotting_sim.plot_monstations_time(post_processing.monstations, path_output + 'monstations_time_' + job_name + '.pdf')
             #plotting_sim.plot_cs_signal() # Discus2c spezifisch
             #plotting_sim.plot_time_animation(animation_dimensions = '3D')
+            #plotting_sim.make_movie(path_output, speedup_factor=0.1)
             
         else:
             plotting_trim = plotting_modul.plotting_trim(jcl, model, response)
@@ -141,11 +142,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
                 monstations = cPickle.load(f)
         
         # place code to test here
-        
-#         plotting_sim = plotting_modul.plotting_sim(jcl, model, response)
-#         plotting_sim.plot_time_animation_3d()
-
-        
+                
 #         import test_smarty
 #         test_smarty.interpolate_pkcfd(model, jcl)
         
@@ -168,6 +165,8 @@ def load_model(job_name, path_output):
     return model
 
 def check_path(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
     if os.path.isdir(path) and os.access(os.path.dirname(path), os.W_OK):
         return os.path.join(path, './') # sicherstellen, dass der Pfad mit / endet
     else:
