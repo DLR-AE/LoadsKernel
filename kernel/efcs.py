@@ -164,9 +164,17 @@ class discus2c:
 
         return [dxi, deta, dzeta*0.0]
     
-    def controller(self, angular_acc, angular_acc_soll = np.array([0.0, 0.0, 0.0]) ):
-        k = np.array([-10.0, 10.0, 10.0])
-        dcommand = k * (angular_acc_soll - angular_acc)
+    def controller_init(self, sollwerte, mode='angular accelerations'):
+        self.sollwerte = sollwerte
+        if mode=='angular velocities':
+            self.k = np.array([-10.0, 10.0, 10.0])
+        elif mode=='angular accelerations':
+            self.k = np.array([-10.0, 10.0, 10.0])
+        else:
+            print 'Error, mode {} for controller not implemented'.format(str(mode))
+                   
+    def controller(self, ist_werte ):
+        dcommand = self.k * (self.sollwerte - ist_werte)
         return dcommand
 
     def efcs(self, command_xi, command_eta, command_zeta):

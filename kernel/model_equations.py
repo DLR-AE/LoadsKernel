@@ -70,6 +70,11 @@ class aero():
         # init cs_signal
         if self.simcase and self.simcase['cs_signal']:
             self.efcs.cs_signal_init(self.trimcase['desc'])
+        
+        # init controller
+        if self.simcase and self.simcase['controller']:
+            #self.efcs.controller_init(np.array((0.0,0.0,0.0)), 'angular accelerations')
+            self.efcs.controller_init(np.dot(self.PHIcg_norm[3:6,3:6],np.dot(calc_drehmatrix_angular(float(self.trimcond_X[3,2]), float(self.trimcond_X[4,2]), float(self.trimcond_X[5,2])), np.array(self.trimcond_X[9:12,2], dtype='float'))), 'angular velocities')
             
         # init aero db for hybrid aero: alpha
         if self.jcl.aero['method'] == 'hybrid' and self.model.aerodb.has_key('alpha') and self.trimcase['aero'] in self.model.aerodb['alpha']:
@@ -399,9 +404,10 @@ class steady(aero):
         if self.simcase and self.simcase['cs_signal']:
             dcommand = self.efcs.cs_signal(t)
         elif self.simcase and self.simcase['controller']:
-            dcommand = self.efcs.controller(angular_acc=d2Ucg_dt2[3:6])
+            #dcommand = self.efcs.controller(d2Ucg_dt2[3:6])
+            dcommand = self.efcs.controller(dUcg_dt[3:6])
         else:
-            dcommand= np.zeros(3)
+            dcommand = np.zeros(3)
 
         # --------------   
         # --- output ---   
