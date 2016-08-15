@@ -202,7 +202,57 @@ class post_processing:
             else:
                 name = self.model.mongrid['name'][i_station] # take name from mongrid
             self.monstations[name] = monstation
+    
+    def dyn2stat(self):
+        print 'searching min/max of Fz/Mx/My in time data at {} monitoring stations and gathering loads (dyn2stat)...'.format(len(self.monstations.keys()))
+        Pg_dyn2stat = []
+        Pg_dyn2stat_desc = []  
+        for key in self.monstations.keys():
+            # Schnittlasten an den Monitoring Stationen raus schreiben zum Plotten
+            # Knotenlasten raus schreiben
+            loads_dyn2stat = []
+            subcases_dyn2stat = []
+            for i_case in range(len(self.monstations[key]['subcase'])):
+                pos_max_loads_over_time = np.argmax(self.monstations[key]['loads'][i_case], 0)
+                pos_min_loads_over_time = np.argmin(self.monstations[key]['loads'][i_case], 0)
+                # Fz max und min
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[2],:])
+                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_max_loads_over_time[2],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Fz_max')
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[2],:])
+                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_min_loads_over_time[2],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Fz_min')
+                # Mx max und min
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[3],:])
+                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_max_loads_over_time[3],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Mx_max')
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[3],:])
+                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_min_loads_over_time[3],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Mx_min')
+                # My max und min
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[4],:])
+                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_max_loads_over_time[4],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_max')
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[4],:])
+                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_min_loads_over_time[4],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_min')
+            self.monstations[key]['loads_dyn2stat'] = np.array(loads_dyn2stat)
+            self.monstations[key]['subcases_dyn2stat'] = np.array(subcases_dyn2stat)
+            Pg_dyn2stat_desc += subcases_dyn2stat
+        # save dyn2stat
+        self.dyn2stat = {'Pg': np.array(Pg_dyn2stat), 
+                         'desc': Pg_dyn2stat_desc,
+                        }
             
+    def save_dyn2stat(self, filename):
+        print 'saving dyn2stat nodal loads as Nastarn cards...'
+        with open(filename+'_Pg_dyn2stat', 'w') as fid: 
+            for i_case in range(len(self.dyn2stat['desc'])):
+                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat['Pg'][i_case,:], int(self.dyn2stat['desc'][i_case].split('_')[0])*1000000+i_case)
+        with open(filename+'_subcases_dyn2stat', 'w') as fid:         
+            for i_case in range(len(self.dyn2stat['desc'])):
+                write_functions.write_subcases(fid, int(self.dyn2stat['desc'][i_case].split('_')[0])*1000000+i_case, self.dyn2stat['desc'][i_case])
+
 
     def save_monstations(self, filename):
         print 'saving monitoring stations as Nastarn cards...'
@@ -211,7 +261,7 @@ class post_processing:
                 write_functions.write_force_and_moment_cards(fid, self.model.mongrid, self.response[i_trimcase]['Pmon_local'], i_trimcase+1)
     
     def save_nodaldefo(self, filename):
-        print 'saving nodal deformations as dat file...'
+        print 'saving nodal flexible deformations as dat file...'
         with open(filename+'_undeformed.dat', 'w') as fid:             
             np.savetxt(fid, np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'])))
             #np.savetxt(fid, self.model.strcgrid['offset'])

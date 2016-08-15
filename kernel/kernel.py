@@ -63,7 +63,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
             trim_i.set_trimcond()
             trim_i.exec_trim()
-            if 't_final' and 'dt' and 'gust' in jcl.simcase[i].keys():
+            if 't_final' and 'dt' in jcl.simcase[i].keys():
                 trim_i.exec_sim()
             response.append(trim_i.response)
             
@@ -87,45 +87,49 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         post_processing.force_summation_method() # trim + sim
         post_processing.cuttingforces() # trim + sim
         post_processing.gather_monstations() # trim + sim, wird zum plotten benoetigt
+        if 't_final' and 'dt' in jcl.simcase[0].keys():
+            post_processing.dyn2stat()
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
         print '--> Saving response(s).'  
         with open(path_output + 'response_' + job_name + '.pickle', 'w') as f:
             cPickle.dump(response, f, cPickle.HIGHEST_PROTOCOL)
-        for i in range(len(jcl.trimcase)):
-            with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f:
-                scipy.io.savemat(f, response[i])
+        #for i in range(len(jcl.trimcase)):
+        #    with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f:
+        #        scipy.io.savemat(f, response[i])
         print '--> Saving monstation(s).'  
         with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
             cPickle.dump(post_processing.monstations, f, cPickle.HIGHEST_PROTOCOL)
-        with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
-            scipy.io.savemat(f, post_processing.monstations)
-            
-        if not ('t_final' and 'dt' in jcl.simcase[0].keys()):
+        #with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
+        #    scipy.io.savemat(f, post_processing.monstations)
+        
+        print '--> Saving auxiliary output data.'
+        if 't_final' and 'dt' in jcl.simcase[0].keys():
+            # nur sim
+            post_processing.save_dyn2stat(path_output + 'nodalloads_' + job_name + '.bdf')
+        else:
             # nur trim
-            print '--> Saving auxiliary output data.'  # nur trim
             post_processing.save_monstations(path_output + 'monstations_' + job_name + '.bdf')     
             post_processing.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
             post_processing.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
             post_processing.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
         
         print '--> Drawing some plots.'  
-        
+        plotting = plotting_modul.plotting(jcl, model, response)
         if 't_final' and 'dt' in jcl.simcase[0].keys():
             # nur sim
-            plotting_sim = plotting_modul.plotting_sim(jcl, model, response)
-            plotting_sim.plot_monstations_time(post_processing.monstations, path_output + 'monstations_time_' + job_name + '.pdf')
-            #plotting_sim.plot_cs_signal() # Discus2c spezifisch
-            #plotting_sim.plot_time_animation(animation_dimensions = '3D')
-            #plotting_sim.make_movie(path_output, speedup_factor=0.1)
+            plotting.plot_monstations_time(post_processing.monstations, path_output + 'monstations_time_' + job_name + '.pdf')
+            plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf', dyn2stat=True) 
+            #plotting.plot_cs_signal() # Discus2c spezifisch
+            #plotting.plot_time_animation(animation_dimensions = '3D')
+            #plotting.make_movie(path_output, speedup_factor=0.1)
             
         else:
-            plotting_trim = plotting_modul.plotting_trim(jcl, model, response)
             # nur trim
-            plotting_trim.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') 
-            plotting_trim.write_critical_trimcases(plotting_trim.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') 
-            #plotting_trim.plot_pressure_distribution()
-            #plotting_trim.plot_forces_deformation_interactive() 
+            plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') 
+            plotting.write_critical_trimcases(plotting_trim.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') 
+            #plotting.plot_pressure_distribution()
+            #plotting.plot_forces_deformation_interactive() 
 
         
     if test:

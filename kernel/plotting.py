@@ -14,11 +14,49 @@ import csv, time, os
 import build_aero
 
 
-class plotting_trim:
+class plotting:
     def __init__(self, jcl, model, response):
         self.jcl = jcl
         self.model = model
         self.response = response
+        
+        # Allegra
+        if self.jcl.general['aircraft'] == 'ALLEGRA':
+            self.potatos_Fz_Mx = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
+            self.potatos_Mx_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
+            self.potatos_Fz_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01', 'ZFCUT27', 'ZFCUT28']
+            self.cuttingforces_wing = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', ]
+            self.f_scale = 0.002 # vectors
+            self.p_scale = 0.4 # points
+        # DLR-F19
+        elif self.jcl.general['aircraft'] == 'DLR F-19-S':
+            self.potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
+            self.potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
+            self.potatos_Fz_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON4', 'MON5']
+            self.cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
+            self.f_scale = 0.002 # vectors
+            self.p_scale = 0.04 # points
+        # MULDICON
+        elif self.jcl.general['aircraft'] == 'MULDICON':
+            self.potatos_Fz_Mx = ['MON9']
+            self.potatos_Mx_My = ['MON9']
+            self.potatos_Fz_My = ['MON9']
+            self.cuttingforces_wing = ['MON9']
+            self.f_scale = 0.002 # vectors
+            self.p_scale = 0.04 # points
+        # Discus2c
+        elif self.jcl.general['aircraft'] == 'Discus2c':
+            self.potatos_Fz_Mx = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
+            self.potatos_Mx_My = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
+            self.potatos_Fz_My = ['MON102']
+            self.cuttingforces_wing = ['MON646', 'MON644', 'MON641', 'MON541', 'MON544', 'MON546']
+            self.f_scale = 0.1 # vectors
+            self.p_scale = 0.05 # points
+        else:
+            print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
+            return
+        
+        
         
     def plot_pressure_distribution(self):
         for i_trimcase in range(len(self.jcl.trimcase)):
@@ -44,20 +82,7 @@ class plotting_trim:
       
     def plot_forces_deformation_interactive(self):
         from mayavi import mlab
-        
-        if self.jcl.general['aircraft'] == 'ALLEGRA':
-            f_scale = 0.002 # vectors
-            p_scale = 0.4 # points
-        elif self.jcl.general['aircraft'] in ['DLR F-19-S', 'MULDICON']:
-            f_scale = 0.002 # vectors
-            p_scale = 0.04 # points
-        elif self.jcl.general['aircraft'] == 'Discus2c':
-            f_scale = 0.1 # vectors
-            p_scale = 0.05 # points
-        else:
-            print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
-            return
-        
+                
         for i_trimcase in range(len(self.jcl.trimcase)):
             response   = self.response[i_trimcase]
             trimcase   = self.jcl.trimcase[i_trimcase]
@@ -69,35 +94,35 @@ class plotting_trim:
             fx, fy, fz = response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]],response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]]
 
             mlab.figure()
-            mlab.points3d(x, y, z, scale_factor=p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=f_scale)            
-            #mlab.quiver3d(x, y, z, fx*f_scale, fy*f_scale, fz*f_scale , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-            #mlab.quiver3d(x+fx*f_scale, y+fy*f_scale, z+fz*f_scale,fx*f_scale, fy*f_scale, fz*f_scale , color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
+            mlab.points3d(x, y, z, scale_factor=self.p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=self.f_scale)            
+            #mlab.quiver3d(x, y, z, fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+            #mlab.quiver3d(x+fx*self.f_scale, y+fy*self.f_scale, z+fz*self.f_scale,fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
             mlab.title('Pk_rbm', size=0.2, height=0.95)
             
             mlab.figure() 
-            mlab.points3d(x, y, z, scale_factor=p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_cam'][self.model.aerogrid['set_k'][:,0]], response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=f_scale)            
+            mlab.points3d(x, y, z, scale_factor=self.p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_cam'][self.model.aerogrid['set_k'][:,0]], response['Pk_cam'][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=self.f_scale)            
             mlab.title('Pk_camber_twist', size=0.2, height=0.95)
             
             mlab.figure()        
-            mlab.points3d(x, y, z, scale_factor=p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_cs'][self.model.aerogrid['set_k'][:,0]], response['Pk_cs'][self.model.aerogrid['set_k'][:,1]], response['Pk_cs'][self.model.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=f_scale)
+            mlab.points3d(x, y, z, scale_factor=self.p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_cs'][self.model.aerogrid['set_k'][:,0]], response['Pk_cs'][self.model.aerogrid['set_k'][:,1]], response['Pk_cs'][self.model.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=self.f_scale)
             mlab.title('Pk_cs', size=0.2, height=0.95)
             
             mlab.figure()   
-            mlab.points3d(x, y, z, scale_factor=p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=f_scale)
+            mlab.points3d(x, y, z, scale_factor=self.p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=self.f_scale)
             mlab.title('Pk_flex', size=0.2, height=0.95)
             
             mlab.figure()   
-            mlab.points3d(x, y, z, scale_factor=p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_cfd'][self.model.aerogrid['set_k'][:,0]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,1]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=f_scale)
+            mlab.points3d(x, y, z, scale_factor=self.p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_cfd'][self.model.aerogrid['set_k'][:,0]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,1]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=self.f_scale)
             mlab.title('Pk_cfd', size=0.2, height=0.95)
             
             mlab.figure()   
-            mlab.points3d(x, y, z, scale_factor=p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_aero'][self.model.aerogrid['set_k'][:,0]], response['Pk_aero'][self.model.aerogrid['set_k'][:,1]], response['Pk_aero'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=f_scale)
+            mlab.points3d(x, y, z, scale_factor=self.p_scale)
+            mlab.quiver3d(x, y, z, response['Pk_aero'][self.model.aerogrid['set_k'][:,0]], response['Pk_aero'][self.model.aerogrid['set_k'][:,1]], response['Pk_aero'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=self.f_scale)
             mlab.title('Pk_aero', size=0.2, height=0.95)
             
             x = self.model.strcgrid['offset'][:,0]
@@ -111,64 +136,43 @@ class plotting_trim:
             z_f = self.model.strcgrid['offset'][:,2] + response['Ug'][self.model.strcgrid['set'][:,2]]
             
             mlab.figure()
-            #mlab.points3d(x, y, z, scale_factor=p_scale)
-            mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=p_scale)
-            mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=p_scale)
+            #mlab.points3d(x, y, z, scale_factor=self.p_scale)
+            mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=self.p_scale)
+            mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=self.p_scale)
             mlab.title('rbm (green) and flexible deformation x10 (blue)', size=0.2, height=0.95)
 
             mlab.figure()   
-            mlab.points3d(x, y, z, scale_factor=p_scale)
-            mlab.quiver3d(x, y, z, response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]], color=(1,1,0), scale_factor=f_scale)
+            mlab.points3d(x, y, z, scale_factor=self.p_scale)
+            mlab.quiver3d(x, y, z, response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]], color=(1,1,0), scale_factor=self.f_scale)
             mlab.title('Pg', size=0.2, height=0.95)
             
             mlab.show()
 
-    def plot_monstations(self, monstations, filename_pdf):
-        # Allegra
-        if self.jcl.general['aircraft'] == 'ALLEGRA':
-            potatos_Fz_Mx = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
-            potatos_Mx_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
-            potatos_Fz_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01', 'ZFCUT27', 'ZFCUT28']
-            cuttingforces_wing = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', ]
-        # DLR-F19
-        elif self.jcl.general['aircraft'] == 'DLR F-19-S':
-            potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
-            potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
-            potatos_Fz_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON4', 'MON5']
-            cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
-        # Discus2c
-        elif self.jcl.general['aircraft'] == 'Discus2c':
-            potatos_Fz_Mx = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
-            potatos_Mx_My = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
-            potatos_Fz_My = ['MON102']
-            cuttingforces_wing = ['MON646', 'MON644', 'MON641', 'MON541', 'MON544', 'MON546']
-        # DLR-F19
-        elif self.jcl.general['aircraft'] == 'MULDICON':
-            potatos_Fz_Mx = ['MON9']
-            potatos_Mx_My = ['MON9']
-            potatos_Fz_My = ['MON9']
-            cuttingforces_wing = ['MON9']
-        else:
-            print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
-            return
-        
+    def plot_monstations(self, monstations, filename_pdf, dyn2stat=False):
+
         # launch plotting
         pp = PdfPages(filename_pdf)
-        self.potatos(monstations, pp, potatos_Fz_Mx, potatos_Mx_My, potatos_Fz_My)
-        self.cuttingforces_wing(monstations, pp, cuttingforces_wing)
+        self.potato_plots(monstations, pp, self.potatos_Fz_Mx, self.potatos_Mx_My, self.potatos_Fz_My, dyn2stat)
+        self.cuttingforces_along_wing_plots(monstations, pp, self.cuttingforces_wing, dyn2stat)
         pp.close()
         print 'plots saved as ' + filename_pdf
         #print 'opening '+ filename_pdf
         #os.system('evince ' + filename_pdf + ' &')
         
-    def potatos(self, monstations, pp, potatos_Fz_Mx, potatos_Mx_My, potatos_Fz_My):
+    def potato_plots(self, monstations, pp, potatos_Fz_Mx, potatos_Mx_My, potatos_Fz_My, dyn2stat=False):
         print 'start potato-plotting...'
         # get data needed for plotting from monstations
+        if dyn2stat:
+            loads_string = 'loads_dyn2stat'
+            subcase_string = 'subcases_dyn2stat'
+        else:
+            loads_string = 'loads'
+            subcase_string = 'subcase'
         loads = []
         offsets = []
         potato = np.unique(potatos_Fz_Mx + potatos_Mx_My + potatos_Fz_My)
         for station in potato:
-            loads.append(monstations[station]['loads'])
+            loads.append(monstations[station][loads_string])
             offsets.append(monstations[station]['offset'])
         loads = np.array(loads)
         offsets = np.array(offsets)
@@ -187,10 +191,10 @@ class plotting_trim:
                     for simplex in hull.simplices:                   # plot convex hull
                         plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
                     for i_case in range(hull.nsimplex):              # plot text   
-                        plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
-                        self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                        plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]][subcase_string][hull.vertices[i_case]]), fontsize=8)
+                        self.crit_trimcases.append(monstations[potato[i_station]][subcase_string][hull.vertices[i_case]])
                 else:
-                    self.crit_trimcases += monstations[potato[i_station]]['subcase'][:]
+                    self.crit_trimcases += monstations[potato[i_station]][subcase_string][:]
                 plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
                 plt.title(potato[i_station])
@@ -210,10 +214,10 @@ class plotting_trim:
                     for simplex in hull.simplices:                   # plot convex hull
                         plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
                     for i_case in range(hull.nsimplex):              # plot text   
-                        plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
-                        self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                        plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]][subcase_string][hull.vertices[i_case]]), fontsize=8)
+                        self.crit_trimcases.append(monstations[potato[i_station]][subcase_string][hull.vertices[i_case]])
                 else:
-                    self.crit_trimcases += monstations[potato[i_station]]['subcase'][:]
+                    self.crit_trimcases += monstations[potato[i_station]][subcase_string][:]
                 plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
                 plt.title(potato[i_station])
@@ -234,10 +238,10 @@ class plotting_trim:
                     for simplex in hull.simplices:                   # plot convex hull
                         plt.plot(points[simplex,0], points[simplex,1], color='cornflowerblue', linewidth=2.0, linestyle='--')
                     for i_case in range(hull.nsimplex):              # plot text   
-                        plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]]), fontsize=8)
-                        self.crit_trimcases.append(monstations[potato[i_station]]['subcase'][hull.vertices[i_case]])
+                        plt.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(monstations[potato[i_station]][subcase_string][hull.vertices[i_case]]), fontsize=8)
+                        self.crit_trimcases.append(monstations[potato[i_station]][subcase_string][hull.vertices[i_case]])
                 else:
-                    self.crit_trimcases += monstations[potato[i_station]]['subcase'][:]
+                    self.crit_trimcases += monstations[potato[i_station]][subcase_string][:]
                 plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
                 plt.title(potato[i_station])
@@ -247,14 +251,19 @@ class plotting_trim:
                 pp.savefig()
                 plt.close()  
           
-    def cuttingforces_wing(self, monstations, pp, cuttingforces_wing):
+    def cuttingforces_along_wing_plots(self, monstations, pp, cuttingforces_wing, dyn2stat=False):
         print 'start plotting cutting forces...'
         cuttingforces = ['Fx [N]', 'Fy [N]', 'Fz [N]', 'Mx [Nm]', 'My [Nm]', 'Mz [Nm]']
-        
+        if dyn2stat:
+            loads_string = 'loads_dyn2stat'
+            subcase_string = 'subcases_dyn2stat'
+        else:
+            loads_string = 'loads'
+            subcase_string = 'subcase'
         loads = []
         offsets = []
         for station in cuttingforces_wing:
-            loads.append(monstations[station]['loads'])
+            loads.append(monstations[station][loads_string])
             offsets.append(monstations[station]['offset'])
         loads = np.array(loads)
         offsets = np.array(offsets)
@@ -268,10 +277,10 @@ class plotting_trim:
                 # verticalalignment or va 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
                 # max
                 plt.scatter(offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], color='r')
-                plt.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(monstations[monstations.keys()[0]]['subcase'][i_max[i_station]]), fontsize=8, verticalalignment='bottom' )
+                plt.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(monstations[monstations.keys()[0]][subcase_string][i_max[i_station]]), fontsize=8, verticalalignment='bottom' )
                 # min
                 plt.scatter(offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], color='r')
-                plt.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(monstations[monstations.keys()[0]]['subcase'][i_min[i_station]]), fontsize=8, verticalalignment='top' )
+                plt.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(monstations[monstations.keys()[0]][subcase_string][i_min[i_station]]), fontsize=8, verticalalignment='top' )
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             plt.title('Wing')        
             plt.grid('on')
@@ -294,12 +303,6 @@ class plotting_trim:
             w.writerows(crit_trimcases_info)
         return
 
-class plotting_sim:   
-    def __init__(self, jcl, model, response):
-        self.jcl = jcl
-        self.model = model
-        self.response = response
-        
     def plot_monstations_time(self, monstations, filename_pdf):
         pp = PdfPages(filename_pdf)
         for key in monstations.keys():
@@ -486,8 +489,10 @@ class plotting_sim:
             
             # plot animation
             if animation_dimensions == '2D':
+                # option if mayavi is not installed
                 self.plot_time_animation_2d(i_simcase)
             elif animation_dimensions == '3D':
+                # preferred
                 self.plot_time_animation_3d(i_simcase)
             plt.close('all')
             
@@ -582,21 +587,7 @@ class plotting_sim:
         plt.grid('on')
         plt.title('CS Commands in Loads Kernel')
         plt.legend(['Xi', 'Eta', 'Zeta'])
-    
-    def get_scale_factors(self):
-        if self.jcl.general['aircraft'] == 'ALLEGRA':
-            self.f_scale = 0.002 # vectors
-            self.p_scale = 0.4 # points
-        elif self.jcl.general['aircraft'] in ['DLR F-19-S', 'MULDICON']:
-            self.f_scale = 0.002 # vectors
-            self.p_scale = 0.04 # points
-        elif self.jcl.general['aircraft'] == 'Discus2c':
-            self.f_scale = 0.02 # vectors
-            self.p_scale = 0.2 # points
-        else:
-            print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
-            return
-                 
+                    
     def make_movie(self, path_output, speedup_factor=1.0):
         for i_simcase in range(len(self.jcl.simcase)):
             self.plot_time_animation_3d(i_simcase, path_output, speedup_factor=speedup_factor, make_movie=True)
@@ -604,8 +595,6 @@ class plotting_sim:
     def plot_time_animation_3d(self, i_trimcase, path_output='./', speedup_factor=1.0, make_movie=False):
         # To Do: show simulation time in animation
         from mayavi import mlab
-        
-        self.get_scale_factors()
         
         response   = self.response[i_trimcase]
         trimcase   = self.jcl.trimcase[i_trimcase]
