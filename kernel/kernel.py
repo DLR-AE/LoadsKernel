@@ -104,10 +104,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         #    scipy.io.savemat(f, post_processing.monstations)
         
         print '--> Saving auxiliary output data.'
-        if 't_final' and 'dt' in jcl.simcase[0].keys():
-            # nur sim
-            post_processing.save_dyn2stat(path_output + 'nodalloads_' + job_name + '.bdf')
-        else:
+        if not ('t_final' and 'dt' in jcl.simcase[0].keys()):
             # nur trim
             post_processing.save_monstations(path_output + 'monstations_' + job_name + '.bdf')     
             post_processing.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
@@ -120,16 +117,18 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             # nur sim
             plotting.plot_monstations_time(post_processing.monstations, path_output + 'monstations_time_' + job_name + '.pdf')
             plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf', dyn2stat=True) 
+            plotting.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
+            plotting.save_dyn2stat(post_processing.dyn2stat, path_output + 'nodalloads_' + job_name + '.bdf') 
             #plotting.plot_cs_signal() # Discus2c spezifisch
-            #plotting.plot_time_animation(animation_dimensions = '3D')
+            #plotting.plot_time_data(animation_dimensions = '3D')
             #plotting.make_movie(path_output, speedup_factor=0.1)
             
         else:
             # nur trim
             plotting.plot_monstations(post_processing.monstations, path_output + 'monstations_' + job_name + '.pdf') 
-            plotting.write_critical_trimcases(plotting_trim.crit_trimcases, jcl.trimcase, path_output + 'crit_trimcases_' + job_name + '.csv') 
-            #plotting.plot_pressure_distribution()
-            #plotting.plot_forces_deformation_interactive() 
+            plotting.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv') 
+#             plotting.plot_pressure_distribution()
+#             plotting.plot_forces_deformation_interactive() 
 
         
     if test:

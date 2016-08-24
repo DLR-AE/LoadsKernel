@@ -206,7 +206,7 @@ class post_processing:
     def dyn2stat(self):
         print 'searching min/max of Fz/Mx/My in time data at {} monitoring stations and gathering loads (dyn2stat)...'.format(len(self.monstations.keys()))
         Pg_dyn2stat = []
-        Pg_dyn2stat_desc = []  
+        subcases_dyn2stat_all = []
         for key in self.monstations.keys():
             # Schnittlasten an den Monitoring Stationen raus schreiben zum Plotten
             # Knotenlasten raus schreiben
@@ -238,21 +238,12 @@ class post_processing:
                 subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_min')
             self.monstations[key]['loads_dyn2stat'] = np.array(loads_dyn2stat)
             self.monstations[key]['subcases_dyn2stat'] = np.array(subcases_dyn2stat)
-            Pg_dyn2stat_desc += subcases_dyn2stat
+            subcases_dyn2stat_all += subcases_dyn2stat
         # save dyn2stat
         self.dyn2stat = {'Pg': np.array(Pg_dyn2stat), 
-                         'desc': Pg_dyn2stat_desc,
+                         'subcases': subcases_dyn2stat_all,
+                         'subcases_ID': [ int(subcases_dyn2stat_all[i_case].split('_')[0])*1000000+i_case  for i_case in range(len(subcases_dyn2stat_all))]
                         }
-            
-    def save_dyn2stat(self, filename):
-        print 'saving dyn2stat nodal loads as Nastarn cards...'
-        with open(filename+'_Pg_dyn2stat', 'w') as fid: 
-            for i_case in range(len(self.dyn2stat['desc'])):
-                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat['Pg'][i_case,:], int(self.dyn2stat['desc'][i_case].split('_')[0])*1000000+i_case)
-        with open(filename+'_subcases_dyn2stat', 'w') as fid:         
-            for i_case in range(len(self.dyn2stat['desc'])):
-                write_functions.write_subcases(fid, int(self.dyn2stat['desc'][i_case].split('_')[0])*1000000+i_case, self.dyn2stat['desc'][i_case])
-
 
     def save_monstations(self, filename):
         print 'saving monitoring stations as Nastarn cards...'
