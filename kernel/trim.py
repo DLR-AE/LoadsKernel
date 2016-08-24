@@ -112,6 +112,20 @@ class trim:
             # outputs
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'w'))[0][0],1] = 'free'
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'du'))[0][0],1] = 'target'
+       
+        # -------------------------
+        # --- pratt, alpha only --- 
+        # -------------------------
+        if self.trimcase['manoeuver'] == 'pratt':
+            print 'setting trim conditions to "pratt"'
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_eta'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dp'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dq'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
         
         # --------------
         # --- bypass --- 
