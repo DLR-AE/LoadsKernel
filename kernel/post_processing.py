@@ -252,16 +252,17 @@ class post_processing:
                 write_functions.write_force_and_moment_cards(fid, self.model.mongrid, self.response[i_trimcase]['Pmon_local'], i_trimcase+1)
     
     def save_nodaldefo(self, filename):
+        # deformations are given in 9300 coord
+        strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
+        grid_trafo(strcgrid_tmp, self.model.coord, 9300)
         print 'saving nodal flexible deformations as dat file...'
         with open(filename+'_undeformed.dat', 'w') as fid:             
-            np.savetxt(fid, np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'])))
-            #np.savetxt(fid, self.model.strcgrid['offset'])
+            np.savetxt(fid, np.hstack((self.model.strcgrid['ID'].reshape(-1,1), strcgrid_tmp['offset'])))
         
         for i_trimcase in range(len(self.jcl.trimcase)):
-            with open(filename+'_subcase_'+str(self.jcl.trimcase[i_trimcase]['subcase'])+'_Uf_x10.dat', 'w') as fid: 
-                defo = np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'] + self.response[i_trimcase]['Ug_f'][self.model.strcgrid['set'][:,0:3]] * 10.0 ))
+            with open(filename+'_subcase_'+str(self.jcl.trimcase[i_trimcase]['subcase'])+'_Ug.dat', 'w') as fid: 
+                defo = np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'] + self.response[i_trimcase]['Ug_r'][self.model.strcgrid['set'][:,0:3]] + + self.response[i_trimcase]['Ug_f'][self.model.strcgrid['set'][:,0:3]] * 500.0))
                 np.savetxt(fid, defo)
-                #np.savetxt(fid, defo[:,1:4])
                 
     def save_nodalloads(self, filename):
         print 'saving nodal loads as Nastarn cards...'

@@ -38,10 +38,10 @@ class plotting:
             self.p_scale = 0.04 # points
         # MULDICON
         elif self.jcl.general['aircraft'] == 'MULDICON':
-            self.potatos_Fz_Mx = ['MON9']
-            self.potatos_Mx_My = ['MON9']
-            self.potatos_Fz_My = ['MON9']
-            self.cuttingforces_wing = ['MON9']
+            self.potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
+            self.potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
+            self.potatos_Fz_My = ['MON4', 'MON5']
+            self.cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.04 # points
         # Discus2c
@@ -139,7 +139,7 @@ class plotting:
             #mlab.points3d(x, y, z, scale_factor=self.p_scale)
             mlab.points3d(x_r, y_r, z_r, color=(0,1,0), scale_factor=self.p_scale)
             mlab.points3d(x_f, y_f, z_f, color=(0,0,1), scale_factor=self.p_scale)
-            mlab.title('rbm (green) and flexible deformation x10 (blue)', size=0.2, height=0.95)
+            mlab.title('rbm (green) and flexible deformation (blue, true scale) in 9300 coord', size=0.2, height=0.95)
 
             mlab.figure()   
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
