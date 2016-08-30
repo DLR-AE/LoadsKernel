@@ -21,160 +21,155 @@ class post_processing:
         self.model = model
         self.response = response
     
-    def force_summation_method(self):
-        print 'calculating forces & moments on structural set (force summation method) and apply euler angles...'
-        for i_trimcase in range(len(self.jcl.trimcase)):
-            response   = self.response[i_trimcase]
-            trimcase   = self.jcl.trimcase[i_trimcase]
-            
-            i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
-            i_mass     = self.model.mass['key'].index(trimcase['mass'])
-            Mgg        = self.model.mass['MGG'][i_mass]
-            PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
-            PHIstrc_cg = self.model.mass['PHIstrc_cg'][i_mass]
-            PHInorm_cg = self.model.mass['PHInorm_cg'][i_mass]
-            PHIcg_norm = self.model.mass['PHIcg_norm'][i_mass]
-            n_modes    = self.model.mass['n_modes'][i_mass]
-            Mb         = self.model.mass['Mb'][i_mass]
-            
-            # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
-            if len(response['t']) > 1:
-                response['Pg_iner_r']   = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['Pg_iner_f']   = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['Pg_aero']     = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['Pg']          = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['Pg_iner_global']   = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['Pg_aero_global']   = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['Pg_global']   = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['Ug_f']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['Ug_r']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['Ug']          = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['d2Ug_dt2_f']  = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['d2Ug_dt2_r']  = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-                response['d2Ug_dt2']    = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-    
-                for i_step in range(len(response['t'])):
-                    if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
-                        # Fuer Bewegungsgleichungen z.B. von Waszack muessen die zusaetzlichen Terme hier ebenfalls beruecksichtigt werden!
-                        d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][i_step,0:3] - response['g_cg'][i_step,:] - np.cross(response['dUcg_dt'][i_step,0:3], response['dUcg_dt'][i_step,3:6]), 
-                                                                response['d2Ucg_dt2'][i_step,3:6] ))  ) 
-                    else:
-                        d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][i_step,0:3] - response['g_cg'][i_step,:], response['d2Ucg_dt2'][i_step,3:6])) ) # Nastran
-                    response['d2Ug_dt2_r'][i_step,:] = d2Ug_dt2_r
-                    response['Pg_iner_r'][i_step,:] = - Mgg.dot(d2Ug_dt2_r)
-                    response['Pg_aero'][i_step,:] = np.dot(self.model.PHIk_strc.T, response['Pk_aero'][i_step,:])
-                    d2Ug_dt2_f = PHIf_strc.T.dot(response['d2Uf_dt2'][i_step,:])
-                    response['d2Ug_dt2_f'][i_step,:] = d2Ug_dt2_f
-                    response['Pg_iner_f'][i_step,:] = - Mgg.dot(d2Ug_dt2_f)
-                    response['Pg'][i_step,:] = response['Pg_aero'][i_step,:] + response['Pg_iner_r'][i_step,:] + response['Pg_iner_f'][i_step,:]
-
-                    # Including rotation about euler angles in calculation of Ug_r and Ug_f
-                    # This is mainly done for plotting and time animation.
-                    
-                    # setting up coordinate system
-                    coord_tmp = copy.deepcopy(self.model.coord)
-                    coord_tmp['ID'].append(1000000)
-                    coord_tmp['RID'].append(0)
-                    coord_tmp['dircos'].append(PHIcg_norm[0:3,0:3].dot(calc_drehmatrix(response['X'][i_step,:][3], response['X'][i_step,:][4], response['X'][i_step,:][5])))
-                    coord_tmp['offset'].append(response['X'][i_step,:][0:3] + np.array([0., 0., self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
-
-                    # apply transformation to strcgrid
-                    strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
-                    grid_trafo(strcgrid_tmp, coord_tmp, 1000000)
-                    response['Ug_r'][i_step,self.model.strcgrid['set'][:,0]] = strcgrid_tmp['offset'][:,0] - self.model.strcgrid['offset'][:,0]
-                    response['Ug_r'][i_step,self.model.strcgrid['set'][:,1]] = strcgrid_tmp['offset'][:,1] - self.model.strcgrid['offset'][:,1]
-                    response['Ug_r'][i_step,self.model.strcgrid['set'][:,2]] = strcgrid_tmp['offset'][:,2] - self.model.strcgrid['offset'][:,2]
-                    # apply transformation to flexible deformations vector
-                    Uf = response['X'][i_step,:][12:12+n_modes]
-                    Ug_f_body = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T
-                    strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
-                    strcgrid_tmp['CD'] = np.repeat(1000000, self.model.strcgrid['n'])
-                    response['Ug_f'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, Ug_f_body)
-                    response['Pg_aero_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'][i_step,:])
-                    response['Pg_iner_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner_r'][i_step,:] + response['Pg_iner_f'][i_step,:])
-                    response['Pg_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'][i_step,:])
-                    response['Ug'][i_step,:] = response['Ug_r'][i_step,:] + response['Ug_f'][i_step,:]
-                    response['d2Ug_dt2'][i_step,:] = response['d2Ug_dt2_r'][i_step,:] + response['d2Ug_dt2_f'][i_step,:]
-            else:
+    def force_summation_method(self,i_trimcase ):
+        print 'calculating forces & moments on structural set (force summation method)...'
+        response   = self.response[i_trimcase]
+        trimcase   = self.jcl.trimcase[i_trimcase]
+        
+        i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
+        i_mass     = self.model.mass['key'].index(trimcase['mass'])
+        Mgg        = self.model.mass['MGG'][i_mass]
+        PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
+        PHIstrc_cg = self.model.mass['PHIstrc_cg'][i_mass]
+        PHInorm_cg = self.model.mass['PHInorm_cg'][i_mass]
+        PHIcg_norm = self.model.mass['PHIcg_norm'][i_mass]
+        n_modes    = self.model.mass['n_modes'][i_mass]
+        Mb         = self.model.mass['Mb'][i_mass]
+        # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
+        if len(response['t']) > 1:
+            response['Pg_iner']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            response['Pg_aero']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            response['Pg']             = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            response['d2Ug_dt2']       = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            for i_step in range(len(response['t'])):
                 if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
                     # Fuer Bewegungsgleichungen z.B. von Waszack muessen die zusaetzlichen Terme hier ebenfalls beruecksichtigt werden!
-                    d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'] - np.cross(response['dUcg_dt'][0:3], response['dUcg_dt'][3:6]), 
-                                                            response['d2Ucg_dt2'][3:6] ))  ) 
+                    d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][i_step,0:3] - response['g_cg'][i_step,:] - np.cross(response['dUcg_dt'][i_step,0:3], response['dUcg_dt'][i_step,3:6]), 
+                                                            response['d2Ucg_dt2'][i_step,3:6] ))  ) 
                 else:
-                    d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'], response['d2Ucg_dt2'][3:6])) ) # Nastran                
-                response['Pg_iner_r'] = - Mgg.dot(d2Ug_dt2_r)
-                response['d2Ug_dt2_r'] = d2Ug_dt2_r
-                d2Ug_dt2_f = PHIf_strc.T.dot(response['d2Uf_dt2'])
-                response['d2Ug_dt2_f'] = d2Ug_dt2_f
-                response['Pg_iner_f'] = - Mgg.dot(d2Ug_dt2_f)
-                #response['Ug_flex'] = PHIf_strc.T.dot(response['Uf'])
-                #response['Pg_flex'] = self.model.Kgg.dot(response['Ug_flex']) * 0.0
-                
-                response['Pg_aero'] = np.dot(self.model.PHIk_strc.T, response['Pk_aero'])
+                    d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][i_step,0:3] - response['g_cg'][i_step,:], response['d2Ucg_dt2'][i_step,3:6])) ) # Nastran
 
-                response['Pg'] = response['Pg_aero'] + response['Pg_iner_r'] + response['Pg_iner_f']
-    
-                # das muss raus kommen:
-                #np.dot(self.model.mass['Mb'][i_mass],np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'], response['d2Ucg_dt2'][3:6])))
-                #PHIstrc_cg.T.dot(response['Pg_aero'])
-                # das kommt raus:
-                #PHIstrc_cg.T.dot(response['Pg_iner_r'])
+                d2Ug_dt2_f = PHIf_strc.T.dot(response['d2Uf_dt2'][i_step,:])
+                Pg_iner_r = - Mgg.dot(d2Ug_dt2_r)
+                Pg_iner_f = - Mgg.dot(d2Ug_dt2_f)
+                response['Pg_iner'][i_step,:] = Pg_iner_r + Pg_iner_f
+                response['Pg_aero'][i_step,:] = self.model.PHIk_strc.T.dot(response['Pk_aero'][i_step,:])
+                response['Pg'][i_step,:] = response['Pg_aero'][i_step,:] + response['Pg_iner'][i_step,:]
+                response['d2Ug_dt2'][i_step,:] = d2Ug_dt2_r + d2Ug_dt2_f
+        else:
+            if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
+                # Fuer Bewegungsgleichungen z.B. von Waszack muessen die zusaetzlichen Terme hier ebenfalls beruecksichtigt werden!
+                d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'] - np.cross(response['dUcg_dt'][0:3], response['dUcg_dt'][3:6]), 
+                                                        response['d2Ucg_dt2'][3:6] ))  ) 
+            else:
+                d2Ug_dt2_r = PHIstrc_cg.dot( np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'], response['d2Ucg_dt2'][3:6])) ) # Nastran                
+            d2Ug_dt2_f = PHIf_strc.T.dot(response['d2Uf_dt2'])
+            Pg_iner_r = - Mgg.dot(d2Ug_dt2_r)
+            Pg_iner_f = - Mgg.dot(d2Ug_dt2_f)
+            response['Pg_iner'] = Pg_iner_r + Pg_iner_f
+            response['Pg_aero'] = np.dot(self.model.PHIk_strc.T, response['Pk_aero'])
+            response['Pg'] = response['Pg_aero'] + response['Pg_iner']
+            response['d2Ug_dt2'] = d2Ug_dt2_r + d2Ug_dt2_f
+            # das muss raus kommen:
+            #np.dot(self.model.mass['Mb'][i_mass],np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'], response['d2Ucg_dt2'][3:6])))
+            #PHIstrc_cg.T.dot(response['Pg_aero'])
+            # das kommt raus:
+            #PHIstrc_cg.T.dot(response['Pg_iner_r'])
 
+           
+    def euler_transformation(self, i_trimcase):
+        print 'apply euler angles...'
+        response   = self.response[i_trimcase]
+        trimcase   = self.jcl.trimcase[i_trimcase]
+        
+        i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
+        i_mass     = self.model.mass['key'].index(trimcase['mass'])
+        Mgg        = self.model.mass['MGG'][i_mass]
+        PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
+        PHIstrc_cg = self.model.mass['PHIstrc_cg'][i_mass]
+        PHInorm_cg = self.model.mass['PHInorm_cg'][i_mass]
+        PHIcg_norm = self.model.mass['PHIcg_norm'][i_mass]
+        n_modes    = self.model.mass['n_modes'][i_mass]
+        Mb         = self.model.mass['Mb'][i_mass]
+        # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
+        if len(response['t']) > 1:
+            response['Pg_iner_global'] = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            response['Pg_aero_global'] = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            response['Ug_r']           = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            response['Ug_f']           = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            response['Ug']             = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+
+            for i_step in range(len(response['t'])):
                 # Including rotation about euler angles in calculation of Ug_r and Ug_f
                 # This is mainly done for plotting and time animation.
-                
+
                 # setting up coordinate system
                 coord_tmp = copy.deepcopy(self.model.coord)
                 coord_tmp['ID'].append(1000000)
                 coord_tmp['RID'].append(0)
-                coord_tmp['dircos'].append(PHIcg_norm[0:3,0:3].dot(calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])))
-                coord_tmp['offset'].append(response['X'][0:3] + np.array([0., 0., self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
+                coord_tmp['dircos'].append(PHIcg_norm[0:3,0:3].dot(calc_drehmatrix(response['X'][i_step,:][3], response['X'][i_step,:][4], response['X'][i_step,:][5])))
+                coord_tmp['offset'].append(response['X'][i_step,:][0:3] + np.array([0., 0., self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
+
                 # apply transformation to strcgrid
                 strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
                 grid_trafo(strcgrid_tmp, coord_tmp, 1000000)
-                response['Ug_r'] = np.zeros(response['Pg'].shape)
-                response['Ug_r'][self.model.strcgrid['set'][:,0]] = strcgrid_tmp['offset'][:,0] - self.model.strcgrid['offset'][:,0]
-                response['Ug_r'][self.model.strcgrid['set'][:,1]] = strcgrid_tmp['offset'][:,1] - self.model.strcgrid['offset'][:,1]
-                response['Ug_r'][self.model.strcgrid['set'][:,2]] = strcgrid_tmp['offset'][:,2] - self.model.strcgrid['offset'][:,2]
-                # apply transformation to flexible deformations and forces & moments vectors
-                Uf = response['X'][12:12+n_modes]
+                response['Ug_r'][i_step,self.model.strcgrid['set'][:,0]] = strcgrid_tmp['offset'][:,0] - self.model.strcgrid['offset'][:,0]
+                response['Ug_r'][i_step,self.model.strcgrid['set'][:,1]] = strcgrid_tmp['offset'][:,1] - self.model.strcgrid['offset'][:,1]
+                response['Ug_r'][i_step,self.model.strcgrid['set'][:,2]] = strcgrid_tmp['offset'][:,2] - self.model.strcgrid['offset'][:,2]
+                # apply transformation to flexible deformations vector
+                Uf = response['X'][i_step,:][12:12+n_modes]
                 Ug_f_body = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T
                 strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
                 strcgrid_tmp['CD'] = np.repeat(1000000, self.model.strcgrid['n'])
-                response['Ug_f'] = force_trafo(strcgrid_tmp, coord_tmp, Ug_f_body)
-                response['Pg_aero_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'])
-                response['Pg_iner_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner_r'] + response['Pg_iner_f'])
-                response['Pg_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'])
-#                 x = self.model.strcgrid['offset'][:,0] + response['Ug_r'][self.model.strcgrid['set'][:,0]]
-#                 y = self.model.strcgrid['offset'][:,1] + response['Ug_r'][self.model.strcgrid['set'][:,1]]
-#                 z = self.model.strcgrid['offset'][:,2] + response['Ug_r'][self.model.strcgrid['set'][:,2]]
-#                 Ufx = response['Ug_f'][self.model.strcgrid['set'][:,0]] * 10.0
-#                 Ufy = response['Ug_f'][self.model.strcgrid['set'][:,1]] * 10.0
-#                 Ufz = response['Ug_f'][self.model.strcgrid['set'][:,2]] * 10.0
-#                 from mayavi import mlab
-#                 mlab.figure()
-#                 mlab.points3d(x,y,z, scale_factor=0.2)
-#                 mlab.points3d(x+Ufx,y+Ufy,z+Ufz, color=(0,0,1), scale_factor=0.2)
-#                 mlab.show()
+                response['Ug_f'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, Ug_f_body)
+                response['Pg_aero_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'][i_step,:])
+                response['Pg_iner_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'][i_step,:])
+                #response['Pg_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'][i_step,:])
+                response['Ug'][i_step,:] = response['Ug_r'][i_step,:] + response['Ug_f'][i_step,:]
                 
-                response['Ug'] = response['Ug_r'] + response['Ug_f']
-                response['d2Ug_dt2'] = response['d2Ug_dt2_r'] + response['d2Ug_dt2_f']
-           
-        
-    def cuttingforces(self):
+        else:
+            # Including rotation about euler angles in calculation of Ug_r and Ug_f
+            # This is mainly done for plotting and time animation.
+            
+            # setting up coordinate system
+            coord_tmp = copy.deepcopy(self.model.coord)
+            coord_tmp['ID'].append(1000000)
+            coord_tmp['RID'].append(0)
+            coord_tmp['dircos'].append(PHIcg_norm[0:3,0:3].dot(calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])))
+            coord_tmp['offset'].append(response['X'][0:3] + np.array([0., 0., self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
+            # apply transformation to strcgrid
+            strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
+            grid_trafo(strcgrid_tmp, coord_tmp, 1000000)
+            response['Ug_r'] = np.zeros(response['Pg'].shape)
+            response['Ug_r'][self.model.strcgrid['set'][:,0]] = strcgrid_tmp['offset'][:,0] - self.model.strcgrid['offset'][:,0]
+            response['Ug_r'][self.model.strcgrid['set'][:,1]] = strcgrid_tmp['offset'][:,1] - self.model.strcgrid['offset'][:,1]
+            response['Ug_r'][self.model.strcgrid['set'][:,2]] = strcgrid_tmp['offset'][:,2] - self.model.strcgrid['offset'][:,2]
+            # apply transformation to flexible deformations and forces & moments vectors
+            Uf = response['X'][12:12+n_modes]
+            Ug_f_body = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T
+            strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
+            strcgrid_tmp['CD'] = np.repeat(1000000, self.model.strcgrid['n'])
+            response['Ug_f'] = force_trafo(strcgrid_tmp, coord_tmp, Ug_f_body)
+            response['Pg_aero_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'])
+            response['Pg_iner_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'])
+            #response['Pg_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'])
+            response['Ug'] = response['Ug_r'] + response['Ug_f']
+                
+                
+                
+    def cuttingforces(self, i_trimcase):
         print 'calculating cutting forces & moments...'
-        for i_trimcase in range(len(self.jcl.trimcase)):        
-            response = self.response[i_trimcase]
-            # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
-            if len(response['t']) > 1:
-                response['Pmon_global'] = np.zeros((len(response['t']), 6*self.model.mongrid['n']))
-                response['Pmon_local'] = np.zeros((len(response['t']), 6*self.model.mongrid['n']))  
-                for i_step in range(len(response['t'])):
-                    response['Pmon_global'][i_step,:] = self.model.PHIstrc_mon.T.dot(response['Pg'][i_step,:])
-                    response['Pmon_local'][i_step,:] = force_trafo(self.model.mongrid, self.model.coord, response['Pmon_global'][i_step,:])
-            else:
-                response['Pmon_global'] = self.model.PHIstrc_mon.T.dot(response['Pg'])
-                response['Pmon_local'] = force_trafo(self.model.mongrid, self.model.coord, response['Pmon_global'])
+        response = self.response[i_trimcase]
+        # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
+        if len(response['t']) > 1:
+            response['Pmon_global'] = np.zeros((len(response['t']), 6*self.model.mongrid['n']))
+            response['Pmon_local'] = np.zeros((len(response['t']), 6*self.model.mongrid['n']))  
+            for i_step in range(len(response['t'])):
+                response['Pmon_global'][i_step,:] = self.model.PHIstrc_mon.T.dot(response['Pg'][i_step,:])
+                response['Pmon_local'][i_step,:] = force_trafo(self.model.mongrid, self.model.coord, response['Pmon_global'][i_step,:])
+        else:
+            response['Pmon_global'] = self.model.PHIstrc_mon.T.dot(response['Pg'])
+            response['Pmon_local'] = force_trafo(self.model.mongrid, self.model.coord, response['Pmon_global'])
         
     def gather_monstations(self):
         print 'gathering information on monitoring stations from respone(s)...'
@@ -272,15 +267,6 @@ class post_processing:
         with open(filename+'_subcases', 'w') as fid:         
             for i_trimcase in range(len(self.jcl.trimcase)):
                 write_functions.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
-#        with open(filename+'_Pg_aero', 'w') as fid: 
-#            for i_trimcase in range(len(self.jcl.trimcase)):
-#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_aero'], self.jcl.trimcase[i_trimcase]['subcase'])
-#        with open(filename+'_Pg_iner_r', 'w') as fid: 
-#            for i_trimcase in range(len(self.jcl.trimcase)):
-#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_r'], self.jcl.trimcase[i_trimcase]['subcase']) 
-#        with open(filename+'_Pg_iner_f', 'w') as fid: 
-#            for i_trimcase in range(len(self.jcl.trimcase)):
-#                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg_iner_f'], self.jcl.trimcase[i_trimcase]['subcase'])
     
     def save_cpacs_header(self):
         

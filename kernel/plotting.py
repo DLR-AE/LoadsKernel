@@ -95,9 +95,9 @@ class plotting:
 
             mlab.figure()
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=self.f_scale)            
-            #mlab.quiver3d(x, y, z, fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-            #mlab.quiver3d(x+fx*self.f_scale, y+fy*self.f_scale, z+fz*self.f_scale,fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.5, resolution=16)
+            #mlab.quiver3d(x, y, z, response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=self.f_scale)            
+            mlab.quiver3d(x, y, z, fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+            mlab.quiver3d(x+fx*self.f_scale, y+fy*self.f_scale, z+fz*self.f_scale,fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='cone', scale_mode='vector', scale_factor=0.2, resolution=16)
             mlab.title('Pk_rbm', size=0.2, height=0.95)
             
             mlab.figure() 
@@ -369,32 +369,24 @@ class plotting:
             print 'plotting for simulation {:s}'.format(trimcase['desc'])
             Pb_gust = []
             Pb_unsteady = []
-            Pb_unsteady_B = []
-            Pb_unsteady_D = []
             Pb_aero = []
             for i_step in range(len(self.response[i_simcase]['t'])):        
                 Pb_gust.append(np.dot(self.model.Dkx1.T, self.response[i_simcase]['Pk_gust'][i_step,:]))
                 Pb_unsteady.append(np.dot(self.model.Dkx1.T, self.response[i_simcase]['Pk_unsteady'][i_step,:]))
-                Pb_unsteady_B.append(np.dot(self.model.Dkx1.T, self.response[i_simcase]['Pk_unsteady_B'][i_step,:]))
-                Pb_unsteady_D.append(np.dot(self.model.Dkx1.T, self.response[i_simcase]['Pk_unsteady_D'][i_step,:]))
                 Pb_aero.append(np.dot(self.model.Dkx1.T, self.response[i_simcase]['Pk_aero'][i_step,:]))
             Pb_gust = np.array(Pb_gust)
             Pb_unsteady = np.array(Pb_unsteady)
-            Pb_unsteady_B = np.array(Pb_unsteady_B)
-            Pb_unsteady_D = np.array(Pb_unsteady_D)
             Pb_aero = np.array(Pb_aero)
             plt.figure()
             plt.plot(self.response[i_simcase]['t'], Pb_gust[:,2], 'b-')
             plt.plot(self.response[i_simcase]['t'], Pb_unsteady[:,2], 'r-')
             plt.plot(self.response[i_simcase]['t'], Pb_gust[:,2] + Pb_unsteady[:,2], 'b--')
-            plt.plot(self.response[i_simcase]['t'], Pb_unsteady_B[:,2], 'm-')
-            plt.plot(self.response[i_simcase]['t'], Pb_unsteady_D[:,2], 'c-')
             plt.plot(self.response[i_simcase]['t'], Pb_aero[:,2], 'g-')
             plt.plot(self.response[i_simcase]['t'], Pb_aero[:,2] - Pb_unsteady[:,2], 'k--')
             plt.xlabel('t [sec]')
             plt.ylabel('Pb [N]')
             plt.grid('on')
-            plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_unsteady_B', 'Pb_unsteady_D', 'Pb_aero'])
+            plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_aero'])
         
             plt.figure()
             plt.subplot(2,1,1)
@@ -681,16 +673,17 @@ class plotting:
         self.src = mlab.pipeline.scalar_scatter(self.x_t[0,:], self.y_t[0,:], self.z_t[0,:])
         pts = mlab.pipeline.glyph(self.src, color=(0,0,1), scale_factor=self.p_scale)
         self.vectors1 = mlab.quiver3d(self.x_t[0,:],self.y_t[0,:], self.z_t[0,:], self.f1x_t[0,:]*self.f_scale, self.f1y_t[0,:]*self.f_scale, self.f1z_t[0,:]*self.f_scale, color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-        self.cones1   = mlab.quiver3d(self.x_t[0,:]+self.f1x_t[0,:]*self.f_scale, self.y_t[0,:]+self.f1y_t[0,:]*self.f_scale, self.z_t[0,:]+self.f1z_t[0,:]*self.f_scale, self.f1x_t[0,:]*self.f_scale, self.f1y_t[0,:]*self.f_scale, self.f1z_t[0,:]*self.f_scale, color=(0,1,0),  mode='cone', scale_mode='scalar', scale_factor=0.2, resolution=16)
+        self.cones1   = mlab.quiver3d(self.x_t[0,:]+self.f1x_t[0,:]*self.f_scale, self.y_t[0,:]+self.f1y_t[0,:]*self.f_scale, self.z_t[0,:]+self.f1z_t[0,:]*self.f_scale, self.f1x_t[0,:]*self.f_scale, self.f1y_t[0,:]*self.f_scale, self.f1z_t[0,:]*self.f_scale, color=(0,1,0),  mode='cone', scale_mode='vector', scale_factor=0.2, resolution=16)
         self.vectors2 = mlab.quiver3d(self.x_t[0,:],self.y_t[0,:], self.z_t[0,:], self.f2x_t[0,:]*self.f_scale, self.f2y_t[0,:]*self.f_scale, self.f2z_t[0,:]*self.f_scale, color=(0,1,1),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-        self.cones2   = mlab.quiver3d(self.x_t[0,:]+self.f2x_t[0,:]*self.f_scale, self.y_t[0,:]+self.f2y_t[0,:]*self.f_scale, self.z_t[0,:]+self.f2z_t[0,:]*self.f_scale, self.f2x_t[0,:]*self.f_scale, self.f2y_t[0,:]*self.f_scale, self.f2z_t[0,:]*self.f_scale, color=(0,1,1),  mode='cone', scale_mode='scalar', scale_factor=0.2, resolution=16)       
+        self.cones2   = mlab.quiver3d(self.x_t[0,:]+self.f2x_t[0,:]*self.f_scale, self.y_t[0,:]+self.f2y_t[0,:]*self.f_scale, self.z_t[0,:]+self.f2z_t[0,:]*self.f_scale, self.f2x_t[0,:]*self.f_scale, self.f2y_t[0,:]*self.f_scale, self.f2z_t[0,:]*self.f_scale, color=(0,1,1),  mode='cone', scale_mode='vector', scale_factor=0.2, resolution=16)       
         mlab.orientation_axes()
         #t = response['t']
         #text = mlab.text(0.1, 0.1, text='t = 0.0 [s]')
         
         #mlab.view(azimuth=180.0, elevation=90.0, roll=-90.0, distance=70.0, focalpoint=np.array([self.x_t.mean(),self.y_t.mean(),self.z_t.mean()])) # back view
-        mlab.view(azimuth=135.0, elevation=120.0, roll=-120.0, distance=70.0, focalpoint=np.array([self.x_t.mean(),self.y_t.mean(),self.z_t.mean()])) # view from right and above
-        
+        mlab.view(azimuth=135.0, elevation=120.0, roll=-120.0, distance=30.0, focalpoint=np.array([self.x_t.mean(),self.y_t.mean(),self.z_t.mean()])) # view from right and above
+        # DISCUS:   distance=70.0
+        # MULDICON: distance=40.0
         if make_movie:
             if not os.path.exists('{}anim/'.format(path_output)):
                 os.makedirs('{}anim/'.format(path_output))

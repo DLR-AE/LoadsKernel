@@ -361,8 +361,6 @@ class steady(aero):
         Pk_cfd           = self.cfd( alpha, X, Ux2, q_dyn)
         
         Pk_unsteady = Pk_rbm*0.0
-        Pk_unsteady_B = Pk_rbm*0.0
-        Pk_unsteady_D = Pk_rbm*0.0
         
         # -------------------------------  
         # --- correction coefficients ---   
@@ -428,8 +426,6 @@ class steady(aero):
                         'Pk_cfd': Pk_cfd,
                         'Pk_gust': Pk_gust,
                         'Pk_unsteady': Pk_unsteady,
-                        'Pk_unsteady_B': Pk_unsteady_B,
-                        'Pk_unsteady_D': Pk_unsteady_D,
                         'Pk_idrag': Pk_idrag,
                         'q_dyn': np.array([q_dyn]),
                         'Pb': Pb,
@@ -637,8 +633,6 @@ class unsteady(aero):
                         'Pk_cfd': Pk_cfd,
                         'Pk_gust': Pk_gust,
                         'Pk_unsteady': Pk_unsteady,
-                        'Pk_unsteady_B': Pk_unsteady_B,
-                        'Pk_unsteady_D': Pk_unsteady_D,
                         'Pk_idrag': Pk_idrag,
                         'q_dyn': np.array([q_dyn]),
                         'Pb': Pb,

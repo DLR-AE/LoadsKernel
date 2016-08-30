@@ -84,9 +84,17 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         print '--> Starting Post for %d trimcase(s).' % len(jcl.trimcase)
         t_start = time.time()
         post_processing = post_processing_modul.post_processing(jcl, model, response)
-        post_processing.force_summation_method() # trim + sim
-        post_processing.cuttingforces() # trim + sim
-        post_processing.gather_monstations() # trim + sim, wird zum plotten benoetigt
+        for i in range(len(jcl.trimcase)):
+            print ''
+            print '========================================' 
+            print 'trimcase: ' + jcl.trimcase[i]['desc']
+            print 'subcase: ' + str(jcl.trimcase[i]['subcase'])
+            print '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')' 
+            print '========================================' 
+            post_processing.force_summation_method(i) # trim + sim
+            post_processing.euler_transformation(i) # trim + sim
+            post_processing.cuttingforces(i) # trim + sim
+        post_processing.gather_monstations() # trim + sim
         if 't_final' and 'dt' in jcl.simcase[0].keys():
             post_processing.dyn2stat()
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
@@ -94,22 +102,23 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         print '--> Saving response(s).'  
         with open(path_output + 'response_' + job_name + '.pickle', 'w') as f:
             cPickle.dump(response, f, cPickle.HIGHEST_PROTOCOL)
-        #for i in range(len(jcl.trimcase)):
-        #    with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f:
-        #        scipy.io.savemat(f, response[i])
+        
         print '--> Saving monstation(s).'  
         with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
             cPickle.dump(post_processing.monstations, f, cPickle.HIGHEST_PROTOCOL)
-        #with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
-        #    scipy.io.savemat(f, post_processing.monstations)
         
         print '--> Saving auxiliary output data.'
+        #with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
+        #    scipy.io.savemat(f, post_processing.monstations)
+        #for i in range(len(jcl.trimcase)):
+        #    with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f:
+        #        scipy.io.savemat(f, response[i])
         if not ('t_final' and 'dt' in jcl.simcase[0].keys()):
             # nur trim
-            post_processing.save_monstations(path_output + 'monstations_' + job_name + '.bdf')     
+            #post_processing.save_monstations(path_output + 'monstations_' + job_name + '.bdf')     
             post_processing.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
-            post_processing.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
-            post_processing.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
+            #post_processing.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
+            #post_processing.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
         
         print '--> Drawing some plots.'  
         plotting = plotting_modul.plotting(jcl, model, response)
