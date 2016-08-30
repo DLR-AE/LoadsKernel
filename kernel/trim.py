@@ -116,7 +116,7 @@ class trim:
         # -------------------------
         # --- pratt, alpha only --- 
         # -------------------------
-        if self.trimcase['manoeuver'] == 'pratt':
+        elif self.trimcase['manoeuver'] == 'pratt':
             print 'setting trim conditions to "pratt"'
             # inputs
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_xi'))[0][0],1] = 'fix'
