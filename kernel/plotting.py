@@ -15,7 +15,7 @@ import build_aero, write_functions
 
 
 class plotting:
-    def __init__(self, jcl, model, response):
+    def __init__(self, jcl, model, response=None):
         self.jcl = jcl
         self.model = model
         self.response = response
@@ -319,7 +319,7 @@ class plotting:
         with open(filename+'_Pg_dyn2stat', 'w') as fid: 
             for i_case in range(len(dyn2stat['subcases'])):
                 if dyn2stat['subcases'][i_case] in self.crit_trimcases:
-                    write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, dyn2stat['Pg'][i_case,:], dyn2stat['subcases_ID'][i_case])
+                    write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, dyn2stat['Pg'][i_case], dyn2stat['subcases_ID'][i_case])
         with open(filename+'_subcases_dyn2stat', 'w') as fid:         
             for i_case in range(len(dyn2stat['subcases'])):
                 if dyn2stat['subcases'][i_case] in self.crit_trimcases:

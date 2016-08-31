@@ -5,26 +5,27 @@ Created on Mon Mar 30 13:34:50 2015
 @author: voss_ar
 """
 import numpy as np
-import matplotlib.pyplot as plt
-#from mayavi import mlab
-from matplotlib.backends.backend_pdf import PdfPages
-from scipy.spatial import ConvexHull
-import os, csv, getpass, time, platform, copy
+import copy
 
 from trim_tools import *
-import write_functions
 from grid_trafo import *
 
 class post_processing:
-    def __init__(self, jcl, model, response):
+    #===========================================================================
+    # In this class calculations are made that follow up on every simulation.
+    # The functions should be able to handle both trim calculations and time simulations.  
+    #===========================================================================
+    def __init__(self, jcl, model, trimcase, response):
         self.jcl = jcl
         self.model = model
+        self.trimcase = trimcase
         self.response = response
+        
     
-    def force_summation_method(self,i_trimcase ):
+    def force_summation_method(self):
         print 'calculating forces & moments on structural set (force summation method)...'
-        response   = self.response[i_trimcase]
-        trimcase   = self.jcl.trimcase[i_trimcase]
+        response   = self.response
+        trimcase   = self.trimcase
         
         i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
         i_mass     = self.model.mass['key'].index(trimcase['mass'])
@@ -77,10 +78,10 @@ class post_processing:
             #PHIstrc_cg.T.dot(response['Pg_iner_r'])
 
            
-    def euler_transformation(self, i_trimcase):
+    def euler_transformation(self):
         print 'apply euler angles...'
-        response   = self.response[i_trimcase]
-        trimcase   = self.jcl.trimcase[i_trimcase]
+        response   = self.response
+        trimcase   = self.trimcase
         
         i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
         i_mass     = self.model.mass['key'].index(trimcase['mass'])
@@ -154,12 +155,11 @@ class post_processing:
             response['Pg_iner_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'])
             #response['Pg_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'])
             response['Ug'] = response['Ug_r'] + response['Ug_f']
-                
-                
-                
-    def cuttingforces(self, i_trimcase):
+ 
+    def cuttingforces(self):
         print 'calculating cutting forces & moments...'
-        response = self.response[i_trimcase]
+        response   = self.response
+        trimcase   = self.trimcase
         # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
         if len(response['t']) > 1:
             response['Pmon_global'] = np.zeros((len(response['t']), 6*self.model.mongrid['n']))
@@ -170,170 +170,4 @@ class post_processing:
         else:
             response['Pmon_global'] = self.model.PHIstrc_mon.T.dot(response['Pg'])
             response['Pmon_local'] = force_trafo(self.model.mongrid, self.model.coord, response['Pmon_global'])
-        
-    def gather_monstations(self):
-        print 'gathering information on monitoring stations from respone(s)...'
-        self.monstations = {}
-        for i_station in range(self.model.mongrid['n']):
-            monstation = {'CD': self.model.mongrid['CD'][i_station] ,
-                          'CP': self.model.mongrid['CP'][i_station], 
-                          'offset': self.model.mongrid['offset'][i_station], 
-                          'subcase': [],  
-                          'loads':[],
-                          't':[]
-                         }
-            for i_trimcase in range(len(self.jcl.trimcase)):
-                monstation['subcase'].append(self.jcl.trimcase[i_trimcase]['subcase'])
-                monstation['t'].append(self.response[i_trimcase]['t'])
-                response = self.response[i_trimcase]
-                # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
-                if len(self.response[i_trimcase]['t']) > 1:
-                    monstation['loads'].append(response['Pmon_local'][:,self.model.mongrid['set'][i_station,:]])
-                else:
-                    monstation['loads'].append(response['Pmon_local'][self.model.mongrid['set'][i_station,:]])
-                
-            if not self.model.mongrid.has_key('name'):
-                name = 'MON{:s}'.format(str(int(self.model.mongrid['ID'][i_station]))) # make up a name
-            else:
-                name = self.model.mongrid['name'][i_station] # take name from mongrid
-            self.monstations[name] = monstation
-    
-    def dyn2stat(self):
-        print 'searching min/max of Fz/Mx/My in time data at {} monitoring stations and gathering loads (dyn2stat)...'.format(len(self.monstations.keys()))
-        Pg_dyn2stat = []
-        subcases_dyn2stat_all = []
-        for key in self.monstations.keys():
-            # Schnittlasten an den Monitoring Stationen raus schreiben zum Plotten
-            # Knotenlasten raus schreiben
-            loads_dyn2stat = []
-            subcases_dyn2stat = []
-            for i_case in range(len(self.monstations[key]['subcase'])):
-                pos_max_loads_over_time = np.argmax(self.monstations[key]['loads'][i_case], 0)
-                pos_min_loads_over_time = np.argmin(self.monstations[key]['loads'][i_case], 0)
-                # Fz max und min
-                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[2],:])
-                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_max_loads_over_time[2],:])
-                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Fz_max')
-                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[2],:])
-                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_min_loads_over_time[2],:])
-                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Fz_min')
-                # Mx max und min
-                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[3],:])
-                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_max_loads_over_time[3],:])
-                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Mx_max')
-                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[3],:])
-                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_min_loads_over_time[3],:])
-                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Mx_min')
-                # My max und min
-                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[4],:])
-                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_max_loads_over_time[4],:])
-                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_max')
-                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[4],:])
-                Pg_dyn2stat.append(self.response[i_case]['Pg'][pos_min_loads_over_time[4],:])
-                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_min')
-            self.monstations[key]['loads_dyn2stat'] = np.array(loads_dyn2stat)
-            self.monstations[key]['subcases_dyn2stat'] = np.array(subcases_dyn2stat)
-            subcases_dyn2stat_all += subcases_dyn2stat
-        # save dyn2stat
-        self.dyn2stat = {'Pg': np.array(Pg_dyn2stat), 
-                         'subcases': subcases_dyn2stat_all,
-                         'subcases_ID': [ int(subcases_dyn2stat_all[i_case].split('_')[0])*1000000+i_case  for i_case in range(len(subcases_dyn2stat_all))]
-                        }
 
-    def save_monstations(self, filename):
-        print 'saving monitoring stations as Nastarn cards...'
-        with open(filename, 'w') as fid: 
-            for i_trimcase in range(len(self.jcl.trimcase)):
-                write_functions.write_force_and_moment_cards(fid, self.model.mongrid, self.response[i_trimcase]['Pmon_local'], i_trimcase+1)
-    
-    def save_nodaldefo(self, filename):
-        # deformations are given in 9300 coord
-        strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
-        grid_trafo(strcgrid_tmp, self.model.coord, 9300)
-        print 'saving nodal flexible deformations as dat file...'
-        with open(filename+'_undeformed.dat', 'w') as fid:             
-            np.savetxt(fid, np.hstack((self.model.strcgrid['ID'].reshape(-1,1), strcgrid_tmp['offset'])))
-        
-        for i_trimcase in range(len(self.jcl.trimcase)):
-            with open(filename+'_subcase_'+str(self.jcl.trimcase[i_trimcase]['subcase'])+'_Ug.dat', 'w') as fid: 
-                defo = np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'] + self.response[i_trimcase]['Ug_r'][self.model.strcgrid['set'][:,0:3]] + + self.response[i_trimcase]['Ug_f'][self.model.strcgrid['set'][:,0:3]] * 500.0))
-                np.savetxt(fid, defo)
-                
-    def save_nodalloads(self, filename):
-        print 'saving nodal loads as Nastarn cards...'
-        with open(filename+'_Pg', 'w') as fid: 
-            for i_trimcase in range(len(self.jcl.trimcase)):
-                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg'], self.jcl.trimcase[i_trimcase]['subcase'])
-        with open(filename+'_subcases', 'w') as fid:         
-            for i_trimcase in range(len(self.jcl.trimcase)):
-                write_functions.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
-    
-    def save_cpacs_header(self):
-        
-        self.cf.addElem('/cpacs/header', 'name', self.jcl.general['aircraft'], 'text')
-        self.cf.addElem('/cpacs/header', 'creator', getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() +')', 'text')
-        self.cf.addElem('/cpacs/header', 'description', 'This is a file generated by Loads Kernel.', 'text')
-        self.cf.addElem('/cpacs/header', 'timestamp', time.strftime("%Y-%m-%d %H:%M", time.localtime()), 'text' )
-        
-    def save_cpacs_flightLoadCases(self):
-        # create flighLoadCases
-        self.cf.createPath('/cpacs/vehicles/aircraft/model/analysis', 'loadAnalysis/loadCases/flightLoadCases')
-        path_flightLoadCases = '/cpacs/vehicles/aircraft/model/analysis/loadAnalysis/loadCases/flightLoadCases'
-        
-        # create nodal + cut loads for each trim case
-        for i_trimcase in range(len(self.jcl.trimcase)):
-            # info on current load case
-            self.tixi.createElement(path_flightLoadCases, 'flightLoadCase')
-            self.cf.addElem(path_flightLoadCases+'/flightLoadCase['+str(i_trimcase+1)+']', 'name',  'subcase ' + str(self.jcl.trimcase[i_trimcase]['subcase']), 'double')
-            self.cf.addElem(path_flightLoadCases+'/flightLoadCase['+str(i_trimcase+1)+']', 'uID', self.jcl.trimcase[i_trimcase]['desc'], 'text')  
-            desc_string = 'calculated with Loads Kernel on ' + time.strftime("%Y-%m-%d %H:%M", time.localtime()) + ' by ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() +')'
-            self.cf.addElem(path_flightLoadCases+'/flightLoadCase['+str(i_trimcase+1)+']', 'description', desc_string  , 'text')
-            # nodal loads
-            self.cf.createPath(path_flightLoadCases+'/flightLoadCase['+str(i_trimcase+1)+']', 'nodalLoads/wingNodalLoad')
-            path_nodalLoads =       path_flightLoadCases+'/flightLoadCase['+str(i_trimcase+1)+']'+'/nodalLoads/wingNodalLoad'
-            self.cf.addElem(path_nodalLoads, 'parentUID', 'complete aircraft', 'text')
-            self.cf.write_cpacs_loadsvector(path_nodalLoads, self.model.strcgrid, self.response[i_trimcase]['Pg'] )
-            # cut loads
-            self.cf.createPath(path_flightLoadCases+'/flightLoadCase['+str(i_trimcase+1)+']', 'cutLoads/wingCutLoad')
-            path_cutLoads =         path_flightLoadCases+'/flightLoadCase['+str(i_trimcase+1)+']'+'/cutLoads/wingCutLoad'
-            self.cf.addElem(path_cutLoads, 'parentUID', 'complete aircraft', 'text')
-            self.cf.write_cpacs_loadsvector(path_cutLoads, self.model.mongrid, self.response[i_trimcase]['Pmon_local'])
-    
-    def save_cpacs_dynamicAircraftModelPoints(self):
-        # save structural grid points to CPACS
-        self.cf.createPath('/cpacs/vehicles/aircraft/model/wings/wing/dynamicAircraftModel', 'dynamicAircraftModelPoints')
-        path_dynamicAircraftModelPoints = '/cpacs/vehicles/aircraft/model/wings/wing/dynamicAircraftModel/dynamicAircraftModelPoints'
-        self.cf.write_cpacs_grid(path_dynamicAircraftModelPoints, self.model.strcgrid)
-        
-    def save_cpacs_CutLoadIntegrationPoints(self):
-        # save monitoring stations to CPACS
-        self.cf.createPath('/cpacs/vehicles/aircraft/model/wings/wing/dynamicAircraftModel', 'cutLoadIntegrationPoints')
-        path_cutLoadIntegrationPoints = '/cpacs/vehicles/aircraft/model/wings/wing/dynamicAircraftModel/cutLoadIntegrationPoints'
-        self.cf.write_cpacs_grid(path_cutLoadIntegrationPoints, self.model.mongrid)
-        #self.cf.write_cpacs_grid_orientation(path_CutLoadIntegrationPoints, self.model.mongrid, self.model.coord)
-            
-        
-    def save_cpacs(self, filename):
-        print 'saving nodal loads and monitoring stations as CPACS...'
-        from tixiwrapper import Tixi
-        self.tixi = Tixi()
-        self.tixi.create('cpacs')
-        self.cf = write_functions.cpacs_functions(self.tixi)
-        
-        # These paths might already exist when writing into a given CPACS-file...        
-        self.cf.createPath('/cpacs', 'header')
-        self.save_cpacs_header()
-        
-        self.cf.createPath('/cpacs', 'vehicles/aircraft/model/analysis') 
-        self.cf.createPath('/cpacs/vehicles/aircraft/model', 'wings/wing/dynamicAircraftModel')
-        self.tixi.addTextAttribute('/cpacs/vehicles/aircraft/model/wings/wing', 'uID', 'complete aircraft')
-        self.tixi.addTextElement('/cpacs/vehicles/aircraft/model/wings/wing', 'description', 'complete aircraft as used in Loads Kernel - without distinction of components' )
-        
-        self.save_cpacs_dynamicAircraftModelPoints()
-        self.save_cpacs_CutLoadIntegrationPoints()
-        self.save_cpacs_flightLoadCases()
-
-        self.tixi.save(filename)
-        
-        
-        
