@@ -575,12 +575,17 @@ class unsteady(aero):
         
         Pk_cfd = Pk_rbm*0.0
         
+        # -------------------------------  
+        # --- correction coefficients ---   
+        # -------------------------------
+        Pb_corr = self.correctioon_coefficients(alpha, beta, q_dyn)
+        
         # ---------------------------   
         # --- summation of forces ---   
         # ---------------------------
         Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_cfd + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero)
-        Pb = np.dot(self.PHImac_cg.T, Pmac) #+ Pb_corr
+        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr
         
         g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
         g_cg = np.dot(self.PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
