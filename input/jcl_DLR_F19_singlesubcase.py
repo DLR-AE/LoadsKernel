@@ -63,6 +63,7 @@ class jcl:
                                          '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AESURF'],
                      'filename_aelist': ['/scratch/DLR-F19-S_150217_work/mg02_DLR-F19-S/output/mg02_DLR-F19-S_baseline.AELIST', 
                                          '/scratch/DLR-F19-S_150217_work/mg05_DLR-F19-S_LinkeSeite/output/mg05_DLR-F19-S_baseline.AELIST'],
+                     'method_AIC':'nastran',
                      'filename_AIC': ['/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ01.dat', \
                                       '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ02.dat', \
                                       '/scratch/DLR-F19-S_150217_work/manloads_starr_DLR-F19-S/aio/AJJ03.dat', \
@@ -94,27 +95,30 @@ class jcl:
                      'key':['FL000','FL055', 'FL075', 'FL200', 'FL300', 'FL450'],
                      'h': ft2m([0, 5500, 7500, 20000, 30000, 45000]),
                     }
-#        self.trimcase = [{
-#        'manoeuver': 'Des2-002', 
-#        'desc': 'CC.BFDM.OVDFL000.Des2-002', 
-#        'mass': 'BFDM',
-#        'altitude': 'FL000', 
-#        'subcase': 1, 
-#        'aero': 'MC', 
-#        'Ma': 0.9, 
-#        'Nz': 5.0, 
-#        'p': -0.6,
-#        'pdot': -5.0, 
-#        'q': 0.5, 
-#        'qdot': 0.0,
-#        }] 
+        self.trimcase = [{
+        'manoeuver': '#53', 
+        'desc': '#53', 
+        'mass': 'BFDM',
+        'altitude': 'FL000', 
+        'subcase': 53, 
+        'aero': 'VC', 
+        'Ma': 0.8, 
+        'Nz': 5.0, 
+        'p': -0.6,
+        'pdot': -5.0, 
+        'q': 0.5, 
+        'qdot': 0.0,
+        'r': 0.0,
+        'rdot':0.0,
+        }] 
+        self.simcase = [{}]
                         
         from numpy import array
-        with open('/scratch/DLR-F19-S_150217_work/manloads_DLR-F19-S/trim.trimcase_dict', 'r') as fid:
-            trimcase_str = fid.read()
-        self.trimcase = eval(trimcase_str)
-        #self.trimcase = [self.trimcase[24], self.trimcase[25], self.trimcase[26], self.trimcase[27]]
-        self.trimcase = [self.trimcase[108], self.trimcase[109], self.trimcase[118]]
+#         with open('/scratch/DLR-F19-S_150217_work/manloads_DLR-F19-S/trim.trimcase_dict', 'r') as fid:
+#             trimcase_str = fid.read()
+#         self.trimcase = eval(trimcase_str)
+#         #self.trimcase = [self.trimcase[24], self.trimcase[25], self.trimcase[26], self.trimcase[27]]
+#         self.trimcase = [self.trimcase[108], self.trimcase[109], self.trimcase[118]]
         #self.trimcase = [self.trimcase[62]]
         # End
 

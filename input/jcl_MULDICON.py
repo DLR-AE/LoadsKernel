@@ -13,39 +13,46 @@ class jcl:
                        }
         self.efcs = {'version': 'mephisto'} # name of the corresponding class in efcs.py
         self.geom = {'method': 'mona',
-                     'filename_grid':['/work/voss_ar/MULDICON_Model/mg01_Muldicon_rechts/output/Muldicon-baseline.bdf', 
-                                      '/work/voss_ar/MULDICON_Model/mg02_Muldicon_links/output/Muldicon-baseline.bdf', 
-                                      '/work/voss_ar/MULDICON_Model/mg03_Muldicon_Klappen/output/Klappe_innen-baseline.bdf', 
-                                      '/work/voss_ar/MULDICON_Model/mg03_Muldicon_Klappen/output/Klappe_aussen-baseline.bdf',
-                                      '/work/voss_ar/MULDICON_Model/mg04_Muldicon_Klappen_links/output/Klappe_innen-baseline.bdf',
-                                      '/work/voss_ar/MULDICON_Model/mg04_Muldicon_Klappen_links/output/Klappe_aussen-baseline.bdf',
-                                      '/work/voss_ar/MULDICON_Model/na21_Assembly/Assembly_Klappen.RBE2',
-                                      '/work/voss_ar/MULDICON_Model/mg01_Muldicon_rechts/output/Muldicon-baseline.RBE3_SUBSEG2',
-                                      '/work/voss_ar/MULDICON_Model/mg02_Muldicon_links/output/Muldicon-baseline.RBE3_SUBSEG2',
+                     'filename_grid':['/scratch/MULDICON_workingcopy/mg01_Muldicon_rechts/output/Muldicon-baseline.bdf', 
+                                      '/scratch/MULDICON_workingcopy/mg02_Muldicon_links/output/Muldicon-baseline.bdf', 
+                                      '/scratch/MULDICON_workingcopy/mg03_Muldicon_Klappen/output/Klappe_innen-baseline.bdf', 
+                                      '/scratch/MULDICON_workingcopy/mg03_Muldicon_Klappen/output/Klappe_aussen-baseline.bdf',
+                                      '/scratch/MULDICON_workingcopy/mg04_Muldicon_Klappen_links/output/Klappe_innen-baseline.bdf',
+                                      '/scratch/MULDICON_workingcopy/mg04_Muldicon_Klappen_links/output/Klappe_aussen-baseline.bdf',
+                                      '/scratch/MULDICON_workingcopy/na21_Assembly/Assembly_Klappen.RBE2',
+                                      '/scratch/MULDICON_workingcopy/mg01_Muldicon_rechts/output/Muldicon-baseline.RBE3_SUBSEG2',
+                                      '/scratch/MULDICON_workingcopy/mg02_Muldicon_links/output/Muldicon-baseline.RBE3_SUBSEG2',
                                     ],     # bdf file(s) with GRIDs and CORDs (CORD1R and CORD2R)
                      'filename_monpnt': '',   # bdf file(s) with MONPNT-cards
                      # Alternative way to define monitoring stations:
-                     'filename_mongrid': '/work/voss_ar/MULDICON_Model/monstations/monstations_grids.bdf',   # bdf file with GRID-cards, one monitoring station is created at each GRID point, 1st GRID point -> 1st monstation
-                     'filename_moncoord':'/work/voss_ar/MULDICON_Model/monstations/monstations_grids.bdf',  # additional CORDs for monitoring stations
-                     'filename_monstations': ['/work/voss_ar/MULDICON_Model/monstations/monstations_MON09.bdf'], # bdf file with GRID-cards, 1st file -> 1st monstation
+                     'filename_mongrid': '/scratch/MULDICON_workingcopy/monstations/monstations_grids.bdf',   # bdf file with GRID-cards, one monitoring station is created at each GRID point, 1st GRID point -> 1st monstation
+                     'filename_moncoord':'/scratch/MULDICON_workingcopy/monstations/monstations_coords.bdf',  # additional CORDs for monitoring stations
+                     'filename_monstations': ['/scratch/MULDICON_workingcopy/monstations/monstations_MON01.bdf',
+                                              '/scratch/MULDICON_workingcopy/monstations/monstations_MON02.bdf',
+                                              '/scratch/MULDICON_workingcopy/monstations/monstations_MON03.bdf',
+                                              '/scratch/MULDICON_workingcopy/monstations/monstations_MON03.bdf',
+                                              '/scratch/MULDICON_workingcopy/monstations/monstations_MON04.bdf',
+                                              '/scratch/MULDICON_workingcopy/monstations/monstations_MON05.bdf',
+                                              '/scratch/MULDICON_workingcopy/monstations/monstations_MON08.bdf',
+                                              '/scratch/MULDICON_workingcopy/monstations/monstations_MON09.bdf'], # bdf file with GRID-cards, 1st file -> 1st monstation
                      # The following matrices are required for some mass methods. However, they are geometry dependent...
                      'filename_KGG':'',      # unused
-                     'filename_KFF':'/work/voss_ar/MULDICON_Model/na22_SOL103/nastran/KAA.dat',      # stiffness matrix KFF via DMAP Alter und OP4 - required for mass method = 'modalanalysis' or 'guyan'
-                     'filename_uset': '/work/voss_ar/MULDICON_Model/na22_SOL103/nastran/uset.op2',   # USET via DMAP Alter und OP4                 - required for mass method = 'modalanalysis' or 'guyan'
-                     'filename_GM': '/work/voss_ar/MULDICON_Model/na22_SOL103/nastran/GM.dat',       # matrix GM via DMAP Alter und OP4            - required for mass method = 'modalanalysis' or 'guyan'
-                     'filename_aset': '',   # bdf file(s) with ASET1-card                 - required for mass method = 'guyan'
+                     'filename_KFF':'/scratch/MULDICON_workingcopy/na22_SOL103/nastran/KAA.dat',      # stiffness matrix KFF via DMAP Alter und OP4 - required for mass method = 'modalanalysis' or 'guyan'
+                     'filename_uset': '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/uset.op2',   # USET via DMAP Alter und OP4                 - required for mass method = 'modalanalysis' or 'guyan'
+                     'filename_GM': '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/GM.dat',       # matrix GM via DMAP Alter und OP4            - required for mass method = 'modalanalysis' or 'guyan'
+                     'filename_aset': '/scratch/MULDICON_workingcopy/aset.bdf',   # bdf file(s) with ASET1-card                 - required for mass method = 'guyan'
                     }
         self.aero = {'method': 'mona_steady', # 'mona_steady' or 'hybrid'
-                     'flex': False, # True or False, aerodynamic feedback of elastic structure
+                     'flex': True, # True or False, aerodynamic feedback of elastic structure
                      'method_caero': 'CQUAD4',                              # aerogrid is given by CAERO1 or by CQUAD4 cards
-                     'filename_caero_bdf': ['/work/voss_ar/MULDICON_Model/mg01_Muldicon_rechts/output/Muldicon-baseline.CAERO1_bdf',
-                                            '/work/voss_ar/MULDICON_Model/mg02_Muldicon_links/output/Muldicon-baseline.CAERO1_bdf'],                  # bdf file(s) with CAERO1 or CQUAD4-cards for aerogrid. IDs in ascending order.
-                     'filename_deriv_4_W2GJ': ['/work/voss_ar/MULDICON_Model/mg01_Muldicon_rechts/output/Muldicon-baseline.deriv_4_W2GJ_mod',
-                                               '/work/voss_ar/MULDICON_Model/mg02_Muldicon_links/output/Muldicon-baseline.deriv_4_W2GJ_mod'],    # ModGen output for camber and twist correction. Same order as the aerogrid.
-                     'filename_aesurf': ['/work/voss_ar/MULDICON_Model/mg01_Muldicon_rechts/output/Muldicon-baseline.AESURF',
-                                         '/work/voss_ar/MULDICON_Model/mg02_Muldicon_links/output/Muldicon-baseline.AESURF'],                # bdf file(s) with AESURF-cards
-                     'filename_aelist': ['/work/voss_ar/MULDICON_Model/mg01_Muldicon_rechts/output/Muldicon-baseline.AELIST',
-                                         '/work/voss_ar/MULDICON_Model/mg02_Muldicon_links/output/Muldicon-baseline.AELIST'],                # bdf file(s) with AELIST-cards
+                     'filename_caero_bdf': ['/scratch/MULDICON_workingcopy/mg01_Muldicon_rechts/output/Muldicon-baseline.CAERO1_bdf',
+                                            '/scratch/MULDICON_workingcopy/mg02_Muldicon_links/output/Muldicon-baseline.CAERO1_bdf'],                  # bdf file(s) with CAERO1 or CQUAD4-cards for aerogrid. IDs in ascending order.
+                     'filename_deriv_4_W2GJ': ['/scratch/MULDICON_workingcopy/mg01_Muldicon_rechts/output/Muldicon-baseline.deriv_4_W2GJ_mod',
+                                               '/scratch/MULDICON_workingcopy/mg02_Muldicon_links/output/Muldicon-baseline.deriv_4_W2GJ_mod'],    # ModGen output for camber and twist correction. Same order as the aerogrid.
+                     'filename_aesurf': ['/scratch/MULDICON_workingcopy/mg01_Muldicon_rechts/output/Muldicon-baseline.AESURF',
+                                         '/scratch/MULDICON_workingcopy/mg02_Muldicon_links/output/Muldicon-baseline.AESURF'],                # bdf file(s) with AESURF-cards
+                     'filename_aelist': ['/scratch/MULDICON_workingcopy/mg01_Muldicon_rechts/output/Muldicon-baseline.AELIST',
+                                         '/scratch/MULDICON_workingcopy/mg02_Muldicon_links/output/Muldicon-baseline.AELIST'],                # bdf file(s) with AELIST-cards
                      'hingeline': 'y',                                      # The hingeline of a CS is given by a CORD. Either the y- or the z-axis is taken as hingeline. 'y', 'z' 
                      'method_AIC': 'vlm', # 'vlm' or 'nastran'
                      'key':['VC', 'MC', 'VD', 'MD'],
@@ -60,13 +67,40 @@ class jcl:
                        'splinegrid': False,                      # True or False
                        'filename_splinegrid': ''  # bdf file(s) with GRIDs
                       }
-        self.mass = {'method': 'modalanalysis', # 'mona', 'modalanalysis' or 'guyan'
-                       'key': ['baseline'],
-                       'filename_MGG':['/work/voss_ar/MULDICON_Model/na22_SOL103/nastran/MGG.dat'],         # MGG via DMAP Alter und OP4 - always required
-                       'filename_MFF':['/work/voss_ar/MULDICON_Model/na22_SOL103/nastran/MAA.dat'],         # MFF via DMAP Alter und OP4 - required for 'modalanalysis' and 'guyan'
+        self.mass = {'method': 'guyan', # 'mona', 'modalanalysis' or 'guyan'
+                       'key': ['baseline', 'M1', 'M2', 'M3', 'M11', 'M12', 'M13', 'M21', 'M22', 'M23' ],
+                       'filename_MGG':['/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MGG.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MGG_M1.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MGG_M2.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MGG_M3.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MGG_M11.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MGG_M12.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MGG_M13.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MGG_M21.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MGG_M22.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MGG_M23.dat',],         # MGG via DMAP Alter und OP4 - always required
+                       'filename_MFF':['/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MAA.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MAA_M1.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MAA_M2.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MAA_M3.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MAA_M11.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MAA_M12.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MAA_M13.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MAA_M21.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MAA_M22.dat',
+                                       '/scratch/MULDICON_workingcopy/na22_SOL103/nastran/MAA_M23.dat',],         # MFF via DMAP Alter und OP4 - required for 'modalanalysis' and 'guyan'
                        'filename_S103':[],  # eigenvalues and eigenvectors from .f06-file - required for 'mona'
                        'omit_rb_modes': True, # True or False, omits first six modes
-                       'modes':[np.arange(1,11)], # list(s) of modes to use 
+                       'modes':[np.arange(1,41),
+                                np.arange(1,41),
+                                np.arange(1,41),
+                                np.arange(1,41),
+                                np.arange(1,41),
+                                np.arange(1,41),
+                                np.arange(1,41),
+                                np.arange(1,41),
+                                np.arange(1,41),
+                                np.arange(1,41),], # list(s) of modes to use 
                       }
         self.atmo = {'method':'ISA', 
                      'key':['FL000','FL055', 'FL075', 'FL200', 'FL300', 'FL450'],
@@ -92,7 +126,7 @@ class jcl:
 #         self.simcase = [{}] # under development
         
         from numpy import array
-        with open('/work/voss_ar/MULDICON_Model/loadcases/trim.trimcase_dict', 'r') as fid:
+        with open('/scratch/MULDICON_workingcopy/loadcases/maneuver.trimcase_dict', 'r') as fid:
             trimcase_str = fid.read()
         self.trimcase = eval(trimcase_str)
         # generate empty simcases

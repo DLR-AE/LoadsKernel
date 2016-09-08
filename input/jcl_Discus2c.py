@@ -47,7 +47,11 @@ class jcl:
                      'method_AIC': 'vlm', # 'vlm' or 'nastran'
                      'key':['VC'],
                      'Ma': [0.15],
-                     'filename_AIC': [],  # provide OP4 files with AICs if method_AIC = 'nastran'
+                     #'k_red': [0.001, 0.01, 0.03, 0.1, 0.3, 0.6, 1.0, 1.5 ], # Nastran Definition!
+                     #'n_poles': 4,
+                     'filename_AIC': [],  # provide OP4 files with AICs if method_AIC = 'nastran' 
+                     'Cn_beta_corr': [ 0.0], # negativ = destabilisierend
+                     'Cm_alpha_corr':[ 0.0],   # positiv = destabilisierend
                     }
         self.matrix_aerodb = {} # if aero method = 'hybrid'
         self.spline = {'method': 'nearest_neighbour',           # 'nearest_neighbour', 'rbf' or 'nastran'
@@ -68,8 +72,9 @@ class jcl:
                      'key':['FL000', 'FT-P1', 'FT-P2', 'FT-P3', 'FT-P4', 'FT-P5', 'FT-P6', 'FT-P7', 'FT-P8', 'Elev3211_A', 'Elev3211_B', 'B2B_1-10A', 'B2B_1-10B'],
                      'h':  [0,        2901.4,  2657.31, 2679.31, 925.812, 2310.98, 1315.54, 1111.68, 2045.62,   1782.,      1765.,        1151.,         1120.], # altitude in meters
                     }
+        self.eom = {'version': 'linear'} # 'linear, 'waszak'
         self.trimcase = [
-                         {'desc': 'Elev3211_A', # description of maneuver case, e.g. according to G. Pinho Chiozzotto, "Kriterien fuer die Erstellung eines Lastenkatalogs," Institute of Aeroelasticity, iLOADs MS1.2, Feb. 2014.
+                        {'desc': 'Elev3211_A', # description of maneuver case, e.g. according to G. Pinho Chiozzotto, "Kriterien fuer die Erstellung eines Lastenkatalogs," Institute of Aeroelasticity, iLOADs MS1.2, Feb. 2014.
                          'manoeuver': 'segelflug',      # unused
                          'subcase': 1,        # ID number
                          'Ma': 0.1174,            # Mach number
@@ -84,6 +89,12 @@ class jcl:
                          'pdot': 0.0,     # roll acceleration in rad/s^2
                          'qdot': 0.0,     # pitch acceleration in rad/s^2
                          'rdot': 0.0,
+                         'phi':   0.0,
+#                          'theta': 5.0/180.0*np.pi,
+#                          'psi':   5.0/180.0*np.pi,
+#                          'command_xi': 0.0,
+#                          'command_eta': 0.0,
+#                          'command_zeta': 0.0,
                         },
                         {'desc': 'Elev3211_B', # description of maneuver case, e.g. according to G. Pinho Chiozzotto, "Kriterien fuer die Erstellung eines Lastenkatalogs," Institute of Aeroelasticity, iLOADs MS1.2, Feb. 2014.
                          'manoeuver': 'segelflug',      # unused
@@ -100,6 +111,7 @@ class jcl:
                          'pdot': 0.0,     # roll acceleration in rad/s^2
                          'qdot': 0.0,     # pitch acceleration in rad/s^2
                          'rdot': 0.0,
+                         'phi':   0.0,
                         },
                         {'desc': 'B2B_1-10A', # description of maneuver case, e.g. according to G. Pinho Chiozzotto, "Kriterien fuer die Erstellung eines Lastenkatalogs," Institute of Aeroelasticity, iLOADs MS1.2, Feb. 2014.
                          'manoeuver': 'segelflug',      # unused
@@ -116,6 +128,7 @@ class jcl:
                          'pdot': 0.0,     # roll acceleration in rad/s^2
                          'qdot': 0.0,     # pitch acceleration in rad/s^2
                          'rdot': 0.0,
+                         'phi':   0.0,
                         },
                         {'desc': 'B2B_1-10B', # description of maneuver case, e.g. according to G. Pinho Chiozzotto, "Kriterien fuer die Erstellung eines Lastenkatalogs," Institute of Aeroelasticity, iLOADs MS1.2, Feb. 2014.
                          'manoeuver': 'segelflug',      # unused
@@ -132,6 +145,7 @@ class jcl:
                          'pdot': 0.0,     # roll acceleration in rad/s^2
                          'qdot': 0.0,     # pitch acceleration in rad/s^2
                          'rdot': 0.0,
+                         'phi':   0.0,
                         },
                         ]
         self.simcase = [
@@ -139,22 +153,25 @@ class jcl:
                          't_final': 6.99,
                          'gust': False,
                          'cs_signal': True,
+                         'controller': False,
                         },
                         {'dt': 0.05, 
                          't_final': 7.99,
                          'gust': False,
                          'cs_signal': True,
+                         'controller': False,
                         },
                         {'dt': 0.05, 
                          't_final': 6.49,
                          'gust': False,
                          'cs_signal': True,
+                         'controller': False,
                         },
                         {'dt': 0.05, 
                          't_final': 6.99,
                          'gust': False,
                          'cs_signal': True,
+                         'controller': False,
                         },
                         ]
-#         self.simcase = [{}, {}]
         # End
