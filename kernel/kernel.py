@@ -16,7 +16,7 @@ import auxiliary_output as auxiliary_output_modul
 import plotting as plotting_modul
 from psutil import virtual_memory
 
-def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_input='../input/', path_output='../output/'):
+def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_input='../input/', path_output='../output/', jcl=None):
     path_input = check_path(path_input) 
     path_output = check_path(path_output)    
     reload(sys)
@@ -28,11 +28,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
     print 'post: ' + str(post)
     print 'test: ' + str(test)
    
-
-    print '--> Reading parameters from JCL.'
-    # import jcl dynamically by filename
-    jcl_modul = imp.load_source('jcl', path_input + job_name + '.py')
-    jcl = jcl_modul.jcl() 
+    jcl = load_jcl(job_name, path_input, jcl)
         
     if pre: 
         print '--> Starting preprocessing.'   
@@ -69,18 +65,18 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             trim_i.exec_trim()
             if 't_final' and 'dt' in jcl.simcase[i].keys():
                 trim_i.exec_sim()
-            response = trim_i.response # get response
-            post_processing_i = post_processing_modul.post_processing(jcl, model, jcl.trimcase[i], response)
+            post_processing_i = post_processing_modul.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
             post_processing_i.force_summation_method()
             post_processing_i.euler_transformation()
             post_processing_i.cuttingforces()
-            monstations.gather_monstations(jcl.trimcase[i], response)
+            monstations.gather_monstations(jcl.trimcase[i], trim_i.response)
             if 't_final' and 'dt' in jcl.simcase[i].keys():
-                monstations.gather_dyn2stat(i, response)
+                monstations.gather_dyn2stat(i, trim_i.response)
             print '--> Saving response(s).'  
-            cPickle.dump(response, f, cPickle.HIGHEST_PROTOCOL)
+            cPickle.dump(trim_i.response, f, cPickle.HIGHEST_PROTOCOL)
             #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
-            #    scipy.io.savemat(f2, response)
+            #    scipy.io.savemat(f2, trim_i.response)
+            del trim_i, post_processing_i
         f.close() # close response
         
         print '--> Saving monstation(s).'  
@@ -131,14 +127,14 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             auxiliary_output = auxiliary_output_modul.auxiliary_output(jcl, model, jcl.trimcase, responses)
             auxiliary_output.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
             auxiliary_output.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
-            auxiliary_output.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
+            #auxiliary_output.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
             
 #         print '--> Drawing some plots.'  
 #         plotting = plotting_modul.plotting(jcl, model, responses)
 #         if 't_final' and 'dt' in jcl.simcase[0].keys():
 #             # nur sim
 #             plotting.plot_time_data(animation_dimensions = '3D')
-#             #plotting.make_movie(path_output, speedup_factor=0.1)
+#             #plotting.make_movie(path_output, speedup_factor=1.0)
 #         else:
 #             # nur trim
 #             plotting.plot_pressure_distribution()
@@ -168,7 +164,20 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
     print 'Loads Kernel finished.'
     print_logo()
 
-            
+def load_jcl(job_name, path_input, jcl):
+    if jcl == None:
+        print '--> Reading parameters from JCL.'
+        # import jcl dynamically by filename
+        jcl_modul = imp.load_source('jcl', path_input + job_name + '.py')
+        jcl = jcl_modul.jcl() 
+    # small check for completeness
+    attributes = ['general', 'efcs', 'geom', 'aero', 'spline', 'mass', 'atmo', 'trimcase', 'simcase']
+    for attribute in attributes:
+        if not hasattr(jcl, attribute):
+            print 'JCL appears to be incomplete: jcl.{} missing. Exit.'.format(attribute)
+            sys.exit()
+    return jcl
+                
 def load_model(job_name, path_output):
     print '--> Loading model data.'
     t_start = time.time()
