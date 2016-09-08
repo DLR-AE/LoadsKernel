@@ -531,8 +531,12 @@ def Nastran_SET1(filename):
                 # these are the middle lines
                 row += read_string[8:-2]
             elif read_string[:1] == '+' or np.all(string.find(read_string[:8], 'SET1') !=-1 and read_string[:1] != '$'):
-                # this is the last line, no more IDs to come
-                row += string.strip(read_string[8:], '\n')
+                if np.all(string.find(read_string[:8], 'SET1') !=-1 and read_string[:1] != '$'):
+                    # this is the first AND the last line, no more IDs to come
+                    row = string.strip(read_string[8:], '\n')
+                else:
+                    # this is the last line, no more IDs to come
+                    row += string.strip(read_string[8:], '\n')
                 
                 # start conversion from string to list containing ID values
                 sets['ID'].append(nastran_number_converter(row[:8], 'int'))
