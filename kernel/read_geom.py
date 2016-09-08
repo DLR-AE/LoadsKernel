@@ -521,25 +521,23 @@ def Modgen_AELIST(filename):
 def Nastran_SET1(filename):
     
     sets = {'ID':[], 'values':[]}
-    next_line = False
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
             if string.find(read_string[:8], 'SET1') !=-1 and read_string[-2:-1] == '+' and read_string[:1] != '$':
                 # this is the first line
                 row = read_string[8:-2]
-                next_line = True
-            elif next_line and read_string[:1] == '+' and read_string[-2:-1] == '+':
+            elif read_string[:1] == '+' and read_string[-2:-1] == '+':
                 # these are the middle lines
                 row += read_string[8:-2]
-            elif np.all(next_line and read_string[:1] == '+') or np.all(string.find(read_string[:8], 'SET1') !=-1 and read_string[:1] != '$'):
+            elif read_string[:1] == '+' or np.all(string.find(read_string[:8], 'SET1') !=-1 and read_string[:1] != '$'):
                 if np.all(string.find(read_string[:8], 'SET1') !=-1 and read_string[:1] != '$'):
                     # this is the first AND the last line, no more IDs to come
                     row = string.strip(read_string[8:], '\n')
                 else:
                     # this is the last line, no more IDs to come
                     row += string.strip(read_string[8:], '\n')
-                next_line = False
+                
                 # start conversion from string to list containing ID values
                 sets['ID'].append(nastran_number_converter(row[:8], 'int'))
                 row = row[8:]
