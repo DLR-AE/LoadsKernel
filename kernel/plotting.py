@@ -715,7 +715,10 @@ class plotting:
                 os.makedirs('{}anim/'.format(path_output))
             movie(self) # launch animation
             mlab.close()
+            # h.246
             os.system('ffmpeg -framerate {} -i {}anim/subcase_{}_frame_%06d.png  -r 30 -y {}anim/subcase_{}.mov'.format( speedup_factor/simcase['dt'], path_output, trimcase['subcase'], path_output, trimcase['subcase']) )
+            # MPEG-4 - besser geeignet fuer PowerPoint & Co.
+            os.system('ffmpeg -framerate {} -i {}anim/subcase_{}_frame_%06d.png -c:v mpeg4 -q:v 3 -r 30 -y {}anim/subcase_{}.avi'.format( speedup_factor/simcase['dt'], path_output, trimcase['subcase'], path_output, trimcase['subcase']) )
         else:
             anim(self) # launch animation
             mlab.show()
