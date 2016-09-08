@@ -85,5 +85,16 @@ class jcl:
                           'rdot': 0.0,                  # yaw acceleration in rad/s^2
                          },
                         ]
-        self.simcase = [{}] # under development
+        self.simcase = [{}] # For every trimcase, a corresponding simcase is required. For maneuvers, it may be empty.
+        # a time simulation is triggered if the simcase contains at least 'dt' and 't_final'
+        self.simcase = [{'dt': 0.01,            # time step size in [s]
+                         't_final': 2.0,        # final simulation time  in [s]
+                         'gust': True,          # True or False, enables 1-cosine gust according to CS-25
+                         'gust_gradient': 9.0,  # gust gradient H in [m]
+                         'gust_orientation': 0, # orientation of the gust in [deg], 0/360 = gust from bottom, 180 = gust from top
+                         'gust_para':{'Z_mo': 12500.0, 'MLW': 65949.0, 'MTOW': 73365.0, 'MZFW': 62962.0, 'MD': 0.87, 'T1': 0.00}, # gust parameters according to CS-25
+                         'cs_signal': False,    # True or False, allows playback of control surface signals via efcs
+                         'controller': False    # True or False, enables a generic controller e.g. to maintain p, q and r
+                        },
+                       ] 
         # End
