@@ -529,7 +529,7 @@ def Nastran_SET1(filename):
                 # this is the first line
                 row = read_string[8:-2]
                 next_line = True
-            elif nest_line and read_string[:1] == '+' and read_string[-2:-1] == '+':
+            elif next_line and read_string[:1] == '+' and read_string[-2:-1] == '+':
                 # these are the middle lines
                 row += read_string[8:-2]
             elif np.all(next_line and read_string[:1] == '+') or np.all(string.find(read_string[:8], 'SET1') !=-1 and read_string[:1] != '$'):
