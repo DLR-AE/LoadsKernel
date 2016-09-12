@@ -50,13 +50,15 @@ class monstations:
 
     
     def gather_dyn2stat(self, i_case, response):
+        # Schnittlasten an den Monitoring Stationen raus schreiben (zum Plotten)
+        # Knotenlasten raus schreiben (weiterverarbeitung z.B. als FORCE und MOMENT Karten fuer Nastran)
         print 'searching min/max of Fz/Mx/My in time data at {} monitoring stations and gathering loads (dyn2stat)...'.format(len(self.monstations.keys()))
+        all_subcases_dyn2stat = []
+        Pg_dyn2stat = []
         for key in self.monstations.keys():
-            # Schnittlasten an den Monitoring Stationen raus schreiben zum Plotten
-            # Knotenlasten raus schreiben
             loads_dyn2stat = []
             subcases_dyn2stat = []
-            Pg_dyn2stat = []
+            
             pos_max_loads_over_time = np.argmax(self.monstations[key]['loads'][i_case], 0)
             pos_min_loads_over_time = np.argmin(self.monstations[key]['loads'][i_case], 0)
             # Fz max und min
@@ -80,11 +82,15 @@ class monstations:
             loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[4],:])
             Pg_dyn2stat.append(response['Pg'][pos_min_loads_over_time[4],:])
             subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_min')
-
+            # save to monstations
             self.monstations[key]['loads_dyn2stat'] += loads_dyn2stat
             self.monstations[key]['subcases_dyn2stat'] += subcases_dyn2stat
-            
-            self.dyn2stat['Pg'] += Pg_dyn2stat
-            self.dyn2stat['subcases'] += subcases_dyn2stat
-            self.dyn2stat['subcases_ID'] += [ int(subcases_dyn2stat[i].split('_')[0])*1000000+i  for i in range(len(subcases_dyn2stat))]
+            all_subcases_dyn2stat += subcases_dyn2stat
+        
+        # save to dyn2stat
+        self.dyn2stat['Pg'] += Pg_dyn2stat
+        self.dyn2stat['subcases'] += all_subcases_dyn2stat
+        # generate unique IDs for subcases
+        # take first digits from original subcase, then add a running number
+        self.dyn2stat['subcases_ID'] += [ int(all_subcases_dyn2stat[i].split('_')[0])*1000+i  for i in range(len(all_subcases_dyn2stat))]
     
