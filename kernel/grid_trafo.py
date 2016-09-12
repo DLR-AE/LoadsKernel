@@ -16,6 +16,7 @@ def grid_trafo(grid, coord, dest_coord):
         offset = np.dot(coord['dircos'][pos_coord_dest].T,offset_tmp)+coord['offset'][pos_coord_dest]
         grid['offset'][i_point] = offset
         grid['CP'][i_point] = dest_coord
+        grid['CD'][i_point] = dest_coord
     
 def force_trafo(grid, coord, forcevector):
     # Especially with monitoring stations, coordinate system CP and CD might differ. 
