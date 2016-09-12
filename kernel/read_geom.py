@@ -199,7 +199,7 @@ def Modgen_CQUAD4(filename):
              }
     return panels
     
-def CAERO(filename):
+def CAERO(filename, i_file):
     print 'Read CAERO1 and/or CAERO7 cards from Nastran/ZAERO bdf: %s' %filename
     caerocards = []
     with open(filename, 'r') as fid:
@@ -252,7 +252,7 @@ def CAERO(filename):
     print ' - from CAERO cards, constructing corner points and aero panels'
     # from CAERO cards, construct corner points... '
     # then, combine four corner points to one panel
-    grid_ID = 0
+    grid_ID = i_file * 100000 # the file number is used to set a range of grid IDs 
     grids = {'ID':[], 'offset':[]}
     panels = {"ID": [], 'CP':[], 'CD':[], "cornerpoints": []}
     for caerocard in caerocards:

@@ -61,14 +61,14 @@ def build_x2grid(jcl_aero, aerogrid, coord):
     return x2grid, coord   
      
 
-def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4'):
+def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4', i_file=0):
     if method_caero == 'CQUAD4':
         # all corner points are defined as grid points by ModGen
         caero_grid = read_geom.Modgen_GRID(filename_caero_bdf)
         # four grid points are assembled to one panel, this is expressed as CQUAD4s 
         caero_panels = read_geom.Modgen_CQUAD4(filename_caero_bdf)
     elif method_caero in ['CAERO1', 'CAERO7']:
-        caero_grid, caero_panels = read_geom.CAERO(filename_caero_bdf)
+        caero_grid, caero_panels = read_geom.CAERO(filename_caero_bdf, i_file)
     else:
         print "Error: Method %s not implemented. Available options are 'CQUAD4', 'CAERO1' and 'CAERO7'" % method_caero
     print ' - from corner points and aero panels, constructing aerogrid'
