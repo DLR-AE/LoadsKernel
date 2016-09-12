@@ -122,7 +122,7 @@ class model:
             # grids
             for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
                 if self.jcl.aero.has_key('method_caero'):
-                    subgrid = build_aero.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file], method_caero = self.jcl.aero['method_caero'], i_file) 
+                    subgrid = build_aero.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file], method_caero = self.jcl.aero['method_caero'], i_file=i_file) 
                 else: # use default method defined in function
                     subgrid = build_aero.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file]) 
                 if i_file == 0:
