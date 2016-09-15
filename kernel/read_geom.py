@@ -341,11 +341,14 @@ def Nastran_OP4(filename, sparse_output=False, sparse_format=False ):
         # - real values: 16 characters for one value --> five values per line 
         # - complex values: 16 characters for real and complex part each --> five values in two line
         string_length = 16 # double precision
-        if nastran_number_converter(read_string[24:32], 'int') == 2:
+        # According to the manual, NTYPE 1 and 3 are used for single precision while 2 and 4 are used for double precision. 
+        # However, no change in string length has been observed.
+        # In addition, the format '1P,5E16.9' has 9 digits after the decimal separator, which is double precision, disregarding the information given by NTYPE.
+        if nastran_number_converter(read_string[24:32], 'int') in [1, 2]:
             type_real = True
             type_complex = False
             data = sp.lil_matrix((n_col, n_row), dtype=float)
-        elif nastran_number_converter(read_string[24:32], 'int') == 4:
+        elif nastran_number_converter(read_string[24:32], 'int') in [3, 4]:
             type_real = False
             type_complex = True
             data = sp.lil_matrix((n_col, n_row), dtype=complex)
