@@ -173,8 +173,7 @@ class trim:
         
         X_free_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]]
         
-        bypass = False
-        if bypass:
+        if self.trimcase['manoeuver'] == 'bypass':
             print 'running bypass...'
             self.response = equations.eval_equations(X_free_0, time=0.0, type='trim_full_output')
         else:
