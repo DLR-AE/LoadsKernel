@@ -215,7 +215,7 @@ class trim:
         dt = self.simcase['dt']
         t_final = self.simcase['t_final']
         print 'running time simulation for ' + str(t_final) + ' sec...'
-        print 'Progress:'
+        #print 'Progress:'
         from scipy.integrate import ode
         integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
 #         integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=1e-4)
@@ -226,7 +226,7 @@ class trim:
             integrator.integrate(integrator.t+dt)
             X_t.append(integrator.y)
             t.append(integrator.t)
-            print str(integrator.t) + ' sec - ' + str(equations.counter) + ' function evaluations'
+            #print str(integrator.t) + ' sec - ' + str(equations.counter) + ' function evaluations'
             
         if integrator.successful():
             print 'Simulation finished.'
