@@ -276,7 +276,7 @@ class model:
                 self.aero['RMSE'].append(RMSE)
             self.aero['n_poles'] = n_poles
             self.aero['betas'] =  betas
-            
+            self.aero.pop('Qjj_unsteady') # remove unsteady AICs to save memory
         else:
             self.aero['n_poles'] = 0
         # ----------------
