@@ -504,39 +504,33 @@ def Modgen_AESURF(filename):
     return aesurf
 
 def Modgen_AELIST(filename):
-    aelist = {'ID': [], 'values':[]}
-    with open(filename, 'r') as fid:
-        lines = fid.readlines()
-    for line in lines:
-        if string.find(line, 'AELIST') !=-1 and line[0] != '$':
-            if string.replace(line[24:32], ' ', '') == 'THRU' and line[-2] != '+':
-                # Assumption: the list is defined with the help of THRU and there is only one THRU
-                startvalue = nastran_number_converter(line[16:24], 'int')
-                stoppvalue = nastran_number_converter(line[32:40], 'int')
-                values = np.arange(startvalue, stoppvalue+1)
-                aelist['ID'].append(nastran_number_converter(line[8:16], 'int'))
-                aelist['values'].append(values)
-            else:
-                print 'Notation of AELIST with single values not yet implemented!'
-                return
-    return aelist
+    # AELISTs have the same nomenklatur as SET1s
+    # Thus, reuse the Nastran_SET1() function with a different keyword
+    return Nastran_SET1(filename, keyword='AELIST')
 
-def Nastran_SET1(filename):
+def Nastran_SET1(filename, keyword='SET1'):
     
     sets = {'ID':[], 'values':[]}
     next_line = False
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            if string.find(read_string[:8], 'SET1') !=-1 and read_string[-2:-1] == '+' and read_string[:1] != '$':
+            if string.find(read_string[:8], keyword) !=-1 and string.replace(read_string[24:32], ' ', '') == 'THRU' and read_string[:1] != '$':
+                 # Assumption: the list is defined with the help of THRU and there is only one THRU
+                startvalue = nastran_number_converter(read_string[16:24], 'int')
+                stoppvalue = nastran_number_converter(read_string[32:40], 'int')
+                values = np.arange(startvalue, stoppvalue+1)
+                sets['ID'].append(nastran_number_converter(read_string[8:16], 'int'))
+                sets['values'].append(values)
+            elif string.find(read_string[:8], keyword) !=-1 and read_string[-2:-1] == '+' and read_string[:1] != '$':
                 # this is the first line
                 row = read_string[8:-2]
                 next_line = True
             elif next_line and read_string[:1] == '+' and read_string[-2:-1] == '+':
                 # these are the middle lines
                 row += read_string[8:-2]
-            elif np.all(next_line and read_string[:1] == '+') or np.all(string.find(read_string[:8], 'SET1') !=-1 and read_string[:1] != '$'):
-                if np.all(string.find(read_string[:8], 'SET1') !=-1 and read_string[:1] != '$'):
+            elif np.all(next_line and read_string[:1] == '+') or np.all(string.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
+                if np.all(string.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
                     # this is the first AND the last line, no more IDs to come
                     row = string.strip(read_string[8:], '\n')
                 else:
