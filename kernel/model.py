@@ -18,7 +18,7 @@ from  atmo_isa import atmo_isa
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import cPickle, sys, time
+import cPickle, sys, time, logging
 from oct2py import octave 
 
 class model:
@@ -46,7 +46,7 @@ class model:
                       'dircos': [np.eye(3), np.array([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])],
                       'offset': [np.array([0,0,0]), np.array([0,0,0])],
                      }        
-        print 'Building structural model...'
+        logging.info( 'Building structural model...')
         if self.jcl.geom['method'] == 'mona':
             
             for i_file in range(len(self.jcl.geom['filename_grid'])):
@@ -77,7 +77,7 @@ class model:
             #self.Kgg = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
             
             if not self.jcl.geom['filename_mongrid'] == '':
-                print 'Building Monitoring Stations from GRID data...' 
+                logging.info( 'Building Monitoring Stations from GRID data...')
                 self.mongrid = read_geom.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_moncoord'], self.coord)
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
@@ -85,7 +85,7 @@ class model:
                 self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
                     
             elif not self.jcl.geom['filename_monpnt'] == '':
-                print 'Reading Monitoring Stations from MONPNTs...' 
+                logging.info( 'Reading Monitoring Stations from MONPNTs...')
                 self.mongrid = read_geom.Nastran_MONPNT1(self.jcl.geom['filename_monpnt']) 
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_monpnt'], self.coord)
                 rules = spline_rules.monstations_from_aecomp(self.mongrid, self.jcl.geom['filename_monpnt'])
@@ -93,10 +93,10 @@ class model:
                 self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
                 
             else: 
-                print 'Warning: No Monitoring Stations are created!'
+                logging.warning( 'No Monitoring Stations are created!')
             #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord) 
         
-        print 'Building atmo model...'
+        logging.info( 'Building atmo model...')
         if self.jcl.atmo['method']=='ISA':
             self.atmo = {'key':[],
                          'h': [], 
@@ -115,9 +115,9 @@ class model:
                 self.atmo['a'].append(a)
 
         else:
-            print 'Unknown atmo method: ' + str(self.jcl.aero['method'])
+            logging.error( 'Unknown atmo method: ' + str(self.jcl.aero['method']))
               
-        print 'Building aero model...'
+        logging.info( 'Building aero model...')
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             # grids
             for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
@@ -155,7 +155,7 @@ class model:
                         self.camber_twist['ID'] = np.hstack((self.camber_twist['ID'], subgrid['ID']))
                         self.camber_twist['cam_rad'] = np.hstack((self.camber_twist['cam_rad'], subgrid['cam_rad']))
             else:
-                print 'No W2GJ data (correction of camber and twist) given, setting to zero'
+                logging.info( 'No W2GJ data (correction of camber and twist) given, setting to zero')
                 self.camber_twist = {'ID':self.aerogrid['ID'], 'cam_rad':np.zeros(self.aerogrid['ID'].shape)}
             
             # build mac grid from geometry, except other values are given in general section of jcl
@@ -215,7 +215,7 @@ class model:
 #             plt.show()
             
         else:
-            print 'Unknown aero method: ' + str(self.jcl.aero['method'])
+            logging.error( 'Unknown aero method: ' + str(self.jcl.aero['method']))
         # -----------    
         # --- AIC ---
         # -----------
@@ -232,27 +232,27 @@ class model:
                 self.aero['key'].append(self.jcl.aero['key'][i_aero])
                 self.aero['Qjj'].append(Qjj)
         elif self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae']:
-            print 'Calculating steady AIC matrices ({} panels, k=0.0) for {} Mach number(s)...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) ),
+            logging.info( 'Calculating steady AIC matrices ({} panels, k=0.0) for {} Mach number(s)...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) ))
             #AIC = ae_getaic(aerogrid, Mach, k);
             t_start = time.time()
             Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], [0.0])
-            print 'done in %.2f [sec].' % (time.time() - t_start)
+            logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
             self.aero['key'] = self.jcl.aero['key']
             self.aero['Qjj'] = [Qjj[i_aero,0,:,:,] for i_aero in range(len(self.jcl.aero['key']))] # dim: Ma,n,n
             self.aero['Bjj'] = [Bjj[i_aero,:,:,] for i_aero in range(len(self.jcl.aero['key']))] # dim: Ma,n,n
         else:
-            print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
+            logging.error( 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
         
         # unsteady
         if self.jcl.aero['method'] == 'mona_unsteady':
             if self.jcl.aero['method_AIC'] == 'dlm':
-                print 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) ),
+                logging.info( 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) ))
                 # Definitions for reduced frequencies:
                 # ae_getaic: k = omega/U 
                 # Nastran:   k = 0.5*cref*omega/U
                 t_start = time.time()
                 Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
-                print 'done in %.2f [sec].' % (time.time() - t_start)
+                logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
                 self.aero['Qjj_unsteady'] = Qjj # dim: Ma,k,n,n
             elif self.jcl.aero['method_AIC'] == 'nastran':
                 self.aero['Qjj_unsteady'] = np.zeros((len(self.jcl.aero['key']), len(self.jcl.aero['k_red']), self.aerogrid['n'], self.aerogrid['n'] ), dtype=complex)
@@ -265,7 +265,7 @@ class model:
                             Qjj = np.linalg.inv(Ajj.T)
                         self.aero['Qjj_unsteady'][i_aero,i_k,:,:] = Qjj 
             else:
-                print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
+                logging.error( 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
             self.aero['k_red'] =  self.jcl.aero['k_red']
             # rfa
             self.aero['ABCD'] = []
@@ -283,7 +283,7 @@ class model:
         # ---- Aero DB ---
         # ----------------    
         if self.jcl.aero['method'] == 'hybrid':   
-            print 'Building aero db...'
+            logging.info( 'Building aero db...')
             self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
             
         # splines 
@@ -291,12 +291,12 @@ class model:
         if self.jcl.spline['method'] in ['rbf', 'nearest_neighbour']:
             if self.jcl.spline['splinegrid'] == True:
                 # this optin is only valid if spline['method'] == 'rbf' or 'rb'
-                print 'Coupling aerogrid to strcgrid via splinegrid:'
+                logging.info( 'Coupling aerogrid to strcgrid via splinegrid:')
                 self.splinegrid = build_splinegrid.build_splinegrid(self.strcgrid, self.jcl.spline['filename_splinegrid'])
                 # self.splinegrid = build_splinegrid.grid_thin_out_random(self.splinegrid, 0.05)
                 # self.splinegrid = build_splinegrid.grid_thin_out_radius(self.splinegrid, 0.5)
             else:
-                print 'Coupling aerogrid directly. Doing cleanup/thin out of strcgrid to avoid singularities (safety first!)'
+                logging.info( 'Coupling aerogrid directly. Doing cleanup/thin out of strcgrid to avoid singularities (safety first!)')
                 self.splinegrid = build_splinegrid.grid_thin_out_radius(self.strcgrid, 0.01)
 
         if self.jcl.spline['method'] == 'rbf': 
@@ -309,9 +309,9 @@ class model:
         elif self.jcl.spline['method'] == 'nastran': 
             self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
         else:
-            print 'Unknown spline method.'
+            logging.error( 'Unknown spline method.')
 
-        print 'Building mass model...'
+        logging.info( 'Building mass model...')
         if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan']:
             self.mass = {'key': [],
                          'Mb': [],
@@ -342,7 +342,7 @@ class model:
             
             # loop over mass configurations
             for i_mass in range(len(self.jcl.mass['key'])):
-                print 'Mass configuration {} of {}: {} '.format(i_mass+1, len(self.jcl.mass['key']), self.jcl.mass['key'][i_mass])
+                logging.info( 'Mass configuration {} of {}: {} '.format(i_mass+1, len(self.jcl.mass['key']), self.jcl.mass['key'][i_mass]))
                 MGG = read_geom.Nastran_OP4(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
                 
                 if self.jcl.mass['method'] == 'mona': 
@@ -404,7 +404,7 @@ class model:
                 self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
                 
         else:
-            print 'Unknown mass method: ' + str(self.jcl.mass['method'])
+            logging.error( 'Unknown mass method: ' + str(self.jcl.mass['method']))
             
             
         octave.exit() # closes and cleans up octave session

@@ -11,6 +11,7 @@ import spline_functions
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
+import logging
 
 def build_x2grid(jcl_aero, aerogrid, coord):
     
@@ -70,8 +71,8 @@ def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4', i_file=0):
     elif method_caero in ['CAERO1', 'CAERO7']:
         caero_grid, caero_panels = read_geom.CAERO(filename_caero_bdf, i_file)
     else:
-        print "Error: Method %s not implemented. Available options are 'CQUAD4', 'CAERO1' and 'CAERO7'" % method_caero
-    print ' - from corner points and aero panels, constructing aerogrid'
+        logging.error( "Error: Method %s not implemented. Available options are 'CQUAD4', 'CAERO1' and 'CAERO7'" % method_caero)
+    logging.info( ' - from corner points and aero panels, constructing aerogrid')
     ID = []
     l = [] # length of panel
     A = [] # area of one panel
@@ -235,7 +236,7 @@ def plot_aerogrid(aerogrid, cp = '', colormap = 'jet', value_min = '', value_max
 def rfa(Qjj, k, n_poles=2):
     # B = A*x
     # B ist die gegebene AIC, A die roger-Aproxination, x sind die zu findenden Koeffizienten B0,B1,...B7
-    print 'Performing rational function approximation (RFA) on AIC matrices with {} poles...'.format(n_poles)
+    logging.info( 'Performing rational function approximation (RFA) on AIC matrices with {} poles...'.format(n_poles))
     k = np.array(k)
     n_k = len(k)
     ik = k * 1j
@@ -260,19 +261,19 @@ def rfa(Qjj, k, n_poles=2):
     Qjj_reshaped = np.vstack(( np.real(Qjj.reshape(n_k,-1)), np.imag(Qjj.reshape(n_k,-1)) ))
     n_j = Qjj.shape[1]
     
-    print '- solving B = A*x with least-squares method'
+    logging.info( '- solving B = A*x with least-squares method')
     solution, residuals, rank, s = np.linalg.lstsq(Ajj, Qjj_reshaped)
     ABCD = solution.reshape(3 + n_poles, n_j, n_j)
     
     # Kontrolle
     Qjj_aprox = np.dot(Ajj, solution)
     RMSE = []
-    print '- root-mean-square error(s): '
+    logging.info( '- root-mean-square error(s): ')
     for k_i in range(n_k):
         RMSE_real = np.sqrt( ((Qjj_aprox[k_i    ,:].reshape(n_j, n_j) - np.real(Qjj[k_i,:,:]))**2).sum(axis=None) / n_j**2 )
         RMSE_imag = np.sqrt( ((Qjj_aprox[k_i+n_k,:].reshape(n_j, n_j) - np.imag(Qjj[k_i,:,:]))**2).sum(axis=None) / n_j**2 )
         RMSE.append([RMSE_real,RMSE_imag ])
-        print '  k = {:<6}, RMSE_real = {:<20}, RMSE_imag = {:<20}'.format(k[k_i], RMSE_real, RMSE_imag)
+        logging.info( '  k = {:<6}, RMSE_real = {:<20}, RMSE_imag = {:<20}'.format(k[k_i], RMSE_real, RMSE_imag))
     
     
     # Vergrößerung des Frequenzbereichs

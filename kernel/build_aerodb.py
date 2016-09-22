@@ -9,6 +9,7 @@ Created on Tue Feb 24 15:07:06 2015
 import scipy.io.netcdf as netcdf
 import matplotlib.pyplot as plt
 import numpy as np
+import logging
 
 import spline_rules
 import spline_functions
@@ -23,7 +24,7 @@ def process_matrix(model, matrix, plot=False):
             markers = matrix[param][aero_key]['markers']
             if markers != 'all':
                 filename_grid = matrix[param][aero_key]['filename_grid']
-                print 'Extracting points belonging to marker(s) {} from grid {}'.format(str(markers), filename_grid)
+                logging.info( 'Extracting points belonging to marker(s) {} from grid {}'.format(str(markers), filename_grid))
                 # --- get points on surfaces according to marker ---
                 ncfile_grid = netcdf.NetCDFFile(filename_grid, 'r')
                 boundarymarker_surfaces = ncfile_grid.variables['boundarymarker_of_surfaces'][:]
@@ -48,12 +49,12 @@ def process_matrix(model, matrix, plot=False):
             for i_value in range(len(matrix[param][aero_key]['values'])):
                 # read pval
                 filename_pval = matrix[param][aero_key]['filenames_surface_pval'][i_value]
-                print '{}, {}, {}: reading {}'.format( param, aero_key, str(matrix[param][aero_key]['values'][i_value]),filename_pval)
+                logging.info( '{}, {}, {}: reading {}'.format( param, aero_key, str(matrix[param][aero_key]['values'][i_value]),filename_pval))
                 ncfile_pval = netcdf.NetCDFFile(filename_pval, 'r')
                 # check if pval contains all required data
                 for needed_key in ['global_id', 'x', 'y', 'z', 'x-force', 'y-force', 'z-force']:
                     if not ncfile_pval.variables.has_key(needed_key): 
-                        print "Error: '{}' is missing in {}".format(needed_key, matrix[param][aero_key]['filenames_surface_pval'][i_value])
+                        logging.error( "'{}' is missing in {}".format(needed_key, matrix[param][aero_key]['filenames_surface_pval'][i_value]))
                 
                 global_id = ncfile_pval.variables['global_id'][:].copy()
                 # if markers are specified, determine the positions of the points in the pval file
@@ -81,7 +82,7 @@ def process_matrix(model, matrix, plot=False):
                 # - offsets should be identical
                 # If the first condition returns false, the next one is not checked. This is useful to avoid errors if e.g. offsets are not comparablr because they have different lenght.
                 if i_value != 0 and matrix[param][aero_key]['cfdgrid'][i_value-1]['n'] == cfdgrid['n'] and np.all(matrix[param][aero_key]['cfdgrid'][i_value-1]['offset'] == cfdgrid['offset']):
-                    print ' --> assuming identical cfd grids, re-using spline matrix'
+                    logging.info( ' --> assuming identical cfd grids, re-using spline matrix')
                     PHIcfd_k = matrix[param][aero_key]['PHIcfd_k'][i_value-1]                                        
                 else:
                     # build spline
@@ -122,10 +123,10 @@ def process_matrix(model, matrix, plot=False):
                     Cz_tau = np.sum(ncfile_pval.variables['z-force'][:][pos]) / q_dyn / model.macgrid['A_ref']
                                     
                     desc = 'param = ' + param + ', value = ' + str(matrix[param][aero_key]['values'][i_value]) + ', ' + aero_key
-                    print desc
-                    print 'Cx: {:.4}, Cx_tau: {:.4}'.format(float(Cmac[0]), Cx_tau)
-                    print 'Cy: {:.4}, Cy_tau: {:.4}'.format(float(Cmac[1]), Cy_tau)
-                    print 'Cz: {:.4}, Cz_tau: {:.4}'.format(float(Cmac[2]), Cz_tau)
+                    logging.info( desc)
+                    logging.info( 'Cx: {:.4}, Cx_tau: {:.4}'.format(float(Cmac[0]), Cx_tau))
+                    logging.info( 'Cy: {:.4}, Cy_tau: {:.4}'.format(float(Cmac[1]), Cy_tau))
+                    logging.info( 'Cz: {:.4}, Cz_tau: {:.4}'.format(float(Cmac[2]), Cz_tau))
                      
                     cp = Pk[model.aerogrid['set_k'][:,0]] / q_dyn / model.aerogrid['A']
                     ax1 = plot_aerogrid(model.aerogrid, cp, 'jet', -0.5, 0.5)

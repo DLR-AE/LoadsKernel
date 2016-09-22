@@ -10,7 +10,7 @@ import matplotlib.animation as animation
 #from mayavi import mlab
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
-import csv, time, os, copy
+import csv, time, os, copy, logging
 import build_aero, write_functions
 
 
@@ -53,7 +53,7 @@ class plotting:
             self.f_scale = 0.1 # vectors
             self.p_scale = 0.2 # points
         else:
-            print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
+            logging.error('Unknown aircraft: ' + str(self.jcl.general['aircraft']))
             return
         
         
@@ -62,7 +62,7 @@ class plotting:
         for i_trimcase in range(len(self.jcl.trimcase)):
             response   = self.response[i_trimcase]
             trimcase   = self.jcl.trimcase[i_trimcase]
-            print 'interactive plotting of resulting pressure distributions for trim {:s}'.format(trimcase['desc'])
+            logging.info('interactive plotting of resulting pressure distributions for trim {:s}'.format(trimcase['desc']))
             Pk = response['Pk_aero'] #response['Pk_rbm'] + response['Pk_cam']
             i_atmo = self.model.atmo['key'].index(trimcase['altitude'])
             rho = self.model.atmo['rho'][i_atmo]
@@ -86,7 +86,7 @@ class plotting:
         for i_trimcase in range(len(self.jcl.trimcase)):
             response   = self.response[i_trimcase]
             trimcase   = self.jcl.trimcase[i_trimcase]
-            print 'interactive plotting of forces and deformations for trim {:s}'.format(trimcase['desc'])
+            logging.info('interactive plotting of forces and deformations for trim {:s}'.format(trimcase['desc']))
 
             x = self.model.aerogrid['offset_k'][:,0]
             y = self.model.aerogrid['offset_k'][:,1]
@@ -155,12 +155,12 @@ class plotting:
         self.potato_plots(monstations, pp, self.potatos_Fz_Mx, self.potatos_Mx_My, self.potatos_Fz_My, dyn2stat)
         self.cuttingforces_along_wing_plots(monstations, pp, self.cuttingforces_wing, dyn2stat)
         pp.close()
-        print 'plots saved as ' + filename_pdf
+        logging.info('plots saved as ' + filename_pdf)
         #print 'opening '+ filename_pdf
         #os.system('evince ' + filename_pdf + ' &')
         
     def potato_plots(self, monstations, pp, potatos_Fz_Mx, potatos_Mx_My, potatos_Fz_My, dyn2stat=False):
-        print 'start potato-plotting...'
+        logging.info('start potato-plotting...')
         # get data needed for plotting from monstations
         if dyn2stat:
             loads_string = 'loads_dyn2stat'
@@ -252,7 +252,7 @@ class plotting:
                 plt.close()  
           
     def cuttingforces_along_wing_plots(self, monstations, pp, cuttingforces_wing, dyn2stat=False):
-        print 'start plotting cutting forces along wing...'
+        logging.info('start plotting cutting forces along wing...')
         cuttingforces = ['Fx [N]', 'Fy [N]', 'Fz [N]', 'Mx [Nm]', 'My [Nm]', 'Mz [Nm]']
         if dyn2stat:
             loads_string = 'loads_dyn2stat'
@@ -305,7 +305,7 @@ class plotting:
                     trimcase.update(self.jcl.simcase[i_case]) # merge infos from simcase with trimcase
                 crit_trimcases_info.append(trimcase)
                 
-        print 'writing critical trimcases cases to: ' + filename_csv
+        logging.info('writing critical trimcases cases to: ' + filename_csv)
         with open(filename_csv, 'wb') as fid:
             w = csv.DictWriter(fid, crit_trimcases_info[0].keys())
             w.writeheader()
@@ -315,7 +315,7 @@ class plotting:
     def save_dyn2stat(self, dyn2stat, filename):
         # eigentlich gehoert diese Funtion eher zum post-processing als zum
         # plotten, kann aber erst nach dem plotten ausgefuehrt werden...
-        print 'saving dyn2stat nodal loads as Nastarn cards...'
+        logging.info('saving dyn2stat nodal loads as Nastarn cards...')
         with open(filename+'_Pg_dyn2stat', 'w') as fid: 
             for i_case in range(len(dyn2stat['subcases'])):
                 if dyn2stat['subcases'][i_case] in self.crit_trimcases:
@@ -326,7 +326,7 @@ class plotting:
                     write_functions.write_subcases(fid, dyn2stat['subcases_ID'][i_case], dyn2stat['subcases'][i_case])
     
     def plot_monstations_time(self, monstations, filename_pdf):
-        print 'start plotting cutting forces over time ...'
+        logging.info('start plotting cutting forces over time ...')
         pp = PdfPages(filename_pdf)
         for key in monstations.keys():
             monstation = monstations[key]
@@ -361,12 +361,12 @@ class plotting:
             pp.savefig()
             plt.close()
         pp.close()
-        print 'plots saved as ' + filename_pdf   
+        logging.info('plots saved as ' + filename_pdf)
         
     def plot_time_data(self, animation_dimensions = '2D'):
         for i_simcase in range(len(self.jcl.simcase)):
             trimcase = self.jcl.trimcase[i_simcase]
-            print 'plotting for simulation {:s}'.format(trimcase['desc'])
+            logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
             Pb_gust = []
             Pb_unsteady = []
             Pb_aero = []
@@ -522,7 +522,7 @@ class plotting:
                 lim=10.0
                 length=5.0
             else:
-                print 'Error: unknown aircraft: ' + str(self.jcl.general['aircraft'])
+                logging.error('Unknown aircraft: ' + str(self.jcl.general['aircraft']))
                 return
             
             def update_line(num, data, line1, line2, line3, ax2, ax3, t, time_text, length):
@@ -689,11 +689,11 @@ class plotting:
 
         # set up animation
         if make_movie:
-            print 'rendering offscreen simulation {:s} ...'.format(trimcase['desc'])
+            logging.info('rendering offscreen simulation {:s} ...'.format(trimcase['desc']))
             mlab.options.offscreen = True
             self.fig = mlab.figure(size=(1920, 1080))
         else: 
-            print 'interactive plotting of forces and deformations for simulation {:s}'.format(trimcase['desc'])
+            logging.info('interactive plotting of forces and deformations for simulation {:s}'.format(trimcase['desc']))
             self.fig = mlab.figure()
         mlab.points3d(self.x[0,:], self.y[0,:], self.z[0,:], color=(1,1,1), opacity=0.4, scale_factor=self.p_scale) # intital position of aircraft, remains as a shadow in the animation for better comparision
         # BUG: mlab_source.set() funktioniert nicht bei points3d, daher der direkte Weg ueber eine pipeline

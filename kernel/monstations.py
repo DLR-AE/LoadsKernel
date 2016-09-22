@@ -1,6 +1,6 @@
 
 import numpy as np
-
+import logging
 
 class monstations:
     #===========================================================================
@@ -37,7 +37,7 @@ class monstations:
         return name
     
     def gather_monstations(self, trimcase, response):
-        print 'gathering information on monitoring stations from respone(s)...'
+        logging.info('gathering information on monitoring stations from respone(s)...')
         for i_station in range(self.model.mongrid['n']):
             name = self.get_monstation_name(i_station)
             self.monstations[name]['subcase'].append(trimcase['subcase'])
@@ -52,7 +52,7 @@ class monstations:
     def gather_dyn2stat(self, i_case, response):
         # Schnittlasten an den Monitoring Stationen raus schreiben (zum Plotten)
         # Knotenlasten raus schreiben (weiterverarbeitung z.B. als FORCE und MOMENT Karten fuer Nastran)
-        print 'searching min/max of Fz/Mx/My in time data at {} monitoring stations and gathering loads (dyn2stat)...'.format(len(self.monstations.keys()))
+        logging.info('searching min/max of Fz/Mx/My in time data at {} monitoring stations and gathering loads (dyn2stat)...'.format(len(self.monstations.keys())))
         all_subcases_dyn2stat = []
         Pg_dyn2stat = []
         for key in self.monstations.keys():
