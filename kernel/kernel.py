@@ -4,7 +4,7 @@ Created on Thu Nov 27 14:00:31 2014
 
 @author: voss_ar
 """
-import cPickle, time, imp, sys, os
+import cPickle, time, imp, sys, os, multiprocessing, psutil
 import scipy
 import numpy as np
 import logger as logger_modul 
@@ -14,13 +14,12 @@ import post_processing as post_processing_modul
 import monstations as monstations_modul
 import auxiliary_output as auxiliary_output_modul
 import plotting as plotting_modul
-from psutil import virtual_memory
 
-def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_input='../input/', path_output='../output/', jcl=None):
+def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_input='../input/', path_output='../output/', jcl=None, parallel=False):
     path_input = check_path(path_input) 
     path_output = check_path(path_output)    
-    reload(sys)
-    sys.stdout = logger_modul.logger(path_output + 'log_' + job_name + ".txt")
+    #reload(sys)
+    #sys.stdout = logger_modul.logger(path_output + 'log_' + job_name + ".txt")
     
     print 'Starting Loads Kernel with job: ' + job_name
     print 'pre:  ' + str(pre)
@@ -45,49 +44,41 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         
     if main:
-        if not 'model' in locals():
-            model = load_model(job_name, path_output)
-        
         print '--> Starting Main for %d trimcase(s).' % len(jcl.trimcase)
-        t_start = time.time()
-        monstations = monstations_modul.monstations(jcl, model)
-        f = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
+        t_start = time.time()        
+        manager = multiprocessing.Manager()
+        q_input = manager.Queue()  
+        q_output = manager.Queue() 
+        
+        # putting trimcases into queue
         for i in range(len(jcl.trimcase)):
-            print ''
-            print '========================================' 
-            print 'trimcase: ' + jcl.trimcase[i]['desc']
-            print 'subcase: ' + str(jcl.trimcase[i]['subcase'])
-            print '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')' 
-            print '========================================' 
+            q_input.put(i)
+        print 'All trimcases queued, waiting for execution.'
+        
+        if parallel:
+            n_processes = multiprocessing.cpu_count()/2
+            if n_processes < 2 : n_processes = 2
+        else: 
+            n_processes = 2
             
-            trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
-            trim_i.set_trimcond()
-            trim_i.exec_trim()
-            if 't_final' and 'dt' in jcl.simcase[i].keys():
-                trim_i.exec_sim()
-            post_processing_i = post_processing_modul.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
-            post_processing_i.force_summation_method()
-            post_processing_i.euler_transformation()
-            post_processing_i.cuttingforces()
-            monstations.gather_monstations(jcl.trimcase[i], trim_i.response)
-            if 't_final' and 'dt' in jcl.simcase[i].keys():
-                monstations.gather_dyn2stat(i, trim_i.response)
-            print '--> Saving response(s).'  
-            cPickle.dump(trim_i.response, f, cPickle.HIGHEST_PROTOCOL)
-            #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
-            #    scipy.io.savemat(f2, trim_i.response)
-            del trim_i, post_processing_i
-        f.close() # close response
+        pool = multiprocessing.Pool(n_processes)
+        print 'Launching 1 listener.'
+        listener = pool.apply_async(mainprocessing_listener, (q_output, path_output, job_name, jcl)) # put listener to work
+        n_workers = n_processes - 1
+        print 'Launching {} worker(s).'.format(str(n_workers))
+        workers = []
+        for i_worker in range(n_workers):
+            workers.append(pool.apply_async(mainprocessing_worker, (q_input, q_output, path_output, job_name, jcl)))
+            
+        q_input.join() # blocks until worker is done
+        for i_worker in range(n_workers):
+            q_input.put('finish') # putting finish signal into queue for worker
+        q_input.join()
+        print 'All trimcases finished, waiting for listener.'
+        q_output.join()
+        q_output.put('finish') # putting finish signal into queue for listener
+        q_output.join()
         
-        print '--> Saving monstation(s).'  
-        with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
-            cPickle.dump(monstations.monstations, f, cPickle.HIGHEST_PROTOCOL)
-        with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
-            scipy.io.savemat(f, monstations.monstations)
-        
-        print '--> Saving dyn2stat.'  
-        with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'w') as f:
-            cPickle.dump(monstations.dyn2stat, f, cPickle.HIGHEST_PROTOCOL)
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
 
     if post:
@@ -164,6 +155,67 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
     print 'Loads Kernel finished.'
     print_logo()
 
+def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
+    if not 'model' in locals():
+            model = load_model(job_name, path_output)
+    while True:
+        i = q_input.get()
+        if i == 'finish':
+            q_input.task_done()
+            print '--> Worker quit.'
+            break
+        else:
+            print ''
+            print '========================================' 
+            print 'trimcase: ' + jcl.trimcase[i]['desc']
+            print 'subcase: ' + str(jcl.trimcase[i]['subcase'])
+            print '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')' 
+            print '========================================' 
+            trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+            trim_i.set_trimcond()
+            trim_i.exec_trim()
+            if 't_final' and 'dt' in jcl.simcase[i].keys():
+                trim_i.exec_sim()
+            post_processing_i = post_processing_modul.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
+            post_processing_i.force_summation_method()
+            #post_processing_i.euler_transformation()
+            post_processing_i.cuttingforces()
+            trim_i.response['i'] = i
+            q_output.put(trim_i.response)
+            del trim_i, post_processing_i
+            q_input.task_done()
+    return
+
+def mainprocessing_listener(q_output, path_output, job_name, jcl):
+    if not 'model' in locals():
+            model = load_model(job_name, path_output)
+    monstations = monstations_modul.monstations(jcl, model)    
+    f_response = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
+    print '--> Listener ready.'
+    while True:
+        m = q_output.get()
+        if m == 'finish':
+            f_response.close() # close response
+            print '--> Saving monstation(s).'  
+            with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
+                cPickle.dump(monstations.monstations, f, cPickle.HIGHEST_PROTOCOL)
+            with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
+                scipy.io.savemat(f, monstations.monstations)
+            print '--> Saving dyn2stat.'  
+            with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'w') as f:
+                cPickle.dump(monstations.dyn2stat, f, cPickle.HIGHEST_PROTOCOL)
+            q_output.task_done()
+            print '--> Listener quit.'
+            break
+        else:
+            monstations.gather_monstations(jcl.trimcase[m['i']], m)
+            if 't_final' and 'dt' in jcl.simcase[m['i']].keys():
+                monstations.gather_dyn2stat(-1, m)
+            print '--> Saving response(s).'  
+            cPickle.dump(m, f_response, cPickle.HIGHEST_PROTOCOL)
+            q_output.task_done()
+    return
+
 def load_jcl(job_name, path_input, jcl):
     if jcl == None:
         print '--> Reading parameters from JCL.'
@@ -185,13 +237,14 @@ def load_model(job_name, path_output):
         model = cPickle.load(f)
     print '--> Done in %.2f [sec].' % (time.time() - t_start)
     return model
-
+    
+    
 def load_response(job_name, path_output):
     print '--> Loading response(s).'  
     filename = path_output + 'response_' + job_name + '.pickle'
     filestats = os.stat(filename)
     filesize_mb = filestats.st_size /1024**2
-    mem = virtual_memory()
+    mem = psutil.virtual_memory()
     mem_total_mb = mem.total /1024**2
     print 'size of total memory: ' + str(mem_total_mb) + ' Mb'
     print 'size of response: ' + str(filesize_mb) + ' Mb'
@@ -208,6 +261,9 @@ def load_response(job_name, path_output):
             except EOFError:
                 break
         f.close()
+        # sort response
+        pos_sorted = np.argsort([resp['i'] for resp in response ])
+        response = [ response[x] for x in pos_sorted]
         print '--> Done in %.2f [sec].' % (time.time() - t_start)
         return response 
     
