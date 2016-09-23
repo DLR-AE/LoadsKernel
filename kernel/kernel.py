@@ -4,10 +4,9 @@ Created on Thu Nov 27 14:00:31 2014
 
 @author: voss_ar
 """
-import cPickle, time, imp, sys, os, multiprocessing, psutil, logging
+import cPickle, time, imp, sys, os, multiprocessing, psutil, getpass, platform, logging
 import scipy
 import numpy as np
-import model as model_modul
 import trim as trim_modul
 import post_processing as post_processing_modul
 import monstations as monstations_modul
@@ -18,8 +17,8 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
     path_input = check_path(path_input) 
     path_output = check_path(path_output)    
     setup_logger(path_output, job_name )
-    
-    logging.info('Starting Loads Kernel with job: ' + job_name)
+    logging.info( 'Starting Loads Kernel with job: ' + job_name)
+    logging.info( 'user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() +')')
     logging.info( 'pre:  ' + str(pre))
     logging.info( 'main: ' + str(main))
     logging.info( 'post: ' + str(post))
@@ -30,6 +29,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
     if pre: 
         logging.info( '--> Starting preprocessing.')  
         t_start = time.time()
+        import model as model_modul
         model = model_modul.model(jcl)
         model.build_model()
         model.write_aux_data(path_output)
@@ -37,8 +37,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         
         logging.info( '--> Saving model data.')
         t_start = time.time()
+        del model.jcl
         with open(path_output + 'model_' + job_name + '.pickle', 'w') as f:
-            cPickle.dump(model, f, cPickle.HIGHEST_PROTOCOL)
+            cPickle.dump(model.__dict__, f, cPickle.HIGHEST_PROTOCOL)
         logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
         
     if main:
@@ -133,12 +134,48 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         if not 'model' in locals():
             model = load_model(job_name, path_output)
         
-        responses = load_response(job_name, path_output)
-
-        with open(path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
-                monstations = cPickle.load(f)
-                
-        logging.info( 'test ready.' )
+        logging.info( '--> Starting Main in deprecated test-mode (!!!) for %d trimcase(s).' % len(jcl.trimcase))
+        t_start = time.time()
+        monstations = monstations_modul.monstations(jcl, model)
+        f = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
+        for i in range(len(jcl.trimcase)):
+            logging.info( '')
+            logging.info( '========================================')
+            logging.info( 'trimcase: ' + jcl.trimcase[i]['desc'])
+            logging.info( 'subcase: ' + str(jcl.trimcase[i]['subcase']))
+            logging.info( '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')')
+            logging.info( '========================================')
+            
+            trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+            trim_i.set_trimcond()
+            trim_i.exec_trim()
+            if 't_final' and 'dt' in jcl.simcase[i].keys():
+                trim_i.exec_sim()
+            post_processing_i = post_processing_modul.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
+            post_processing_i.force_summation_method()
+            post_processing_i.euler_transformation()
+            post_processing_i.cuttingforces()
+            monstations.gather_monstations(jcl.trimcase[i], trim_i.response)
+            if 't_final' and 'dt' in jcl.simcase[i].keys():
+                monstations.gather_dyn2stat(i, trim_i.response)
+            logging.info( '--> Saving response(s).')
+            cPickle.dump(trim_i.response, f, cPickle.HIGHEST_PROTOCOL)
+            #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
+            #    scipy.io.savemat(f2, trim_i.response)
+            del trim_i, post_processing_i
+        f.close() # close response
+        
+        logging.info( '--> Saving monstation(s).')
+        with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
+            cPickle.dump(monstations.monstations, f, cPickle.HIGHEST_PROTOCOL)
+        with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
+            scipy.io.savemat(f, monstations.monstations)
+        
+        logging.info( '--> Saving dyn2stat.')
+        with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'w') as f:
+            cPickle.dump(monstations.dyn2stat, f, cPickle.HIGHEST_PROTOCOL)
+        logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
+ 
         # place code to test here
                 
 #         import test_smarty
@@ -163,7 +200,7 @@ def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
             logging.info( '--> Worker quit.')
             break
         else:
-            print ''
+            logging.info( '')
             logging.info( '========================================')
             logging.info( 'trimcase: ' + jcl.trimcase[i]['desc'])
             logging.info( 'subcase: ' + str(jcl.trimcase[i]['subcase']))
@@ -197,8 +234,8 @@ def mainprocessing_listener(q_output, path_output, job_name, jcl):
             logging.info( '--> Saving monstation(s).')
             with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
                 cPickle.dump(monstations.monstations, f, cPickle.HIGHEST_PROTOCOL)
-            with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
-                scipy.io.savemat(f, monstations.monstations)
+            #with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
+            #    scipy.io.savemat(f, monstations.monstations)
             logging.info( '--> Saving dyn2stat.')
             with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'w') as f:
                 cPickle.dump(monstations.dyn2stat, f, cPickle.HIGHEST_PROTOCOL)
@@ -232,10 +269,15 @@ def load_model(job_name, path_output):
     logging.info( '--> Loading model data.')
     t_start = time.time()
     with open(path_output + 'model_' + job_name + '.pickle', 'r') as f:
-        model = cPickle.load(f)
+        tmp = cPickle.load(f)
+    model = New_model()
+    for key in tmp.keys(): setattr(model, key, tmp[key])
     logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
     return model
-    
+
+class New_model():
+    def __init__(self):
+        pass    
     
 def load_response(job_name, path_output):
     logging.info( '--> Loading response(s).'  )
