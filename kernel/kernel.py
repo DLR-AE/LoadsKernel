@@ -331,7 +331,7 @@ def print_logo():
 
 def setup_logger(path_output, job_name ):
     logging.basicConfig(format='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', 
-                        datefmt='%m/%d/%Y %I:%M:%S', 
+                        datefmt='%d/%m/%Y %I:%M:%S', 
                         level=logging.DEBUG,
                         filename=path_output+'log_'+job_name+".txt", 
                         filemode='w')
