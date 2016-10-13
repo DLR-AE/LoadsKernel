@@ -166,8 +166,8 @@ def Modgen_GRID(filename):
         lines = fid.readlines()
     for line in lines:
         if line[0] != '$' and string.find(line[:8], 'GRID') !=-1 :
-            if string.find(line[48:56], '\n') != -1: # if CD is missing, fix with CP
-                line = line[:48] + line[16:24]
+            if len(line) <= 48: # if CD is missing, fix with CP
+                line = line + '        '
             grids.append([nastran_number_converter(line[8:16], 'ID'), nastran_number_converter(line[16:24], 'CP'), nastran_number_converter(line[24:32], 'float'), nastran_number_converter(line[32:40], 'float'), nastran_number_converter(line[40:48], 'float'), nastran_number_converter(line[48:56], 'CD')])
             
     grids = np.array(grids)
@@ -199,7 +199,7 @@ def Modgen_CQUAD4(filename):
              }
     return panels
     
-def CAERO(filename):
+def CAERO(filename, i_file):
     print 'Read CAERO1 and/or CAERO7 cards from Nastran/ZAERO bdf: %s' %filename
     caerocards = []
     with open(filename, 'r') as fid:
@@ -252,7 +252,7 @@ def CAERO(filename):
     print ' - from CAERO cards, constructing corner points and aero panels'
     # from CAERO cards, construct corner points... '
     # then, combine four corner points to one panel
-    grid_ID = 0
+    grid_ID = i_file * 100000 # the file number is used to set a range of grid IDs 
     grids = {'ID':[], 'offset':[]}
     panels = {"ID": [], 'CP':[], 'CD':[], "cornerpoints": []}
     for caerocard in caerocards:
@@ -341,11 +341,14 @@ def Nastran_OP4(filename, sparse_output=False, sparse_format=False ):
         # - real values: 16 characters for one value --> five values per line 
         # - complex values: 16 characters for real and complex part each --> five values in two line
         string_length = 16 # double precision
-        if nastran_number_converter(read_string[24:32], 'int') == 2:
+        # According to the manual, NTYPE 1 and 3 are used for single precision while 2 and 4 are used for double precision. 
+        # However, no change in string length has been observed.
+        # In addition, the format '1P,5E16.9' has 9 digits after the decimal separator, which is double precision, disregarding the information given by NTYPE.
+        if nastran_number_converter(read_string[24:32], 'int') in [1, 2]:
             type_real = True
             type_complex = False
             data = sp.lil_matrix((n_col, n_row), dtype=float)
-        elif nastran_number_converter(read_string[24:32], 'int') == 4:
+        elif nastran_number_converter(read_string[24:32], 'int') in [3, 4]:
             type_real = False
             type_complex = True
             data = sp.lil_matrix((n_col, n_row), dtype=complex)
@@ -501,39 +504,39 @@ def Modgen_AESURF(filename):
     return aesurf
 
 def Modgen_AELIST(filename):
-    aelist = {'ID': [], 'values':[]}
-    with open(filename, 'r') as fid:
-        lines = fid.readlines()
-    for line in lines:
-        if string.find(line, 'AELIST') !=-1 and line[0] != '$':
-            if string.replace(line[24:32], ' ', '') == 'THRU' and line[-2] != '+':
-                # Assumption: the list is defined with the help of THRU and there is only one THRU
-                startvalue = nastran_number_converter(line[16:24], 'int')
-                stoppvalue = nastran_number_converter(line[32:40], 'int')
-                values = np.arange(startvalue, stoppvalue+1)
-                aelist['ID'].append(nastran_number_converter(line[8:16], 'int'))
-                aelist['values'].append(values)
-            else:
-                print 'Notation of AELIST with single values not yet implemented!'
-                return
-    return aelist
+    # AELISTs have the same nomenklatur as SET1s
+    # Thus, reuse the Nastran_SET1() function with a different keyword
+    return Nastran_SET1(filename, keyword='AELIST')
 
-def Nastran_SET1(filename):
+def Nastran_SET1(filename, keyword='SET1'):
     
     sets = {'ID':[], 'values':[]}
+    next_line = False
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            if string.find(read_string[:8], 'SET1') !=-1 and read_string[-2:-1] == '+' and read_string[:1] != '$':
+            if string.find(read_string[:8], keyword) !=-1 and string.replace(read_string[24:32], ' ', '') == 'THRU' and read_string[:1] != '$':
+                 # Assumption: the list is defined with the help of THRU and there is only one THRU
+                startvalue = nastran_number_converter(read_string[16:24], 'int')
+                stoppvalue = nastran_number_converter(read_string[32:40], 'int')
+                values = np.arange(startvalue, stoppvalue+1)
+                sets['ID'].append(nastran_number_converter(read_string[8:16], 'int'))
+                sets['values'].append(values)
+            elif string.find(read_string[:8], keyword) !=-1 and read_string[-2:-1] == '+' and read_string[:1] != '$':
                 # this is the first line
                 row = read_string[8:-2]
-            elif read_string[:1] == '+' and read_string[-2:-1] == '+':
+                next_line = True
+            elif next_line and read_string[:1] == '+' and read_string[-2:-1] == '+':
                 # these are the middle lines
                 row += read_string[8:-2]
-            elif read_string[:1] == '+' or np.all(string.find(read_string[:8], 'SET1') !=-1 and read_string[:1] != '$'):
-                # this is the last line, no more IDs to come
-                row += string.strip(read_string[8:], '\n')
-                
+            elif np.all(next_line and read_string[:1] == '+') or np.all(string.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
+                if np.all(string.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
+                    # this is the first AND the last line, no more IDs to come
+                    row = string.strip(read_string[8:], '\n')
+                else:
+                    # this is the last line, no more IDs to come
+                    row += string.strip(read_string[8:], '\n')
+                next_line = False
                 # start conversion from string to list containing ID values
                 sets['ID'].append(nastran_number_converter(row[:8], 'int'))
                 row = row[8:]

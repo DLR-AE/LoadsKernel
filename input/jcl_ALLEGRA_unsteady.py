@@ -38,7 +38,9 @@ class jcl:
                      'filename_aesurf': ['/work/hand_ve/Transfer/Arne/ALLEGRA/allegra-s_CAERO1_1g-flight-shape_with_1fuse.bdf'],
                      'filename_aelist': ['/work/hand_ve/Transfer/Arne/ALLEGRA/allegra-s_CAERO1_1g-flight-shape_with_1fuse.bdf'],
                      'method_AIC': 'dlm',
-                     'k_red': [0.001, 0.01, 0.02, 0.05, 0.01, 0.2, 0.5, 1.0, 2.0, 4.0, 8.0],
+                     'k_red': [0.001, 0.01, 0.03, 0.1, 0.3, 1.0, 2.0 ], # Nastran Definition!
+                     #'k_red': [0.001, 0.01, 0.1, 1.0, 2.0 ], # Nastran Definition!
+                     'n_poles': 2,
                      'filename_AIC': [],
                     }
         
@@ -63,7 +65,7 @@ class jcl:
                      'h': ft2m([0, 5500, 7500, 20000, 23000, 30000, 45000]),
                     }
         self.trimcase = [{'desc': '#1019', 
-                          'manoeuver': 'LLFLevel', 
+                          'manoeuver': 'pitch', 
                           'subcase': 1,
                           'Ma': 0.7966, 
                           'aero': 'MC', 
@@ -72,17 +74,20 @@ class jcl:
                           'Nz': 1.0, 
                           'p': 0.0,
                           'q': 0.0, 
+                          'r': 0.0,
                           'pdot': 0.0, 
-                          'qdot': 0.0, 
+                          'qdot': 0.0,
+                          'rdot': 0.0, 
                          },
                         ] 
-        gust_para = {'Z_mo': ft2m(45000), 'MLW': 100000, 'MTOW': 120000, 'MZFW': 50000, 'MD': 0.95, 'T1': 0.02}
+        gust_para = {'Z_mo': ft2m(45000), 'MLW': 100000, 'MTOW': 120000, 'MZFW': 50000, 'MD': 0.95, 'T1': 0.00}
         self.simcase = [{'dt': 0.01, 
-                         't_final': 1.0,
+                         't_final': 2.0,
                          'gust': True, 
-                         'gust_gradient': ft2m(100),
-                         'gust_orientation': 180, # degree, 0/360° = gust from bottom
+                         'gust_gradient': ft2m(30),
+                         'gust_orientation': 0, # degree, 0/360° = gust from bottom
                          'gust_para':gust_para,
+                         'cs_signal': False,
                         }]
 
                         

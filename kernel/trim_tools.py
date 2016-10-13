@@ -7,21 +7,41 @@ Created on Thu Nov 27 17:44:58 2014
 import numpy as np
 from  atmo_isa import atmo_isa
 
-def calc_drehmatrix( my=0.0, alpha=0.0, beta=0.0 ):
+def calc_drehmatrix_angular( phi=0.0, theta=0.0, psi=0.0 ):
     # Alle Winkel in [rad] !
-    # alpha: Anstellwinkel
-    # beta: Schiebewinkel
-    # my: Haengewinkel (wird oft nicht betrachtet)
-    drehmatrix_my = np.array(([1., 0. , 0.], [0., np.cos(my), np.sin(my)], [0., -np.sin(my), np.cos(my)]))
-    drehmatrix_a  = np.array(([np.cos(alpha), 0, -np.sin(alpha)], [0, 1, 0], [np.sin(alpha), 0, np.cos(alpha)]))
-    drehematrix_b = np.array(([np.cos(beta), -np.sin(beta), 0], [np.sin(beta), np.cos(beta), 0],[0, 0, 1]))
-    drehmatrix = np.dot(np.dot(drehmatrix_my, drehmatrix_a),drehematrix_b)
-    
+    # geo to body
+    drehmatrix = np.array(([1., 0. , -np.sin(theta)], [0., np.cos(phi), np.sin(phi)*np.cos(theta)], [0., -np.sin(phi), np.cos(phi)*np.cos(theta)]))
+    return drehmatrix
+
+def calc_drehmatrix_angular_inv( phi=0.0, theta=0.0, psi=0.0 ):
+    # Alle Winkel in [rad] !
+    # body to geo
+    drehmatrix = np.array(([1., np.sin(phi)*np.tan(theta), np.cos(phi)*np.tan(theta)], [0., np.cos(phi), -np.sin(phi)], [0., np.sin(phi)/np.cos(theta), np.cos(phi)/np.cos(theta)]))
+    return drehmatrix
+
+def calc_drehmatrix( phi=0.0, theta=0.0, psi=0.0 ):
+    # Alle Winkel in [rad] !
+    drehmatrix_phi = np.array(([1., 0. , 0.], [0., np.cos(phi), np.sin(phi)], [0., -np.sin(phi), np.cos(phi)]))
+    drehmatrix_theta  = np.array(([np.cos(theta), 0, -np.sin(theta)], [0, 1, 0], [np.sin(theta), 0, np.cos(theta)]))
+    drehematrix_psi = np.array(([np.cos(psi), np.sin(psi), 0], [-np.sin(psi), np.cos(psi), 0],[0, 0, 1]))
+    drehmatrix = np.dot(np.dot(drehmatrix_phi, drehmatrix_theta),drehematrix_psi)
     return drehmatrix
     
 def DesignGust_CS_25_341(gust_gradient, Alt, rho, V, Z_mo, V_D, MLW, MTOW, MZFW):
     # Gust Calculation from CS 25.341
     # adapted from matlab-script by Vega Handojo, DLR-AE-LAE, 2015
+    
+    # convert (possible) integer to float
+    gust_gradient = np.float(gust_gradient)
+    Alt = np.float(Alt)
+    rho = np.float(rho)
+    V = np.float(V)
+    Z_mo = np.float(Z_mo)
+    V_D = np.float(V_D)
+    MLW = np.float(MLW)
+    MTOW = np.float(MTOW)
+    MZFW = np.float(MZFW)
+
     p0, rho0, T0, a0 = atmo_isa(0.0)
     #rho0 = 1.225    
     R1 = MLW/MTOW;

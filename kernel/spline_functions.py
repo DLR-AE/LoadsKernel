@@ -65,12 +65,15 @@ def spline_nastran(filename, strcgrid, aerogrid):
     return PHI
 
 
-def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type, dimensions=''):
+def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type='tps', surface_spline=False, dimensions='', ):
 
-    cl_rbf = rbf(grid_i['offset'+set_i].T, grid_d['offset'+set_d].T, rbf_type) 
+    cl_rbf = rbf(grid_i['offset'+set_i].T, grid_d['offset'+set_d].T, rbf_type, surface_spline) 
     cl_rbf.build_M()
     cl_rbf.build_splinematrix()
-    PHI_tmp = cl_rbf.H[:,4:]
+    if surface_spline:
+        PHI_tmp = cl_rbf.H[:,3:]
+    else:
+        PHI_tmp = cl_rbf.H[:,4:]
     # obige Matrix gilt fuer Verschiebung eines DOF
     # PHI soll aber alle 6 DOFs verschieben!
     # Hier koennte auch eine sparse-Matrix genommen werden...
@@ -83,7 +86,7 @@ def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type, dimensions=''):
     else:
         dimensions_i = 6*len(grid_i['set'+set_i])
         dimensions_d = 6*len(grid_d['set'+set_d])
-    print 'Expanding Spline to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i)
+    print 'Expanding Spline to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i),
     PHI = np.zeros((dimensions_d, dimensions_i))
     PHI[np.ix_(grid_d['set'+set_d][:,0], grid_i['set'+set_i][:,0])] = PHI_tmp
     PHI[np.ix_(grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])] = PHI_tmp
@@ -91,7 +94,7 @@ def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type, dimensions=''):
     PHI[np.ix_(grid_d['set'+set_d][:,3], grid_i['set'+set_i][:,3])] = PHI_tmp
     PHI[np.ix_(grid_d['set'+set_d][:,4], grid_i['set'+set_i][:,4])] = PHI_tmp
     PHI[np.ix_(grid_d['set'+set_d][:,5], grid_i['set'+set_i][:,5])] = PHI_tmp
-    print '... Done'
+    print 'done'
     return PHI
 
 class rbf:
@@ -99,7 +102,10 @@ class rbf:
     def build_M(self):
         # Nomenklatur nach Neumann & Krueger
         print ' - building M'
-        self.A = np.vstack((np.ones(self.n_fe),self.nodes_fe))
+        if self.surface_spline:
+            self.A = np.vstack((np.ones(self.n_fe),self.nodes_fe[0:2,:]))
+        else:
+            self.A = np.vstack((np.ones(self.n_fe),self.nodes_fe))
         self.phi = np.zeros((self.n_fe, self.n_fe))
         for i in range(self.n_fe):
             #for j in range(i+1):
@@ -125,7 +131,10 @@ class rbf:
     def build_splinematrix(self):
         # Nomenklatur nach Neumann & Krueger
         print ' - building B and C'
-        self.B = np.vstack((np.ones(self.n_cfd),self.nodes_cfd))
+        if self.surface_spline:
+            self.B = np.vstack((np.ones(self.n_cfd),self.nodes_cfd[0:2,:]))
+        else:
+            self.B = np.vstack((np.ones(self.n_cfd),self.nodes_cfd))
         self.C = np.zeros((self.n_fe, self.n_cfd))
         for i in range(self.n_fe):
             #for j in range(self.n_cfd):
@@ -147,7 +156,7 @@ class rbf:
         t_start = time.time()
         print ' - solving M*H=BC for H'
         self.H= scipy.linalg.solve(self.M, self.BC).T 
-        print str(time.time() - t_start) + ' sec'
+        print ' - done in ' + str(time.time() - t_start) + ' sec'
         
         
     def eval_rbf(self, r):
@@ -171,14 +180,18 @@ class rbf:
         else:
             print 'Error: Unkown Radial Basis Function!'
             
-    def __init__(self, nodes_fe, nodes_cfd, rbf_type):
+    def __init__(self, nodes_fe, nodes_cfd, rbf_type, surface_spline):
         self.nodes_cfd = nodes_cfd
         self.nodes_fe = nodes_fe
         self.n_fe = nodes_fe.shape[1]
         self.n_cfd = self.nodes_cfd.shape[1]
         self.rbf_type = rbf_type
+        self.surface_spline = surface_spline
         print 'Splining (rbf) of {:.0f} points to {:.0f} points...'.format(self.n_cfd , self.n_fe)
-
+        if self.surface_spline:
+            print 'Using surface formulation (2D xy surface)' 
+        else:
+            print 'Using volume formulation (3D)' 
 
 # Assumptions: 
 # - grids have 6 dof

@@ -23,13 +23,17 @@ class trim:
         z = -self.model.atmo['h'][i_atmo]
         #q = (self.trimcase['Nz'] - 1.0)*9.81/u
         
+        # ---------------
+        # --- default --- 
+        # ---------------
+        # Bedingung: free parameters in trimcond_X == target parameters in trimcond_Y
         # inputs
         self.trimcond_X = np.array([
             ['x',        'fix',  0.0,],
             ['y',        'fix',  0.0,],
             ['z',        'fix',  z  ,],
             ['phi',      'fix',  0.0,],
-            ['theta',    'free', 1.0/180*np.pi,],
+            ['theta',    'free', 0.0,],
             ['psi',      'fix',  0.0,],
             ['u',        'fix',  u,  ],
             ['v',        'fix',  0.0,],
@@ -67,9 +71,88 @@ class trim:
             self.trimcond_Y = np.vstack((self.trimcond_Y ,  ['d2Uf_d2t'+str(i_mode), 'target', 0.0]))
         self.trimcond_Y = np.vstack((self.trimcond_Y , ['dcommand_xi',   'fix', 0.0,],  ['dcommand_eta',   'fix',  0.0,], ['dcommand_zeta',   'fix',  0.0,]))
 
-        
         self.trimcond_Y = np.vstack((self.trimcond_Y , ['Nz',       'target',  self.trimcase['Nz'],]))
-
+        
+        
+        # ------------------
+        # --- pitch only --- 
+        # ------------------
+        if self.trimcase['manoeuver'] == 'pitch':
+            print 'setting trim conditions to "pitch"'
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dp'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+            
+        # -----------------------------------
+        # --- pitch and roll only, no yaw --- 
+        # -----------------------------------
+        elif self.trimcase['manoeuver'] == 'pitch&roll':
+            print 'setting trim conditions to "pitch&roll"'
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+        
+        # ------------------
+        # --- segelflug --- 
+        # -----------------
+        # Sinken (w) wird erlaubt, damit die Geschwindigkeit konstant bleibt (du = 0.0)
+        # Eigentlich muesste Vtas konstant sein, ist aber momentan nicht als trimcond vorgesehen... Das wird auch schwierig, da die Machzahl vorgegeben ist.
+        elif self.trimcase['manoeuver'] == 'segelflug':
+            print 'setting trim conditions to "segelflug"'
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],1] = 'free'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'phi'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'phi'))[0][0],2] = self.trimcase['phi']
+#             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'psi'))[0][0],1] = 'fix'
+#             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'psi'))[0][0],2] = self.trimcase['psi']
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'w'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'du'))[0][0],1] = 'target'
+       
+        # -------------------------
+        # --- pratt, alpha only --- 
+        # -------------------------
+        elif self.trimcase['manoeuver'] == 'pratt':
+            print 'setting trim conditions to "pratt"'
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_eta'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dp'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dq'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+        
+        # --------------
+        # --- bypass --- 
+        # --------------
+        # Die Steuerkommandos xi, eta und zeta werden vorgegeben und die resultierenden Beschleunigungen sind frei. 
+        elif self.trimcase['manoeuver'] == 'bypass':
+            print 'setting trim conditions to "bypass"'
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'phi'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'phi'))[0][0],2] = self.trimcase['phi']
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'theta'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'theta'))[0][0],2] = self.trimcase['theta']
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'psi'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'psi'))[0][0],2] = self.trimcase['psi']
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_xi'))[0][0],2] = self.trimcase['command_xi']
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_eta'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_eta'))[0][0],2] = self.trimcase['command_eta']
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],2] = self.trimcase['command_zeta']
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'Nz'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dp'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dq'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+        else:
+            print 'setting trim conditions to "default"'
         
     
     def exec_trim(self):
@@ -82,12 +165,15 @@ class trim:
     
                 
         import model_equations # Warum muss der import hier stehen??
-        equations = model_equations.nastran(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
-
+        
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
+            equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+        else:
+            print 'Unknown aero method: ' + str(self.jcl.aero['method'])
+        
         X_free_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]]
         
-        bypass = False
-        if bypass:
+        if self.trimcase['manoeuver'] == 'bypass':
             print 'running bypass...'
             self.response = equations.eval_equations(X_free_0, time=0.0, type='trim_full_output')
         else:
@@ -113,15 +199,26 @@ class trim:
         
     def exec_sim(self):
         import model_equations 
-        equations = model_equations.nastran(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
-        
-        X0 = self.response['X'] 
+        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
+            equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+        elif self.jcl.aero['method'] in [ 'mona_unsteady']:
+            # initialize lag states with zero and extend steady response vectors X and Y
+            print 'adding {} x {} unsteady lag states to the system'.format(self.model.aerogrid['n'],self.model.aero['n_poles'])
+            lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
+            self.response['X'] = np.hstack((self.response['X'], lag_states ))
+            self.response['Y'] = np.hstack((self.response['Y'], lag_states ))
+            equations = model_equations.unsteady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+        else:
+            print 'Unknown aero method: ' + str(self.jcl.aero['method'])
+
+        X0 = self.response['X']
         dt = self.simcase['dt']
         t_final = self.simcase['t_final']
         print 'running time simulation for ' + str(t_final) + ' sec...'
         print 'Progress:'
         from scipy.integrate import ode
-        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams') # non-stiff: 'adams', stiff: 'bdf'
+        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
+#         integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=1e-4)
         integrator.set_initial_value(X0, 0.0)
         X_t = []
         t = []
@@ -139,32 +236,6 @@ class trim:
                 for key in self.response.keys():
                     self.response[key] = np.vstack((self.response[key],response_step[key]))
 
-
         else:
             self.response['t'] = 'Failure'
             
-            
-            
-        # B
-#        from scipy.integrate import odeint
-#        X_t, info = odeint(equations.eval_equations, X0, t, args=('sim',), full_output=True, h0=0.001)
-#        print info['message']
-#        print 'time steps: ' + str(t)
-#        print 'time step evaluatins: ' + str(info['nfe'])
-#        if info['message'] == 'Integration successful.':
-#            for i_step in np.arange(1,len(X_t)):
-#                response_step = equations.eval_equations(X_t[i_step], t[i_step], type='sim_full_output')
-#                for key in self.response.keys():
-#                    self.response[key] = np.vstack((self.response[key],response_step[key]))
-#            self.response['t'] = t
-#            self.response['t_cur'] = info['tcur']
-#
-#        else:
-#            self.response['t'] = 'Failure: ' + info['message']
-            
-        
-                
-            
-    
-        
-        

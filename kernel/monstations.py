@@ -1,0 +1,96 @@
+
+import numpy as np
+
+
+class monstations:
+    #===========================================================================
+    # In this class actually no calculation is done, it merely gathers data.
+    # From the response, the monstations are assembled in a more convenient order and format.
+    # From the response of a dynamic simulation, the peaks are identified and saved as snapshots (dyn2stat).
+    #===========================================================================
+    def __init__(self, jcl, model):
+        self.jcl = jcl
+        self.model = model
+        # init monstation structure to be filled later
+        self.monstations = {}
+        for i_station in range(self.model.mongrid['n']):
+            name = self.get_monstation_name(i_station)
+            self.monstations[name] = {'CD': self.model.mongrid['CD'][i_station],
+                                      'CP': self.model.mongrid['CP'][i_station],
+                                      'offset': self.model.mongrid['offset'][i_station],
+                                      'subcase': [],
+                                      'loads':[],
+                                      't':[],
+                                      'loads_dyn2stat':[],
+                                      'subcases_dyn2stat':[],
+                                     }
+        self.dyn2stat = {'Pg': [], 
+                         'subcases': [],
+                         'subcases_ID': [],
+                        }     
+        
+    def get_monstation_name(self, i_station):
+        if not self.model.mongrid.has_key('name'):
+                name = 'MON{:s}'.format(str(int(self.model.mongrid['ID'][i_station]))) # make up a name
+        else:
+            name = self.model.mongrid['name'][i_station] # take name from mongrid
+        return name
+    
+    def gather_monstations(self, trimcase, response):
+        print 'gathering information on monitoring stations from respone(s)...'
+        for i_station in range(self.model.mongrid['n']):
+            name = self.get_monstation_name(i_station)
+            self.monstations[name]['subcase'].append(trimcase['subcase'])
+            self.monstations[name]['t'].append(response['t'])
+            # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
+            if len(response['t']) > 1:
+                self.monstations[name]['loads'].append(response['Pmon_local'][:,self.model.mongrid['set'][i_station,:]])
+            else:
+                self.monstations[name]['loads'].append(response['Pmon_local'][self.model.mongrid['set'][i_station,:]])
+
+    
+    def gather_dyn2stat(self, i_case, response):
+        # Schnittlasten an den Monitoring Stationen raus schreiben (zum Plotten)
+        # Knotenlasten raus schreiben (weiterverarbeitung z.B. als FORCE und MOMENT Karten fuer Nastran)
+        print 'searching min/max of Fz/Mx/My in time data at {} monitoring stations and gathering loads (dyn2stat)...'.format(len(self.monstations.keys()))
+        all_subcases_dyn2stat = []
+        Pg_dyn2stat = []
+        for key in self.monstations.keys():
+            loads_dyn2stat = []
+            subcases_dyn2stat = []
+            
+            pos_max_loads_over_time = np.argmax(self.monstations[key]['loads'][i_case], 0)
+            pos_min_loads_over_time = np.argmin(self.monstations[key]['loads'][i_case], 0)
+            # Fz max und min
+            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[2],:])
+            Pg_dyn2stat.append(response['Pg'][pos_max_loads_over_time[2],:])
+            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Fz_max')
+            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[2],:])
+            Pg_dyn2stat.append(response['Pg'][pos_min_loads_over_time[2],:])
+            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Fz_min')
+            # Mx max und min
+            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[3],:])
+            Pg_dyn2stat.append(response['Pg'][pos_max_loads_over_time[3],:])
+            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Mx_max')
+            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[3],:])
+            Pg_dyn2stat.append(response['Pg'][pos_min_loads_over_time[3],:])
+            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Mx_min')
+            # My max und min
+            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[4],:])
+            Pg_dyn2stat.append(response['Pg'][pos_max_loads_over_time[4],:])
+            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_max')
+            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[4],:])
+            Pg_dyn2stat.append(response['Pg'][pos_min_loads_over_time[4],:])
+            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_min')
+            # save to monstations
+            self.monstations[key]['loads_dyn2stat'] += loads_dyn2stat
+            self.monstations[key]['subcases_dyn2stat'] += subcases_dyn2stat
+            all_subcases_dyn2stat += subcases_dyn2stat
+        
+        # save to dyn2stat
+        self.dyn2stat['Pg'] += Pg_dyn2stat
+        self.dyn2stat['subcases'] += all_subcases_dyn2stat
+        # generate unique IDs for subcases
+        # take first digits from original subcase, then add a running number
+        self.dyn2stat['subcases_ID'] += [ int(all_subcases_dyn2stat[i].split('_')[0])*1000+i  for i in range(len(all_subcases_dyn2stat))]
+    

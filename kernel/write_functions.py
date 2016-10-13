@@ -54,7 +54,16 @@ def write_force_and_moment_cards(fid, grid, Pg, SID):
             line = 'MOMENT  ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8.7s}{:>8.7s}{:>8.7s}\n'.format(SID, np.int(grid['ID'][i]), np.int(grid['CD'][i]), str(1.0), str(Pg[grid['set'][i,3]]), str(Pg[grid['set'][i,4]]), str(Pg[grid['set'][i,5]]) )
             fid.write(line)
             
-            
+def write_subcases(fid, subcase, desc):
+    line = 'SUBCASE {}\n'.format(np.int(subcase))
+    fid.write(line)
+    line = '    SUBT={}\n'.format(str(desc))
+    fid.write(line)
+    line = '    LOAD={}\n'.format(np.int(subcase))
+    fid.write(line)
+    
+    
+                
 class cpacs_functions:
     def __init__(self, tixi):
         self.tixi = tixi

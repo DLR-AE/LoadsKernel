@@ -5,7 +5,7 @@ import scipy
 from scipy import sparse
 from scipy.sparse import linalg
 import numpy as np
-import sys
+import sys, copy
 import matplotlib.pyplot as plt
 
 class build_mass:
@@ -91,7 +91,7 @@ class build_mass:
         self.Goa = - scipy.sparse.linalg.spsolve(K['C'], K['B_trans'])
         self.Kaa = K['A'] + K['B'].dot(self.Goa)
         
-    def guyanreduction(self, i_mass, MFF):
+    def guyanreduction(self, i_mass, MFF, plot=False):
         # First, Guyan's equations are solved for the current mass matrix.
         # In a second step, the eigenvalue-eigenvector problem is solved. According to Guyan, the solution is closely  but not exactly preserved.
         # Next, the eigenvector for the g-set/strcgrid is reconstructed.
@@ -111,7 +111,7 @@ class build_mass:
         # b) General Dynamic Reduction as implemented in Nastran (signs are switched!)
         Maa = M['A'] + M['B'].dot(self.Goa) + self.Goa.T.dot( M['B_trans'] + M['C'].dot(self.Goa) )
         
-        modes_selection = self.jcl.mass['modes'][i_mass]           
+        modes_selection = copy.deepcopy(self.jcl.mass['modes'][i_mass])         
         if self.jcl.mass['omit_rb_modes']: 
               modes_selection += 6
         eigenvalue, eigenvector = self.calc_modes(self.Kaa, Maa, modes_selection.max())
@@ -145,6 +145,16 @@ class build_mass:
             # store vector in modal matrix
             PHIf_strc[:,i] = Ug.squeeze()
             i += 1
+            if plot:
+                from mayavi import mlab
+                Ugx = self.strcgrid['offset'][:,0] + Ug[self.strcgrid['set'][:,0]].T * 10.0
+                Ugy = self.strcgrid['offset'][:,1] + Ug[self.strcgrid['set'][:,1]].T * 10.0
+                Ugz = self.strcgrid['offset'][:,2] + Ug[self.strcgrid['set'][:,2]].T * 10.0
+                mlab.figure(101+i_mode)
+                mlab.points3d(self.strcgrid['offset'][:,0], self.strcgrid['offset'][:,1], self.strcgrid['offset'][:,2], scale_factor=0.05)
+                mlab.points3d(Ugx, Ugy, Ugz, scale_factor=0.05, color=(0,1,0))
+        if plot:
+            mlab.show()
         # calc modal mass and stiffness
         Mff = np.dot( eigenvector[:,modes_selection - 1].real.T,      Maa.dot(eigenvector[:,modes_selection - 1].real) )
         Kff = np.dot( eigenvector[:,modes_selection - 1].real.T, self.Kaa.dot(eigenvector[:,modes_selection - 1].real) )
@@ -183,8 +193,8 @@ class build_mass:
         self.pos_n = self.pos_s + self.pos_f
         self.pos_n.sort()
         
-    def modalanalysis(self, i_mass, MFF):
-        modes_selection = self.jcl.mass['modes'][i_mass]           
+    def modalanalysis(self, i_mass, MFF, plot=False):
+        modes_selection = copy.deepcopy(self.jcl.mass['modes'][i_mass])
         if self.jcl.mass['omit_rb_modes']: 
               modes_selection += 6
         eigenvalue, eigenvector = self.calc_modes(self.KFF, MFF, modes_selection.max())
@@ -212,6 +222,16 @@ class build_mass:
             # store vector in modal matrix
             PHIf_strc[:,i] = Ug.squeeze()
             i += 1
+            if plot:
+                from mayavi import mlab
+                Ugx = self.strcgrid['offset'][:,0] + Ug[self.strcgrid['set'][:,0]].T * 10.0
+                Ugy = self.strcgrid['offset'][:,1] + Ug[self.strcgrid['set'][:,1]].T * 10.0
+                Ugz = self.strcgrid['offset'][:,2] + Ug[self.strcgrid['set'][:,2]].T * 10.0
+                mlab.figure(1+i_mode)
+                mlab.points3d(self.strcgrid['offset'][:,0], self.strcgrid['offset'][:,1], self.strcgrid['offset'][:,2], scale_factor=0.05)
+                mlab.points3d(Ugx, Ugy, Ugz, scale_factor=0.05, color=(0,0,1))
+        if plot:
+            mlab.show()
         # calc modal mass and stiffness
         Mff = np.dot( eigenvector[:,modes_selection - 1].real.T,      MFF.dot(eigenvector[:,modes_selection - 1].real) )
         Kff = np.dot( eigenvector.real[:,modes_selection - 1].T, self.KFF.dot(eigenvector[:,modes_selection - 1].real) )

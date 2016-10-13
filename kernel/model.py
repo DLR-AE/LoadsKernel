@@ -18,7 +18,7 @@ from  atmo_isa import atmo_isa
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import cPickle, sys
+import cPickle, sys, time
 from oct2py import octave 
 
 class model:
@@ -91,10 +91,11 @@ class model:
                 rules = spline_rules.monstations_from_aecomp(self.mongrid, self.jcl.geom['filename_monpnt'])
                 self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
                 self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
-                #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord) 
+                
             else: 
                 print 'Warning: No Monitoring Stations are created!'
-
+            #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord) 
+        
         print 'Building atmo model...'
         if self.jcl.atmo['method']=='ISA':
             self.atmo = {'key':[],
@@ -117,11 +118,11 @@ class model:
             print 'Unknown atmo method: ' + str(self.jcl.aero['method'])
               
         print 'Building aero model...'
-        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             # grids
             for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
                 if self.jcl.aero.has_key('method_caero'):
-                    subgrid = build_aero.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file], method_caero = self.jcl.aero['method_caero']) 
+                    subgrid = build_aero.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file], method_caero = self.jcl.aero['method_caero'], i_file=i_file) 
                 else: # use default method defined in function
                     subgrid = build_aero.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file]) 
                 if i_file == 0:
@@ -168,6 +169,15 @@ class model:
             if self.jcl.general.has_key('MAC_ref'):
                 self.macgrid['offset'] = np.array([self.jcl.general['MAC_ref']])
             
+            rules = spline_rules.rules_aeropanel(self.aerogrid)
+            self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord)
+            self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
+            
+            rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
+            self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord)
+            self.Djx1 = np.dot(self.Djk, self.Dkx1)
+            #self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
+            
             # control surfaces
             self.x2grid, self.coord = build_aero.build_x2grid(self.jcl.aero, self.aerogrid, self.coord)            
             self.Djx2 = []
@@ -189,49 +199,93 @@ class model:
                 rules = spline_rules.rules_point(hingegrid, surfgrid)
                 self.Djx2.append(spline_functions.spline_rb(hingegrid, '', surfgrid, '_j', rules, self.coord, dimensions))
                 
-#            Djx2_test = self.Djx2[0]
-#            Uj = np.dot(Djx2_test,[0,0,0,0,20.0/180*np.pi,0])      
-#            Djx2_test = self.Djx2[1]
-#            Uj = np.dot(Djx2_test,[0,0,0,0,20.0/180*np.pi,0])  
-#            Djx2_test = self.Djx2[2]
-#            Uj = np.dot(Djx2_test,[0,0,0,0,20.0/180*np.pi,0])   
-#            U_strc_x = self.aerogrid['offset_j'][:,0] + Uj[self.aerogrid['set_j'][:,0]]
-#            U_strc_y = self.aerogrid['offset_j'][:,1] + Uj[self.aerogrid['set_j'][:,1]]
-#            U_strc_z = self.aerogrid['offset_j'][:,2] + Uj[self.aerogrid['set_j'][:,2]]
-#            
-#            fig = plt.figure()
-#            ax = fig.add_subplot(111, projection='3d')
-#            ax.scatter(self.aerogrid['offset_j'][:,0], self.aerogrid['offset_j'][:,1], self.aerogrid['offset_j'][:,2], color='g', marker='.' )
-#            ax.scatter(U_strc_x, U_strc_y, U_strc_z, color='r', marker='.' )
-#            ax.set_xlabel('x')
-#            ax.set_ylabel('y')
-#            ax.set_zlabel('z')
-#            ax.auto_scale_xyz([0, 50], [-25, 25], [0, 50])
-#            plt.show()
+#                 Uj = np.dot(self.Djx2[i_surf],[0,0,0,0,0,20.0/180*np.pi])      
+#                 Ux = self.aerogrid['offset_j'][:,0] + Uj[self.aerogrid['set_j'][:,0]]
+#                 Uy = self.aerogrid['offset_j'][:,1] + Uj[self.aerogrid['set_j'][:,1]]
+#                 Uz = self.aerogrid['offset_j'][:,2] + Uj[self.aerogrid['set_j'][:,2]]
+#                  
+#                 fig = plt.figure()
+#                 ax = fig.add_subplot(111, projection='3d')
+#                 ax.scatter(self.aerogrid['offset_j'][:,0], self.aerogrid['offset_j'][:,1], self.aerogrid['offset_j'][:,2], color='g', marker='.' )
+#                 ax.scatter(Ux, Uy, Uz, color='r', marker='.' )
+#                 ax.set_xlabel('x')
+#                 ax.set_ylabel('y')
+#                 ax.set_zlabel('z')
+#                 ax.auto_scale_xyz([0, 9], [-9, 9], [0, 2])
+#             plt.show()
             
         else:
             print 'Unknown aero method: ' + str(self.jcl.aero['method'])
-            
-        # AIC
+        # -----------    
+        # --- AIC ---
+        # -----------
         self.aero = {'key':[], 'Qjj':[],'interp_wj_corrfac_alpha': []}
         
+        # steady
         if self.jcl.aero['method_AIC'] == 'nastran':
             for i_aero in range(len(self.jcl.aero['key'])):
-                Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)  
-                Qjj = np.linalg.inv(Ajj.T)
+                Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)
+                if self.jcl.aero.has_key('given_AIC_is_transposed') and self.jcl.aero['given_AIC_is_transposed']:
+                    Qjj = np.linalg.inv(np.real(Ajj))
+                else:
+                    Qjj = np.linalg.inv(np.real(Ajj).T)
                 self.aero['key'].append(self.jcl.aero['key'][i_aero])
                 self.aero['Qjj'].append(Qjj)
-        elif self.jcl.aero['method_AIC'] in ['vlm', 'ae']:
-            print 'Calculating steady AIC matrices ({} panels, k=0.0) with ae_getaic.m for {} Mach numbers...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) )
-            
+        elif self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae']:
+            print 'Calculating steady AIC matrices ({} panels, k=0.0) for {} Mach number(s)...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) ),
             #AIC = ae_getaic(aerogrid, Mach, k);
-            out = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], [0.0])
-            for i_aero in range(len(self.jcl.aero['key'])): 
-                self.aero['key'].append(self.jcl.aero['key'][i_aero])
-                self.aero['Qjj'].append(out[:,:,0,i_aero])
+            t_start = time.time()
+            Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], [0.0])
+            print 'done in %.2f [sec].' % (time.time() - t_start)
+            self.aero['key'] = self.jcl.aero['key']
+            self.aero['Qjj'] = [Qjj[i_aero,0,:,:,] for i_aero in range(len(self.jcl.aero['key']))] # dim: Ma,n,n
+            self.aero['Bjj'] = [Bjj[i_aero,:,:,] for i_aero in range(len(self.jcl.aero['key']))] # dim: Ma,n,n
         else:
             print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
-
+        
+        # unsteady
+        if self.jcl.aero['method'] == 'mona_unsteady':
+            if self.jcl.aero['method_AIC'] == 'dlm':
+                print 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) ),
+                # Definitions for reduced frequencies:
+                # ae_getaic: k = omega/U 
+                # Nastran:   k = 0.5*cref*omega/U
+                t_start = time.time()
+                Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
+                print 'done in %.2f [sec].' % (time.time() - t_start)
+                self.aero['Qjj_unsteady'] = Qjj # dim: Ma,k,n,n
+            elif self.jcl.aero['method_AIC'] == 'nastran':
+                self.aero['Qjj_unsteady'] = np.zeros((len(self.jcl.aero['key']), len(self.jcl.aero['k_red']), self.aerogrid['n'], self.aerogrid['n'] ), dtype=complex)
+                for i_aero in range(len(self.jcl.aero['key'])):
+                    for i_k in range(len(self.jcl.aero['k_red'])):
+                        Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC_unsteady'][i_aero][i_k], sparse_output=False, sparse_format=False)  
+                        if self.jcl.aero.has_key('given_AIC_is_transposed') and self.jcl.aero['given_AIC_is_transposed']:
+                            Qjj = np.linalg.inv(Ajj)
+                        else:
+                            Qjj = np.linalg.inv(Ajj.T)
+                        self.aero['Qjj_unsteady'][i_aero,i_k,:,:] = Qjj 
+            else:
+                print 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC'])
+            self.aero['k_red'] =  self.jcl.aero['k_red']
+            # rfa
+            self.aero['ABCD'] = []
+            self.aero['RMSE'] = []
+            for i_aero in range(len(self.jcl.aero['key'])):
+                ABCD, n_poles, betas, RMSE = build_aero.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], k = self.jcl.aero['k_red'], n_poles = self.jcl.aero['n_poles'])
+                self.aero['ABCD'].append(ABCD)
+                self.aero['RMSE'].append(RMSE)
+            self.aero['n_poles'] = n_poles
+            self.aero['betas'] =  betas
+            
+        else:
+            self.aero['n_poles'] = 0
+        # ----------------
+        # ---- Aero DB ---
+        # ----------------    
+        if self.jcl.aero['method'] == 'hybrid':   
+            print 'Building aero db...'
+            self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
+            
         # splines 
         # PHIk_strc with 'nearest_neighbour', 'rbf' or 'nastran'
         if self.jcl.spline['method'] in ['rbf', 'nearest_neighbour']:
@@ -249,27 +303,14 @@ class model:
             self.PHIk_strc = spline_functions.spline_rbf(self.splinegrid, '',self.aerogrid, '_k', 'tps', dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6] )
             # rbf-spline not (yet) stable for translation of forces and moments to structure grid, so use rb-spline with nearest neighbour search instead
         elif self.jcl.spline['method'] == 'nearest_neighbour':
-            rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.aerogrid, '_k')    
+            rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.aerogrid, '_k') 
+            #spline_functions.plot_splinerules(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord)    
             self.PHIk_strc = spline_functions.spline_rb(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6])
         elif self.jcl.spline['method'] == 'nastran': 
             self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
         else:
             print 'Unknown spline method.'
-    
-        rules = spline_rules.rules_aeropanel(self.aerogrid)
-        self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord)
-        self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
-        
-        rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
-        self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord)
-        self.Djx1 = np.dot(self.Djk, self.Dkx1)
-        #self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
-        
-        # Aero DB    
-        if self.jcl.aero['method'] == 'hybrid':   
-            print 'Building aero db...'
-            self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
-  
+
         print 'Building mass model...'
         if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan']:
             self.mass = {'key': [],
@@ -310,18 +351,19 @@ class model:
                     Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
                     # a-set is equal to f-set, no further reduction
                     MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
-                    Mff, Kff, Dff, PHIf_strc = bm.modalanalysis(i_mass, MFF)
+                    Mff, Kff, Dff, PHIf_strc = bm.modalanalysis(i_mass, MFF, plot=False)
                 elif self.jcl.mass['method'] == 'guyan': 
                     Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
                     MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
-                    Mff, Kff, Dff, PHIf_strc, Maa = bm.guyanreduction(i_mass, MFF)              
+                    Mff, Kff, Dff, PHIf_strc, Maa = bm.guyanreduction(i_mass, MFF, plot=False)              
                     # Vergleich mit SOL103:
-                    # Mff2, Kff2, Dff2, PHIf_strc2, Mb2, cggrid2, cggrid_norm2 = bm.mass_from_SOL103(i_mass)
-                    # MAC, plt = bm.calc_MAC( PHIf_strc.T, PHIf_strc2.T)
-                    # plt.title('MAC bm guyan vs. SOL103 aset')
-                    # MAC, plt = bm.calc_MAC( PHIf_strc.T, PHIf_strc2.T)
-                    # plt.title('Auto-MAC bm guyan')
-                    # plt.show()
+                    #Mff2, Kff2, Dff2, PHIf_strc2, Mb2, cggrid2, cggrid_norm2 = bm.mass_from_SOL103(i_mass)
+                    #Mff2, Kff2, Dff2, PHIf_strc2 = bm.modalanalysis(i_mass, MFF)
+                    #MAC, plt = bm.calc_MAC( PHIf_strc.T, PHIf_strc2.T)
+                    #plt.title('MAC guyan vs. Vollmodell')
+                    #MAC, plt = bm.calc_MAC( PHIf_strc.T, PHIf_strc.T)
+                    #plt.title('Auto-MAC bm guyan')
+                    #plt.show()
 
                 rules = spline_rules.rules_point(cggrid, self.strcgrid)
                 PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
