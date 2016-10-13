@@ -5,11 +5,9 @@ cwd = os.getcwd()
 sys.path.append(cwd)
 # Here you add the location of the Loads Kernel 
 sys.path.append("../kernel")
-import kernel_parallel
+import kernel
 
 
 
 # Here you launch the Loads Kernel with your job
-
-
-kernel_parallel.run_kernel('jcl_MULDICON_gust', pre=False, main=True, post=True, path_output='/scratch/test_parallel')
+kernel.run_kernel('jcl_your_aircraft', pre=True, main=False, post=False, path_output='/scratch/test', parallel=False)
