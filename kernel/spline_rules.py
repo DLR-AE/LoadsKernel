@@ -7,9 +7,10 @@ Created on Fri Nov 21 10:32:03 2014
 
 import numpy as np
 import read_geom
+import logging
 
 def nearest_neighbour(grid_i,  set_i,  grid_d, set_d):
-    print 'Searching nearest neighbour of {:.0f} dependent nodes in {:.0f} independent nodes...'.format(len(grid_d['ID']) , len(grid_i['ID']))
+    logging.info('Searching nearest neighbour of {:.0f} dependent nodes in {:.0f} independent nodes...'.format(len(grid_d['ID']) , len(grid_i['ID'])))
     len(grid_d['ID'])
     single_ids = []    
     neighbours = []    
@@ -49,7 +50,7 @@ def rules_aeropanel(aerogrid):
 
 def monstations_from_bdf(mongrid, filenames):
     if mongrid['n'] != len(filenames):
-        print 'Number of Stations in mongrid ({:.0f}) and number of bdfs ({:.0f}) unequal!'.format(mongrid['n'], len(filenames))
+        logging.error('Number of Stations in mongrid ({:.0f}) and number of bdfs ({:.0f}) unequal!'.format(mongrid['n'], len(filenames)))
     ID_d = []
     ID_i = []
     for i_station in range(mongrid['n']):

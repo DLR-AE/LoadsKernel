@@ -4,7 +4,7 @@ Created on Wed Oct 15 09:23:59 2014
 
 @author: voss_ar
 """
-import math
+import math, logging
 
 def atmo_isa(h):
     # p, rho, T, a = atmo_isa(h)
@@ -17,7 +17,7 @@ def atmo_isa(h):
 
     # check input
     if h < -5000 or h > 47000:
-       print 'Altitude h = ' + str(h) + ' m, must be -5000 <= h <= 47000 m.'
+       logging.error( 'Altitude h = ' + str(h) + ' m, must be -5000 <= h <= 47000 m.')
        return
        
     g0          = 9.80665;      # acceleration of gravity (sea level) 

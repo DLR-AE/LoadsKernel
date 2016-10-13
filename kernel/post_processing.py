@@ -5,7 +5,7 @@ Created on Mon Mar 30 13:34:50 2015
 @author: voss_ar
 """
 import numpy as np
-import copy
+import copy, logging
 
 from trim_tools import *
 from grid_trafo import *
@@ -23,7 +23,7 @@ class post_processing:
         
     
     def force_summation_method(self):
-        print 'calculating forces & moments on structural set (force summation method)...'
+        logging.info('calculating forces & moments on structural set (force summation method)...')
         response   = self.response
         trimcase   = self.trimcase
         
@@ -79,7 +79,7 @@ class post_processing:
 
            
     def euler_transformation(self):
-        print 'apply euler angles...'
+        logging.info('apply euler angles...')
         response   = self.response
         trimcase   = self.trimcase
         
@@ -157,7 +157,7 @@ class post_processing:
             response['Ug'] = response['Ug_r'] + response['Ug_f']
  
     def cuttingforces(self):
-        print 'calculating cutting forces & moments...'
+        logging.info('calculating cutting forces & moments...')
         response   = self.response
         trimcase   = self.trimcase
         # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)

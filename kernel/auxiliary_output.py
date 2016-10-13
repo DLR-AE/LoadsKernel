@@ -1,7 +1,7 @@
 
 import write_functions
 import numpy as np
-import copy, getpass, platform, time
+import copy, getpass, platform, time, logging
 from grid_trafo import *
 
 class auxiliary_output:
@@ -18,7 +18,7 @@ class auxiliary_output:
         # deformations are given in 9300 coord
         strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
         grid_trafo(strcgrid_tmp, self.model.coord, 9300)
-        print 'saving nodal flexible deformations as dat file...'
+        logging.info( 'saving nodal flexible deformations as dat file...')
         with open(filename+'_undeformed.dat', 'w') as fid:             
             np.savetxt(fid, np.hstack((self.model.strcgrid['ID'].reshape(-1,1), strcgrid_tmp['offset'])))
         
@@ -28,7 +28,7 @@ class auxiliary_output:
                 np.savetxt(fid, defo)
                 
     def save_nodalloads(self, filename):
-        print 'saving nodal loads as Nastarn cards...'
+        logging.info( 'saving nodal loads as Nastarn cards...')
         with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
                 write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg'], self.jcl.trimcase[i_trimcase]['subcase'])
@@ -82,7 +82,7 @@ class auxiliary_output:
             
         
     def save_cpacs(self, filename):
-        print 'saving nodal loads and monitoring stations as CPACS...'
+        logging.info( 'saving nodal loads and monitoring stations as CPACS...')
         from tixiwrapper import Tixi
         self.tixi = Tixi()
         self.tixi.create('cpacs')

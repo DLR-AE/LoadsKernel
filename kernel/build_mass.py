@@ -5,7 +5,7 @@ import scipy
 from scipy import sparse
 from scipy.sparse import linalg
 import numpy as np
-import sys, copy
+import sys, copy, logging
 import matplotlib.pyplot as plt
 
 class build_mass:
@@ -67,19 +67,19 @@ class build_mass:
         # MSC.Software Corporation, "Matrix Operations," in MSC Nastran Linear Static Analysis User's Guide, vol. 2003, D. M. McLean, Ed. 2003, p. 473.
         # MSC.Software Corporation, "Theoretical Basis for Reduction Methods," in MSC.Nastran Version 70 Advanced Dynamic Analysis User's Guide, Version 70., H. David N., Ed. p. 63.
 
-        print "Guyan reduction of stiffness matrix Kff --> Kaa ..."
+        logging.info( "Guyan reduction of stiffness matrix Kff --> Kaa ...")
         self.aset = read_geom.Nastran_SET1(self.jcl.geom['filename_aset'])
         self.aset['values_unique'] = np.unique(self.aset['values'][0]) # take the set of the a-set because IDs might be given repeatedly
         id_g2a = [np.where(self.strcgrid['ID'] == x)[0][0] for x in self.aset['values_unique']] 
         pos_a = self.strcgrid['set'][id_g2a,:].reshape((1,-1))[0]
         self.pos_a = pos_a[np.in1d(pos_a, self.pos_f)] # make sure DoFs of a-set are really in f-set (e.g. due to faulty user input)
         self.pos_o = np.setdiff1d(self.pos_f, self.pos_a) # the remainders will be omitted
-        print ' - prepare a-set ({} DoFs) and o-set ({} DoFs)'.format(len(self.pos_a), len(self.pos_o) )
+        logging.info( ' - prepare a-set ({} DoFs) and o-set ({} DoFs)'.format(len(self.pos_a), len(self.pos_o) ))
         # Convert to ndarray and then use list comprehension. This is the fastest way of finding indices.
         pos_f_ndarray = np.array(self.pos_f) 
         self.pos_f2a = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_a]
         self.pos_f2o = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_o]
-        print ' - partitioning'
+        logging.info( ' - partitioning')
         K = {}
         K['A']       = self.KFF[self.pos_f2a,:][:,self.pos_f2a]
         K['B']       = self.KFF[self.pos_f2a,:][:,self.pos_f2o]
@@ -87,7 +87,7 @@ class build_mass:
         K['C']       = self.KFF[self.pos_f2o,:][:,self.pos_f2o]
         # nach Nastran
         # Anstelle die Inverse zu bilden, wird ein Gleichungssystem geloest. Das ist schneller!
-        print " - solving"
+        logging.info( " - solving")
         self.Goa = - scipy.sparse.linalg.spsolve(K['C'], K['B_trans'])
         self.Kaa = K['A'] + K['B'].dot(self.Goa)
         
@@ -97,14 +97,14 @@ class build_mass:
         # Next, the eigenvector for the g-set/strcgrid is reconstructed.
         # In a final step, the generalized mass and stiffness matrices are calculated.
         # The nomenclature might be a little confusing at this point, because the flexible mode shapes and Nastran's free DoFs (f-set) are both labeled with the subscript 'f'...
-        print "Guyan reduction of mass matrix Mff --> Maa ..."
-        print ' - partitioning'
+        logging.info( "Guyan reduction of mass matrix Mff --> Maa ...")
+        logging.info( ' - partitioning')
         M = {}
         M['A']       = MFF[self.pos_f2a,:][:,self.pos_f2a]
         M['B']       = MFF[self.pos_f2a,:][:,self.pos_f2o]
         M['B_trans'] = MFF[self.pos_f2o,:][:,self.pos_f2a]
         M['C']       = MFF[self.pos_f2o,:][:,self.pos_f2o]
-        print " - solving"
+        logging.info( " - solving")
         # a) original formulation according to R. Guyan
         # Maa = M['A'] - M['B'].dot(self.Goa) - self.Goa.T.dot( M['B_trans'] - M['C'].dot(self.Goa) )
         
@@ -115,7 +115,7 @@ class build_mass:
         if self.jcl.mass['omit_rb_modes']: 
               modes_selection += 6
         eigenvalue, eigenvector = self.calc_modes(self.Kaa, Maa, modes_selection.max())
-        print 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection)
+        logging.info( 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection))
         # reconstruct modal matrix for g-set / strcgrid
         PHIf_strc = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
         i = 0 # counter selected modes
@@ -169,7 +169,7 @@ class build_mass:
         # However, the they are only required for modal analysis...
         self.KFF = read_geom.Nastran_OP4(self.jcl.geom['filename_KFF'], sparse_output=True, sparse_format=True)
         self.GM  = read_geom.Nastran_OP4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True) 
-        print 'Read USET from OP2-file {} with get_uset.m ...'.format( self.jcl.geom['filename_uset'] )
+        logging.info( 'Read USET from OP2-file {} with get_uset.m ...'.format( self.jcl.geom['filename_uset'] ))
         self.uset = self.octave.get_uset(self.jcl.geom['filename_uset'])
         # Reference:
         # National Aeronautics and Space Administration, The Nastran Programmer's Manual, NASA SP-223(01). Washington, D.C.: COSMIC, 1972.
@@ -188,7 +188,7 @@ class build_mass:
             elif bitpos==32: # 'M'
                 self.pos_m.append(i)
             else:
-                print 'Error: Unknown set of grid point {}'.format(bitpos)
+                logging.error( 'Unknown set of grid point {}'.format(bitpos))
             i += 1
         self.pos_n = self.pos_s + self.pos_f
         self.pos_n.sort()
@@ -198,7 +198,7 @@ class build_mass:
         if self.jcl.mass['omit_rb_modes']: 
               modes_selection += 6
         eigenvalue, eigenvector = self.calc_modes(self.KFF, MFF, modes_selection.max())
-        print 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection)
+        logging.info( 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection))
         # reconstruct modal matrix for g-set / strcgrid
         PHIf_strc = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
         i = 0 # counter selected modes
@@ -240,17 +240,17 @@ class build_mass:
     
     def calc_modes(self, K, M, n_modes):
         # perform modal analysis on a-set
-        print 'Modal analysis for first {} modes...'.format( n_modes )
+        logging.info( 'Modal analysis for first {} modes...'.format( n_modes ))
         eigenvalue, eigenvector = scipy.sparse.linalg.eigs(A=K, M=M , k=n_modes, sigma=0) 
         idx_sort = np.argsort(eigenvalue) # sort result by eigenvalue
         eigenvalue = eigenvalue[idx_sort]
         eigenvector = eigenvector[:,idx_sort]
-        print 'Found {} modes with the following frequencies [Hz]:'.format(len(eigenvalue))
-        print np.real(eigenvalue)**0.5 /2/np.pi
+        logging.info( 'Found {} modes with the following frequencies [Hz]:'.format(len(eigenvalue)))
+        logging.info( np.real(eigenvalue)**0.5 /2/np.pi)
         return eigenvalue, eigenvector
     
     def calc_cg(self, i_mass, Mgg):
-        print 'Calculate center of gravity, mass and inertia (GRDPNT)...'
+        logging.info( 'Calculate center of gravity, mass and inertia (GRDPNT)...')
         # First step: calculate M0
         m0grid = {"ID": np.array([999999]),
                   "offset": np.array([[0,0,0]]),
@@ -290,9 +290,9 @@ class build_mass:
         Mb[2,2] = m
         Mb[3:6,3:6] = np.array([[1,-1,-1],[-1,1,-1],[-1,-1,1]]) * mb[3:6,3:6]
         
-        print 'Mass: {}'.format(Mb[0,0])
-        print 'CG at: {}'.format(offset_cg)
-        print 'Inertia: \n{}'.format(Mb[3:6,3:6])
+        logging.info( 'Mass: {}'.format(Mb[0,0]))
+        logging.info( 'CG at: {}'.format(offset_cg))
+        logging.info( 'Inertia: \n{}'.format(Mb[3:6,3:6]))
         
         return Mb, cggrid, cggrid_norm
     

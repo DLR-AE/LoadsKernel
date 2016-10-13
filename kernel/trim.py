@@ -6,6 +6,7 @@ Created on Thu Nov 27 15:35:22 2014
 """
 import numpy as np
 import scipy.optimize as so
+import logging
 
 class trim:
     def __init__(self, model, jcl, trimcase, simcase):
@@ -78,7 +79,7 @@ class trim:
         # --- pitch only --- 
         # ------------------
         if self.trimcase['manoeuver'] == 'pitch':
-            print 'setting trim conditions to "pitch"'
+            logging.info('setting trim conditions to "pitch"')
             # inputs
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
@@ -90,7 +91,7 @@ class trim:
         # --- pitch and roll only, no yaw --- 
         # -----------------------------------
         elif self.trimcase['manoeuver'] == 'pitch&roll':
-            print 'setting trim conditions to "pitch&roll"'
+            logging.info('setting trim conditions to "pitch&roll"')
             # inputs
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
             # outputs
@@ -102,7 +103,7 @@ class trim:
         # Sinken (w) wird erlaubt, damit die Geschwindigkeit konstant bleibt (du = 0.0)
         # Eigentlich muesste Vtas konstant sein, ist aber momentan nicht als trimcond vorgesehen... Das wird auch schwierig, da die Machzahl vorgegeben ist.
         elif self.trimcase['manoeuver'] == 'segelflug':
-            print 'setting trim conditions to "segelflug"'
+            logging.info('setting trim conditions to "segelflug"')
             # inputs
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],1] = 'free'
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'phi'))[0][0],1] = 'fix'
@@ -117,7 +118,7 @@ class trim:
         # --- pratt, alpha only --- 
         # -------------------------
         elif self.trimcase['manoeuver'] == 'pratt':
-            print 'setting trim conditions to "pratt"'
+            logging.info('setting trim conditions to "pratt"')
             # inputs
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_eta'))[0][0],1] = 'fix'
@@ -132,7 +133,7 @@ class trim:
         # --------------
         # Die Steuerkommandos xi, eta und zeta werden vorgegeben und die resultierenden Beschleunigungen sind frei. 
         elif self.trimcase['manoeuver'] == 'bypass':
-            print 'setting trim conditions to "bypass"'
+            logging.info('setting trim conditions to "bypass"')
             # inputs
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'phi'))[0][0],1] = 'fix'
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'phi'))[0][0],2] = self.trimcase['phi']
@@ -152,7 +153,7 @@ class trim:
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dq'))[0][0],1] = 'free'
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
         else:
-            print 'setting trim conditions to "default"'
+            logging.info('setting trim conditions to "default"')
         
     
     def exec_trim(self):
@@ -169,30 +170,31 @@ class trim:
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
         else:
-            print 'Unknown aero method: ' + str(self.jcl.aero['method'])
+            logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
         X_free_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]]
         
         if self.trimcase['manoeuver'] == 'bypass':
-            print 'running bypass...'
+            logging.info('running bypass...')
             self.response = equations.eval_equations(X_free_0, time=0.0, type='trim_full_output')
         else:
-            print 'running trim for ' + str(len(X_free_0)) + ' variables...'
+            logging.info('running trim for ' + str(len(X_free_0)) + ' variables...')
             X_free, info, status, msg= so.fsolve(equations.eval_equations, X_free_0, args=(0.0, 'trim'), full_output=True)
-            print msg
-            print 'function evaluations: ' + str(info['nfev'])
+            logging.info(msg)
+            logging.info('function evaluations: ' + str(info['nfev']))
             
             # if trim was successful, then do one last evaluation with the final parameters.
             if status == 1:
-                print ''
-                print 'Trimsolution: '
-                print '--------------------' 
+                logging.info('')
+                logging.info('Trimsolution: ')
+                logging.info('--------------------')
                 for i_X in range(len(X_free)):
-                    print self.trimcond_X[:,0][np.where((self.trimcond_X[:,1] == 'free'))[0]][i_X] + ': %.4f' % float(X_free[i_X])
+                    logging.info(self.trimcond_X[:,0][np.where((self.trimcond_X[:,1] == 'free'))[0]][i_X] + ': %.4f' % float(X_free[i_X]))
                     
                 self.response = equations.eval_equations(X_free, time=0.0, type='trim_full_output')
             else:
-                self.response = 'Failure: ' + msg
+                self.response = None
+                logging.warning('Failure: ' + msg)
                 # store response
             
 
@@ -203,19 +205,19 @@ class trim:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             # initialize lag states with zero and extend steady response vectors X and Y
-            print 'adding {} x {} unsteady lag states to the system'.format(self.model.aerogrid['n'],self.model.aero['n_poles'])
+            logging.info('adding {} x {} unsteady lag states to the system'.format(self.model.aerogrid['n'],self.model.aero['n_poles']))
             lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
             self.response['X'] = np.hstack((self.response['X'], lag_states ))
             self.response['Y'] = np.hstack((self.response['Y'], lag_states ))
             equations = model_equations.unsteady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
         else:
-            print 'Unknown aero method: ' + str(self.jcl.aero['method'])
+            logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
 
         X0 = self.response['X']
         dt = self.simcase['dt']
         t_final = self.simcase['t_final']
-        print 'running time simulation for ' + str(t_final) + ' sec...'
-        print 'Progress:'
+        logging.info('running time simulation for ' + str(t_final) + ' sec...')
+        #print 'Progress:'
         from scipy.integrate import ode
         integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
 #         integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=1e-4)
@@ -226,16 +228,17 @@ class trim:
             integrator.integrate(integrator.t+dt)
             X_t.append(integrator.y)
             t.append(integrator.t)
-            print str(integrator.t) + ' sec - ' + str(equations.counter) + ' function evaluations'
+            #print str(integrator.t) + ' sec - ' + str(equations.counter) + ' function evaluations'
             
         if integrator.successful():
-            print 'Simulation finished.'
-            print 'running (again) with full outputs at selected time steps...' 
+            logging.info('Simulation finished.')
+            logging.info('running (again) with full outputs at selected time steps...')
             for i_step in np.arange(0,len(t)):
                 response_step = equations.eval_equations(X_t[i_step], t[i_step], type='sim_full_output')
                 for key in self.response.keys():
                     self.response[key] = np.vstack((self.response[key],response_step[key]))
 
         else:
-            self.response['t'] = 'Failure'
+            self.response['t'] = None
+            logging.warning('Integration failed!')
             

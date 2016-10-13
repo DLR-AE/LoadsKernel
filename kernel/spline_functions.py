@@ -7,12 +7,11 @@ Created on Thu Nov 20 14:50:21 2014
 import numpy as np
 import scipy
 import scipy.sparse as sp
-import time
-import string
+import time, string, logging
 from read_geom import nastran_number_converter
 
 def spline_nastran(filename, strcgrid, aerogrid):
-    print 'Read Nastran spline (PARAM    OPGTKG   1) from {}'.format(filename)
+    logging.info('Read Nastran spline (PARAM    OPGTKG   1) from {}'.format(filename))
     with open(filename, 'r') as fid:
         lines = fid.readlines()
     i_line = 0
@@ -31,7 +30,7 @@ def spline_nastran(filename, strcgrid, aerogrid):
         elif line_split[3].split('-')[1][:2] == 'R2':
             tmp = 4
         else:
-            print 'DOF not implemented!'
+            logging.error('DOF not implemented!')
         col = aerogrid['set_k'][np.where(np.int(line_split[3].split('-')[0]) == aerogrid['ID'])[0][0],tmp]
         
         i_line += 1
@@ -55,7 +54,7 @@ def spline_nastran(filename, strcgrid, aerogrid):
                 elif line_split[1] == 'R3':
                     tmp = 5
                 else:
-                    print 'DOF not implemented!'                    
+                    logging.error('DOF not implemented!')                
                 row = strcgrid['set'][np.where(np.int(line_split[0]) == strcgrid['ID'])[0][0],tmp]
                 PHI[col,row] = nastran_number_converter(line_split[2], 'float')
                 
@@ -86,7 +85,7 @@ def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type='tps', surface_spline=Fa
     else:
         dimensions_i = 6*len(grid_i['set'+set_i])
         dimensions_d = 6*len(grid_d['set'+set_d])
-    print 'Expanding Spline to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i),
+    logging.info('Expanding Spline to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i))
     PHI = np.zeros((dimensions_d, dimensions_i))
     PHI[np.ix_(grid_d['set'+set_d][:,0], grid_i['set'+set_i][:,0])] = PHI_tmp
     PHI[np.ix_(grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])] = PHI_tmp
@@ -94,14 +93,13 @@ def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type='tps', surface_spline=Fa
     PHI[np.ix_(grid_d['set'+set_d][:,3], grid_i['set'+set_i][:,3])] = PHI_tmp
     PHI[np.ix_(grid_d['set'+set_d][:,4], grid_i['set'+set_i][:,4])] = PHI_tmp
     PHI[np.ix_(grid_d['set'+set_d][:,5], grid_i['set'+set_i][:,5])] = PHI_tmp
-    print 'done'
     return PHI
 
 class rbf:
 
     def build_M(self):
         # Nomenklatur nach Neumann & Krueger
-        print ' - building M'
+        logging.info(' - building M')
         if self.surface_spline:
             self.A = np.vstack((np.ones(self.n_fe),self.nodes_fe[0:2,:]))
         else:
@@ -130,7 +128,7 @@ class rbf:
 
     def build_splinematrix(self):
         # Nomenklatur nach Neumann & Krueger
-        print ' - building B and C'
+        logging.info(' - building B and C')
         if self.surface_spline:
             self.B = np.vstack((np.ones(self.n_cfd),self.nodes_cfd[0:2,:]))
         else:
@@ -154,9 +152,9 @@ class rbf:
         # print str(time.time() - t_start) + 'sec'
         
         t_start = time.time()
-        print ' - solving M*H=BC for H'
+        logging.info(' - solving M*H=BC for H')
         self.H= scipy.linalg.solve(self.M, self.BC).T 
-        print ' - done in ' + str(time.time() - t_start) + ' sec'
+        logging.info(' - done in ' + str(time.time() - t_start) + ' sec')
         
         
     def eval_rbf(self, r):
@@ -178,7 +176,7 @@ class rbf:
             return (1-r)**4 + (4*r+1)
         
         else:
-            print 'Error: Unkown Radial Basis Function!'
+            logging.error('Unkown Radial Basis Function!')
             
     def __init__(self, nodes_fe, nodes_cfd, rbf_type, surface_spline):
         self.nodes_cfd = nodes_cfd
@@ -187,11 +185,11 @@ class rbf:
         self.n_cfd = self.nodes_cfd.shape[1]
         self.rbf_type = rbf_type
         self.surface_spline = surface_spline
-        print 'Splining (rbf) of {:.0f} points to {:.0f} points...'.format(self.n_cfd , self.n_fe)
+        logging.info('Splining (rbf) of {:.0f} points to {:.0f} points...'.format(self.n_cfd , self.n_fe))
         if self.surface_spline:
-            print 'Using surface formulation (2D xy surface)' 
+            logging.info('Using surface formulation (2D xy surface)')
         else:
-            print 'Using volume formulation (3D)' 
+            logging.info('Using volume formulation (3D)')
 
 # Assumptions: 
 # - grids have 6 dof
@@ -210,7 +208,7 @@ def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='',
     else:
         dimensions_i = 6*len(grid_i['set'+set_i])
         dimensions_d = 6*len(grid_d['set'+set_d])
-    print 'Splining (rigid body) of {:.0f} DOFs to {:.0f} DOFs...'.format(dimensions_d , dimensions_i)
+    logging.info('Splining (rigid body) of {:.0f} DOFs to {:.0f} DOFs...'.format(dimensions_d , dimensions_i))
         
     # transfer points into common coord
     offset_dest_i = []

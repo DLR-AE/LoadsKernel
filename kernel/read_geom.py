@@ -8,7 +8,7 @@ import string
 import numpy as np
 import scipy.sparse as sp
 import math as math
-import os
+import os, logging
 
 def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=False):
     '''
@@ -16,7 +16,7 @@ def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=Fal
     eigenvectors. (Basierend auf Script von Markus.)
     '''
     filesize = float(os.stat(filename).st_size)
-    print 'Read modal data from f06 file: %s with %.2f MB' %(filename, filesize/1024**2)
+    logging.info('Read modal data from f06 file: %s with %.2f MB' %(filename, filesize/1024**2))
     percent = 0.
     print 'Progress [%]: ',
 
@@ -78,12 +78,12 @@ def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=Fal
                 break    
 
     print ' Done.'
-    print 'Found %i eigenvalues and %i eigenvectors for %i nodes.' %(len(eigenvalues["ModeNo"]), len(eigenvectors.keys()), len(node_ids)/len(eigenvalues["ModeNo"]))
+    logging.info('Found %i eigenvalues and %i eigenvectors for %i nodes.' %(len(eigenvalues["ModeNo"]), len(eigenvectors.keys()), len(node_ids)/len(eigenvalues["ModeNo"])))
 
     return  eigenvalues, eigenvectors, node_ids
     
 def reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection):
-    print 'Reduction of data to %i selected modes and %i nodes.' %(len(modes_selection), len(nodes_selection))
+    logging.info('Reduction of data to %i selected modes and %i nodes.' %(len(modes_selection), len(nodes_selection)))
     eigenvalues_new = {"ModeNo":[],
                    "ExtractionOrder":[],
                    "Eigenvalue":[],
@@ -96,11 +96,11 @@ def reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection):
     # Assumption: nodes have the same sequence in all modes
     pos_eigenvector = []
     nodes_eigenvector = np.array(eigenvectors[str(modes_selection[0])])[:,0]
-    print ' - working on nodes...'
+    logging.info(' - working on nodes...')
     for i_nodes in range(len(nodes_selection)):
         pos_eigenvector.append( np.where(nodes_selection[i_nodes] ==  nodes_eigenvector)[0][0] )
     
-    print ' - working on modes...'
+    logging.info(' - working on modes...')
     for i_mode in range(len(modes_selection)):
         pos_mode = np.where(modes_selection[i_mode]==np.array(eigenvalues['ModeNo']))[0][0]
         eigenvalues_new['ModeNo'].append(eigenvalues['ModeNo'][pos_mode])
@@ -116,7 +116,7 @@ def reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection):
     return eigenvalues_new, eigenvectors_new
 
 def Nastran_weightgenerator(filename):
-    print 'Read Weight data from f06 file: %s' %filename
+    logging.info('Read Weight data from f06 file: %s' %filename)
     
     with open(filename, 'r') as fid:
         while True:
@@ -160,7 +160,7 @@ def Nastran_weightgenerator(filename):
            
 
 def Modgen_GRID(filename):
-    print 'Read GRID data from ModGen file: %s' %filename
+    logging.info('Read GRID data from ModGen file: %s' %filename)
     grids = []
     with open(filename, 'r') as fid:
         lines = fid.readlines()
@@ -182,7 +182,7 @@ def Modgen_GRID(filename):
     return grid
 
 def Modgen_CQUAD4(filename):
-    print 'Read CQUAD4 data from ModGen file: %s' %filename
+    logging.info('Read CQUAD4 data from ModGen file: %s' %filename)
     data = []
     with open(filename, 'r') as fid:
         while True:
@@ -200,7 +200,7 @@ def Modgen_CQUAD4(filename):
     return panels
     
 def CAERO(filename, i_file):
-    print 'Read CAERO1 and/or CAERO7 cards from Nastran/ZAERO bdf: %s' %filename
+    logging.info('Read CAERO1 and/or CAERO7 cards from Nastran/ZAERO bdf: %s' %filename)
     caerocards = []
     with open(filename, 'r') as fid:
         while True:
@@ -213,7 +213,7 @@ def CAERO(filename, i_file):
                              'n_chord': nastran_number_converter(read_string[40:48], 'ID'),
                             }
                 if np.any([caerocard['n_span'] == 0, caerocard['n_chord'] == 0]):
-                    print 'Error: Assumption of equal spaced CAERO panels is violated!'
+                    logging.error('Assumption of equal spaced CAERO panels is violated!')
                 # read second line of CAERO card
                 read_string = fid.readline()  
                 caerocard['X1'] = np.array([nastran_number_converter(read_string[ 8:16], 'float'), nastran_number_converter(read_string[16:24], 'float'), nastran_number_converter(read_string[24:32], 'float')])
@@ -234,7 +234,7 @@ def CAERO(filename, i_file):
                              'n_chord': nastran_number_converter(read_string[40:48], 'ID') - 1,
                             }
                 if np.any([caerocard['n_span'] == 0, caerocard['n_chord'] == 0]):
-                    print 'Error: Assumption of equal spaced CAERO panels is violated!'
+                    logging.error('Assumption of equal spaced CAERO panels is violated!')
                 # read second line of CAERO card
                 read_string = fid.readline()  
                 caerocard['X1'] = np.array([nastran_number_converter(read_string[ 8:16], 'float'), nastran_number_converter(read_string[16:24], 'float'), nastran_number_converter(read_string[24:32], 'float')])
@@ -249,7 +249,7 @@ def CAERO(filename, i_file):
             elif read_string == '':
                 break
             
-    print ' - from CAERO cards, constructing corner points and aero panels'
+    logging.info(' - from CAERO cards, constructing corner points and aero panels')
     # from CAERO cards, construct corner points... '
     # then, combine four corner points to one panel
     grid_ID = i_file * 100000 # the file number is used to set a range of grid IDs 
@@ -305,10 +305,10 @@ def nastran_number_converter(string_in, type, default=0):
                 else:
                     out = float(string_in.replace('+', 'E+'))
             elif string_in == '':
-                print "Warning: could not interpret the following number: '" + string_in + "' -> setting value to zero."
+                logging.warning("Could not interpret the following number: '" + string_in + "' -> setting value to zero.")
                 out = float(default)
             else: 
-                print "ERROR: could not interpret the following number: " + string_in
+                logging.error("Could not interpret the following number: " + string_in)
                 return
     elif type in ['int', 'ID', 'CD', 'CP']:
         try:
@@ -329,7 +329,7 @@ def Nastran_OP4(filename, sparse_output=False, sparse_format=False ):
     #                                   False: Non-Sparse and ASCII Format of input file
 
     filesize = float(os.stat(filename).st_size)
-    print 'Read data from OP4 file: %s with %.2f MB' %(filename, filesize/1024**2)
+    logging.info('Read data from OP4 file: %s with %.2f MB' %(filename, filesize/1024**2))
     percent = 0.
     print 'Progress [%]: ',
     with open(filename, 'r') as fid:
@@ -354,7 +354,7 @@ def Nastran_OP4(filename, sparse_output=False, sparse_format=False ):
             data = sp.lil_matrix((n_col, n_row), dtype=complex)
             
         else:
-            print 'Unknown format: ' + read_string[24:32] 
+            logging.error('Unknown format: ' + read_string[24:32] )
         while True:    
             # read header of data block
             read_string = fid.readline()
@@ -458,8 +458,8 @@ def Modgen_CORD2R(filename, coord, grid=''):
             elif string.find(read_string, 'CORD1R') !=-1 and read_string[0] != '$':
                 # CHORD1R ist aehnlich zu CORD2R, anstelle von offsets werden als grid points angegeben 
                 if grid == '':
-                    print read_string
-                    print 'Found CORD1R card, but no grid is given. Coord is ignored.'
+                    logging.warning(read_string)
+                    logging.warning('Found CORD1R card, but no grid is given. Coord is ignored.')
                 else:
                     line1 = read_string
                     ID = nastran_number_converter(line1[8:16], 'int')
@@ -606,7 +606,7 @@ def Nastran_MONPNT1(filename):
     return mongrid
 
 def Modgen_W2GJ(filename):
-    print 'Read W2GJ data (correction of camber and twist) from ModGen file: %s' %filename
+    logging.info('Read W2GJ data (correction of camber and twist) from ModGen file: %s' %filename)
     ID = []
     cam_rad = []
     with open(filename, 'r') as fid:

@@ -5,7 +5,7 @@ Created on Tue Mar  3 14:36:41 2015
 @author: voss_ar
 """
 import numpy as np
-import csv
+import csv, logging
 
 class mephisto:
     def __init__(self):
@@ -50,22 +50,22 @@ class mephisto:
         
         violation_lower = Ux2 < self.Ux2_lower
         if np.any(violation_lower):
-            print 'Warning: commanded CS deflection not possible, violation of lower Ux2 bounds!'
+            logging.warning( 'Commanded CS deflection not possible, violation of lower Ux2 bounds!')
             Ux2[violation_lower] = self.Ux2_lower[violation_lower]
             
         violation_upper = Ux2 > self.Ux2_upper
         if np.any(violation_upper):
-            print 'Warning: commanded CS deflection not possible, violation of upper Ux2 bounds!'
+            logging.warning( 'Commanded CS deflection not possible, violation of upper Ux2 bounds!')
             Ux2[violation_upper] = self.Ux2_upper[violation_upper]
             
         return Ux2
         
     def alpha_protetcion(self, alpha):
         if alpha < self.alpha_lower:
-            print 'Warning: commanded alpha not possible, violation of lower alpha bounds!'
+            logging.warning( 'Commanded alpha not possible, violation of lower alpha bounds!')
             alpha = self.alpha_lower
         if alpha > self.alpha_upper:
-            print 'Warning: commanded alpha not possible, violation of upper alpha bounds!'
+            logging.warning( 'Commanded alpha not possible, violation of upper alpha bounds!')
             alpha = self.alpha_upper
         return alpha
         
@@ -98,22 +98,22 @@ class allegra:
         
         violation_lower = Ux2 < self.Ux2_lower
         if np.any(violation_lower):
-            print 'Warning: commanded CS deflection not possible, violation of lower Ux2 bounds!'
+            logging.warning( 'Commanded CS deflection not possible, violation of lower Ux2 bounds!')
             Ux2[violation_lower] = self.Ux2_lower[violation_lower]
             
         violation_upper = Ux2 > self.Ux2_upper
         if np.any(violation_upper):
-            print 'Warning: commanded CS deflection not possible, violation of upper Ux2 bounds!'
+            logging.warning( 'Commanded CS deflection not possible, violation of upper Ux2 bounds!')
             Ux2[violation_upper] = self.Ux2_upper[violation_upper]
             
         return Ux2
 
     def alpha_protetcion(self, alpha):
         if alpha < self.alpha_lower:
-            print 'Warning: commanded alpha not possible, violation of lower alpha bounds!'
+            logging.warning( 'Commanded alpha not possible, violation of lower alpha bounds!')
             alpha = self.alpha_lower
         if alpha > self.alpha_upper:
-            print 'Warning: commanded alpha not possible, violation of upper alpha bounds!'
+            logging.warning( 'Commanded alpha not possible, violation of upper alpha bounds!')
             alpha = self.alpha_upper
         return alpha
 
@@ -145,22 +145,22 @@ class XRF1:
         
         violation_lower = Ux2 < self.Ux2_lower
         if np.any(violation_lower):
-            print 'Warning: commanded CS deflection not possible, violation of lower Ux2 bounds!'
+            logging.warning( 'Commanded CS deflection not possible, violation of lower Ux2 bounds!')
             Ux2[violation_lower] = self.Ux2_lower[violation_lower]
             
         violation_upper = Ux2 > self.Ux2_upper
         if np.any(violation_upper):
-            print 'Warning: commanded CS deflection not possible, violation of upper Ux2 bounds!'
+            logging.warning( 'Commanded CS deflection not possible, violation of upper Ux2 bounds!')
             Ux2[violation_upper] = self.Ux2_upper[violation_upper]
             
         return Ux2
 
     def alpha_protetcion(self, alpha):
         if alpha < self.alpha_lower:
-            print 'Warning: commanded alpha not possible, violation of lower alpha bounds!'
+            logging.warning( 'Commanded alpha not possible, violation of lower alpha bounds!')
             alpha = self.alpha_lower
         if alpha > self.alpha_upper:
-            print 'Warning: commanded alpha not possible, violation of upper alpha bounds!'
+            logging.warning( 'Commanded alpha not possible, violation of upper alpha bounds!')
             alpha = self.alpha_upper
         return alpha
         
@@ -186,7 +186,7 @@ class discus2c:
         tstart = [80.0, 190.0, 168.0, 912.0, 933.0, 1236.5, 1255.0]
         
         if case_desc not in cases:
-            print 'Warning, no time signal for cs deflections found!'
+            logging.error('No time signal for cs deflections found!')
             
         with open(files[cases.index(case_desc)]) as csvfile:
             reader = csv.DictReader(csvfile, dialect='excel-tab')
@@ -218,7 +218,7 @@ class discus2c:
         elif mode=='angular accelerations':
             self.k = np.array([-10.0, 10.0, 10.0])
         else:
-            print 'Error, mode {} for controller not implemented'.format(str(mode))
+            logging.error('Mode {} for controller not implemented'.format(str(mode)))
                    
     def controller(self, ist_werte ):
         dcommand = self.k * (self.sollwerte - ist_werte)
@@ -270,9 +270,9 @@ class discus2c:
 
     def alpha_protetcion(self, alpha):
         if alpha < self.alpha_lower:
-            print 'Warning: commanded alpha not possible, violation of lower alpha bounds!'
+            logging.warning( 'Commanded alpha not possible, violation of lower alpha bounds!')
             alpha = self.alpha_lower
         if alpha > self.alpha_upper:
-            print 'Warning: commanded alpha not possible, violation of upper alpha bounds!'
+            logging.warning( 'Commanded alpha not possible, violation of upper alpha bounds!')
             alpha = self.alpha_upper
         return alpha

@@ -1,5 +1,5 @@
 import numpy as np
-import importlib
+import importlib, logging
 #import time
 from trim_tools import * 
 from scipy import interpolate
@@ -7,7 +7,7 @@ from scipy import interpolate
 
 class aero():
     def __init__(self, model, jcl, trimcase, trimcond_X, trimcond_Y, simcase = False):
-        print 'Init model equations.'
+        logging.info('Init model equations.')
         self.model = model
         self.jcl = jcl
         self.trimcase = trimcase
@@ -65,7 +65,7 @@ class aero():
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD']
             self.x0 = self.simcase['gust_para']['T1'] * Vtas 
             self.WG_TAS, U_ds, V_gust = DesignGust_CS_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], self.model.atmo['rho'][self.i_atmo], Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
-            print 'Gust set up with initial Vtas = {}, t1 = {}, WG_tas = {}'.format(Vtas, self.simcase['gust_para']['T1'], self.WG_TAS)
+            logging.info('Gust set up with initial Vtas = {}, t1 = {}, WG_tas = {}'.format(Vtas, self.simcase['gust_para']['T1'], self.WG_TAS))
         
         # init cs_signal
         if self.simcase and self.simcase['cs_signal']:
@@ -82,7 +82,7 @@ class aero():
             self.aerodb_alpha = self.model.aerodb['alpha'][self.trimcase['aero']]
             # interp1d:  x has to be an array of monotonically increasing values
             self.aerodb_alpha_interpolation_function = interpolate.interp1d(np.array(self.aerodb_alpha['values'])/180.0*np.pi, np.array(self.aerodb_alpha['Pk']), axis=0, bounds_error = True )
-            print 'Hybrid aero is used for alpha.'
+            logging.info('Hybrid aero is used for alpha.')
             #print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], self.aerodb_alpha['q_dyn'], self.q_dyn)        
         else:
             self.correct_alpha = False      
@@ -97,7 +97,7 @@ class aero():
                 self.correct_x2.append(x2_key)
                 self.aerodb_x2.append(self.model.aerodb[x2_key][self.trimcase['aero']])
                 self.aerodb_x2_interpolation_function.append(interpolate.interp1d(np.array(self.aerodb_x2[-1]['values'])/180.0*np.pi, np.array(self.aerodb_x2[-1]['Pk']), axis=0, bounds_error = True ))
-                print 'Hybrid aero is used for {}.'.format(x2_key)
+                logging.info('Hybrid aero is used for {}.'.format(x2_key))
                 #print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], self.aerodb_x2[-1]['q_dyn'], self.q_dyn)       
  
     def rbm(self, dUcg_dt, alpha, q_dyn, Vtas):
@@ -477,11 +477,11 @@ class steady(aero):
         elif type=='trim_full_output':
             response = self.equations(X, time, 'trim_full_output')
             # do something with this output, e.g. plotting, animations, saving, etc.            
-            print ''            
-            print 'Y: '         
-            print '--------------------' 
+            logging.info('')        
+            logging.info('Y: ')
+            logging.info('--------------------')
             for i_Y in range(len(response['Y'])):
-                print self.trimcond_Y[:,0][i_Y] + ': %.4f' % float(response['Y'][i_Y])
+                logging.info(self.trimcond_Y[:,0][i_Y] + ': %.4f' % float(response['Y'][i_Y]))
 
             Pmac_rbm  = np.dot(self.model.Dkx1.T, response['Pk_rbm'])
             Pmac_cam  = np.dot(self.model.Dkx1.T, response['Pk_cam'])
@@ -496,39 +496,39 @@ class steady(aero):
             Cl = Pmac_c[2]*np.cos(response['alpha'])+Pmac_c[0]*np.sin(response['alpha'])
             Cd = Pmac_c[2]*np.sin(response['alpha'])+Pmac_c[0]*np.cos(response['alpha'])
             Cd_ind_theo = Cl**2.0/np.pi/AR
-            print ''
-            print '--------------------' 
-            print 'q_dyn: %.4f [Pa]' % float(response['q_dyn'])
-            print '--------------------' 
-            print 'aero derivatives:'
-            print '--------------------' 
-            print 'Cz_rbm: %.4f' % float(Pmac_rbm[2]/response['q_dyn']/A)
-            print 'Cz_cam: %.4f' % float(Pmac_cam[2]/response['q_dyn']/A)
-            print 'Cz_cs: %.4f' % float(Pmac_cs[2]/response['q_dyn']/A)
-            print 'Cz_f: %.4f' % float(Pmac_f[2]/response['q_dyn']/A)
-            print '--------------'
-            print 'Cx: %.4f' % float(Pmac_c[0])
-            print 'Cy: %.4f' % float(Pmac_c[1])
-            print 'Cz: %.4f' % float(Pmac_c[2])
-            print 'Cmx: %.6f' % float(Pmac_c[3]/self.model.macgrid['b_ref'])
-            print 'Cmy: %.6f' % float(Pmac_c[4]/self.model.macgrid['c_ref'])
-            print 'Cmz: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref'])
-            #print 'dCmz_dbeta: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']/response['beta'])
-            print 'alpha: %.4f [deg]' % float(response['alpha']/np.pi*180)
-            print 'beta: %.4f [deg]' % float(response['beta']/np.pi*180)
-            print 'Cd: %.4f' % float(Cd)
-            print 'Cl: %.4f' % float(Cl)
-            print 'Cd_ind: %.6f' % float(Pmac_idrag[0]/response['q_dyn']/A)
-            print 'Cmz_ind: %.6f' % float(Pmac_idrag[5]/response['q_dyn']/A/self.model.macgrid['b_ref'])
-            print 'e: %.4f' % float(Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn']/A))
-            print 'command_xi: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])/np.pi*180.0 )
-            print 'command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 )
-            print 'command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 )
-            print 'CS deflections [deg]: ' + str(response['Ux2']/np.pi*180)
-            print 'dCz_da: %.4f' % float(Pmac_c[2]/response['alpha'])
-            print 'dCmy_da: %.4f' % float(Pmac_c[4]/self.model.macgrid['c_ref']/response['alpha'])
-            print 'dCmz_db: %.4f' % float(Pmac_c[4]/self.model.macgrid['b_ref']/response['beta'])
-            print '--------------------' 
+            logging.info('')
+            logging.info('--------------------')
+            logging.info('q_dyn: %.4f [Pa]' % float(response['q_dyn']))
+            logging.info('--------------------')
+            logging.info('aero derivatives:')
+            logging.info('--------------------')
+            logging.info('Cz_rbm: %.4f' % float(Pmac_rbm[2]/response['q_dyn']/A))
+            logging.info('Cz_cam: %.4f' % float(Pmac_cam[2]/response['q_dyn']/A))
+            logging.info('Cz_cs: %.4f' % float(Pmac_cs[2]/response['q_dyn']/A))
+            logging.info('Cz_f: %.4f' % float(Pmac_f[2]/response['q_dyn']/A))
+            logging.info('--------------')
+            logging.info('Cx: %.4f' % float(Pmac_c[0]))
+            logging.info('Cy: %.4f' % float(Pmac_c[1]))
+            logging.info('Cz: %.4f' % float(Pmac_c[2]))
+            logging.info('Cmx: %.6f' % float(Pmac_c[3]/self.model.macgrid['b_ref']))
+            logging.info('Cmy: %.6f' % float(Pmac_c[4]/self.model.macgrid['c_ref']))
+            logging.info('Cmz: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']))
+            #logging.info('dCmz_dbeta: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']/response['beta'])
+            logging.info('alpha: %.4f [deg]' % float(response['alpha']/np.pi*180))
+            logging.info('beta: %.4f [deg]' % float(response['beta']/np.pi*180))
+            logging.info('Cd: %.4f' % float(Cd))
+            logging.info('Cl: %.4f' % float(Cl))
+            logging.info('Cd_ind: %.6f' % float(Pmac_idrag[0]/response['q_dyn']/A))
+            logging.info('Cmz_ind: %.6f' % float(Pmac_idrag[5]/response['q_dyn']/A/self.model.macgrid['b_ref']))
+            logging.info('e: %.4f' % float(Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn']/A)))
+            logging.info('command_xi: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])/np.pi*180.0 ))
+            logging.info('command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 ))
+            logging.info('command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 ))
+            logging.info('CS deflections [deg]: ' + str(response['Ux2']/np.pi*180))
+            logging.info('dCz_da: %.4f' % float(Pmac_c[2]/response['alpha']))
+            logging.info('dCmy_da: %.4f' % float(Pmac_c[4]/self.model.macgrid['c_ref']/response['alpha']))
+            logging.info('dCmz_db: %.4f' % float(Pmac_c[4]/self.model.macgrid['b_ref']/response['beta']))
+            logging.info('--------------------')
             
             return response
         

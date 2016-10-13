@@ -3,6 +3,7 @@
 import scipy.io.netcdf as netcdf
 import matplotlib.pyplot as plt
 import numpy as np
+import logging
 
 import spline_rules
 import spline_functions
@@ -21,7 +22,7 @@ def controlsurface_meshdefo(model, jcl, job_name, path_output):
         if jcl.meshdefo.has_key(x2_key):
             markers = jcl.meshdefo[x2_key]['markers']
             filename_grid = jcl.meshdefo[x2_key]['filename_grid']
-            print 'Extracting points belonging to marker(s) {} from grid {}'.format(str(markers), filename_grid)
+            logging.info( 'Extracting points belonging to marker(s) {} from grid {}'.format(str(markers), filename_grid))
             # --- get points on surfaces according to marker ---
             ncfile_grid = netcdf.NetCDFFile(filename_grid, 'r')
             boundarymarker_surfaces = ncfile_grid.variables['boundarymarker_of_surfaces'][:]
@@ -74,7 +75,7 @@ def controlsurface_meshdefo(model, jcl, job_name, path_output):
 #                 mlab.show()
                 
                 filename_defo = path_output + 'surface_defo_' + job_name + '_' + x2_key + '_' + str(value) + '.nc'
-                print 'Writing ' + filename_defo
+                logging.info( 'Writing ' + filename_defo)
                 f = netcdf.netcdf_file(filename_defo, 'w')
                 f.history = 'Surface deformations created by Loads Kernel'
                 f.createDimension('no_of_points', cfdgrid['n'])
