@@ -318,6 +318,59 @@ class aero():
             Pb_corr[5] += self.jcl.aero['Cn_beta_corr'][self.i_aero]*q_dyn*self.jcl.general['A_ref']*self.jcl.general['b_ref']*beta
         return Pb_corr    
     
+    def landinggear(self, X, Tgeo2body):
+        if hasattr(self.jcl, 'landinggear'):
+            # init
+            PHIlg_cg = self.model.mass['PHIlg_cg'][self.i_mass]
+            p1  = PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.lggrid['set'][:,2]]  # position LG attachment point over ground
+            dp1 = PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
+            p2  = X[12+self.n_modes*2+3:12+self.n_modes*2+3+self.model.lggrid['n']]  # position Tire center over ground
+            dp2 = X[12+self.n_modes*2+3+self.model.lggrid['n']:12+self.n_modes*2+3+self.model.lggrid['n']*2] # velocity Tire center
+            #print 'p1: ' + str(p1)
+            #print 'p2: ' + str(p2)
+            #print 'p1-p2: ' + str(p1-p2)
+            #print 'dp1: ' + str(dp1)
+            #print 'dp2: ' + str(dp2)
+            F1 = []
+            F2 = []
+            ddp2 = []
+            for i in range(self.model.lggrid['n']):
+                # calculate pre-stress F0 in gas spring
+                # assumption: gas spring is compressed by 2/3 when aircraft on ground 
+                F0 = self.jcl.landinggear['para'][i]['F_static'] / ((1.0-2.0/3.0)**(-self.jcl.landinggear['para'][i]['n']*self.jcl.landinggear['para'][i]['ck'])) # N
+                # gas spring and damper
+                stroke = p2[i] - p1[i] + self.jcl.landinggear['para'][i]['sm'] + self.jcl.landinggear['para'][i]['fitting_length']
+                if stroke > 0.001:
+                    Ff = F0*(1.0-stroke/self.jcl.landinggear['para'][i]['sm'])**(-self.jcl.landinggear['para'][i]['n']*self.jcl.landinggear['para'][i]['ck'])
+                    Fd = np.sign(dp2[i]-dp1[i])*self.jcl.landinggear['para'][i]['d']*(dp2[i]-dp1[i])**2.0 
+                elif stroke < -0.001:
+                    Ff = -F0
+                    Fd = np.sign(dp2[i]-dp1[i])*self.jcl.landinggear['para'][i]['d']*(dp2[i]-dp1[i])**2.0
+                else:
+                    Ff = 0.0
+                    Fd = 0.0
+                # tire
+                if p2[i] < self.jcl.landinggear['para'][i]['r_tire']:
+                    Fz = self.jcl.landinggear['para'][i]['c1_tire']*(self.jcl.landinggear['para'][i]['r_tire'] - p2[i]) + self.jcl.landinggear['para'][i]['d_tire']*(-dp2[i]) 
+                else:
+                    Fz = 0.0
+                Fg_tire = 0.0 #self.jcl.landinggear['para'][i]['m_tire'] * 9.81
+                
+                F1.append(Ff+Fd)
+                F2.append(-Fg_tire-(Ff+Fd)+Fz)
+                ddp2.append(1.0/self.jcl.landinggear['para'][i]['m_tire']*(-Fg_tire-(Ff+Fd)+Fz))
+        else:
+            F1 = 0.0
+            F2 = 0.0
+            p2 = 0.0
+            dp2 = 0.0
+            ddp2 = 0.0
+        #print 'F1: ' + str(F1)
+        #print 'F2: ' + str(F2)
+        #print 'ddp2: ' + str(ddp2)
+        Plg = np.zeros(self.model.lggrid['n']*6)
+        Plg[self.model.lggrid['set'][:,2]] = F1
+        return Plg, p2, dp2, np.array(ddp2), np.array(F1), np.array(F2)
     
 class steady(aero):
 
@@ -415,6 +468,26 @@ class steady(aero):
         if type in ['trim', 'sim']:
             return Y
         elif type in ['trim_full_output', 'sim_full_output']:
+            # calculate translations, velocities and accelerations of some additional points
+            # (might also be used for sensors in a closed-loop system
+            if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
+                PHIlg_cg = self.model.mass['PHIlg_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
+                p1   = PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.lggrid['set'][:,2]]  # position LG attachment point over ground
+                dp1  = PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
+                ddp1 = PHIlg_cg.dot(np.dot(self.PHInorm_cg, Y[6:12]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
+                #p1   = PHIlg_cg.dot(X[0:6 ])[self.model.lggrid['set'][:,2]]
+                #dp1  = PHIlg_cg.dot(X[6:12])[self.model.lggrid['set'][:,2]]
+                #ddp1 = PHIlg_cg.dot(Y[6:12])[self.model.lggrid['set'][:,2]]
+                Plg  = np.zeros(self.model.lggrid['n']*6)
+                F1   = np.zeros(self.model.lggrid['n']) 
+                F2   = np.zeros(self.model.lggrid['n']) 
+            else:
+                p1 = None
+                dp1 = None
+                ddp1 = None
+                Plg = None
+                F1 = None
+                F2 = None
             response = {'X': X, 
                         'Y': Y,
                         't': np.array([t]),
@@ -442,6 +515,12 @@ class steady(aero):
                         'd2Uf_dt2': d2Uf_dt2,
                         'Nxyz': Nxyz,
                         'g_cg': g_cg,
+                        'Plg': Plg,
+                        'p1': p1,
+                        'dp1': dp1,
+                        'ddp1': ddp1,
+                        'F1': F1,
+                        'F2': F2,
                        }
             return response        
     def ode_arg_sorter(self, t, X):
@@ -672,4 +751,165 @@ class unsteady(aero):
         elif type=='sim_full_output':
             response = self.equations(X, time, 'sim_full_output')
             return response
+      
+class landing(aero):
+
+    def equations(self, X, t, type):
+        self.counter += 1
+        # recover states
+        Tgeo2body = np.zeros((6,6))
+        Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
+        Tgeo2body[3:6,3:6] = calc_drehmatrix_angular(X[3], X[4], X[5])
+        Tbody2geo = np.zeros((6,6))
+        Tbody2geo[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5]).T
+        Tbody2geo[3:6,3:6] = calc_drehmatrix_angular_inv(X[3], X[4], X[5])
+        dUcg_dt  = np.dot(self.PHIcg_norm,np.dot(Tgeo2body, X[6:12])) # u v w p q r bodyfixed
+        Uf = np.array(X[12:12+self.n_modes])
+        dUf_dt = np.array(X[12+self.n_modes:12+self.n_modes*2])
+               
+        # aktuelle Vtas und q_dyn berechnen
+        uvw = X[6:9]
+        Vtas = sum(uvw**2)**0.5
+        rho = self.model.atmo['rho'][self.i_atmo]
+        q_dyn = rho/2.0*Vtas**2
         
+        alpha = np.arctan(dUcg_dt[2]/dUcg_dt[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
+        beta  = np.arctan(dUcg_dt[1]/dUcg_dt[0]) #X[5] - np.arctan(X[7]/X[6])
+        my    = 0.0
+        
+        # Steuerflaechenausschlaege vom efcs holen
+        Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
+        
+        # --------------------   
+        # --- aerodynamics ---   
+        # --------------------
+        Pk_rbm,  wj_rbm  = self.rbm(dUcg_dt, alpha, q_dyn, Vtas)
+        Pk_cam,  wj_cam  = self.camber_twist(q_dyn)
+        Pk_cs,   wj_cs   = self.cs(X, Ux2, q_dyn)
+        Pk_f,    wj_f    = self.flexible(Uf, dUf_dt, dUcg_dt, q_dyn, Vtas)
+        Pk_gust, wj_gust = self.gust(X, q_dyn)
+        
+        wj = wj_rbm + wj_cam + wj_cs + wj_f + wj_gust
+        Pk_idrag         = self.idrag(wj, q_dyn)
+        Pk_cfd           = self.cfd( alpha, X, Ux2, q_dyn)
+        
+        Pk_unsteady = Pk_rbm*0.0
+        
+        # -------------------------------  
+        # --- correction coefficients ---   
+        # -------------------------------
+        Pb_corr = self.correctioon_coefficients(alpha, beta, q_dyn)
+        
+        # -------------------- 
+        # --- landing gear ---   
+        # --------------------
+        Plg, p2, dp2, ddp2, F1, F2 = self.landinggear(X, Tgeo2body)
+        Pb_lg = self.model.mass['PHIlg_cg'][self.i_mass].T.dot(Plg)
+        # ---------------------------   
+        # --- summation of forces ---   
+        # ---------------------------
+        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_cfd + Pk_unsteady
+        Pmac = np.dot(self.Dkx1.T, Pk_aero)
+        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + Pb_lg
+        
+        g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
+        g_cg = np.dot(self.PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
+               
+        # -----------   
+        # --- EoM ---   
+        # -----------
+        d2Ucg_dt2 = np.zeros(dUcg_dt.shape)
+        if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
+            # # non-linear EoM, bodyfixed / Waszak
+            d2Ucg_dt2[0:3] = np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) + np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
+            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb[3:6,3:6]) , Pb[3:6] - np.cross(dUcg_dt[3:6], np.dot(self.Mb[3:6,3:6], dUcg_dt[3:6])) )
+            Nxyz = (d2Ucg_dt2[0:3] - g_cg - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
+        else:
+            # linear EoM, bodyfixed / Nastran
+            d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
+            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb)[3:6,3:6], Pb[3:6] )
+            Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
+        
+        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
+        # flexible EoM
+        d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
+        
+        # ----------------------
+        # --- CS derivatives ---
+        # ----------------------
+        if self.simcase and self.simcase['cs_signal']:
+            dcommand = self.efcs.cs_signal(t)
+        elif self.simcase and self.simcase['controller']:
+            dcommand = self.efcs.controller(angular_acc=d2Ucg_dt2[3:6])
+        else:
+            dcommand= np.zeros(3)
+
+        # --------------   
+        # --- output ---   
+        # --------------
+        Y = np.hstack((X[6:12], np.dot(Tbody2geo,np.dot(self.PHIcg_norm,  d2Ucg_dt2)), dUf_dt, d2Uf_dt2, dcommand, np.hstack((dp2, ddp2)), Nxyz[2] ))    
+ 
+        if type in ['trim', 'sim']:
+            return Y
+        elif type in ['trim_full_output', 'sim_full_output']:
+            # calculate translations, velocities and accelerations of some additional points
+            # (might also be used for sensors in a closed-loop system
+            PHIlg_cg = self.model.mass['PHIlg_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
+            p1   = PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.lggrid['set'][:,2]]  # position LG attachment point over ground
+            dp1  = PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
+            ddp1 = PHIlg_cg.dot(np.dot(self.PHInorm_cg, Y[6:12]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
+            #p1   = PHIlg_cg.dot(X[0:6 ])[self.model.lggrid['set'][:,2]]
+            #dp1  = PHIlg_cg.dot(X[6:12])[self.model.lggrid['set'][:,2]]
+            #ddp1 = PHIlg_cg.dot(Y[6:12])[self.model.lggrid['set'][:,2]]
+
+            response = {'X': X, 
+                        'Y': Y,
+                        't': np.array([t]),
+                        'Pk_rbm': Pk_rbm,
+                        'Pk_cam': Pk_cam,
+                        'Pk_aero': Pk_aero,
+                        'Pk_cs': Pk_cs,
+                        'Pk_f': Pk_f,
+                        'Pk_cfd': Pk_cfd,
+                        'Pk_gust': Pk_gust,
+                        'Pk_unsteady': Pk_unsteady,
+                        'Pk_idrag': Pk_idrag,
+                        'q_dyn': np.array([q_dyn]),
+                        'Pb': Pb,
+                        'Pmac': Pmac,
+                        'Pf': Pf,
+                        'alpha': np.array([alpha]),
+                        'beta': np.array([beta]),
+                        #'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
+                        'Ux2': Ux2,
+                        'dUcg_dt': dUcg_dt,
+                        'd2Ucg_dt2': d2Ucg_dt2,
+                        'Uf': Uf,
+                        'dUf_dt': dUf_dt,
+                        'd2Uf_dt2': d2Uf_dt2,
+                        'Nxyz': Nxyz,
+                        'g_cg': g_cg,
+                        'Plg': Plg,
+                        'p1': p1,
+                        'dp1': dp1,
+                        'ddp1': ddp1,
+                        'F1': F1,
+                        'F2': F2,
+                        }
+            return response        
+    
+    def ode_arg_sorter(self, t, X):
+        return self.eval_equations(X, t, 'sim')  
+        
+    def eval_equations(self, X_free, time, type='trim_full_output'):
+        if type in[ 'sim', 'sim_full_output']:
+            X = X_free
+        
+        # evaluate model equations
+        if type=='sim':
+            Y = self.equations(X, time, 'sim')
+            return Y[:-1] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
+            
+        elif type=='sim_full_output':
+            response = self.equations(X, time, 'sim_full_output')
+            return response

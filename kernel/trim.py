@@ -6,7 +6,7 @@ Created on Thu Nov 27 15:35:22 2014
 """
 import numpy as np
 import scipy.optimize as so
-import logging
+import logging, sys
 
 class trim:
     def __init__(self, model, jcl, trimcase, simcase):
@@ -97,6 +97,20 @@ class trim:
             # outputs
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
         
+        # ----------------
+        # --- approach --- 
+        # ----------------
+        elif self.trimcase['manoeuver'] == 'approach':
+            logging.info('setting trim conditions to "approach"')
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],2] = self.trimcase['w']
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dw'))[0][0],1] = 'fix'
+            #self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'Nz'))[0][0],1] = 'free'
+            
         # ------------------
         # --- segelflug --- 
         # -----------------
@@ -201,8 +215,21 @@ class trim:
         
     def exec_sim(self):
         import model_equations 
-        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+        elif hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
+            logging.info('adding 2 x {} states for landing gear'.format(self.model.lggrid['n']))
+            lg_states_X = []
+            lg_states_Y = []
+            for i in range(self.model.lggrid['n']):
+                lg_states_X.append(self.response['p1'][i] - self.jcl.landinggear['para'][i]['sm'] - self.jcl.landinggear['para'][i]['fitting_length'])
+                lg_states_Y.append(self.response['dp1'][i])
+            for i in range(self.model.lggrid['n']):
+                lg_states_X.append(self.response['dp1'][i])
+                lg_states_Y.append(self.response['ddp1'][i])
+            self.response['X'] = np.hstack((self.response['X'], lg_states_X ))
+            self.response['Y'] = np.hstack((self.response['Y'], lg_states_Y ))
+            equations = model_equations.landing(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             # initialize lag states with zero and extend steady response vectors X and Y
             logging.info('adding {} x {} unsteady lag states to the system'.format(self.model.aerogrid['n'],self.model.aero['n_poles']))
@@ -240,5 +267,6 @@ class trim:
 
         else:
             self.response['t'] = None
-            logging.warning('Integration failed!')
+            logging.error('Integration failed! Exit.')
+            sys.exit()
             
