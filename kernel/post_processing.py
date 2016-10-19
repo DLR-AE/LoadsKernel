@@ -40,6 +40,7 @@ class post_processing:
         if len(response['t']) > 1:
             response['Pg_iner']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Pg_aero']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            response['Pg_ext']         = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Pg']             = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['d2Ug_dt2']       = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             for i_step in range(len(response['t'])):
@@ -55,7 +56,9 @@ class post_processing:
                 Pg_iner_f = - Mgg.dot(d2Ug_dt2_f)
                 response['Pg_iner'][i_step,:] = Pg_iner_r + Pg_iner_f
                 response['Pg_aero'][i_step,:] = self.model.PHIk_strc.T.dot(response['Pk_aero'][i_step,:])
-                response['Pg'][i_step,:] = response['Pg_aero'][i_step,:] + response['Pg_iner'][i_step,:]
+                if hasattr(self.jcl, 'landinggear'):
+                    response['Pg_ext'][i_step,:][self.model.lggrid['set_strcgrid']] = response['Plg'][i_step,:]
+                response['Pg'][i_step,:] = response['Pg_aero'][i_step,:] + response['Pg_iner'][i_step,:] + response['Pg_ext'][i_step,:]
                 response['d2Ug_dt2'][i_step,:] = d2Ug_dt2_r + d2Ug_dt2_f
         else:
             if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
@@ -69,7 +72,8 @@ class post_processing:
             Pg_iner_f = - Mgg.dot(d2Ug_dt2_f)
             response['Pg_iner'] = Pg_iner_r + Pg_iner_f
             response['Pg_aero'] = np.dot(self.model.PHIk_strc.T, response['Pk_aero'])
-            response['Pg'] = response['Pg_aero'] + response['Pg_iner']
+            response['Pg_ext']  = np.zeros((1, 6*self.model.strcgrid['n']))
+            response['Pg'] = response['Pg_aero'] + response['Pg_iner'] + response['Pg_ext']
             response['d2Ug_dt2'] = d2Ug_dt2_r + d2Ug_dt2_f
             # das muss raus kommen:
             #np.dot(self.model.mass['Mb'][i_mass],np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'], response['d2Ucg_dt2'][3:6])))
@@ -96,6 +100,7 @@ class post_processing:
         if len(response['t']) > 1:
             response['Pg_iner_global'] = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Pg_aero_global'] = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            response['Pg_ext_global']  = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Ug_r']           = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Ug_f']           = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Ug']             = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
@@ -125,6 +130,7 @@ class post_processing:
                 response['Ug_f'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, Ug_f_body)
                 response['Pg_aero_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'][i_step,:])
                 response['Pg_iner_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'][i_step,:])
+                response['Pg_ext_global'][i_step,:]  = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_ext'][i_step,:])
                 #response['Pg_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'][i_step,:])
                 response['Ug'][i_step,:] = response['Ug_r'][i_step,:] + response['Ug_f'][i_step,:]
                 
@@ -153,6 +159,7 @@ class post_processing:
             response['Ug_f'] = force_trafo(strcgrid_tmp, coord_tmp, Ug_f_body)
             response['Pg_aero_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'])
             response['Pg_iner_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'])
+            response['Pg_ext_global']  = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_ext'])
             #response['Pg_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'])
             response['Ug'] = response['Ug_r'] + response['Ug_f']
  
