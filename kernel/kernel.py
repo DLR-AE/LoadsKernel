@@ -6,6 +6,7 @@ Created on Thu Nov 27 14:00:31 2014
 """
 import cPickle, time, imp, sys, os, multiprocessing, psutil, getpass, platform, logging
 import scipy
+from scipy import io
 import numpy as np
 import trim as trim_modul
 import post_processing as post_processing_modul
