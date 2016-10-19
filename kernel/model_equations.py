@@ -342,16 +342,16 @@ class aero():
                 stroke = p2[i] - p1[i] + self.jcl.landinggear['para'][i]['sm'] + self.jcl.landinggear['para'][i]['fitting_length']
                 if stroke > 0.001:
                     Ff = F0*(1.0-stroke/self.jcl.landinggear['para'][i]['sm'])**(-self.jcl.landinggear['para'][i]['n']*self.jcl.landinggear['para'][i]['ck'])
-                    Fd = np.sign(dp2[i]-dp1[i])*self.jcl.landinggear['para'][i]['d']*(dp2[i]-dp1[i])**2.0 
+                    Fd = np.sign(dp2[i]-dp1[i])*self.jcl.landinggear['para'][i]['d2']*(dp2[i]-dp1[i])**2.0 
                 elif stroke < -0.001:
                     Ff = -F0
-                    Fd = np.sign(dp2[i]-dp1[i])*self.jcl.landinggear['para'][i]['d']*(dp2[i]-dp1[i])**2.0
+                    Fd = 0.0 #np.sign(dp2[i]-dp1[i])*self.jcl.landinggear['para'][i]['d2']*(dp2[i]-dp1[i])**2.0
                 else:
                     Ff = 0.0
                     Fd = 0.0
                 # tire
                 if p2[i] < self.jcl.landinggear['para'][i]['r_tire']:
-                    Fz = self.jcl.landinggear['para'][i]['c1_tire']*(self.jcl.landinggear['para'][i]['r_tire'] - p2[i]) + self.jcl.landinggear['para'][i]['d_tire']*(-dp2[i]) 
+                    Fz = self.jcl.landinggear['para'][i]['c1_tire']*(self.jcl.landinggear['para'][i]['r_tire'] - p2[i]) + self.jcl.landinggear['para'][i]['d1_tire']*(-dp2[i]) 
                 else:
                     Fz = 0.0
                 Fg_tire = 0.0 #self.jcl.landinggear['para'][i]['m_tire'] * 9.81
