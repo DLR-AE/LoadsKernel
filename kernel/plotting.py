@@ -387,6 +387,30 @@ class plotting:
             plt.ylabel('Pb [N]')
             plt.grid('on')
             plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_aero'])
+            
+            plt.figure()
+            plt.subplot(3,1,1)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['p1'])
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,95:98], '--')
+            plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
+            plt.xlabel('t [s]')
+            plt.ylabel('p1,2 [m]')
+            plt.grid('on')
+            plt.subplot(3,1,2)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F1'])
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F2'], '--')
+            plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
+            plt.xlabel('t [s]')
+            plt.ylabel('F1,2 [N]')
+            plt.grid('on')
+            
+            plt.subplot(3,1,3)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dp1'])
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,98:101], '--')
+            plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
+            plt.xlabel('t [s]')
+            plt.ylabel('dp1,2 [m/s]')
+            plt.grid('on')
         
             plt.figure()
             plt.subplot(2,1,1)
@@ -619,7 +643,7 @@ class plotting:
         def anim(self):
             # internal function that actually updates the animation
             while True:
-                for (x, y, z, u1, v1, w1, u2, v2, w2) in zip(self.x, self.y, self.z, self.u1, self.v1, self.w1, self.u2, self.v2, self.w2):
+                for (x, y, z, u1, v1, w1, u2, v2, w2, u3, v3, w3) in zip(self.x, self.y, self.z, self.u1, self.v1, self.w1, self.u2, self.v2, self.w2, self.u3, self.v3, self.w3):
                     self.fig.scene.disable_render = True
                     #self.points.mlab_source.set(x=x, y=y, z=z)
                     self.src.outputs[0].points.from_array(np.array([x, y, z]).T)
@@ -627,6 +651,8 @@ class plotting:
                     self.cones1.mlab_source.set(x=x+u1, y=y+v1, z=z+w1, u=u1, v=v1, w=w1)
                     self.vectors2.mlab_source.set(x=x, y=y, z=z, u=u2, v=v2, w=w2)
                     self.cones2.mlab_source.set(x=x+u2, y=y+v2, z=z+w2, u=u2, v=v2, w=w2)
+                    self.vectors3.mlab_source.set(x=x, y=y, z=z, u=u3, v=v3, w=w3)
+                    self.cones3.mlab_source.set(x=x+u3, y=y+v3, z=z+w3, u=u3, v=v3, w=w3)
                     self.fig.scene.disable_render = False
                     #time.sleep(0.01)
                     yield
@@ -635,13 +661,15 @@ class plotting:
             # internal function that actually updates the animation
             self.fig.scene.disable_render = True
             i_frame = 0
-            for (x, y, z, u1, v1, w1, u2, v2, w2) in zip(self.x, self.y, self.z, self.u1, self.v1, self.w1, self.u2, self.v2, self.w2):
+            for (x, y, z, u1, v1, w1, u2, v2, w2, u3, v3, w3) in zip(self.x, self.y, self.z, self.u1, self.v1, self.w1, self.u2, self.v2, self.w2, self.u3, self.v3, self.w3):
                 #self.points.mlab_source.set(x=x, y=y, z=z)
                 self.src.outputs[0].points.from_array(np.array([x, y, z]).T)
                 self.vectors1.mlab_source.set(x=x, y=y, z=z, u=u1, v=v1, w=w1)
                 self.cones1.mlab_source.set(x=x+u1, y=y+v1, z=z+w1, u=u1, v=v1, w=w1)
                 self.vectors2.mlab_source.set(x=x, y=y, z=z, u=u2, v=v2, w=w2)
                 self.cones2.mlab_source.set(x=x+u2, y=y+v2, z=z+w2, u=u2, v=v2, w=w2)
+                self.vectors3.mlab_source.set(x=x, y=y, z=z, u=u3, v=v3, w=w3)
+                self.cones3.mlab_source.set(x=x+u3, y=y+v3, z=z+w3, u=u3, v=v3, w=w3)
                 self.fig.scene.render()
                 self.fig.scene.save_png('{}anim/subcase_{}_frame_{:06d}.png'.format(path_output, trimcase['subcase'], i_frame))
                 i_frame += 1        
@@ -656,8 +684,10 @@ class plotting:
         exponent = 0.5
         uvw1 = np.linalg.norm(response['Pg_aero_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
         uvw2 = np.linalg.norm(response['Pg_iner_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
+        uvw3 = np.linalg.norm(response['Pg_ext_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
         uvw1_e = uvw1**exponent
         uvw2_e = uvw2**exponent
+        uvw3_e = uvw3**exponent
         
         u1 = response['Pg_aero_global'][:,self.model.strcgrid['set'][:,0]] / uvw1 * uvw1_e
         v1 = response['Pg_aero_global'][:,self.model.strcgrid['set'][:,1]] / uvw1 * uvw1_e
@@ -665,6 +695,9 @@ class plotting:
         u2 = response['Pg_iner_global'][:,self.model.strcgrid['set'][:,0]] / uvw2 * uvw2_e
         v2 = response['Pg_iner_global'][:,self.model.strcgrid['set'][:,1]] / uvw2 * uvw2_e
         w2 = response['Pg_iner_global'][:,self.model.strcgrid['set'][:,2]] / uvw2 * uvw2_e
+        u3 = response['Pg_ext_global'][:,self.model.strcgrid['set'][:,0]] / uvw3 * uvw3_e
+        v3 = response['Pg_ext_global'][:,self.model.strcgrid['set'][:,1]] / uvw3 * uvw3_e
+        w3 = response['Pg_ext_global'][:,self.model.strcgrid['set'][:,2]] / uvw3 * uvw3_e
         
         # guard for NaNs due to pervious division by uvw
         u1[np.isnan(u1)] = 0.0
@@ -673,9 +706,12 @@ class plotting:
         u2[np.isnan(u2)] = 0.0
         v2[np.isnan(v2)] = 0.0
         w2[np.isnan(w2)] = 0.0
+        u3[np.isnan(u3)] = 0.0
+        v3[np.isnan(v3)] = 0.0
+        w3[np.isnan(w3)] = 0.0
         
         # maximale Ist-Laenge eines Vektors
-        r_max = np.max([(u1**2.0 + v1**2.0 + w1**2.0)**0.5, (u2**2.0 + v2**2.0 + w2**2.0)**0.5])
+        r_max = np.max([(u1**2.0 + v1**2.0 + w1**2.0)**0.5, (u2**2.0 + v2**2.0 + w2**2.0)**0.5, (u3**2.0 + v3**2.0 + w3**2.0)**0.5])
         # maximale Soll-Laenge eines Vektors, abgeleitet von der Ausdehnung des Modells
         r_scale = np.max([self.model.strcgrid['offset'][:,0].max() - self.model.strcgrid['offset'][:,0].min(), self.model.strcgrid['offset'][:,1].max() - self.model.strcgrid['offset'][:,1].min(), self.model.strcgrid['offset'][:,2].max() - self.model.strcgrid['offset'][:,2].min()])
  
@@ -686,6 +722,9 @@ class plotting:
         self.u2 = u2 / r_max * r_scale
         self.v2 = v2 / r_max * r_scale
         self.w2 = w2 / r_max * r_scale
+        self.u3 = u3 / r_max * r_scale
+        self.v3 = v3 / r_max * r_scale
+        self.w3 = w3 / r_max * r_scale
 
         # set up animation
         if make_movie:
@@ -704,10 +743,13 @@ class plotting:
         self.cones1   = mlab.quiver3d(self.x[0,:]+self.u1[0,:], self.y[0,:]+self.v1[0,:], self.z[0,:]+self.w1[0,:], self.u1[0,:], self.v1[0,:], self.w1[0,:], color=(0,1,0),  mode='cone', opacity=0.4, scale_mode='vector', scale_factor=0.1, resolution=16)
         self.vectors2 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u2[0,:], self.v2[0,:], self.w2[0,:], color=(0,1,1),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
         self.cones2   = mlab.quiver3d(self.x[0,:]+self.u2[0,:], self.y[0,:]+self.v2[0,:], self.z[0,:]+self.w2[0,:], self.u2[0,:], self.v2[0,:], self.w2[0,:], color=(0,1,1),  mode='cone', opacity=0.4, scale_mode='vector', scale_factor=0.1, resolution=16)       
+        self.vectors3 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u3[0,:], self.v3[0,:], self.w3[0,:], color=(1,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+        self.cones3   = mlab.quiver3d(self.x[0,:]+self.u3[0,:], self.y[0,:]+self.v3[0,:], self.z[0,:]+self.w3[0,:], self.u3[0,:], self.v3[0,:], self.w3[0,:], color=(1,1,0),  mode='cone', opacity=0.4, scale_mode='vector', scale_factor=0.1, resolution=16)       
+
         mlab.orientation_axes()
 
         #mlab.view(azimuth=180.0, elevation=90.0, roll=-90.0, distance=70.0, focalpoint=np.array([self.x.mean(),self.y.mean(),self.z.mean()])) # back view
-        distance = 2*((self.x.max()-self.x.min())**2 + (self.y.max()-self.y.min())**2 + (self.z.max()-self.z.min())**2)**0.5
+        distance = 1.5*((self.x.max()-self.x.min())**2 + (self.y.max()-self.y.min())**2 + (self.z.max()-self.z.min())**2)**0.5
         mlab.view(azimuth=135.0, elevation=120.0, roll=-120.0, distance=distance, focalpoint=np.array([self.x.mean(),self.y.mean(),self.z.mean()])) # view from right and above
 
         if make_movie:
