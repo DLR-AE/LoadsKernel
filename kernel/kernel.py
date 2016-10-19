@@ -158,6 +158,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             monstations.gather_monstations(jcl.trimcase[i], trim_i.response)
             if 't_final' and 'dt' in jcl.simcase[i].keys():
                 monstations.gather_dyn2stat(i, trim_i.response)
+            trim_i.response['i'] = i
             logging.info( '--> Saving response(s).')
             cPickle.dump(trim_i.response, f, cPickle.HIGHEST_PROTOCOL)
             #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
