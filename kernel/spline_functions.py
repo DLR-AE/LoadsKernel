@@ -271,7 +271,7 @@ def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='',
     else:
         return splinematrix.toarray() 
         
-def plot_splinerules(grid_i,  set_i,  grid_d, set_d, splinerules, coord):
+def plot_splinerules(grid_i,  set_i,  grid_d, set_d, splinerules, coord, filename):
 
     # transfer points into common coord
     offset_dest_i = []
@@ -299,15 +299,25 @@ def plot_splinerules(grid_i,  set_i,  grid_d, set_d, splinerules, coord):
     u = offset_dest_d[position_d,0] - x
     v = offset_dest_d[position_d,1] - y
     w = offset_dest_d[position_d,2] - z
-    
-    from mayavi import mlab
     p_scale = 0.05 # points
-    mlab.figure()
+
+    try:
+        from mayavi import mlab
+    except:
+        logging.warning('Could not import mayavi. Abort plotting of spline rules.')
+        return
+    
+    mlab.options.offscreen = True
+    mlab.figure(bgcolor=(1,1,1))    
     mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2], scale_factor=p_scale*2, color=(1,0,0))
     mlab.points3d(grid_d['offset'+set_d][:,0], grid_d['offset'+set_d][:,1], grid_d['offset'+set_d][:,2], scale_factor=p_scale, color=(0,0,1))
     mlab.quiver3d(x,y,z,u,v,w, mode='2ddash', scale_factor=1.0, color=(0,0,0), opacity=0.4)
-    mlab.show()
-
+    mlab.orientation_axes()
+    mlab.savefig(filename, size=(1920,1080))
+    mlab.close()
+    logging.info('Saving plot of spline rules to: {}'.format(filename))
+    
+        
 
 def sparse_insert(sparsematrix, submatrix, idx1, idx2):
     # For sparse matrices, "fancy indexing" is not supported / not implemented as of 2014

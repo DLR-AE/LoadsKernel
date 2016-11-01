@@ -30,9 +30,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         logging.info( '--> Starting preprocessing.')  
         t_start = time.time()
         import model as model_modul
-        model = model_modul.model(jcl)
+        model = model_modul.model(jcl, path_output)
         model.build_model()
-        model.write_aux_data(path_output)
+        model.write_aux_data()
         logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
         
         logging.info( '--> Saving model data.')

@@ -316,5 +316,28 @@ class build_mass:
         else:   
             return MAC
     
+    def plot_masses(self, MGG, Mb, cggrid, filename):
+        try:
+            from mayavi import mlab
+        except:
+            logging.warning('Could not import mayavi. Abort plotting of mass configurations.')
+            return
+        # get nodal masses
+        m_cg = Mb[0,0]
+        m = MGG.diagonal()[0::6]
+        
+        radius_mass_cg = ((m_cg*3.)/(4.*2.7*np.pi))**(1./3.) 
+        radius_masses = ((m*3.)/(4.*2.7*np.pi))**(1./3.) #/ radius_mass_cg
+        #radius_masses = radius_masses/radius_masses.max()
+       
+        mlab.options.offscreen = True
+        mlab.figure(bgcolor=(1,1,1))
+        mlab.points3d(self.strcgrid['offset'][:,0], self.strcgrid['offset'][:,1], self.strcgrid['offset'][:,2], radius_masses, scale_mode='scalar', scale_factor = 1.0, color=(1,0.7,0), resolution=32)
+        mlab.points3d(cggrid['offset'][0,0],        cggrid['offset'][0,1],        cggrid['offset'][0,2],       radius_mass_cg, scale_mode='scalar', scale_factor = 1.0, color=(1,1,0), opacity=0.3, resolution=64)
+        mlab.orientation_axes()
+        mlab.savefig(filename, size=(1920,1080))
+        mlab.close()
+        logging.info('Saving plot of nodal masses to: {}'.format(filename))
+        
     
     
