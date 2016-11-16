@@ -319,29 +319,29 @@ class aero():
         return Pb_corr    
     
     def landinggear(self, X, Tgeo2body):
-        if hasattr(self.jcl, 'landinggear'):
+        Plg = np.zeros(self.model.lggrid['n']*6)
+        F1 = []
+        F2 = []
+        Fx = []
+        p2 = []
+        dp2 = []
+        ddp2 = []
+        if self.simcase and self.simcase['landinggear']:
             # init
             PHIlg_cg = self.model.mass['PHIlg_cg'][self.i_mass]
             p1  = PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.lggrid['set'][:,2]]  # position LG attachment point over ground
             dp1 = PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
             p2  = X[12+self.n_modes*2+3:12+self.n_modes*2+3+self.model.lggrid['n']]  # position Tire center over ground
             dp2 = X[12+self.n_modes*2+3+self.model.lggrid['n']:12+self.n_modes*2+3+self.model.lggrid['n']*2] # velocity Tire center
-            #print 'p1: ' + str(p1)
-            #print 'p2: ' + str(p2)
-            #print 'p1-p2: ' + str(p1-p2)
-            #print 'dp1: ' + str(dp1)
-            #print 'dp2: ' + str(dp2)
-            F1 = []
-            F2 = []
-            ddp2 = []
+            # loop over every landing gear
             for i in range(self.model.lggrid['n']):
                 # calculate pre-stress F0 in gas spring
                 # assumption: gas spring is compressed by 2/3 when aircraft on ground 
                 F0 = self.jcl.landinggear['para'][i]['F_static'] / ((1.0-2.0/3.0)**(-self.jcl.landinggear['para'][i]['n']*self.jcl.landinggear['para'][i]['ck'])) # N
                 # gas spring and damper
-                stroke = p2[i] - p1[i] + self.jcl.landinggear['para'][i]['sm'] + self.jcl.landinggear['para'][i]['fitting_length']
+                stroke = p2[i] - p1[i] + self.jcl.landinggear['para'][i]['stroke_length'] + self.jcl.landinggear['para'][i]['fitting_length']
                 if stroke > 0.001:
-                    Ff = F0*(1.0-stroke/self.jcl.landinggear['para'][i]['sm'])**(-self.jcl.landinggear['para'][i]['n']*self.jcl.landinggear['para'][i]['ck'])
+                    Ff = F0*(1.0-stroke/self.jcl.landinggear['para'][i]['stroke_length'])**(-self.jcl.landinggear['para'][i]['n']*self.jcl.landinggear['para'][i]['ck'])
                     Fd = np.sign(dp2[i]-dp1[i])*self.jcl.landinggear['para'][i]['d2']*(dp2[i]-dp1[i])**2.0 
                 elif stroke < -0.001:
                     Ff = -F0
@@ -356,20 +356,22 @@ class aero():
                     Fz = 0.0
                 Fg_tire = 0.0 #self.jcl.landinggear['para'][i]['m_tire'] * 9.81
                 
-                F1.append(Ff+Fd)
-                F2.append(-Fg_tire-(Ff+Fd)+Fz)
-                ddp2.append(1.0/self.jcl.landinggear['para'][i]['m_tire']*(-Fg_tire-(Ff+Fd)+Fz))
-        else:
-            F1 = 0.0
-            F2 = 0.0
-            p2 = 0.0
-            dp2 = 0.0
-            ddp2 = 0.0
-        #print 'F1: ' + str(F1)
-        #print 'F2: ' + str(F2)
-        #print 'ddp2: ' + str(ddp2)
-        Plg = np.zeros(self.model.lggrid['n']*6)
-        Plg[self.model.lggrid['set'][:,2]] = F1
+                # in case of retracted landing gear no forces apply
+                if self.simcase['landinggear_state'][i] == 'extended':
+                    F1.append(Ff+Fd)
+                    F2.append(-Fg_tire-(Ff+Fd)+Fz)
+                    Fx.append(0.25*Fz) # CS 25.479(d)(1)
+                    ddp2.append(1.0/self.jcl.landinggear['para'][i]['m_tire']*(-Fg_tire-(Ff+Fd)+Fz))
+                else: 
+                    F1.append(0.0)
+                    F2.append(0.0)
+                    Fx.append(0.0)
+                    ddp2.append(0.0)
+                    
+            # insert forces in 6dof vector Plg
+            Plg[self.model.lggrid['set'][:,0]] = Fx 
+            Plg[self.model.lggrid['set'][:,2]] = F1
+            
         return Plg, p2, dp2, np.array(ddp2), np.array(F1), np.array(F2)
     
 class steady(aero):
@@ -804,13 +806,13 @@ class landing(aero):
         # --- landing gear ---   
         # --------------------
         Plg, p2, dp2, ddp2, F1, F2 = self.landinggear(X, Tgeo2body)
-        Pb_lg = self.model.mass['PHIlg_cg'][self.i_mass].T.dot(Plg)
+        
         # ---------------------------   
         # --- summation of forces ---   
         # ---------------------------
         Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_cfd + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero)
-        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + Pb_lg
+        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + np.dot(self.model.mass['PHIlg_cg'][self.i_mass].T, Plg)
         
         g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
         g_cg = np.dot(self.PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
