@@ -97,11 +97,11 @@ class trim:
             # outputs
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
         
-        # ----------------
-        # --- approach --- 
-        # ----------------
-        elif self.trimcase['manoeuver'] == 'approach':
-            logging.info('setting trim conditions to "approach"')
+        # ---------------------
+        # --- level landing --- 
+        # ---------------------
+        elif self.trimcase['manoeuver'] in ['L1wheel', 'L2wheel']:
+            logging.info('setting trim conditions to "level landing"')
             # inputs
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],1] = 'fix'
@@ -109,7 +109,22 @@ class trim:
             # outputs
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dw'))[0][0],1] = 'fix'
-            #self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'Nz'))[0][0],1] = 'free'
+            
+        # -----------------------
+        # --- 3 wheel landing --- 
+        # -----------------------
+        elif self.trimcase['manoeuver'] in ['L3wheel']:
+            logging.info('setting trim conditions to "3 wheel landing"')
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],2] = self.trimcase['w']
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'theta'))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'theta'))[0][0],2] = self.trimcase['theta']
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dw'))[0][0],1] = 'fix'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'Nz'))[0][0],1] = 'free'
             
         # ------------------
         # --- segelflug --- 
@@ -215,14 +230,14 @@ class trim:
         
     def exec_sim(self):
         import model_equations 
-        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
+        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not self.simcase['landinggear']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
-        elif hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
+        elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
             logging.info('adding 2 x {} states for landing gear'.format(self.model.lggrid['n']))
             lg_states_X = []
             lg_states_Y = []
             for i in range(self.model.lggrid['n']):
-                lg_states_X.append(self.response['p1'][i] - self.jcl.landinggear['para'][i]['sm'] - self.jcl.landinggear['para'][i]['fitting_length'])
+                lg_states_X.append(self.response['p1'][i] - self.jcl.landinggear['para'][i]['stroke_length'] - self.jcl.landinggear['para'][i]['fitting_length'])
                 lg_states_Y.append(self.response['dp1'][i])
             for i in range(self.model.lggrid['n']):
                 lg_states_X.append(self.response['dp1'][i])
