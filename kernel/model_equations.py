@@ -307,7 +307,7 @@ class aero():
                 x2_interpolation_function = self.aerodb_x2_interpolation_function[pos]
                 # Null-Loesung abziehen!
                 # Extrapolation sollte durch passend eingestellte Grenzen im EFCS verhindert werden. 
-                Pk_cfd += (x2_interpolation_function(Ux2[i_x2]) - x2_interpolation_function(0.0) ) / self.aerodb_x2[pos]['q_dyn'] * self.q_dyn
+                Pk_cfd += (x2_interpolation_function(Ux2[i_x2]) - x2_interpolation_function(0.0) ) / self.aerodb_x2[pos]['q_dyn'] * q_dyn
         return Pk_cfd
     
     def correctioon_coefficients(self, alpha, beta, q_dyn):
