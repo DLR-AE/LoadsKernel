@@ -18,7 +18,7 @@ from  atmo_isa import atmo_isa
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import cPickle, sys, time, logging
+import cPickle, sys, time, logging, copy
 from oct2py import octave 
 
 class model:
@@ -97,6 +97,13 @@ class model:
             else: 
                 logging.warning( 'No Monitoring Stations are created!')
         
+        
+        if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
+            logging.info('Building lggrid from landing gear attachment points...')
+            self.lggrid = build_splinegrid.build_subgrid(self.strcgrid, self.jcl.landinggear['attachment_point'] )
+            self.lggrid['set_strcgrid'] = copy.deepcopy(self.lggrid['set'])
+            self.lggrid['set'] = np.arange(0,6*self.lggrid['n']).reshape(-1,6)
+            
         logging.info( 'Building atmo model...')
         if self.jcl.atmo['method']=='ISA':
             self.atmo = {'key':[],
@@ -321,11 +328,13 @@ class model:
                          'cggrid': [],
                          'cggrid_norm': [],
                          'PHIstrc_cg': [],
+                         'PHIlg_cg': [],
                          'PHImac_cg': [],
                          'PHIcg_mac': [],
                          'PHInorm_cg': [],
                          'PHIcg_norm': [],
                          'PHIf_strc': [],
+                         'PHIf_lg': [],
                          'PHIjf': [],
                          'PHIkf': [],
                          'Mff': [],
@@ -369,6 +378,13 @@ class model:
                 rules = spline_rules.rules_point(cggrid, self.strcgrid)
                 PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
                 
+                if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
+                    rules = spline_rules.rules_point(cggrid, self.lggrid)
+                    PHIlg_cg = spline_functions.spline_rb(cggrid, '', self.lggrid, '', rules, self.coord)
+                    PHIf_lg = PHIf_strc[:,self.lggrid['set_strcgrid'].reshape(1,-1)[0]]
+                    self.mass['PHIlg_cg'].append(PHIlg_cg)
+                    self.mass['PHIf_lg'].append(PHIf_lg) 
+
                 rules = spline_rules.rules_point(cggrid, self.macgrid)
                 PHImac_cg = spline_functions.spline_rb(cggrid, '', self.macgrid, '', rules, self.coord)    
                 rules = spline_rules.rules_point(self.macgrid, cggrid)

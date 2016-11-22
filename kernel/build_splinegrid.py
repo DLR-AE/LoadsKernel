@@ -10,10 +10,12 @@ import numpy as np
 
 
 def build_splinegrid(strcgrid, filename):
-
     subgrid = read_geom.Modgen_GRID(filename)
+    return build_subgrid(strcgrid, subgrid['ID'])
+
+def build_subgrid(strcgrid, subgrid_IDs):
     splinegrid = {'ID': [], 'CD': [], 'CP': [], 'set': [], 'offset': [],  'n': 0, }
-    for i_ID in subgrid['ID']:
+    for i_ID in subgrid_IDs:
         pos = np.where(i_ID == strcgrid['ID'])[0][0]
         splinegrid['ID'].append(strcgrid['ID'][pos])
         splinegrid['CD'].append(strcgrid['CD'][pos])
