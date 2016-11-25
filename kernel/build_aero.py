@@ -233,7 +233,7 @@ def plot_aerogrid(aerogrid, cp = '', colormap = 'jet', value_min = '', value_max
     
     return ax
 
-def rfa(Qjj, k, n_poles=2):
+def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
     # B = A*x
     # B ist die gegebene AIC, A die roger-Aproxination, x sind die zu findenden Koeffizienten B0,B1,...B7
     logging.info( 'Performing rational function approximation (RFA) on AIC matrices with {} poles...'.format(n_poles))
@@ -309,6 +309,7 @@ def rfa(Qjj, k, n_poles=2):
             plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
       
-    plt.show()
+    plt.savefig(filename)
+    #plt.show()
     
     return ABCD, n_poles, betas, RMSE

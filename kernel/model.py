@@ -279,7 +279,7 @@ class model:
             self.aero['ABCD'] = []
             self.aero['RMSE'] = []
             for i_aero in range(len(self.jcl.aero['key'])):
-                ABCD, n_poles, betas, RMSE = build_aero.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], k = self.jcl.aero['k_red'], n_poles = self.jcl.aero['n_poles'])
+                ABCD, n_poles, betas, RMSE = build_aero.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], k = self.jcl.aero['k_red'], n_poles = self.jcl.aero['n_poles'], filename=self.path_output+'rfa_{}.png'.format(self.jcl.aero['key'][i_aero]))
                 self.aero['ABCD'].append(ABCD)
                 self.aero['RMSE'].append(RMSE)
             self.aero['n_poles'] = n_poles
