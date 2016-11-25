@@ -6,7 +6,7 @@ Created on Thu Nov 27 15:35:22 2014
 """
 import numpy as np
 import scipy.optimize as so
-import logging, sys
+import logging, sys, copy
 
 class trim:
     def __init__(self, model, jcl, trimcase, simcase):
@@ -184,7 +184,37 @@ class trim:
         else:
             logging.info('setting trim conditions to "default"')
         
-    
+    def calc_derivatives(self):
+        import model_equations # Warum muss der import hier stehen??
+        
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
+            equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+        else:
+            logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
+        
+        A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
+        delta = 0.01   
+            
+        X0 = np.array(self.trimcond_X[:,2], dtype='float')
+        response0 = equations.equations(X0, 0.0, 'sim_full_output')
+        logging.info('Calculating derivatives for ' + str(len(X0)) + ' variables...')
+        logging.info('MAC_ref = {}'.format(self.jcl.general['MAC_ref']))
+        logging.info('A_ref = {}'.format(self.jcl.general['A_ref']))
+        logging.info('b_ref = {}'.format(self.jcl.general['b_ref']))
+        logging.info('c_ref = {}'.format(self.jcl.general['c_ref']))
+        logging.info('')
+        logging.info('Derivatives given in body axis (aft-right-up):')
+        logging.info('--------------------------------------------------------------------------------------')
+        logging.info('                     Cx         Cy         Cz         Cmx        Cmx        Cmz')
+        for i in range(len(X0)):
+            Xi = copy.deepcopy(X0)
+            Xi[i] += delta
+            response = equations.equations(Xi, 0.0, 'sim_full_output')
+            Pmac_c = (response['Pmac']-response0['Pmac'])/response['q_dyn']/A/delta
+            tmp = '{:>20} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g}'.format( self.trimcond_X[i,0], Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref'] )
+            logging.info(tmp)
+        logging.info('--------------------------------------------------------------------------------------')
+                            
     def exec_trim(self):
         # The purpose of HYBRD is to find a zero of a system of N non-
         # linear functions in N variables by a modification of the Powell

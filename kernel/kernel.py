@@ -149,6 +149,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             
             trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
             trim_i.set_trimcond()
+            trim_i.calc_derivatives()
             trim_i.exec_trim()
             if 't_final' and 'dt' in jcl.simcase[i].keys():
                 trim_i.exec_sim()
@@ -210,6 +211,7 @@ def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
             logging.info( '========================================')
             trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
             trim_i.set_trimcond()
+            #trim_i.calc_derivatives()
             trim_i.exec_trim()
             if 't_final' and 'dt' in jcl.simcase[i].keys():
                 trim_i.exec_sim()
