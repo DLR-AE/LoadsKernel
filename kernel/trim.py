@@ -261,7 +261,7 @@ class trim:
         logging.info('running time simulation for ' + str(t_final) + ' sec...')
         #print 'Progress:'
         from scipy.integrate import ode
-        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-5, atol=1e-5, max_step=1e-4) # non-stiff: 'adams', stiff: 'bdf'
+        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-7, atol=1e-7, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
         #integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
 #         integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=1e-4)
         integrator.set_initial_value(X0, 0.0)
