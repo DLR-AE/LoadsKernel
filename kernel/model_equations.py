@@ -708,6 +708,26 @@ class unsteady(aero):
         if type in ['trim', 'sim']:
             return Y
         elif type in ['trim_full_output', 'sim_full_output']:
+            # calculate translations, velocities and accelerations of some additional points
+            # (might also be used for sensors in a closed-loop system
+            if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
+                PHIlg_cg = self.model.mass['PHIlg_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
+                p1   = PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.lggrid['set'][:,2]]  # position LG attachment point over ground
+                dp1  = PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
+                ddp1 = PHIlg_cg.dot(np.dot(self.PHInorm_cg, Y[6:12]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
+                #p1   = PHIlg_cg.dot(X[0:6 ])[self.model.lggrid['set'][:,2]]
+                #dp1  = PHIlg_cg.dot(X[6:12])[self.model.lggrid['set'][:,2]]
+                #ddp1 = PHIlg_cg.dot(Y[6:12])[self.model.lggrid['set'][:,2]]
+                Plg  = np.zeros(self.model.lggrid['n']*6)
+                F1   = np.zeros(self.model.lggrid['n']) 
+                F2   = np.zeros(self.model.lggrid['n']) 
+            else:
+                p1 = None
+                dp1 = None
+                ddp1 = None
+                Plg = None
+                F1 = None
+                F2 = None
             response = {'X': X, 
                         'Y': Y,
                         't': np.array([t]),
@@ -735,6 +755,12 @@ class unsteady(aero):
                         'd2Uf_dt2': d2Uf_dt2,
                         'Nxyz': Nxyz,
                         'g_cg': g_cg,
+                        'Plg': Plg,
+                        'p1': p1,
+                        'dp1': dp1,
+                        'ddp1': ddp1,
+                        'F1': F1,
+                        'F2': F2,
                        }
             return response        
     
