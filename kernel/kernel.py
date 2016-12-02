@@ -265,7 +265,7 @@ def load_jcl(job_name, path_input, jcl):
     attributes = ['general', 'efcs', 'geom', 'aero', 'spline', 'mass', 'atmo', 'trimcase', 'simcase']
     for attribute in attributes:
         if not hasattr(jcl, attribute):
-            logging.CRITICAL( 'JCL appears to be incomplete: jcl.{} missing. Exit.'.format(attribute))
+            logging.critical( 'JCL appears to be incomplete: jcl.{} missing. Exit.'.format(attribute))
             sys.exit()
     return jcl
                 
@@ -293,7 +293,7 @@ def load_response(job_name, path_output):
     logging.info('size of total memory: ' + str(mem_total_mb) + ' Mb')
     logging.info( 'size of response: ' + str(filesize_mb) + ' Mb')
     if filesize_mb > mem_total_mb:
-        logging.CRITICAL( 'Response too large. Exit.')
+        logging.critical( 'Response too large. Exit.')
         sys.exit()
     else:
         t_start = time.time()
