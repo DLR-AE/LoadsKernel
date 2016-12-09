@@ -98,9 +98,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         if 't_final' and 'dt' in jcl.simcase[0].keys():
             # nur sim
             plotting.plot_monstations_time(monstations, path_output + 'monstations_time_' + job_name + '.pdf')
-            plotting.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf', dyn2stat=True) 
-            plotting.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
-            plotting.save_dyn2stat(dyn2stat, path_output + 'nodalloads_' + job_name + '.bdf') 
+            #plotting.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf', dyn2stat=True) 
+            #plotting.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
+            #plotting.save_dyn2stat(dyn2stat, path_output + 'nodalloads_' + job_name + '.bdf') 
             #plotting.plot_cs_signal() # Discus2c spezifisch
         else:
             # nur trim
@@ -111,7 +111,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         # --- try to load response ---
         # ----------------------------
         responses = load_response(job_name, path_output)
-        
+        import openloop_analysis as openloop_modul
+        openloop_analysis = openloop_modul.analysis(jcl, model, responses)
+        openloop_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
         logging.info( '--> Saving auxiliary output data.')
         if not ('t_final' and 'dt' in jcl.simcase[0].keys()): 
             # nur trim
@@ -217,7 +219,7 @@ def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
                 trim_i.exec_sim()
             post_processing_i = post_processing_modul.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
             post_processing_i.force_summation_method()
-            post_processing_i.euler_transformation()
+            #post_processing_i.euler_transformation()
             post_processing_i.cuttingforces()
             trim_i.response['i'] = i
             q_output.put(trim_i.response)
