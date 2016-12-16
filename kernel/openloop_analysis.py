@@ -6,6 +6,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import itertools
 from scipy.optimize import curve_fit
 from scipy import signal
+from scipy import linalg
 
 class analysis:
     def __init__(self, jcl, model, responses):
@@ -190,8 +191,60 @@ class analysis:
         
         pp.close()
         #plt.show()
-        
-    
+
+    def plot_state_space_matrices(self):
+        for i in range(len(self.responses)):
+            response = self.responses[i]
+            
+            A = np.zeros(response['jac'].shape)
+            B = np.zeros(response['jac'].shape)
+            C = np.zeros(response['jac'].shape)
+            D = np.zeros(response['jac'].shape)
+            A[:-4, :-3] = response['A']
+            B[:-4, -3:] = response['B']
+            C[-4:, :-3] = response['C']
+            D[-4:, -3:] = response['D']
+            
+            plt.figure()
+            plt.spy(A, marker='s', color='k', markersize=5)#, markersize, aspect, hold)
+            plt.spy(B, marker='s', color='r', markersize=5)
+            plt.spy(C, marker='s', color='b', markersize=5)
+            plt.spy(D, marker='s', color='g', markersize=5)
+            plt.legend(['A', 'B', 'C', 'D'], loc='best')
+            plt.grid('on')
+            
+        plt.show()
+     
+    def analyse_eigenvalues(self, filename_pdf):
+        plt.figure()
+        colors = iter(plt.cm.hot_r(np.linspace(0.3,1.0,len(self.responses))))
+        for i in range(len(self.responses)):
+            response = self.responses[i]
+            logging.info('Calculating eigenvalues...')
+            eigenvalues, eigenvector = linalg.eig(response['A']) 
+            #eigenvalues = linalg.eigvals(response['A']) 
+            #idx_pos = np.where(eigenvalues.imag!=0.0)[0] # nur oszillierende Eigenbewegungen
+            idx_pos = range(len(eigenvalues))
+            idx_sort = np.argsort(eigenvalues.imag[idx_pos]) # sort result by eigenvalue
+            eigenvalue = eigenvalues[idx_pos][idx_sort]
+            eigenvector = eigenvector[idx_pos][idx_sort]
+            freqs = eigenvalue.imag/2.0/np.pi
+            damping = eigenvalue.real*2.0
+            logging.info('Found {} eigenvalues with frequencies [Hz]:'.format(len(eigenvalue)))
+            logging.info(freqs)
+            logging.info('with damping ratios:')
+            logging.info(damping)
+            
+            response['freqs'] = freqs
+            response['damping'] = damping
+            desc = 'Ma {}'.format(self.jcl.trimcase[i]['Ma'])
+            plt.scatter(eigenvalue.real,eigenvalue.imag, color=next(colors), s=50.0, label=desc)
+            
+        plt.grid('on')
+        plt.xlabel('Real')
+        plt.ylabel('Imag')
+        plt.legend(loc='best')
+        plt.show()
         
         
         
