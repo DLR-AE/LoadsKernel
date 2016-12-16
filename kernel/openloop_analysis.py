@@ -34,8 +34,8 @@ class analysis:
             
         for i in range(len(self.responses)):
             # get states and state description
-            rbm_states = [2, 4]
-            rbm_desc = [ 'z', 'theta']
+            rbm_states = [2, 3, 4]
+            rbm_desc = [ 'z', 'phi', 'theta']
             modes = self.jcl.mass['modes'][self.jcl.mass['key'].index(self.jcl.trimcase[i]['mass'])]
             flex_desc = ['flex mode '+str(mode) for mode in modes]
             flex_states = range(12,12+len(modes))
@@ -79,7 +79,7 @@ class analysis:
                 extrema_gr = signal.argrelextrema(state, np.greater)[0]
                 extrema_ls = signal.argrelextrema(state, np.less)[0]
 
-                if extrema_gr.size >= 3 and extrema_ls.size >= 3 and (state[extrema_gr].max() - state[extrema_gr].min()) > 0.001:#self.jcl.simcase[i]['disturbance']:
+                if extrema_gr.size >= 3 and extrema_ls.size >= 3 and (state[extrema_gr].max() - state[extrema_gr].min()) > 0.0001:#self.jcl.simcase[i]['disturbance']:
                     #ax2.plot(t[extrema_gr], state[extrema_gr], 'rs')
                     #ax2.plot(t[extrema_ls], state[extrema_ls], 'ro')
 
@@ -139,6 +139,10 @@ class analysis:
             ax2.grid(b=True, which='both', axis='both')
             ax1.legend(loc='best', fontsize=10)
             ax2.legend(loc='best', fontsize=10)
+            ax1.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+            ax1.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            ax2.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+            ax2.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             pp.savefig(fig1)
             pp.savefig(fig2)
             plt.close(fig1)
@@ -162,6 +166,7 @@ class analysis:
         ax.grid(b=True, which='both', axis='both')
         ax.legend(loc='best', fontsize=10)
         pp.savefig(fig)
+        plt.close(fig)
         
         # plot damping
         fig = plt.figure()
