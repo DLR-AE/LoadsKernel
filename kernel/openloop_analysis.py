@@ -6,7 +6,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import itertools
 from scipy.optimize import curve_fit
 from scipy import signal
-from scipy import linalg
+from scipy.sparse import linalg
 
 class analysis:
     def __init__(self, jcl, model, responses):
@@ -217,35 +217,113 @@ class analysis:
      
     def analyse_eigenvalues(self, filename_pdf):
         plt.figure()
-        colors = iter(plt.cm.hot_r(np.linspace(0.3,1.0,len(self.responses))))
-        for i in range(len(self.responses)):
+        colors = iter(plt.cm.inferno(np.linspace(0.0,1.0,len(self.responses))))
+        eigenvalues = []
+        eigenvectors = []
+        
+        i = 0
+        response = self.responses[i]
+        modes = self.jcl.mass['modes'][self.jcl.mass['key'].index(self.jcl.trimcase[i]['mass'])]
+        flex_desc = ['flex mode '+str(mode) for mode in modes]
+            
+        logging.info('Calculating eigenvalues...')
+        eigenvalue, eigenvector = linalg.eigs(response['A'], k=modes.size*2, which='LI') 
+        idx_pos = np.where(eigenvalue.imag/2.0/np.pi >= 0.1)[0] # nur oszillierende Eigenbewegungen
+        idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos])) # sort result by eigenvalue
+        eigenvalues.append( eigenvalue[idx_pos][idx_sort])
+        eigenvectors.append(eigenvector[:,idx_pos][:,idx_sort])
+        freqs = eigenvalues[i].imag/2.0/np.pi
+        damping = eigenvalues[i].real*2.0
+        logging.info('Found {} eigenvalues with frequencies [Hz]:'.format(len(eigenvalues[i])))
+        logging.info(freqs)
+        #logging.info('with damping ratios:')
+        #logging.info(damping)
+        
+        response['freqs'] = freqs
+        response['damping'] = damping
+        desc = 'Ma {}'.format(self.jcl.trimcase[i]['Ma'])
+        plt.scatter(damping, freqs, color=next(colors), s=50.0, label=desc)
+            
+        for i in range(1,len(self.responses)):
             response = self.responses[i]
             logging.info('Calculating eigenvalues...')
-            eigenvalues, eigenvector = linalg.eig(response['A']) 
-            #eigenvalues = linalg.eigvals(response['A']) 
-            #idx_pos = np.where(eigenvalues.imag!=0.0)[0] # nur oszillierende Eigenbewegungen
-            idx_pos = range(len(eigenvalues))
-            idx_sort = np.argsort(eigenvalues.imag[idx_pos]) # sort result by eigenvalue
-            eigenvalue = eigenvalues[idx_pos][idx_sort]
-            eigenvector = eigenvector[idx_pos][idx_sort]
-            freqs = eigenvalue.imag/2.0/np.pi
-            damping = eigenvalue.real*2.0
-            logging.info('Found {} eigenvalues with frequencies [Hz]:'.format(len(eigenvalue)))
+            eigenvalue, eigenvector = linalg.eigs(response['A'], k=modes.size*2, which='LI') 
+            idx_pos = np.where(eigenvalue.imag/2.0/np.pi >= 0.1)[0]
+            #idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))
+            #MAC, fig = calc_MAC(eigenvectors[0],eigenvectors[0])
+            #MAC, fig = calc_MAC(eigenvector[:,idx_pos][:,idx_sort],eigenvector[:,idx_pos][:,idx_sort])
+            MAC = calc_MAC(eigenvectors[0],eigenvector[:,idx_pos], plot=False)
+            idx_sort_MAC = [MAC[x,:].argmax() for x in range(MAC.shape[0])]
+            eigenvalues.append(eigenvalue[idx_pos][idx_sort_MAC])
+            eigenvectors.append(eigenvector[:,idx_pos][:,idx_sort_MAC])
+            
+            freqs = eigenvalues[i].imag/2.0/np.pi
+            damping = eigenvalues[i].real*2.0
+            logging.info('Found {} eigenvalues with frequencies [Hz]:'.format(len(eigenvalues[i])))
             logging.info(freqs)
-            logging.info('with damping ratios:')
-            logging.info(damping)
+            #logging.info('with damping ratios:')
+            #logging.info(damping)
             
             response['freqs'] = freqs
             response['damping'] = damping
             desc = 'Ma {}'.format(self.jcl.trimcase[i]['Ma'])
-            plt.scatter(eigenvalue.real,eigenvalue.imag, color=next(colors), s=50.0, label=desc)
+            plt.scatter(damping, freqs, color=next(colors), edgecolors='k', s=50.0, label=desc)
             
         plt.grid('on')
-        plt.xlabel('Real')
-        plt.ylabel('Imag')
+        plt.xlabel('damping')
+        plt.ylabel('F [Hz]')
         plt.legend(loc='best')
+        
+                
+        freqs = np.array([self.responses[i]['freqs'] for i in range(len(self.responses))])
+        damping = np.array([self.responses[i]['damping'] for i in range(len(self.responses))])
+        Ma = np.array([trimcase['Ma'] for trimcase in self.jcl.trimcase])
+        
+        # set up plotting and logging
+        fig1 = plt.figure()
+        ax1 = fig1.gca()
+        fig2 = plt.figure()
+        ax2 = fig2.gca()
+        colors = iter(plt.cm.jet(np.linspace(0,1,freqs.shape[1])))
+        markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D', ))
+        for j in range(freqs.shape[1]): 
+            marker = next(markers)
+            color = next(colors)
+            ax1.plot(Ma, freqs[:,j],   marker=marker, c=color, linewidth=2.0, label=flex_desc[j] )
+            ax2.plot(Ma, damping[:,j], marker=marker, c=color, linewidth=2.0, label=flex_desc[j] )
+        ax1.set_xlabel('Ma')
+        ax1.set_ylabel('f [Hz]')
+        ax2.set_xlabel('Ma')
+        ax2.set_ylabel('Damping')
+        ax1.grid(b=True, which='both', axis='both')
+        ax2.grid(b=True, which='both', axis='both')
+        ax1.legend(loc='best', fontsize=10)
+        ax2.legend(loc='best', fontsize=10)
+        ax1.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        ax1.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+        ax2.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        ax2.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+        
         plt.show()
         
+def calc_MAC(X, Y, plot=True):
+    MAC = np.zeros((X.shape[1],Y.shape[1]))
+    for jj in range(Y.shape[1]):
+        for ii in range(X.shape[1]):
+            q1 = np.dot(np.conj(X[:,ii].T), X[:,ii])
+            q2 = np.dot(np.conj(Y[:,jj].T), Y[:,jj])
+            q3 = np.dot(np.conj(X[:,ii]).T, Y[:,jj])
+            MAC[ii,jj]  = np.abs(np.conj(q3)*q3/q1/q2)
+    #MAC = np.abs(MAC)
+    
+    if plot:
+        plt.figure()
+        plt.pcolor(MAC, cmap='hot_r')
+        plt.colorbar()
+        plt.grid('on')
         
+        return MAC, plt
+    else:   
+        return MAC    
         
     
