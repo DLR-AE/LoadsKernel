@@ -14,7 +14,7 @@ import monstations as monstations_modul
 import auxiliary_output as auxiliary_output_modul
 import plotting as plotting_modul
 
-def run_kernel(job_name, pre=False, main=False, post=False, test=False, flutter=False, path_input='../input/', path_output='../output/', jcl=None, parallel=False):
+def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespace=False, path_input='../input/', path_output='../output/', jcl=None, parallel=False):
     path_input = check_path(path_input) 
     path_output = check_path(path_output)    
     setup_logger(path_output, job_name )
@@ -81,11 +81,11 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, flutter=
         
         logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
     
-    if flutter:
+    if statespace:
         if not 'model' in locals():
             model = load_model(job_name, path_output)
         
-        logging.info( '--> Starting Main in deprecated test-mode (!!!) for %d trimcase(s).' % len(jcl.trimcase))
+        logging.info( '--> Starting State Space Matrix generation for %d trimcase(s).' % len(jcl.trimcase))
         t_start = time.time()
         monstations = monstations_modul.monstations(jcl, model)
         f = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
@@ -112,27 +112,27 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, flutter=
         if not 'model' in locals():
             model = load_model(job_name, path_output)
 
-        logging.info( '--> Loading monstations(s).' ) 
-        with open(path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
-            monstations = cPickle.load(f)
-            
-        logging.info( '--> Loading dyn2stat.'  )
-        with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'r') as f:
-            dyn2stat = cPickle.load(f)
-
-        logging.info( '--> Drawing some plots.' ) 
-        plotting = plotting_modul.plotting(jcl, model)
-        if 't_final' and 'dt' in jcl.simcase[0].keys():
-            # nur sim
-            plotting.plot_monstations_time(monstations, path_output + 'monstations_time_' + job_name + '.pdf')
-            #plotting.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf', dyn2stat=True) 
-            #plotting.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
-            #plotting.save_dyn2stat(dyn2stat, path_output + 'nodalloads_' + job_name + '.bdf') 
-            #plotting.plot_cs_signal() # Discus2c spezifisch
-        else:
-            # nur trim
-            plotting.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf') 
-            plotting.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv') 
+#         logging.info( '--> Loading monstations(s).' ) 
+#         with open(path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
+#             monstations = cPickle.load(f)
+#             
+#         logging.info( '--> Loading dyn2stat.'  )
+#         with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'r') as f:
+#             dyn2stat = cPickle.load(f)
+# 
+#         logging.info( '--> Drawing some plots.' ) 
+#         plotting = plotting_modul.plotting(jcl, model)
+#         if 't_final' and 'dt' in jcl.simcase[0].keys():
+#             # nur sim
+#             plotting.plot_monstations_time(monstations, path_output + 'monstations_time_' + job_name + '.pdf')
+#             #plotting.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf', dyn2stat=True) 
+#             #plotting.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
+#             #plotting.save_dyn2stat(dyn2stat, path_output + 'nodalloads_' + job_name + '.bdf') 
+#             #plotting.plot_cs_signal() # Discus2c spezifisch
+#         else:
+#             # nur trim
+#             plotting.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf') 
+#             plotting.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv') 
         
         # ----------------------------
         # --- try to load response ---
