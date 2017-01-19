@@ -75,7 +75,7 @@ class model:
             
             # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
             grid_trafo(self.strcgrid, self.coord, 0)
-
+            logging.info('The structural model consists of {} grid points and {} coordinate systems.'.format(self.strcgrid['n'], len(self.coord['ID']) ))
             #self.Kgg = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
             
             if not self.jcl.geom['filename_mongrid'] == '':
