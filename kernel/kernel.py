@@ -139,21 +139,21 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
         # ----------------------------
         responses = load_response(job_name, path_output)
         
-        logging.info( '--> Openloop analysis.')
-        import openloop_analysis as openloop_modul
-        openloop_analysis = openloop_modul.analysis(jcl, model, responses)
-        #openloop_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
-        #openloop_analysis.plot_state_space_matrices()
-        openloop_analysis.analyse_eigenvalues(path_output + 'analyse_of_eigenvalues_' + job_name + '.pdf')
+        logging.info( '--> statespace analysis.')
+        import statespace_analysis as statespace_modul
+        statespace_analysis = statespace_modul.analysis(jcl, model, responses)
+        #statespace_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
+        #statespace_analysis.plot_state_space_matrices()
+        statespace_analysis.analyse_eigenvalues(path_output + 'analyse_of_eigenvalues_' + job_name + '.pdf')
         
-        logging.info( '--> Saving auxiliary output data.')
-        if not ('t_final' and 'dt' in jcl.simcase[0].keys()): 
-            # nur trim
-            auxiliary_output = auxiliary_output_modul.auxiliary_output(jcl, model, jcl.trimcase, responses)
-            auxiliary_output.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
-            auxiliary_output.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
-            #auxiliary_output.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
-            
+#         logging.info( '--> Saving auxiliary output data.')
+#         if not ('t_final' and 'dt' in jcl.simcase[0].keys()): 
+#             # nur trim
+#             auxiliary_output = auxiliary_output_modul.auxiliary_output(jcl, model, jcl.trimcase, responses)
+#             auxiliary_output.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
+#             auxiliary_output.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
+#             #auxiliary_output.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
+#             
 #         print '--> Drawing some plots.'  
 #         plotting = plotting_modul.plotting(jcl, model, responses)
 #         if 't_final' and 'dt' in jcl.simcase[0].keys():

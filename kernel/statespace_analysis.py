@@ -219,11 +219,12 @@ class analysis:
         eigenvalues = []
         eigenvectors = []
         
+        # calculate eigenvalues at first reduced frequencies
+        # then loop over the rest and use MAC for tracking
         i = 0
         response = self.responses[i]
         modes = self.jcl.mass['modes'][self.jcl.mass['key'].index(self.jcl.trimcase[i]['mass'])]
-        flex_desc = ['flex mode ' + str(mode) for mode in modes]
-            
+        
         logging.info('Calculating eigenvalues...')
         eigenvalue, eigenvector = linalg.eigs(response['A'], k=modes.size * 2, which='LI') 
         idx_pos = np.where(eigenvalue.imag / 2.0 / np.pi >= 0.1)[0]  # nur oszillierende Eigenbewegungen
@@ -271,6 +272,9 @@ class analysis:
         Ma = np.array([trimcase['Ma'] for trimcase in self.jcl.trimcase])
         colors = iter(plt.cm.jet(np.linspace(0, 1, freqs.shape[1])))
         markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
+        desc = ['M ' + str(mode) for mode in modes]
+        
+        pp = PdfPages(filename_pdf)
         
         fig1 = plt.figure()
         ax1 = fig1.gca()
@@ -282,33 +286,39 @@ class analysis:
         for j in range(freqs.shape[1]): 
             marker = next(markers)
             color = next(colors)
-            ax1.plot(Ma, freqs[:, j], marker=marker, c=color, linewidth=2.0, label=flex_desc[j])
-            ax2.plot(Ma, damping[:, j], marker=marker, c=color, linewidth=2.0, label=flex_desc[j])
-            ax3.plot(damping[:, j], freqs[:, j], marker=marker, c=color, linewidth=2.0, label=flex_desc[j])
+            ax1.plot(Ma, freqs[:, j], marker=marker, c=color, linewidth=2.0, label=desc[j])
+            ax2.plot(Ma, damping[:, j], marker=marker, c=color, linewidth=2.0, label=desc[j])
+            ax3.plot(damping[:, j], freqs[:, j], marker=marker, c=color, linewidth=2.0, label=desc[j])
         
         ax1.set_xlabel('Ma')
         ax1.set_ylabel('f [Hz]')
         ax1.grid(b=True, which='both', axis='both')
         ax1.legend(loc='best', fontsize=10)
-        ax1.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
-        ax1.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+        #ax1.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
+        #ax1.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+        lgd1 = ax1.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2)
+        pp.savefig(fig1, additional_artists=[lgd1],  bbox_inches="tight")
         
         ax2.set_xlabel('Ma')
         ax2.set_ylabel('Damping')
         ax2.grid(b=True, which='both', axis='both')
         ax2.legend(loc='best', fontsize=10)
-        ax2.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
-        ax2.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+        #ax2.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
+        #ax2.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+        lgd2 = ax2.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2)
+        pp.savefig(fig2, additional_artists=[lgd2],  bbox_inches="tight")
 
         ax3.set_xlabel('Damping')
         ax3.set_ylabel('f [Hz]')
         ax3.grid(b=True, which='both', axis='both')
         ax3.legend(loc='best', fontsize=10)
-        ax3.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
-        ax3.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+        #ax3.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
+        #ax3.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+        lgd3 = ax3.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2)
+        pp.savefig(fig3, additional_artists=[lgd3],  bbox_inches="tight")
 
-        
-        plt.show()
+        pp.close()
+        plt.close()
         
 def calc_MAC(X, Y, plot=True):
     MAC = np.zeros((X.shape[1], Y.shape[1]))
