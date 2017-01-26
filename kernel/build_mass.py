@@ -326,8 +326,8 @@ class build_mass:
         m_cg = Mb[0,0]
         m = MGG.diagonal()[0::6]
         
-        radius_mass_cg = ((m_cg*3.)/(4.*2.7*np.pi))**(1./3.) 
-        radius_masses = ((m*3.)/(4.*2.7*np.pi))**(1./3.) #/ radius_mass_cg
+        radius_mass_cg = ((m_cg*3.)/(4.*2700.0*np.pi))**(1./3.) 
+        radius_masses = ((m*3.)/(4.*2700.0*np.pi))**(1./3.) #/ radius_mass_cg
         #radius_masses = radius_masses/radius_masses.max()
        
         mlab.options.offscreen = True
