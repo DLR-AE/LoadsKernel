@@ -336,6 +336,7 @@ class model:
                          'PHIf_strc': [],
                          'PHIf_lg': [],
                          'PHIjf': [],
+                         'PHIjf2': [],
                          'PHIkf': [],
                          'Mff': [],
                          'Kff': [],
@@ -399,7 +400,16 @@ class model:
                 PHIkf = np.dot(self.PHIk_strc, PHIf_strc.T)
 
                 Mfcg=PHIf_strc.dot(-MGG.dot(PHIstrc_cg))
-        
+                
+                PHIjf2 = []
+                n_modes = len(self.jcl.mass['modes'][i_mass])
+                for i_mode in range(n_modes):
+                    Uf =  np.zeros(n_modes)
+                    Uf[i_mode] += 1.0
+                    Ujf = np.dot(PHIjf, Uf )
+                    PHIjf2.append(np.sum(self.aerogrid['N'][:] * Ujf[self.aerogrid['set_j'][:,(0,1,2)]],axis=1))
+                PHIjf2 = np.transpose(np.array(PHIjf2))
+                
                 # save all matrices to data structure
                 self.mass['key'].append(self.jcl.mass['key'][i_mass])
                 self.mass['Mb'].append(Mb)
@@ -414,6 +424,7 @@ class model:
                 self.mass['PHInorm_cg'].append(PHInorm_cg)
                 self.mass['PHIf_strc'].append(PHIf_strc) 
                 self.mass['PHIjf'].append(PHIjf)
+                self.mass['PHIjf2'].append(PHIjf2)
                 self.mass['PHIkf'].append(PHIkf)
                 self.mass['Mff'].append(Mff) 
                 self.mass['Kff'].append(Kff) 
