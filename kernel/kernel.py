@@ -55,7 +55,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             q_input.put(i)
         logging.info( '--> All trimcases queued, waiting for execution.')
         
-        if parallel:
+        if type(parallel)==int:
+            n_processes = parallel
+        elif parallel:
             n_processes = multiprocessing.cpu_count()/2
             if n_processes < 2 : n_processes = 2
         else: 
