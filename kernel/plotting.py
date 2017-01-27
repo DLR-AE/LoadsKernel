@@ -41,7 +41,7 @@ class plotting:
             self.potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
             self.potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
             self.potatos_Fz_My = ['MON4', 'MON5']
-            self.cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
+            self.cuttingforces_wing = ['MON10', 'MON1', 'MON2', 'MON3', 'MON33', 'MON8']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.1 # points
         # Discus2c
