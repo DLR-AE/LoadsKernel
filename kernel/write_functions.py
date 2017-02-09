@@ -9,11 +9,12 @@ import logging
 
 
 def number_nastarn_converter(number):
-    if number == 0.0:
-        # this avoids division by Zero when calculation log10 of 0.0
+    if number.is_integer():
         number_str = '{:> 7.1f}'.format(number)
-    elif number.is_integer() and np.log10(number.__abs__()) < 5.0 and np.log10(number.__abs__()) > 0.0:
+    elif 0.0 <= np.log10(number.__abs__()) < 5.0:
         number_str = '{:> 7.1f}'.format(number)
+    elif -4.0 <= np.log10(number.__abs__()) < 0.0:
+        number_str = '{:> 7.4f}'.format(number)
     else:
         number_str = '{:> 7.4g}'.format(number)
     # try normal formatting
