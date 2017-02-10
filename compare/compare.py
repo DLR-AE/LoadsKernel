@@ -30,7 +30,7 @@ class App:
                             'n': 0,
                         }
         self.common_monstations = np.array([])
-        self.colors = ['cornflowerblue', 'limegreen', 'violet']
+        self.colors = ['cornflowerblue', 'limegreen', 'violet', 'darkviolet', 'turquoise', 'orange', 'tomato','darkgrey', 'black']
         self.var_color = tk.StringVar()
         self.var_desc  = tk.StringVar()
         
@@ -66,6 +66,9 @@ class App:
         menu_file.add_command(label='Load Monstations', command=self.load_monstation)
         menu_file.add_command(label='Close', command=self.close_app)
         menubar.add_cascade(menu=menu_file, label='File')
+        menu_action = tk.Menu(menubar)
+        menu_action.add_command(label='Merge Monstations', command=self.merge_monstation)
+        menubar.add_cascade(menu=menu_action, label='Action')
         root['menu'] = menubar
         
         # init frames
@@ -80,8 +83,7 @@ class App:
         # frame rigth side
         frame_right = ttk.Frame(root)
         frame_right.grid(row=0, column=2, rowspan=2, sticky=(tk.N,tk.W,tk.E,tk.S))
-        #frame_right.grid_columnconfigure(2, weigth=1)
-        #frame_right.grid_rowconfigure(0, weight=1)
+        # resize only the bottom and the right frame --> plot area is resized
         root.grid_columnconfigure(2, weight=1)
         root.grid_rowconfigure(1, weight=1)
 
@@ -200,7 +202,28 @@ class App:
         else:    
             self.plotting.plot_nothing()
         self.canvas.draw()
-            
+    
+    def merge_monstation(self):
+        if len(self.lb_dataset.curselection()) > 1:
+            new_dataset = copy.deepcopy(self.datasets['dataset'][self.lb_dataset.curselection()[0]])
+            for x in self.lb_dataset.curselection()[1:]:
+                for station in self.common_monstations:
+                    new_dataset[station]['loads']            += self.datasets['dataset'][x][station]['loads']
+                    new_dataset[station]['loads_dyn2stat']   += self.datasets['dataset'][x][station]['loads_dyn2stat']
+                    new_dataset[station]['subcase']          += self.datasets['dataset'][x][station]['subcase']
+                    new_dataset[station]['subcases_dyn2stat'] += self.datasets['dataset'][x][station]['subcases_dyn2stat']
+                    new_dataset[station]['t']                += self.datasets['dataset'][x][station]['t']
+
+            # save into data structure
+            self.datasets['ID'].append(self.datasets['n'])  
+            self.datasets['dataset'].append(new_dataset)
+            self.datasets['color'].append(self.colors[self.datasets['n']])
+            self.datasets['desc'].append('dataset '+ str(self.datasets['n']))
+            self.datasets['n'] += 1
+            # update fields
+            self.update_fields()
+    
+    
     def load_monstation(self):
         # open file dialog
         filename = tkFileDialog.askopenfilename(**self.file_opt)
@@ -241,8 +264,6 @@ class App:
 
 root = tk.Tk()
 root.title("Loads Compare")
-#root.grid_columnconfigure(2, weight=1)
-#root.grid_rowconfigure(0, weight=1)
 root.resizable(True, True)
         
 style = ttk.Style()
