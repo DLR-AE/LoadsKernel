@@ -10,7 +10,7 @@ import matplotlib.animation as animation
 #from mayavi import mlab
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
-import csv, time, os, copy, logging
+import time, os, copy, logging
 import build_aero, write_functions
 
 
@@ -38,9 +38,12 @@ class plotting:
             self.p_scale = 0.04 # points
         # MULDICON
         elif self.jcl.general['aircraft'] == 'MULDICON':
-            self.potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']#, 'MON81', 'MON82', 'MON83']
+            self.potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
             self.potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
-            self.potatos_Fz_My = ['MON4', 'MON5', ]#'MON81', 'MON82', 'MON83']
+            self.potatos_Fz_My = ['MON4', 'MON5']
+#             self.potatos_Fz_Mx = []
+#             self.potatos_Mx_My = []
+#             self.potatos_Fz_My = ['MON81', 'MON82', 'MON83']
             self.cuttingforces_wing = ['MON10', 'MON1', 'MON2', 'MON3', 'MON33', 'MON8']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.1 # points
@@ -289,43 +292,7 @@ class plotting:
             #plt.show()
             pp.savefig()
             plt.close()
-           
-    def write_critical_trimcases(self, filename_csv, dyn2stat=False):
-        # eigentlich gehoert diese Funtion eher zum post-processing als zum
-        # plotten, kann aber erst nach dem plotten ausgefuehrt werden...
-        if dyn2stat:
-            crit_trimcases = list(set([int(crit_trimcase.split('_')[0]) for crit_trimcase in self.crit_trimcases])) # extract original subcase number
-        else: 
-            crit_trimcases = self.crit_trimcases
-        crit_trimcases_info = []
-        for i_case in range(len(self.jcl.trimcase)):
-            if self.jcl.trimcase[i_case]['subcase'] in crit_trimcases:
-                trimcase = copy.deepcopy(self.jcl.trimcase[i_case])
-                if dyn2stat:
-                    trimcase.update(self.jcl.simcase[i_case]) # merge infos from simcase with trimcase
-                crit_trimcases_info.append(trimcase)
-                
-        logging.info('writing critical trimcases cases to: ' + filename_csv)
-        with open(filename_csv, 'wb') as fid:
-            w = csv.DictWriter(fid, crit_trimcases_info[0].keys())
-            w.writeheader()
-            w.writerows(crit_trimcases_info)
-        return
-
-    def save_dyn2stat(self, dyn2stat, filename):
-        # eigentlich gehoert diese Funtion eher zum post-processing als zum
-        # plotten, kann aber erst nach dem plotten ausgefuehrt werden...
-        logging.info('saving dyn2stat nodal loads as Nastarn cards...')
-        ranking = np.argsort(dyn2stat['subcases_ID'])
-        with open(filename+'_Pg_dyn2stat', 'w') as fid: 
-            for i_case in ranking:
-                if dyn2stat['subcases'][i_case] in self.crit_trimcases:
-                    write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, dyn2stat['Pg'][i_case], dyn2stat['subcases_ID'][i_case])
-        with open(filename+'_subcases_dyn2stat', 'w') as fid:         
-            for i_case in ranking:
-                if dyn2stat['subcases'][i_case] in self.crit_trimcases:
-                    write_functions.write_subcases(fid, dyn2stat['subcases_ID'][i_case], dyn2stat['subcases'][i_case])
-    
+              
     def plot_monstations_time(self, monstations, filename_pdf):
         logging.info('start plotting cutting forces over time ...')
         pp = PdfPages(filename_pdf)

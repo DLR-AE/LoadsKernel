@@ -93,7 +93,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             
         logging.info( '--> Loading dyn2stat.'  )
         with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'r') as f:
-            dyn2stat = cPickle.load(f)
+            dyn2stat_data = cPickle.load(f)
 
         logging.info( '--> Drawing some plots.' ) 
         plotting = plotting_modul.plotting(jcl, model)
@@ -101,26 +101,30 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
             # nur sim
             plotting.plot_monstations_time(monstations, path_output + 'monstations_time_' + job_name + '.pdf')
             plotting.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf', dyn2stat=True) 
-            plotting.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
-            plotting.save_dyn2stat(dyn2stat, path_output + 'nodalloads_' + job_name + '.bdf') 
             #plotting.plot_cs_signal() # Discus2c spezifisch
         else:
             # nur trim
             plotting.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf') 
-            plotting.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv') 
         
         # ----------------------------
         # --- try to load response ---
         # ----------------------------
-        responses = load_response(job_name, path_output)
         
         logging.info( '--> Saving auxiliary output data.')
-        if not ('t_final' and 'dt' in jcl.simcase[0].keys()): 
+        auxiliary_output = auxiliary_output_modul.auxiliary_output(jcl, model, jcl.trimcase)
+        auxiliary_output.crit_trimcases = plotting.crit_trimcases
+        if ('t_final' and 'dt' in jcl.simcase[0].keys()): 
+            auxiliary_output.dyn2stat_data = dyn2stat_data
+            auxiliary_output.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
+            auxiliary_output.write_critical_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=True) 
+        else:
             # nur trim
-            auxiliary_output = auxiliary_output_modul.auxiliary_output(jcl, model, jcl.trimcase, responses)
-            auxiliary_output.save_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf')
+            auxiliary_output.response = load_response(job_name, path_output)
+            auxiliary_output.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=False) 
+            auxiliary_output.write_critical_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=False) 
+            auxiliary_output.write_all_nodalloads(path_output + 'nodalloads_all_' + job_name + '.bdf')
             auxiliary_output.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
-            #auxiliary_output.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
+            auxiliary_output.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
             
 #         print '--> Drawing some plots.'  
 #         plotting = plotting_modul.plotting(jcl, model, responses)
@@ -157,7 +161,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
                 trim_i.exec_sim()
             post_processing_i = post_processing_modul.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
             post_processing_i.force_summation_method()
-            post_processing_i.euler_transformation()
+            #post_processing_i.euler_transformation()
             post_processing_i.cuttingforces()
             monstations.gather_monstations(jcl.trimcase[i], trim_i.response)
             if 't_final' and 'dt' in jcl.simcase[i].keys():

@@ -49,10 +49,10 @@ class monstations:
                 self.monstations[name]['loads'].append(response['Pmon_local'][self.model.mongrid['set'][i_station,:]])
 
     
-    def gather_dyn2stat(self, i_case, response):
+    def gather_dyn2stat(self, i_case, response, mode='time-based'):
         # Schnittlasten an den Monitoring Stationen raus schreiben (zum Plotten)
         # Knotenlasten raus schreiben (weiterverarbeitung z.B. als FORCE und MOMENT Karten fuer Nastran)
-        logging.info('searching min/max of Fz/Mx/My in time data at {} monitoring stations and gathering loads (dyn2stat)...'.format(len(self.monstations.keys())))
+        logging.info('searching min/max in time data at {} monitoring stations and gathering loads (dyn2stat)...'.format(len(self.monstations.keys())))
         all_subcases_dyn2stat = []
         Pg_dyn2stat = []
         for key in self.monstations.keys():
@@ -61,36 +61,53 @@ class monstations:
             
             pos_max_loads_over_time = np.argmax(self.monstations[key]['loads'][i_case], 0)
             pos_min_loads_over_time = np.argmin(self.monstations[key]['loads'][i_case], 0)
-            # Fz max und min
-            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[2],:])
-            Pg_dyn2stat.append(response['Pg'][pos_max_loads_over_time[2],:])
-            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Fz_max')
-            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[2],:])
-            Pg_dyn2stat.append(response['Pg'][pos_min_loads_over_time[2],:])
-            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Fz_min')
-            # Mx max und min
-            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[3],:])
-            Pg_dyn2stat.append(response['Pg'][pos_max_loads_over_time[3],:])
-            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Mx_max')
-            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[3],:])
-            Pg_dyn2stat.append(response['Pg'][pos_min_loads_over_time[3],:])
-            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Mx_min')
-            # My max und min
-            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[4],:])
-            Pg_dyn2stat.append(response['Pg'][pos_max_loads_over_time[4],:])
-            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_max')
-            loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[4],:])
-            Pg_dyn2stat.append(response['Pg'][pos_min_loads_over_time[4],:])
-            subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_min')
+            # Although the time-based approach considers all DoFs, it might lead to fewer time slices / snapshots, 
+            # because identical time slices are avoided.
+            if mode == 'time-based':
+                #unique_pos = np.unique( np.concatenate((pos_max_loads_over_time ,pos_min_loads_over_time)) )
+                for pos in np.concatenate((pos_max_loads_over_time ,pos_min_loads_over_time)): 
+                    loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos,:])
+                    Pg_dyn2stat.append(response['Pg'][pos,:])
+                    subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_t={:05.3f}'.format(self.monstations[key]['t'][i_case][pos,0]))
+
+            elif mode == 'origin-based':
+                # Fz max und min
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[2],:])
+                Pg_dyn2stat.append(response['Pg'][pos_max_loads_over_time[2],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Fz_max')
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[2],:])
+                Pg_dyn2stat.append(response['Pg'][pos_min_loads_over_time[2],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Fz_min')
+                # Mx max und min
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[3],:])
+                Pg_dyn2stat.append(response['Pg'][pos_max_loads_over_time[3],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Mx_max')
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[3],:])
+                Pg_dyn2stat.append(response['Pg'][pos_min_loads_over_time[3],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_Mx_min')
+                # My max und min
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[4],:])
+                Pg_dyn2stat.append(response['Pg'][pos_max_loads_over_time[4],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_max')
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[4],:])
+                Pg_dyn2stat.append(response['Pg'][pos_min_loads_over_time[4],:])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_min')
             # save to monstations
             self.monstations[key]['loads_dyn2stat'] += loads_dyn2stat
             self.monstations[key]['subcases_dyn2stat'] += subcases_dyn2stat
             all_subcases_dyn2stat += subcases_dyn2stat
         
         # save to dyn2stat
-        self.dyn2stat['Pg'] += Pg_dyn2stat
-        self.dyn2stat['subcases'] += all_subcases_dyn2stat
+        
+        logging.info('reducing dyn2stat data...')
+        pos = [ all_subcases_dyn2stat.index(subcase) for subcase in set(all_subcases_dyn2stat) ]
+        self.dyn2stat['Pg'] += [Pg_dyn2stat[p] for p in pos]
+        self.dyn2stat['subcases'] += [all_subcases_dyn2stat[p] for p in pos]
         # generate unique IDs for subcases
         # take first digits from original subcase, then add a running number
-        self.dyn2stat['subcases_ID'] += [ int(all_subcases_dyn2stat[i].split('_')[0])*1000+i  for i in range(len(all_subcases_dyn2stat))]
-    
+        if mode == 'time-based':
+            self.dyn2stat['subcases_ID'] += [ int(all_subcases_dyn2stat[p].replace('_t=', '').replace('.', '')) for p in pos]
+        elif mode == 'origin-based':
+            self.dyn2stat['subcases_ID'] += [ int(all_subcases_dyn2stat[i].split('_')[0])*1000+i  for i in range(len(all_subcases_dyn2stat))]
+            
+            

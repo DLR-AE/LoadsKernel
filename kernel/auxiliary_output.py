@@ -1,18 +1,17 @@
 
 import write_functions
 import numpy as np
-import copy, getpass, platform, time, logging
+import copy, getpass, platform, time, logging, csv
 from grid_trafo import *
 
 class auxiliary_output:
     #===========================================================================
     # This class provides functions to save data of trim calculations. 
     #===========================================================================
-    def __init__(self, jcl, model, trimcase, response):
+    def __init__(self, jcl, model, trimcase):
         self.jcl = jcl
         self.model = model
         self.trimcase = trimcase
-        self.response = response
  
     def save_nodaldefo(self, filename):
         # deformations are given in 9300 coord
@@ -27,14 +26,59 @@ class auxiliary_output:
                 defo = np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'] + self.response[i_trimcase]['Ug_r'][self.model.strcgrid['set'][:,0:3]] + + self.response[i_trimcase]['Ug_f'][self.model.strcgrid['set'][:,0:3]] * 500.0))
                 np.savetxt(fid, defo)
                 
-    def save_nodalloads(self, filename):
-        logging.info( 'saving nodal loads as Nastarn cards...')
+    def write_all_nodalloads(self, filename):
+        logging.info( 'saving all nodal loads as Nastarn cards...')
         with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
                 write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg'], self.jcl.trimcase[i_trimcase]['subcase'])
         with open(filename+'_subcases', 'w') as fid:         
             for i_trimcase in range(len(self.jcl.trimcase)):
                 write_functions.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
+    
+    
+    def write_critical_trimcases(self, filename_csv, dyn2stat=False):
+        # eigentlich gehoert diese Funtion eher zum post-processing als zum
+        # plotten, kann aber erst nach dem plotten ausgefuehrt werden...
+        if dyn2stat:
+            crit_trimcases = list(set([int(crit_trimcase.split('_')[0]) for crit_trimcase in self.crit_trimcases])) # extract original subcase number
+        else: 
+            crit_trimcases = self.crit_trimcases
+        crit_trimcases_info = []
+        for i_case in range(len(self.jcl.trimcase)):
+            if self.jcl.trimcase[i_case]['subcase'] in crit_trimcases:
+                trimcase = copy.deepcopy(self.jcl.trimcase[i_case])
+                if dyn2stat:
+                    trimcase.update(self.jcl.simcase[i_case]) # merge infos from simcase with trimcase
+                crit_trimcases_info.append(trimcase)
+                
+        logging.info('writing critical trimcases cases to: ' + filename_csv)
+        with open(filename_csv, 'wb') as fid:
+            w = csv.DictWriter(fid, crit_trimcases_info[0].keys())
+            w.writeheader()
+            w.writerows(crit_trimcases_info)
+        return
+    
+    def write_critical_nodalloads(self, filename, dyn2stat=False): 
+        logging.info( 'saving critical nodal loads as Nastarn cards...')
+        if dyn2stat:
+            with open(filename+'_Pg', 'w') as fid: 
+                for crit_trimcase in np.sort(np.unique(self.crit_trimcases)):
+                    idx = self.dyn2stat_data['subcases'].index(crit_trimcase)
+                    write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx], self.dyn2stat_data['subcases_ID'][idx])
+            with open(filename+'_subcases', 'w') as fid:  
+                for crit_trimcase in np.sort(np.unique(self.crit_trimcases)):
+                    idx = self.dyn2stat_data['subcases'].index(crit_trimcase)                  
+                    write_functions.write_subcases(fid, self.dyn2stat_data['subcases_ID'][idx], self.dyn2stat_data['subcases'][idx])
+        else:
+            crit_trimcases = self.crit_trimcases
+            with open(filename+'_Pg', 'w') as fid: 
+                for i_case in range(len(self.jcl.trimcase)):
+                    if self.jcl.trimcase[i_case]['subcase'] in crit_trimcases:
+                        write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_case]['Pg'], self.jcl.trimcase[i_case]['subcase'])
+            with open(filename+'_subcases', 'w') as fid:         
+                for i_case in range(len(self.jcl.trimcase)):
+                    if self.jcl.trimcase[i_case]['subcase'] in crit_trimcases:
+                        write_functions.write_subcases(fid, self.jcl.trimcase[i_case]['subcase'], self.jcl.trimcase[i_case]['desc'])
     
     def save_cpacs_header(self):
         
