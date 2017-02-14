@@ -23,6 +23,7 @@ class monstations:
                                       't':[],
                                       'loads_dyn2stat':[],
                                       'subcases_dyn2stat':[],
+                                      't_dyn2stat':[],
                                      }
         self.dyn2stat = {'Pg': [], 
                          'subcases': [],
@@ -58,7 +59,7 @@ class monstations:
         for key in self.monstations.keys():
             loads_dyn2stat = []
             subcases_dyn2stat = []
-            
+            t_dyn2stat = []
             pos_max_loads_over_time = np.argmax(self.monstations[key]['loads'][i_case], 0)
             pos_min_loads_over_time = np.argmin(self.monstations[key]['loads'][i_case], 0)
             # Although the time-based approach considers all DoFs, it might lead to fewer time slices / snapshots, 
@@ -69,7 +70,7 @@ class monstations:
                     loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos,:])
                     Pg_dyn2stat.append(response['Pg'][pos,:])
                     subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_t={:05.3f}'.format(self.monstations[key]['t'][i_case][pos,0]))
-
+                    t_dyn2stat.append(response['t'][pos,:])
             elif mode == 'origin-based':
                 # Fz max und min
                 loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_max_loads_over_time[2],:])
@@ -95,6 +96,7 @@ class monstations:
             # save to monstations
             self.monstations[key]['loads_dyn2stat'] += loads_dyn2stat
             self.monstations[key]['subcases_dyn2stat'] += subcases_dyn2stat
+            self.monstations[key]['t_dyn2stat'] += t_dyn2stat
             all_subcases_dyn2stat += subcases_dyn2stat
         
         # save to dyn2stat
