@@ -205,24 +205,48 @@ class App:
     
     def merge_monstation(self):
         if len(self.lb_dataset.curselection()) > 1:
-            new_dataset = copy.deepcopy(self.datasets['dataset'][self.lb_dataset.curselection()[0]])
-            for x in self.lb_dataset.curselection()[1:]:
+            # Init new dataset.
+            new_dataset = {}
+            for x in self.lb_dataset.curselection():
+                print 'Working on {} ...'.format(self.datasets['desc'][x])
                 for station in self.common_monstations:
-                    new_dataset[station]['loads']            += self.datasets['dataset'][x][station]['loads']
-                    new_dataset[station]['loads_dyn2stat']   += self.datasets['dataset'][x][station]['loads_dyn2stat']
-                    new_dataset[station]['subcase']          += self.datasets['dataset'][x][station]['subcase']
-                    new_dataset[station]['subcases_dyn2stat'] += self.datasets['dataset'][x][station]['subcases_dyn2stat']
-                    new_dataset[station]['t']                += self.datasets['dataset'][x][station]['t']
-
-            # save into data structure
+                    if station not in new_dataset.keys():
+                        # create (empty) entries for new monstation
+                        new_dataset[station] = {'CD': self.datasets['dataset'][x][station]['CD'],
+                                                'CP': self.datasets['dataset'][x][station]['CP'],
+                                                'offset': self.datasets['dataset'][x][station]['offset'],
+                                                'subcase': [],
+                                                'loads':[],
+                                                't':[],
+                                                }
+                    # Check for dynamic loads.
+                    if np.size(self.datasets['dataset'][x][station]['t'][0]) == 1:
+                        # Scenario 1: There are only static loads.
+                        print '- {}: found static loads'.format(station)
+                        loads_string   = 'loads'
+                        subcase_string = 'subcase'
+                        t_string = 't'
+                    elif (np.size(self.datasets['dataset'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['dataset'][x][station].keys()) and (self.datasets['dataset'][x][station]['loads_dyn2stat'] != []):
+                        # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
+                        print '- {}: found dyn2stat loads -> discarding dynamic loads'.format(station)
+                        loads_string   = 'loads_dyn2stat'
+                        subcase_string = 'subcases_dyn2stat'
+                        t_string = 't_dyn2stat'
+                    else:
+                        # Scenario 3: There are only dynamic loads. 
+                        return
+                    # Merge.   
+                    new_dataset[station]['loads']           += self.datasets['dataset'][x][station][loads_string]
+                    new_dataset[station]['subcase']         += self.datasets['dataset'][x][station][subcase_string]
+                    new_dataset[station]['t']               += self.datasets['dataset'][x][station][t_string]
+            # Save into data structure.
             self.datasets['ID'].append(self.datasets['n'])  
             self.datasets['dataset'].append(new_dataset)
             self.datasets['color'].append(self.colors[self.datasets['n']])
             self.datasets['desc'].append('dataset '+ str(self.datasets['n']))
             self.datasets['n'] += 1
-            # update fields
+            # Update fields.
             self.update_fields()
-    
     
     def load_monstation(self):
         # open file dialog

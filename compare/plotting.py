@@ -32,12 +32,17 @@ class Plotting:
         
     def potato_plot(self, monstations, station, desc, color, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis, show_hull, show_labels):
         
-        if (monstations[station]['loads_dyn2stat'] == []) or ('loads_dyn2stat' not in monstations[station].keys()) :
+        if np.size(monstations[station]['t'][0]) == 1:
+            # Scenario 1: There are only static loads.
             loads_string = 'loads'
             subcase_string = 'subcase'
-        else:
+        elif (np.size(monstations[station]['t'][0]) > 1) and ('loads_dyn2stat' in monstations[station].keys()) and (monstations[station]['loads_dyn2stat'] != []):
+            # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
             loads_string = 'loads_dyn2stat'
             subcase_string = 'subcases_dyn2stat'
+        else:
+            # Scenario 3: There are only dynamic loads. 
+            return
 
         loads   = np.array(monstations[station][loads_string])
         points = np.vstack((loads[:,dof_xaxis], loads[:,dof_yaxis])).T
