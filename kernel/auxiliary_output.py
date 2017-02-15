@@ -61,13 +61,17 @@ class auxiliary_output:
     def write_critical_nodalloads(self, filename, dyn2stat=False): 
         logging.info( 'saving critical nodal loads as Nastarn cards...')
         if dyn2stat:
+            # This is quite a complicated sorting because the subcases from dyn2stat may contain non-numeric characters. 
+            # A "normal" sorting returns an undesired sequence, leading IDs in a non-ascending sequence. This a not allowed by Nastran. 
+            subcases_IDs = [self.dyn2stat_data['subcases_ID'][self.dyn2stat_data['subcases'].index(crit_trimcase)] for crit_trimcase in np.unique(self.crit_trimcases) ]
+            subcases_IDs = np.sort(subcases_IDs)
             with open(filename+'_Pg', 'w') as fid: 
-                for crit_trimcase in np.sort(np.unique(self.crit_trimcases)):
-                    idx = self.dyn2stat_data['subcases'].index(crit_trimcase)
+                for subcase_ID in subcases_IDs:
+                    idx = self.dyn2stat_data['subcases_ID'].index(subcase_ID)
                     write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx], self.dyn2stat_data['subcases_ID'][idx])
             with open(filename+'_subcases', 'w') as fid:  
-                for crit_trimcase in np.sort(np.unique(self.crit_trimcases)):
-                    idx = self.dyn2stat_data['subcases'].index(crit_trimcase)                  
+                for subcase_ID in subcases_IDs:
+                    idx = self.dyn2stat_data['subcases_ID'].index(subcase_ID)
                     write_functions.write_subcases(fid, self.dyn2stat_data['subcases_ID'][idx], self.dyn2stat_data['subcases'][idx])
         else:
             crit_trimcases = self.crit_trimcases
