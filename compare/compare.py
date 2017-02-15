@@ -53,7 +53,7 @@ class App:
         # define file options
         self.file_opt = {}
         #self.file_opt['defaultextension'] = '.txt'
-        self.file_opt['filetypes']  = [('pickle files', '.pickle'), ('all files', '.*')]
+        self.file_opt['filetypes']  = [('Loads Kernel files', 'monstation*.pickle'), ('all pickle files', '.pickle'), ('all files', '.*')]
         self.file_opt['initialdir'] = os.getcwd()
         self.file_opt['title']      = 'This is a title'
         
@@ -88,7 +88,7 @@ class App:
         root.grid_rowconfigure(1, weight=1)
 
         # ListBox to select several datasets 
-        self.lb_dataset = tk.Listbox(frame_left_top, height=5, selectmode=tk.EXTENDED, exportselection=False)
+        self.lb_dataset = tk.Listbox(frame_left_top, height=10, selectmode=tk.EXTENDED, exportselection=False)
         self.lb_dataset.grid(row=0, column=0, sticky=(tk.N,tk.W,tk.E,tk.S))
         self.lb_dataset.bind('<<ListboxSelect>>', self.show_choice)
         s_dataset = ttk.Scrollbar(frame_left_top, orient=tk.VERTICAL, command=self.lb_dataset.yview)
@@ -109,7 +109,7 @@ class App:
         self.cb_color.bind('<<ComboboxSelected>>', self.update_color )        
 
         # ListBox to select monstations 
-        self.lb_mon = tk.Listbox(frame_left_top, height=5, selectmode=tk.SINGLE, exportselection=False)
+        self.lb_mon = tk.Listbox(frame_left_top, height=10, selectmode=tk.SINGLE, exportselection=False)
         self.lb_mon.grid(row=0, column=2, sticky=(tk.N,tk.W,tk.E,tk.S))
         self.lb_mon.bind('<<ListboxSelect>>', self.show_choice)
         s_mon = ttk.Scrollbar(frame_left_top, orient=tk.VERTICAL, command=self.lb_mon.yview)
@@ -262,6 +262,7 @@ class App:
             self.datasets['n'] += 1
             # update fields
             self.update_fields()
+            self.file_opt['initialdir'] = os.path.split(filename)[0]
 
         
     def load_pickle(self, filename):
