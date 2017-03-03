@@ -225,9 +225,9 @@ class trim:
         self.response['X0'] = X0 # Linearisierungspunkt
         #self.response['jac'] = jac
         
-        n_j         = n_modes#self.model.aerogrid['n']
+        n_j         = self.model.aerogrid['n']
         n_poles     = self.model.aero['n_poles']
-        i_mass     = self.model.mass['key'].index(self.trimcase['mass'])
+        i_mass      = self.model.mass['key'].index(self.trimcase['mass'])
         n_modes     = self.model.mass['n_modes'][i_mass] 
         # States need to be reordered into ABCD matrices!
         # X = [ rbm,  flex,  command_cs,  lag_states ]
