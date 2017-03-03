@@ -48,7 +48,7 @@ class analysis:
             ax1 = fig1.gca()
             fig2 = plt.figure()
             ax2 = fig2.gca()
-            colors = iter(plt.cm.jet(np.linspace(0, 1, len(states))))
+            colors = itertools.cycle(( plt.cm.jet(np.linspace(0, 1, 11)) ))
             markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
             logging.info('Identified properties of states for {}:'.format(self.jcl.trimcase[i]['desc']))
             logging.info('--------------------------------------------------------------------------------------')
@@ -138,14 +138,14 @@ class analysis:
             ax2.set_title(self.jcl.trimcase[i]['desc'])
             ax1.grid(b=True, which='both', axis='both')
             ax2.grid(b=True, which='both', axis='both')
-            ax1.legend(loc='best', fontsize=10)
-            ax2.legend(loc='best', fontsize=10)
+            lgd1 = ax1.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2)
+            lgd2 = ax2.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2)
             ax1.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
             ax1.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             ax2.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
             ax2.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-            pp.savefig(fig1)
-            pp.savefig(fig2)
+            pp.savefig(fig1, additional_artists=[lgd1],  bbox_inches="tight")
+            pp.savefig(fig2, additional_artists=[lgd2],  bbox_inches="tight")
             plt.close(fig1)
             plt.close(fig2)
         
@@ -154,7 +154,7 @@ class analysis:
         ax = fig.gca()
         Fs_all = np.array(Fs_all)
         Ma = np.array([trimcase['Ma'] for trimcase in self.jcl.trimcase])
-        colors = iter(plt.cm.jet(np.linspace(0, 1, Fs_all.shape[1])))
+        colors = itertools.cycle(( plt.cm.jet(np.linspace(0, 1, 11)) ))
         markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
         for j in range(Fs_all.shape[1]): 
             pos = ~np.isnan(Fs_all[:, j])
@@ -165,8 +165,8 @@ class analysis:
         ax.set_xlabel('Ma')
         ax.set_ylabel('f [Hz]')
         ax.grid(b=True, which='both', axis='both')
-        ax.legend(loc='best', fontsize=10)
-        pp.savefig(fig)
+        lgd = ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2)
+        pp.savefig(fig, additional_artists=[lgd2],  bbox_inches="tight")
         plt.close(fig)
         
         # plot damping
@@ -174,7 +174,7 @@ class analysis:
         ax = fig.gca()
         Gammas_all = np.array(Gammas_all)
         Ma = np.array([trimcase['Ma'] for trimcase in self.jcl.trimcase])
-        colors = iter(plt.cm.jet(np.linspace(0, 1, Fs_all.shape[1])))
+        colors = itertools.cycle(( plt.cm.jet(np.linspace(0, 1, 11)) ))
         markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
         for j in range(Gammas_all.shape[1]): 
             pos = ~np.isnan(Gammas_all[:, j])
@@ -185,8 +185,8 @@ class analysis:
         ax.set_xlabel('Ma')
         ax.set_ylabel('Gamma (damping)')
         ax.grid(b=True, which='both', axis='both')
-        ax.legend(loc='best', fontsize=10)
-        pp.savefig(fig)
+        lgd = ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2)
+        pp.savefig(fig, additional_artists=[lgd2],  bbox_inches="tight")
         plt.close(fig)
         
         pp.close()
@@ -270,7 +270,7 @@ class analysis:
         freqs = np.array([self.responses[i]['freqs'] for i in range(len(self.responses))])
         damping = np.array([self.responses[i]['damping'] for i in range(len(self.responses))])
         Ma = np.array([trimcase['Ma'] for trimcase in self.jcl.trimcase])
-        colors = iter(plt.cm.jet(np.linspace(0, 1, freqs.shape[1])))
+        colors = itertools.cycle(( plt.cm.jet(np.linspace(0, 1, 11)) ))
         markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
         desc = ['M ' + str(mode) for mode in modes]
         
