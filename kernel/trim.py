@@ -183,7 +183,52 @@ class trim:
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
         else:
             logging.info('setting trim conditions to "default"')
+    
+    def calc_jacobian(self):
+        import model_equations # Warum muss der import hier stehen??
+#         equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+#         X0 = np.array(self.trimcond_X[:,2], dtype='float')
+        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
+            equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+            X0 = np.array(self.trimcond_X[:,2], dtype='float')
+        elif self.jcl.aero['method'] in [ 'mona_unsteady']:
+            # initialize lag states with zero and extend steady response vectors X and Y
+            logging.info('adding {} x {} unsteady lag states to the system'.format(self.model.aerogrid['n'],self.model.aero['n_poles']))
+            lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
+            X0 = np.hstack((np.array(self.trimcond_X[:,2], dtype='float'), lag_states ))
+            equations = model_equations.unsteady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+        else:
+            logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
+        def approx_jacobian(X0,func,epsilon,dt):
+            """Approximate the Jacobian matrix of callable function func
+               * Parameters
+                 x       - The state vector at which the Jacobian matrix is desired
+                 func    - A vector-valued function of the form f(x,*args)
+                 epsilon - The peturbation used to determine the partial derivatives
+                 *args   - Additional arguments passed to func
+            """
+            X0 = np.asfarray(X0)
+            jac = np.zeros([len(func(*(X0,0.0, 'sim'))),len(X0)])
+            dX = np.zeros(len(X0))
+            for i in range(len(X0)):
+                f0 = func(*(X0,0.0, 'sim'))
+                dX[i] = epsilon
+                fi = func(*(X0+dX,0.0+dt, 'sim'))
+                jac[:,i] = (fi - f0)/epsilon
+                dX[i] = 0.0
+            return jac
+        
+        logging.info('Calculating jacobian for ' + str(len(X0)) + ' variables...')
+        jac = approx_jacobian(X0=X0, func=equations.equations, epsilon=0.1, dt=1.0)
+        self.response = {}
+        self.response['X0'] = X0
+        self.response['jac'] = jac
+        self.response['A'] = jac[:-4, :-3]
+        self.response['B'] = jac[:-4, -3:]
+        self.response['C'] = jac[-4:, :-3]
+        self.response['D'] = jac[-4:, -3:]
+            
     def calc_derivatives(self):
         import model_equations # Warum muss der import hier stehen??
         
@@ -276,6 +321,9 @@ class trim:
             self.response['Y'] = np.hstack((self.response['Y'], lg_states_Y ))
             equations = model_equations.landing(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
+            if 'disturbance' in self.simcase.keys():
+                logging.info('adding disturbance of {} to state(s) '.format(self.simcase['disturbance']))
+                self.response['X'][11+self.simcase['disturbance_mode']] += self.simcase['disturbance']
             # initialize lag states with zero and extend steady response vectors X and Y
             logging.info('adding {} x {} unsteady lag states to the system'.format(self.model.aerogrid['n'],self.model.aero['n_poles']))
             lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 

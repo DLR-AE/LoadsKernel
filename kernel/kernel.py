@@ -14,7 +14,7 @@ import monstations as monstations_modul
 import auxiliary_output as auxiliary_output_modul
 import plotting as plotting_modul
 
-def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_input='../input/', path_output='../output/', jcl=None, parallel=False):
+def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespace=False, path_input='../input/', path_output='../output/', jcl=None, parallel=False):
     path_input = check_path(path_input) 
     path_output = check_path(path_output)    
     setup_logger(path_output, job_name )
@@ -82,6 +82,29 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         q_output.join()
         
         logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
+    
+    if statespace:
+        if not 'model' in locals():
+            model = load_model(job_name, path_output)
+        
+        logging.info( '--> Starting State Space Matrix generation for %d trimcase(s).' % len(jcl.trimcase))
+        t_start = time.time()
+        monstations = monstations_modul.monstations(jcl, model)
+        f = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
+        for i in range(len(jcl.trimcase)):
+            logging.info( '')
+            logging.info( '========================================')
+            logging.info( 'trimcase: ' + jcl.trimcase[i]['desc'])
+            logging.info( 'subcase: ' + str(jcl.trimcase[i]['subcase']))
+            logging.info( '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')')
+            logging.info( '========================================')
+            
+            trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+            trim_i.set_trimcond()
+            trim_i.calc_jacobian()
+            trim_i.response['i'] = i
+            logging.info( '--> Saving response(s).')
+            cPickle.dump(trim_i.response, f, cPickle.HIGHEST_PROTOCOL)
 
     if post:
         if not 'model' in locals():
@@ -109,6 +132,13 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
         # ----------------------------
         # --- try to load response ---
         # ----------------------------
+        
+        #logging.info( '--> Openloop analysis.')
+        #import openloop_analysis as openloop_modul
+        #openloop_analysis = openloop_modul.analysis(jcl, model, responses)
+        #openloop_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
+        #openloop_analysis.plot_state_space_matrices()
+        #openloop_analysis.analyse_eigenvalues(path_output + 'analyse_of_eigenvalues_' + job_name + '.pdf')
         
         logging.info( '--> Saving auxiliary output data.')
         auxiliary_output = auxiliary_output_modul.auxiliary_output(jcl, model, jcl.trimcase)
@@ -161,7 +191,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, path_inp
                 trim_i.exec_sim()
             post_processing_i = post_processing_modul.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
             post_processing_i.force_summation_method()
-            #post_processing_i.euler_transformation()
+            post_processing_i.euler_transformation()
             post_processing_i.cuttingforces()
             monstations.gather_monstations(jcl.trimcase[i], trim_i.response)
             if 't_final' and 'dt' in jcl.simcase[i].keys():

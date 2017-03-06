@@ -55,6 +55,14 @@ class plotting:
             self.cuttingforces_wing = ['MON646', 'MON644', 'MON641', 'MON541', 'MON544', 'MON546']
             self.f_scale = 0.1 # vectors
             self.p_scale = 0.2 # points
+        # FLEXOP
+        elif self.jcl.general['aircraft'] == 'FLEXOP':
+            self.potatos_Fz_Mx = ['MON1']
+            self.potatos_Mx_My = ['MON1']
+            self.potatos_Fz_My = ['MON1']
+            self.cuttingforces_wing = ['MON1']
+            self.f_scale = 0.1 # vectors
+            self.p_scale = 0.05 # points
         else:
             logging.error('Unknown aircraft: ' + str(self.jcl.general['aircraft']))
             return
