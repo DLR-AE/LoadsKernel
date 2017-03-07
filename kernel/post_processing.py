@@ -71,7 +71,7 @@ class post_processing:
             Pg_iner_r = - Mgg.dot(d2Ug_dt2_r)
             Pg_iner_f = - Mgg.dot(d2Ug_dt2_f)
             response['Pg_iner'] = Pg_iner_r + Pg_iner_f
-            response['Pg_aero'] = np.dot(self.model.PHIk_strc.T, response['Pk_aero'])
+            response['Pg_aero'] = self.model.PHIk_strc.T.dot(response['Pk_aero'])
             response['Pg_ext']  = np.zeros((6*self.model.strcgrid['n']))
             response['Pg'] = response['Pg_aero'] + response['Pg_iner'] + response['Pg_ext']
             response['d2Ug_dt2'] = d2Ug_dt2_r + d2Ug_dt2_f

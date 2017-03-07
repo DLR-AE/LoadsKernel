@@ -312,7 +312,7 @@ class model:
             # rbf-spline not (yet) stable for translation of forces and moments to structure grid, so use rb-spline with nearest neighbour search instead
         elif self.jcl.spline['method'] == 'nearest_neighbour':
             rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.aerogrid, '_k') 
-            self.PHIk_strc = spline_functions.spline_rb(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6])
+            self.PHIk_strc = spline_functions.spline_rb(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6], sparse_output=True)
             spline_functions.plot_splinerules(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, self.path_output + 'spline_rules.png')    
         elif self.jcl.spline['method'] == 'nastran': 
             self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
@@ -395,8 +395,8 @@ class model:
                 rules = spline_rules.rules_point(cggrid_norm, cggrid)
                 PHIcg_norm = spline_functions.spline_rb(cggrid_norm, '', cggrid, '', rules, self.coord) 
                 
-                PHIjf = np.dot(self.Djk, np.dot(self.PHIk_strc, PHIf_strc.T))                
-                PHIkf = np.dot(self.PHIk_strc, PHIf_strc.T)
+                PHIjf = np.dot(self.Djk, self.PHIk_strc.dot(PHIf_strc.T))                
+                PHIkf = self.PHIk_strc.dot(PHIf_strc.T)
 
                 Mfcg=PHIf_strc.dot(-MGG.dot(PHIstrc_cg))
         
