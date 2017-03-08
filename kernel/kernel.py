@@ -106,6 +106,10 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
             logging.info( '--> Saving response(s).')
             cPickle.dump(trim_i.response, f, cPickle.HIGHEST_PROTOCOL)
 
+            del trim_i
+        f.close() # close response
+        logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
+        
     if post:
         if not 'model' in locals():
             model = load_model(job_name, path_output)

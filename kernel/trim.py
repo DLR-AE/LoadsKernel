@@ -220,14 +220,28 @@ class trim:
             return jac
         
         logging.info('Calculating jacobian for ' + str(len(X0)) + ' variables...')
-        jac = approx_jacobian(X0=X0, func=equations.equations, epsilon=0.1, dt=1.0)
+        jac = approx_jacobian(X0=X0, func=equations.equations, epsilon=0.001, dt=1.0) # epsilon sollte klein sein, dt sollte 1.0s sein
         self.response = {}
-        self.response['X0'] = X0
-        self.response['jac'] = jac
-        self.response['A'] = jac[:-4, :-3]
-        self.response['B'] = jac[:-4, -3:]
-        self.response['C'] = jac[-4:, :-3]
-        self.response['D'] = jac[-4:, -3:]
+        self.response['X0'] = X0 # Linearisierungspunkt
+        #self.response['jac'] = jac
+        
+        n_j         = self.model.aerogrid['n']
+        n_poles     = self.model.aero['n_poles']
+        i_mass      = self.model.mass['key'].index(self.trimcase['mass'])
+        n_modes     = self.model.mass['n_modes'][i_mass] 
+        # States need to be reordered into ABCD matrices!
+        # X = [ rbm,  flex,  command_cs,  lag_states ]
+        # Y = [drbm, dflex, dcommand_cs, dlag_states, Nz]
+        # [Y] = [A B] * [X]
+        #       [C D]   
+        
+        idx_A = range(0,12+n_modes*2) + range(12+n_modes*2+3, 12+n_modes*2+3+n_j*n_poles)
+        idx_B = range(12+n_modes*2,12+n_modes*2+3)
+        idx_C = range(12+n_modes*2+3, 12+n_modes*2+3+1)
+        self.response['A'] = jac[idx_A,:][:,idx_A] # aircraft itself
+        self.response['B'] = jac[idx_A,:][:,idx_B] # reaction of aircraft on external excitation
+        self.response['C'] = jac[idx_C,:][:,idx_A] # sensors
+        self.response['D'] = jac[idx_C,:][:,idx_B] # reaction of sensors on external excitation
             
     def calc_derivatives(self):
         import model_equations # Warum muss der import hier stehen??
