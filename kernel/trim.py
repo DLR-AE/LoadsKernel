@@ -191,12 +191,14 @@ class trim:
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
             X0 = np.array(self.trimcond_X[:,2], dtype='float')
+            n_poles     = 0
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             # initialize lag states with zero and extend steady response vectors X and Y
             logging.info('adding {} x {} unsteady lag states to the system'.format(self.model.aerogrid['n'],self.model.aero['n_poles']))
             lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
             X0 = np.hstack((np.array(self.trimcond_X[:,2], dtype='float'), lag_states ))
             equations = model_equations.unsteady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+            n_poles     = self.model.aero['n_poles']
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -221,12 +223,12 @@ class trim:
         
         logging.info('Calculating jacobian for ' + str(len(X0)) + ' variables...')
         jac = approx_jacobian(X0=X0, func=equations.equations, epsilon=0.001, dt=1.0) # epsilon sollte klein sein, dt sollte 1.0s sein
-        self.response = {}
+        #self.response = {}
         self.response['X0'] = X0 # Linearisierungspunkt
-        #self.response['jac'] = jac
+        self.response['Y0'] = equations.equations(X0, t=0.0, type='trim')
+        self.response['jac'] = jac
         
         n_j         = self.model.aerogrid['n']
-        n_poles     = self.model.aero['n_poles']
         i_mass      = self.model.mass['key'].index(self.trimcase['mass'])
         n_modes     = self.model.mass['n_modes'][i_mass] 
         # States need to be reordered into ABCD matrices!
