@@ -101,6 +101,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
             
             trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
             trim_i.set_trimcond()
+            trim_i.exec_trim()
             trim_i.calc_jacobian()
             trim_i.response['i'] = i
             logging.info( '--> Saving response(s).')
