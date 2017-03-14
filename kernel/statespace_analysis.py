@@ -228,11 +228,15 @@ class analysis:
         logging.info('Calculating eigenvalues...')
         eigenvalue, eigenvector = linalg.eigs(response['A'], k=modes.size * 2, which='LI') 
         idx_pos = np.where(eigenvalue.imag / 2.0 / np.pi >= 0.1)[0]  # nur oszillierende Eigenbewegungen
+#         from scipy.linalg import eig
+#         eigenvalue, eigenvector = eig(response['A'])
+#         idx_pos = range(len(eigenvalue))
         idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
         eigenvalues.append(eigenvalue[idx_pos][idx_sort])
         eigenvectors.append(eigenvector[:, idx_pos][:, idx_sort])
         freqs = eigenvalues[i].imag / 2.0 / np.pi
-        damping = eigenvalues[i].real * 2.0
+        #damping = eigenvalues[i].real * 2.0
+        damping = - eigenvalues[i].real / np.abs(eigenvalues[i])
         logging.info('Found {} eigenvalues with frequencies [Hz]:'.format(len(eigenvalues[i])))
         logging.info(freqs)
         # logging.info('with damping ratios:')
@@ -247,6 +251,8 @@ class analysis:
             logging.info('Calculating eigenvalues...')
             eigenvalue, eigenvector = linalg.eigs(response['A'], k=modes.size * 2, which='LI') 
             idx_pos = np.where(eigenvalue.imag / 2.0 / np.pi >= 0.1)[0]
+#             eigenvalue, eigenvector = eig(response['A'])
+#             idx_pos = range(len(eigenvalue))
             # idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))
             # MAC, fig = calc_MAC(eigenvectors[0],eigenvectors[0])
             # MAC, fig = calc_MAC(eigenvector[:,idx_pos][:,idx_sort],eigenvector[:,idx_pos][:,idx_sort])
@@ -255,8 +261,12 @@ class analysis:
             eigenvalues.append(eigenvalue[idx_pos][idx_sort_MAC])
             eigenvectors.append(eigenvector[:, idx_pos][:, idx_sort_MAC])
             
+            # lambda = sigma +- j*omega
+            # omega0 = sqrt(sigma^2+omega^2)
+            # D = - sigma / omega0
             freqs = eigenvalues[i].imag / 2.0 / np.pi
-            damping = eigenvalues[i].real * 2.0
+            #damping = eigenvalues[i].real * 2.0
+            damping = - eigenvalues[i].real / np.abs(eigenvalues[i])
             logging.info('Found {} eigenvalues with frequencies [Hz]:'.format(len(eigenvalues[i])))
             logging.info(freqs)
             # logging.info('with damping ratios:')
@@ -300,7 +310,8 @@ class analysis:
         pp.savefig(fig1, additional_artists=[lgd1],  bbox_inches="tight")
         
         ax2.set_xlabel('Ma')
-        ax2.set_ylabel('Damping')
+        ax2.set_ylabel('Damping ratio zeta')
+        ax2.set_yscale('symlog',linthreshy=0.0001, subsy=[2,3,4,5,6,7,8,9])
         ax2.grid(b=True, which='both', axis='both')
         ax2.legend(loc='best', fontsize=10)
         #ax2.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
@@ -308,7 +319,8 @@ class analysis:
         lgd2 = ax2.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2)
         pp.savefig(fig2, additional_artists=[lgd2],  bbox_inches="tight")
 
-        ax3.set_xlabel('Damping')
+        ax3.set_xlabel('Damping ratio zeta')
+        ax3.set_xscale('symlog',linthreshx=0.0001, subsx=[2,3,4,5,6,7,8,9])
         ax3.set_ylabel('f [Hz]')
         ax3.grid(b=True, which='both', axis='both')
         ax3.legend(loc='best', fontsize=10)
