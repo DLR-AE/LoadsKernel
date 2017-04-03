@@ -6,6 +6,7 @@ Created on Tue Mar  3 14:36:41 2015
 """
 import numpy as np
 import csv, logging
+import PID
 
 class mephisto:
     def __init__(self):
@@ -68,8 +69,39 @@ class mephisto:
             logging.warning( 'Commanded alpha not possible, violation of upper alpha bounds!')
             alpha = self.alpha_upper
         return alpha
+    
+    def controller_init(self, command_0, setpoint_q):
+        self.command_0 = command_0
+        # set up dampfer
+        self.damper = PID.PID_standart(Kp = 0.5, Ti = 0.5, Td = 0.0, t=0.0)
+        self.damper.SetPoint=setpoint_q
+        self.damper.sample_time=0.0
+        #self.damper.windup_guard=0.01
         
-
+        # set up actuator
+        self.actuator = PID.PID_ideal(Kp = 10.0, Ki = 0.0, Kd = 0.0, t=0.0)
+        self.actuator.SetPoint=0.0
+        self.actuator.sample_time=0.0
+        self.max_actuator_speed = 40.0/180.0*np.pi
+        
+    def controller(self, t, feedback_q, feedback_eta):
+        # Daempfer
+        self.damper.update(t=t, feedback_value=feedback_q) # q
+        command_eta = self.command_0[1] + self.damper.output # eta
+        
+        # Aktuator
+        self.actuator.setSetPoint(command_eta)
+        self.actuator.update(t=t, feedback_value=feedback_eta) # eta
+        command_deta = self.actuator.output # deta
+        if command_deta > self.max_actuator_speed:
+            command_deta = self.max_actuator_speed
+        elif command_deta < -self.max_actuator_speed:
+            command_deta = -self.max_actuator_speed
+            
+        # commands for xi and zeta remain untouched
+        dcommand = np.array([0.0, command_deta, 0.0])
+        return dcommand
+        
 class allegra:
     def __init__(self):
         self.keys = ['ELEV1', 'ELEV2', 'RUDDER']

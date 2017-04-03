@@ -322,7 +322,7 @@ class trim:
     def exec_sim(self):
         import model_equations 
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not self.simcase['landinggear']:
-            equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+            equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase, X0=self.response['X'])
         elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
             logging.info('adding 2 x {} states for landing gear'.format(self.model.lggrid['n']))
             lg_states_X = []
@@ -335,7 +335,7 @@ class trim:
                 lg_states_Y.append(self.response['ddp1'][i])
             self.response['X'] = np.hstack((self.response['X'], lg_states_X ))
             self.response['Y'] = np.hstack((self.response['Y'], lg_states_Y ))
-            equations = model_equations.landing(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+            equations = model_equations.landing(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase, X0=self.response['X'])
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             if 'disturbance' in self.simcase.keys():
                 logging.info('adding disturbance of {} to state(s) '.format(self.simcase['disturbance']))
@@ -345,7 +345,7 @@ class trim:
             lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
             self.response['X'] = np.hstack((self.response['X'], lag_states ))
             self.response['Y'] = np.hstack((self.response['Y'], lag_states ))
-            equations = model_equations.unsteady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase)
+            equations = model_equations.unsteady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase, X0=self.response['X'])
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
 
@@ -355,7 +355,7 @@ class trim:
         logging.info('running time simulation for ' + str(t_final) + ' sec...')
         #print 'Progress:'
         from scipy.integrate import ode
-        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-7, atol=1e-7, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
+        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-6, atol=1e-6, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
         #integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
 #         integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=1e-4)
         integrator.set_initial_value(X0, 0.0)

@@ -6,7 +6,7 @@ from scipy import interpolate
        
 
 class aero():
-    def __init__(self, model, jcl, trimcase, trimcond_X, trimcond_Y, simcase = False):
+    def __init__(self, model, jcl, trimcase, trimcond_X, trimcond_Y, simcase = False, X0=None):
         logging.info('Init model equations.')
         self.model = model
         self.jcl = jcl
@@ -74,8 +74,9 @@ class aero():
         # init controller
         if self.simcase and self.simcase['controller']:
             #self.efcs.controller_init(np.array((0.0,0.0,0.0)), 'angular accelerations')
-            self.efcs.controller_init(np.dot(self.PHIcg_norm[3:6,3:6],np.dot(calc_drehmatrix_angular(float(self.trimcond_X[3,2]), float(self.trimcond_X[4,2]), float(self.trimcond_X[5,2])), np.array(self.trimcond_X[9:12,2], dtype='float'))), 'angular velocities')
-            
+            #self.efcs.controller_init(np.dot(self.PHIcg_norm[3:6,3:6],np.dot(calc_drehmatrix_angular(float(self.trimcond_X[3,2]), float(self.trimcond_X[4,2]), float(self.trimcond_X[5,2])), np.array(self.trimcond_X[9:12,2], dtype='float'))), 'angular velocities')
+            self.efcs.controller_init(command_0=X0[12+self.n_modes*2:12+self.n_modes*2+3], setpoint_q=float(self.trimcond_X[np.where(self.trimcond_X[:,0]=='q')[0][0], 2]) )
+                
         # init aero db for hybrid aero: alpha
         if self.jcl.aero['method'] == 'hybrid' and self.model.aerodb.has_key('alpha') and self.trimcase['aero'] in self.model.aerodb['alpha']:
             self.correct_alpha = True
@@ -460,7 +461,8 @@ class steady(aero):
             dcommand = self.efcs.cs_signal(t)
         elif self.simcase and self.simcase['controller']:
             #dcommand = self.efcs.controller(d2Ucg_dt2[3:6])
-            dcommand = self.efcs.controller(dUcg_dt[3:6])
+            #dcommand = self.efcs.controller(dUcg_dt[3:6])
+            dcommand = self.efcs.controller(t=t, feedback_q=dUcg_dt[4], feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])
         else:
             dcommand = np.zeros(3)
 
@@ -696,7 +698,8 @@ class unsteady(aero):
         if self.simcase and self.simcase['cs_signal']:
             dcommand = self.efcs.cs_signal(t)
         elif self.simcase and self.simcase['controller']:
-            dcommand = self.efcs.controller(angular_acc=d2Ucg_dt2[3:6])
+            #dcommand = self.efcs.controller(angular_acc=d2Ucg_dt2[3:6])
+            dcommand = self.efcs.controller(t=t, feedback_q=dUcg_dt[4], feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])
         else:
             dcommand= np.zeros(3)
 
