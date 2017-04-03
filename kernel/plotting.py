@@ -364,29 +364,29 @@ class plotting:
             plt.grid('on')
             plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_aero'])
             
-            plt.figure()
-            plt.subplot(3,1,1)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['p1'])
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,95:98], '--')
-            plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
-            plt.xlabel('t [s]')
-            plt.ylabel('p1,2 [m]')
-            plt.grid('on')
-            plt.subplot(3,1,2)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F1'])
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F2'], '--')
-            plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
-            plt.xlabel('t [s]')
-            plt.ylabel('F1,2 [N]')
-            plt.grid('on')
-            
-            plt.subplot(3,1,3)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dp1'])
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,98:101], '--')
-            plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
-            plt.xlabel('t [s]')
-            plt.ylabel('dp1,2 [m/s]')
-            plt.grid('on')
+#             plt.figure()
+#             plt.subplot(3,1,1)
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['p1'])
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,95:98], '--')
+#             plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
+#             plt.xlabel('t [s]')
+#             plt.ylabel('p1,2 [m]')
+#             plt.grid('on')
+#             plt.subplot(3,1,2)
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F1'])
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F2'], '--')
+#             plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
+#             plt.xlabel('t [s]')
+#             plt.ylabel('F1,2 [N]')
+#             plt.grid('on')
+#             
+#             plt.subplot(3,1,3)
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dp1'])
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,98:101], '--')
+#             plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
+#             plt.xlabel('t [s]')
+#             plt.ylabel('dp1,2 [m/s]')
+#             plt.grid('on')
         
             plt.figure()
             plt.subplot(2,1,1)
@@ -661,6 +661,7 @@ class plotting:
         uvw1 = np.linalg.norm(response['Pg_aero_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
         uvw2 = np.linalg.norm(response['Pg_iner_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
         uvw3 = np.linalg.norm(response['Pg_ext_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
+#         uvw3 = np.linalg.norm(response['Pg_cs_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
         uvw1_e = uvw1**exponent
         uvw2_e = uvw2**exponent
         uvw3_e = uvw3**exponent
@@ -674,6 +675,9 @@ class plotting:
         u3 = response['Pg_ext_global'][:,self.model.strcgrid['set'][:,0]] / uvw3 * uvw3_e
         v3 = response['Pg_ext_global'][:,self.model.strcgrid['set'][:,1]] / uvw3 * uvw3_e
         w3 = response['Pg_ext_global'][:,self.model.strcgrid['set'][:,2]] / uvw3 * uvw3_e
+#         u3 = response['Pg_cs_global'][:,self.model.strcgrid['set'][:,0]] / uvw3 * uvw3_e
+#         v3 = response['Pg_cs_global'][:,self.model.strcgrid['set'][:,1]] / uvw3 * uvw3_e
+#         w3 = response['Pg_cs_global'][:,self.model.strcgrid['set'][:,2]] / uvw3 * uvw3_e
         
         # guard for NaNs due to pervious division by uvw
         u1[np.isnan(u1)] = 0.0
