@@ -141,6 +141,7 @@ class App:
         
         
         # init Matplotlib Plot
+        mpl.rcParams.update({'font.size': 16})
         fig1 = mpl.figure.Figure()
         subplot = fig1.add_subplot(111)  
         # hand over subplot to plotting class
