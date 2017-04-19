@@ -56,14 +56,17 @@ class jcl:
                        'splinegrid': True,                      # True or False
                        'filename_splinegrid': 'splinegrid.bdf'  # bdf file(s) with GRIDs
                       }
-        self.mass = {'method': 'mona', # 'mona', 'modalanalysis' or 'guyan'
-                       'key': ['M1', 'M2'],
-                       'filename_MGG':['MGG_M1.dat', 'MGG_M2.dat'],         # MGG via DMAP Alter und OP4 - always required
-                       'filename_MFF':['MFF_M1.dat', 'MFF_M2.dat'],         # MFF via DMAP Alter und OP4 - required for 'modalanalysis' and 'guyan'
-                       'filename_S103':['SOL103_M1.f06', 'SOL103_M1.f06'],  # eigenvalues and eigenvectors from .f06-file - required for 'mona'
-                       'omit_rb_modes': False, # True or False, omits first six modes
-                       'modes':[np.arange(1,13), np.arange(1,16)], # list(s) of modes to use 
-                      }
+        self.mass =    {'method': 'mona', # 'mona', 'modalanalysis' or 'guyan'
+                        'key': ['M1', 'M2'],
+                        'filename_MGG':['MGG_M1.dat', 'MGG_M2.dat'],         # MGG via DMAP Alter und OP4 - always required
+                        'filename_MFF':['MFF_M1.dat', 'MFF_M2.dat'],         # MFF via DMAP Alter und OP4 - required for 'modalanalysis' and 'guyan'
+                        'filename_S103':['SOL103_M1.f06', 'SOL103_M1.f06'],  # eigenvalues and eigenvectors from .f06-file - required for 'mona'
+                        'omit_rb_modes': False, # True or False, omits first six modes
+                        'modes':[np.arange(1,13), np.arange(1,16)], # list(s) of modes to use 
+                       }
+        self.damping = {'method': 'modal',
+                        'damping': 0.02,
+                       }
         self.atmo = {'method':'ISA', 
                      'key':['FL000','FL055', 'FL075', 'FL200', 'FL300', 'FL450'],
                      'h': ft2m([0, 5500, 7500, 20000, 30000, 45000]), # altitude in meters

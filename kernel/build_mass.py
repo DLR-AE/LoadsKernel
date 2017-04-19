@@ -26,7 +26,8 @@ class build_mass:
           eigenvalues, eigenvectors = read_geom.reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection)
           Mff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedMass']
           Kff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedStiffness']
-          Dff = Kff * 0.0
+          #Dff = Kff * 0.0
+          Dff = self.calc_damping(eigenvalue[modes_selection - 1].real)
           PHIf_strc = np.zeros((len(self.jcl.mass['modes'][i_mass]), len(self.strcgrid['ID'])*6))
           for i_mode in range(len(modes_selection)):
               eigenvector = eigenvectors[str(modes_selection[i_mode])][:,1:]
@@ -158,7 +159,8 @@ class build_mass:
         # calc modal mass and stiffness
         Mff = np.dot( eigenvector[:,modes_selection - 1].real.T,      Maa.dot(eigenvector[:,modes_selection - 1].real) )
         Kff = np.dot( eigenvector[:,modes_selection - 1].real.T, self.Kaa.dot(eigenvector[:,modes_selection - 1].real) )
-        Dff = Kff * 0.0
+        #Dff = Kff * 0.0
+        Dff = self.calc_damping(eigenvalue[modes_selection - 1].real)
         return Mff, Kff, Dff, PHIf_strc.T, Maa
         
         
@@ -235,7 +237,8 @@ class build_mass:
         # calc modal mass and stiffness
         Mff = np.dot( eigenvector[:,modes_selection - 1].real.T,      MFF.dot(eigenvector[:,modes_selection - 1].real) )
         Kff = np.dot( eigenvector.real[:,modes_selection - 1].T, self.KFF.dot(eigenvector[:,modes_selection - 1].real) )
-        Dff = Kff * 0.0
+        #Dff = Kff * 0.0
+        Dff = self.calc_damping(eigenvalue[modes_selection - 1].real)
         return Mff, Kff, Dff, PHIf_strc.T
     
     def calc_modes(self, K, M, n_modes):
@@ -249,6 +252,23 @@ class build_mass:
         logging.info( np.real(eigenvalue)**0.5 /2/np.pi)
         return eigenvalue, eigenvector
     
+    def calc_damping(self, eigenvalues):
+        # Currently, only modal damping is implemented. See Bianchi et al.,
+        # "Using modal damping for full model transient analysis. Application to
+        # pantograph/catenary vibration", presented at the ISMA, 2010.
+        n = len(eigenvalues)
+        Dff = np.zeros((n,n))
+        if hasattr(self.jcl, 'damping') and self.jcl.damping.has_key('method') and self.jcl.damping['method'] == 'modal':
+            logging.info( 'Damping: modal damping of {}'.format( self.jcl.damping['damping'] ))
+            d = eigenvalues**0.5 * 2.0 * self.jcl.damping['damping']
+            np.fill_diagonal(Dff, d) # matrix Dff is modified in-place, no return value
+        elif hasattr(self.jcl, 'damping'):
+            logging.warning( 'Damping method not implemented: {}'.format( str(self.jcl.damping['method']) ))
+            logging.warning( 'Damping: assuming zero damping.' )
+        else:
+            logging.info( 'Damping: assuming zero damping.' )
+        return Dff
+        
     def calc_cg(self, i_mass, Mgg):
         logging.info( 'Calculate center of gravity, mass and inertia (GRDPNT)...')
         # First step: calculate M0
