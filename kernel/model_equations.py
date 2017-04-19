@@ -785,6 +785,9 @@ class landing(aero):
 
     def equations(self, X, t, type):
         self.counter += 1
+        # get additional tranlation matricies
+        PHIlg_cg = self.model.mass['PHIlg_cg'][self.i_mass]
+        PHIf_lg = self.model.mass['PHIf_lg'][self.i_mass]
         # recover states
         Tgeo2body = np.zeros((6,6))
         Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
@@ -839,7 +842,7 @@ class landing(aero):
         # ---------------------------
         Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_cfd + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero)
-        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + np.dot(self.model.mass['PHIlg_cg'][self.i_mass].T, Plg)
+        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + np.dot(PHIlg_cg.T, Plg)
         
         g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
         g_cg = np.dot(self.PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
@@ -859,7 +862,7 @@ class landing(aero):
             d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb)[3:6,3:6], Pb[3:6] )
             Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
         
-        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
+        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) + np.dot(PHIf_lg, Plg) # viel schneller!
         # flexible EoM
         d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
         
@@ -883,9 +886,7 @@ class landing(aero):
         elif type in ['trim_full_output', 'sim_full_output']:
             # calculate translations, velocities and accelerations of some additional points
             # (might also be used for sensors in a closed-loop system
-            PHIlg_cg = self.model.mass['PHIlg_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
-            PHIf_lg = self.model.mass['PHIf_lg'][self.model.mass['key'].index(self.trimcase['mass'])]
-            p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])) + PHIf_lg.T.dot(X[12:12+self.n_modes])                 )[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
+            p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])) + PHIf_lg.T.dot(X[12:12+self.n_modes])               )[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
             dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12])) + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
             ddp1 = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, Y[6:12])) + PHIf_lg.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
 
