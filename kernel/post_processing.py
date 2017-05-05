@@ -118,7 +118,7 @@ class post_processing:
                 coord_tmp['ID'].append(1000000)
                 coord_tmp['RID'].append(0)
                 coord_tmp['dircos'].append(PHIcg_norm[0:3,0:3].dot(calc_drehmatrix(response['X'][i_step,:][3], response['X'][i_step,:][4], response['X'][i_step,:][5])))
-                coord_tmp['offset'].append(response['X'][i_step,:][0:3] + np.array([0., 0., self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
+                coord_tmp['offset'].append(response['X'][i_step,:][0:3] + np.array([0., 0., 0.,]))#self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
 
                 # apply transformation to strcgrid
                 strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
@@ -148,7 +148,7 @@ class post_processing:
             coord_tmp['ID'].append(1000000)
             coord_tmp['RID'].append(0)
             coord_tmp['dircos'].append(PHIcg_norm[0:3,0:3].dot(calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])))
-            coord_tmp['offset'].append(response['X'][0:3] + np.array([0., 0., self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
+            coord_tmp['offset'].append(response['X'][0:3] + np.array([0., 0., 0.,]))# self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
             # apply transformation to strcgrid
             strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
             grid_trafo(strcgrid_tmp, coord_tmp, 1000000)

@@ -10,7 +10,7 @@ import matplotlib.animation as animation
 #from mayavi import mlab
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
-import time, os, copy, logging
+import time, os, copy, logging, cPickle
 import build_aero, write_functions
 
 
@@ -364,29 +364,29 @@ class plotting:
             plt.grid('on')
             plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_aero'])
             
-#             plt.figure()
-#             plt.subplot(3,1,1)
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['p1'])
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,95:98], '--')
-#             plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
-#             plt.xlabel('t [s]')
-#             plt.ylabel('p1,2 [m]')
-#             plt.grid('on')
-#             plt.subplot(3,1,2)
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F1'])
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F2'], '--')
-#             plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
-#             plt.xlabel('t [s]')
-#             plt.ylabel('F1,2 [N]')
-#             plt.grid('on')
-#             
-#             plt.subplot(3,1,3)
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dp1'])
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,98:101], '--')
-#             plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
-#             plt.xlabel('t [s]')
-#             plt.ylabel('dp1,2 [m/s]')
-#             plt.grid('on')
+            plt.figure()
+            plt.subplot(3,1,1)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['p1'])
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,95:98], '--')
+            plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
+            plt.xlabel('t [s]')
+            plt.ylabel('p1,2 [m]')
+            plt.grid('on')
+            plt.subplot(3,1,2)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F1'])
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F2'], '--')
+            plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
+            plt.xlabel('t [s]')
+            plt.ylabel('F1,2 [N]')
+            plt.grid('on')
+             
+            plt.subplot(3,1,3)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dp1'])
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,98:101], '--')
+            plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
+            plt.xlabel('t [s]')
+            plt.ylabel('dp1,2 [m/s]')
+            plt.grid('on')
         
             plt.figure()
             plt.subplot(2,1,1)
@@ -629,6 +629,10 @@ class plotting:
                     self.cones2.mlab_source.set(x=x+u2, y=y+v2, z=z+w2, u=u2, v=v2, w=w2)
                     self.vectors3.mlab_source.set(x=x, y=y, z=z, u=u3, v=v3, w=w3)
                     self.cones3.mlab_source.set(x=x+u3, y=y+v3, z=z+w3, u=u3, v=v3, w=w3)
+                    # get current view and set new focal point
+                    v = mlab.view()
+                    r = mlab.roll()
+                    mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=np.array([x.mean(),y.mean(),z.mean()])) # view from right and above
                     self.fig.scene.disable_render = False
                     #time.sleep(0.01)
                     yield
@@ -646,18 +650,22 @@ class plotting:
                 self.cones2.mlab_source.set(x=x+u2, y=y+v2, z=z+w2, u=u2, v=v2, w=w2)
                 self.vectors3.mlab_source.set(x=x, y=y, z=z, u=u3, v=v3, w=w3)
                 self.cones3.mlab_source.set(x=x+u3, y=y+v3, z=z+w3, u=u3, v=v3, w=w3)
+                # get current view and set new focal point
+                v = mlab.view()
+                r = mlab.roll()
+                mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=np.array([x.mean(),y.mean(),z.mean()])) # view from right and above
                 self.fig.scene.render()
                 self.fig.scene.save_png('{}anim/subcase_{}_frame_{:06d}.png'.format(path_output, trimcase['subcase'], i_frame))
                 i_frame += 1        
             
         # get deformations and forces
         # x-component without rigid body motion so that the aircraft does not fly out of sight
-        self.x = self.model.strcgrid['offset'][:,0] + response['Ug'][:,self.model.strcgrid['set'][:,0]] - response['X'][:,0].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
+        self.x = self.model.strcgrid['offset'][:,0] + response['Ug'][:,self.model.strcgrid['set'][:,0]]# - response['X'][:,0].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
         self.y = self.model.strcgrid['offset'][:,1] + response['Ug'][:,self.model.strcgrid['set'][:,1]]
         self.z = self.model.strcgrid['offset'][:,2] + response['Ug'][:,self.model.strcgrid['set'][:,2]]# - response['X'][:,2].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
       
         # Skalieren der Kraefte mit n-ter Wurzel bzw. Exponent
-        exponent = 0.5
+        exponent = 0.33
         uvw1 = np.linalg.norm(response['Pg_aero_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
         uvw2 = np.linalg.norm(response['Pg_iner_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
         uvw3 = np.linalg.norm(response['Pg_ext_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
@@ -705,32 +713,40 @@ class plotting:
         self.u3 = u3 / r_max * r_scale
         self.v3 = v3 / r_max * r_scale
         self.w3 = w3 / r_max * r_scale
-
+        
+        # set up earth
+        with open('harz.pickle', 'r') as f:  
+            (x,y,elev) = cPickle.load(f)
+        
         # set up animation
         if make_movie:
             logging.info('rendering offscreen simulation {:s} ...'.format(trimcase['desc']))
             mlab.options.offscreen = True
-            self.fig = mlab.figure(size=(1920, 1080))
+            self.fig = mlab.figure(size=(1920, 1080), bgcolor=(1,1,1))
         else: 
             logging.info('interactive plotting of forces and deformations for simulation {:s}'.format(trimcase['desc']))
-            self.fig = mlab.figure()
-        mlab.points3d(self.x[0,:], self.y[0,:], self.z[0,:], color=(1,1,1), opacity=0.4, scale_factor=self.p_scale) # intital position of aircraft, remains as a shadow in the animation for better comparision
+            self.fig = mlab.figure(bgcolor=(1,1,1))
+        opacity=0.4
+        mlab.points3d(self.x[0,:], self.y[0,:], self.z[0,:], color=(1,1,1), opacity=opacity, scale_factor=self.p_scale ) # intital position of aircraft, remains as a shadow in the animation for better comparision
         # BUG: mlab_source.set() funktioniert nicht bei points3d, daher der direkte Weg ueber eine pipeline
         #self.points = mlab.points3d(self.x[0,:], self.y[0,:], self.z[0,:], color=(0,0,1), scale_factor=self.p_scale)
         self.src = mlab.pipeline.scalar_scatter(self.x[0,:], self.y[0,:], self.z[0,:])
         pts = mlab.pipeline.glyph(self.src, color=(0,0,1), scale_factor=self.p_scale)
-        self.vectors1 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u1[0,:], self.v1[0,:], self.w1[0,:], color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-        self.cones1   = mlab.quiver3d(self.x[0,:]+self.u1[0,:], self.y[0,:]+self.v1[0,:], self.z[0,:]+self.w1[0,:], self.u1[0,:], self.v1[0,:], self.w1[0,:], color=(0,1,0),  mode='cone', opacity=0.4, scale_mode='vector', scale_factor=0.1, resolution=16)
-        self.vectors2 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u2[0,:], self.v2[0,:], self.w2[0,:], color=(0,1,1),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-        self.cones2   = mlab.quiver3d(self.x[0,:]+self.u2[0,:], self.y[0,:]+self.v2[0,:], self.z[0,:]+self.w2[0,:], self.u2[0,:], self.v2[0,:], self.w2[0,:], color=(0,1,1),  mode='cone', opacity=0.4, scale_mode='vector', scale_factor=0.1, resolution=16)       
-        self.vectors3 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u3[0,:], self.v3[0,:], self.w3[0,:], color=(1,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
-        self.cones3   = mlab.quiver3d(self.x[0,:]+self.u3[0,:], self.y[0,:]+self.v3[0,:], self.z[0,:]+self.w3[0,:], self.u3[0,:], self.v3[0,:], self.w3[0,:], color=(1,1,0),  mode='cone', opacity=0.4, scale_mode='vector', scale_factor=0.1, resolution=16)       
+        self.vectors1 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u1[0,:], self.v1[0,:], self.w1[0,:], color=(0,1,0),  mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
+        self.cones1   = mlab.quiver3d(self.x[0,:]+self.u1[0,:], self.y[0,:]+self.v1[0,:], self.z[0,:]+self.w1[0,:], self.u1[0,:], self.v1[0,:], self.w1[0,:], color=(0,1,0),  mode='cone', opacity=opacity, scale_mode='vector', scale_factor=0.1, resolution=16)
+        self.vectors2 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u2[0,:], self.v2[0,:], self.w2[0,:], color=(0,1,1),  mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
+        self.cones2   = mlab.quiver3d(self.x[0,:]+self.u2[0,:], self.y[0,:]+self.v2[0,:], self.z[0,:]+self.w2[0,:], self.u2[0,:], self.v2[0,:], self.w2[0,:], color=(0,1,1),  mode='cone', opacity=opacity, scale_mode='vector', scale_factor=0.1, resolution=16)       
+        self.vectors3 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u3[0,:], self.v3[0,:], self.w3[0,:], color=(1,1,0),  mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
+        self.cones3   = mlab.quiver3d(self.x[0,:]+self.u3[0,:], self.y[0,:]+self.v3[0,:], self.z[0,:]+self.w3[0,:], self.u3[0,:], self.v3[0,:], self.w3[0,:], color=(1,1,0),  mode='cone', opacity=opacity, scale_mode='vector', scale_factor=0.1, resolution=16)       
 
         mlab.orientation_axes()
-
+        # plot earth, scale colormap
+        surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
+        
         #mlab.view(azimuth=180.0, elevation=90.0, roll=-90.0, distance=70.0, focalpoint=np.array([self.x.mean(),self.y.mean(),self.z.mean()])) # back view
-        distance = 1.5*((self.x.max()-self.x.min())**2 + (self.y.max()-self.y.min())**2 + (self.z.max()-self.z.min())**2)**0.5
-        mlab.view(azimuth=135.0, elevation=120.0, roll=-120.0, distance=distance, focalpoint=np.array([self.x.mean(),self.y.mean(),self.z.mean()])) # view from right and above
+        distance = 5.0*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5
+        #mlab.view(azimuth=135.0, elevation=120.0, roll=-120.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
+        mlab.view(azimuth=135.0, elevation=100.0, roll=-100.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
 
         if make_movie:
             if not os.path.exists('{}anim/'.format(path_output)):
