@@ -80,6 +80,10 @@ def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4', i_file=0):
     offset_l = [] # 25% point l
     offset_k = [] # 50% point k
     offset_j = [] # 75% downwash control point j
+    offset_P1 = [] # Vortex point at 25% chord, 0% span
+    offset_P3 = [] # Vortex point at 25% chord, 100% span
+    r = [] # vector P1 to P3, span of panel
+    
     
     for i_panel in range(len(caero_panels['ID'])):
 
@@ -114,6 +118,9 @@ def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4', i_file=0):
         offset_l.append(caero_grid['offset'][index_1] + 0.25*l_m + 0.50*b_1)
         offset_k.append(caero_grid['offset'][index_1] + 0.50*l_m + 0.50*b_1)
         offset_j.append(caero_grid['offset'][index_1] + 0.75*l_m + 0.50*b_1)
+        offset_P1.append(caero_grid['offset'][index_1] + 0.25*l_1)
+        offset_P3.append(caero_grid['offset'][index_4] + 0.25*l_2)
+        r.append((caero_grid['offset'][index_4] + 0.25*l_2) - (caero_grid['offset'][index_1] + 0.25*l_1))
    
     n = len(ID)
     set_l = np.arange(n*6).reshape((n,6))
@@ -128,6 +135,9 @@ def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4', i_file=0):
                 'offset_l': np.array(offset_l),
                 'offset_k': np.array(offset_k),
                 'offset_j': np.array(offset_j),
+                'offset_P1': np.array(offset_P1),
+                'offset_P3': np.array(offset_P3),
+                'r': np.array(r),
                 'set_l': set_l,
                 'set_k': set_k,
                 'set_j': set_j,
