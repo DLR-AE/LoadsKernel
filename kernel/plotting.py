@@ -54,7 +54,7 @@ class plotting:
             self.potatos_Fz_My = ['MON102']
             self.cuttingforces_wing = ['MON646', 'MON644', 'MON641', 'MON541', 'MON544', 'MON546']
             self.f_scale = 0.1 # vectors
-            self.p_scale = 0.2 # points
+            self.p_scale = 0.05 # points
         # FLEXOP
         elif self.jcl.general['aircraft'] == 'FLEXOP':
             self.potatos_Fz_Mx = ['MON1']
@@ -81,13 +81,13 @@ class plotting:
 #             F = np.linalg.norm(Pk[self.model.aerogrid['set_k'][:,:3]], axis=1)
             F = Pk[self.model.aerogrid['set_k'][:,2]] # * -1.0
             cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
-            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'jet', -0.5, 0.5)
+            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r')#, -0.5, 0.5)
             ax.set_title('Cp for {:s}'.format(trimcase['desc']))
 #             ax.set_xlim(0, 16)
 #             ax.set_ylim(-8, 8)
             F = response['Pk_idrag'][self.model.aerogrid['set_k'][:,0]]
             cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
-            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'jet', -0.01, 0.03)
+            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r')#, -0.01, 0.03)
             ax.set_title('Cd_ind for {:s}'.format(trimcase['desc']))
             plt.show()
       
@@ -130,6 +130,13 @@ class plotting:
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
             mlab.quiver3d(x, y, z, response['Pk_cfd'][self.model.aerogrid['set_k'][:,0]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,1]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=self.f_scale)
             mlab.title('Pk_cfd', size=0.2, height=0.95)
+            
+            mlab.figure()
+            mlab.points3d(x, y, z, scale_factor=self.p_scale)
+            fx, fy, fz = response['Pk_idrag'][self.model.aerogrid['set_k'][:,0]],response['Pk_idrag'][self.model.aerogrid['set_k'][:,1]], response['Pk_idrag'][self.model.aerogrid['set_k'][:,2]]
+            mlab.quiver3d(x, y, z, fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+            mlab.quiver3d(x+fx*self.f_scale, y+fy*self.f_scale, z+fz*self.f_scale,fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='cone', scale_mode='vector', scale_factor=0.2, resolution=16)
+            mlab.title('Pk_idrag', size=0.2, height=0.95)
             
             mlab.figure()   
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
