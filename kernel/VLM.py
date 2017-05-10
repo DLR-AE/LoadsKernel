@@ -139,21 +139,35 @@ def calc_Ajj(aerogrid, Ma):
     span = A / chord
     # total D
     D = D1 + D2 + D3
-    D_final = D*0.5*A/span
-    D_induced_drag = (D2 + D3)*0.5*A/span
-    return D_final, D_induced_drag
+    Ajj = D*0.5*A/span
+    Bjj = (D2 + D3)*0.5*A/span
+    return Ajj, Bjj
 
 def calc_Qjj(aerogrid, Ma):
-    D_final, D_induced_drag = calc_Ajj(aerogrid, Ma)
-    Qjj = -np.linalg.inv(D_final)
-    Bjj = D_induced_drag
+    Ajj, Bjj = calc_Ajj(aerogrid, Ma)
+    Qjj = -np.linalg.inv(Ajj)
+    return Qjj, Bjj
+
+def calc_Qjjs(aerogrid, Ma):
+    Qjj = np.zeros((len(Ma), aerogrid['n'], aerogrid['n'])) # dim: Ma,n,n
+    Bjj = np.zeros((len(Ma), aerogrid['n'], aerogrid['n'])) # dim: Ma,n,n
+    for i_Ma in range(len(Ma)):
+        Qjj[i_Ma,:,:], Bjj[i_Ma,:,:] = calc_Qjj(aerogrid, Ma[i_Ma])
     return Qjj, Bjj
 
 def calc_Gamma(aerogrid, Ma):
     D1, D2, D3 = calc_induced_velocities(aerogrid, Ma)
     # total D
     Gamma = -np.linalg.inv((D1 + D2 + D3))
-    return Gamma
+    Q_ind = D2 + D3
+    return Gamma, Q_ind
+
+def calc_Gammas(aerogrid, Ma):
+    Gamma = np.zeros((len(Ma), aerogrid['n'], aerogrid['n'])) # dim: Ma,n,n
+    Q_ind = np.zeros((len(Ma), aerogrid['n'], aerogrid['n'])) # dim: Ma,n,n
+    for i_Ma in range(len(Ma)):
+        Gamma[i_Ma,:,:], Q_ind[i_Ma,:,:] = calc_Gamma(aerogrid, Ma[i_Ma])
+    return Gamma, Q_ind
 
 # if __name__ == "__main__":
 #     with open('/scratch/test/model_jcl_Discus2c_test.pickle', 'r') as f:

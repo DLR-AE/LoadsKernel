@@ -14,6 +14,7 @@ import read_geom
 import write_functions
 from grid_trafo import grid_trafo
 from  atmo_isa import atmo_isa
+import VLM
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -126,7 +127,7 @@ class model:
             logging.error( 'Unknown atmo method: ' + str(self.jcl.aero['method']))
               
         logging.info( 'Building aero model...')
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'steady', 'steady_nonlin', 'unsteady', ]:
             # grids
             for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
                 if self.jcl.aero.has_key('method_caero'):
@@ -241,13 +242,11 @@ class model:
                 self.aero['Qjj'].append(Qjj)
         elif self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae']:
             logging.info( 'Calculating steady AIC matrices ({} panels, k=0.0) for {} Mach number(s)...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) ))
-            #AIC = ae_getaic(aerogrid, Mach, k);
             t_start = time.time()
-            Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], [0.0])
+            self.aero['Qjj'], self.aero['Bjj'] = VLM.calc_Qjjs(aerogrid=self.aerogrid, Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
+            self.aero['Gamma_jj'], self.aero['Q_ind_jj'] = VLM.calc_Gammas(aerogrid=self.aerogrid, Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
             logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
             self.aero['key'] = self.jcl.aero['key']
-            self.aero['Qjj'] = [Qjj[i_aero,0,:,:,] for i_aero in range(len(self.jcl.aero['key']))] # dim: Ma,n,n
-            self.aero['Bjj'] = [Bjj[i_aero,:,:,] for i_aero in range(len(self.jcl.aero['key']))] # dim: Ma,n,n
         else:
             logging.error( 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
         
