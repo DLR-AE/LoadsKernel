@@ -6,7 +6,7 @@ from scipy import interpolate
        
 
 class common():
-    def __init__(self, model, jcl, trimcase, trimcond_X, trimcond_Y, simcase = False, X0=None):
+    def __init__(self, model, jcl, trimcase, trimcond_X, trimcond_Y, simcase = False, X0=''):
         logging.info('Init model equations.')
         self.model = model
         self.jcl = jcl
@@ -101,21 +101,8 @@ class common():
                 logging.info('Hybrid aero is used for {}.'.format(x2_key))
                 #print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], self.aerodb_x2[-1]['q_dyn'], self.q_dyn)       
     
-    def rbm_nonlin(self, dUcg_dt, alpha, Vtas):
-        
-        if self.correct_alpha:
-            # Anstellwinkel alpha von der DLM-Loesung abziehen
-            alpha = self.efcs.alpha_protetcion(alpha)
-            drehmatrix = np.zeros((6,6))
-            drehmatrix[0:3,0:3] = calc_drehmatrix(0.0, -alpha, 0.0) 
-            drehmatrix[3:6,3:6] = calc_drehmatrix(0.0, -alpha, 0.0) 
-            Ucg_dt = np.dot(drehmatrix, dUcg_dt)
-
-        dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt) # auch bodyfixed
+    def calc_Pk_nonlin(self, dUmac_dt, wj):
         Ujx1 = np.dot(self.Djx1,dUmac_dt)
-        # der downwash wj ist nur die Komponente von Uj, welche senkrecht zum Panel steht! 
-        # --> mit N multiplizieren und danach die Norm bilden    
-        wj = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1)
         q = Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]]
         r = self.model.aerogrid['r']
         rho = self.model.atmo['rho'][self.i_atmo]
@@ -125,17 +112,25 @@ class common():
         Pl[self.model.aerogrid['set_l'][:,1]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,1]
         Pl[self.model.aerogrid['set_l'][:,2]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,2]
         Pk = self.model.Dlk.T.dot(Pl)
+        return Pk
+    
+    def rbm_nonlin(self, dUcg_dt, alpha, Vtas):
+        dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt) # auch bodyfixed
+        Ujx1 = np.dot(self.Djx1,dUmac_dt)
+        # der downwash wj ist nur die Komponente von Uj, welche senkrecht zum Panel steht! 
+        # --> mit N multiplizieren und danach die Norm bilden    
+        wj = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1)
+        Pk = self.calc_Pk_nonlin(dUmac_dt, wj)
         return Pk, wj
     
     def rbm(self, dUcg_dt, alpha, q_dyn, Vtas):
-        
         if self.correct_alpha:
             # Anstellwinkel alpha von der DLM-Loesung abziehen
             alpha = self.efcs.alpha_protetcion(alpha)
             drehmatrix = np.zeros((6,6))
             drehmatrix[0:3,0:3] = calc_drehmatrix(0.0, -alpha, 0.0) 
             drehmatrix[3:6,3:6] = calc_drehmatrix(0.0, -alpha, 0.0) 
-            Ucg_dt = np.dot(drehmatrix, dUcg_dt)
+            dUcg_dt = np.dot(drehmatrix, dUcg_dt)
             
         dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt) # auch bodyfixed
         Ujx1 = np.dot(self.Djx1,dUmac_dt)
@@ -169,8 +164,8 @@ class common():
             Pk_cam = self.model.Dlk.T.dot(Plcam) 
         return Pk_cam, wj_cam
     
-    def cs_nonlin(self, X, Ux2, Vtas):
-        q = np.zeros((self.model.aerogrid['n'],3))
+    def cs_nonlin(self, dUcg_dt, X, Ux2, Vtas):
+        wj = np.zeros(self.model.aerogrid['n'])
         # Hier gibt es zwei Wege und es wird je Steuerflaeche unterschieden:
         # a) es liegen Daten in der AeroDB vor -> Kraefte werden interpoliert, dann zu Pk addiert, downwash vector bleibt unveraendert
         # b) der downwash der Steuerflaeche wird berechnet, zum downwash vector addiert 
@@ -183,19 +178,9 @@ class common():
                     Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
                 # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
                 # Mit der Norm von wj geht das Vorzeichen verloren - dies ist aber fuer den Steuerflaechenausschlag wichtig.
-                #wj += np.sign(Ux2[i_x2]) * np.sqrt(np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])**2.0 + np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])**2.0) * Vtas
-                q[:,1] += np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]]) * -Vtas
-                q[:,2] += np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]]) *  Vtas
-        q[:,0] = Vtas        
-        wj = np.sum(self.model.aerogrid['N'][:] * q, axis=1)
-        r = self.model.aerogrid['r']
-        rho = self.model.atmo['rho'][self.i_atmo]
-        Gamma = self.model.aero['Gamma_jj'][self.i_aero]
-        Pl = np.zeros(self.model.aerogrid['n']*6)
-        Pl[self.model.aerogrid['set_l'][:,0]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,0]
-        Pl[self.model.aerogrid['set_l'][:,1]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,1]
-        Pl[self.model.aerogrid['set_l'][:,2]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,2]
-        Pk = self.model.Dlk.T.dot(Pl)
+                wj += np.sign(Ux2[i_x2]) * np.sqrt(np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])**2.0 + np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])**2.0) * -Vtas
+        dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt) # auch bodyfixed
+        Pk = self.calc_Pk_nonlin(dUmac_dt, wj)
         return Pk, wj
     
     def cs(self, X, Ux2, q_dyn):
@@ -222,29 +207,19 @@ class common():
         Pk_cs = self.model.Dlk.T.dot(Plx2)
         return Pk_cs, wjx2
     
-    def flexible_nonlin(self, Uf, dUf_dt, dUcg_dt, q_dyn, Vtas):
+    def flexible_nonlin(self, dUcg_dt, Uf, dUf_dt, Vtas):
         if self.jcl.aero.has_key('flex') and self.jcl.aero['flex']:
             dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt)
              # modale Verformung
             Ujf = np.dot(self.PHIjf, Uf )
-            wjf_1 = np.sum(self.model.aerogrid['N'][:] * np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3]),axis=1)
-            q1 = np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3])
+            wjf_1 = np.sum(self.model.aerogrid['N'][:] * np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3]),axis=1) * -1 
             # modale Bewegung
             # zu Ueberpruefen, da Trim bisher in statischer Ruhelage und somit  dUf_dt = 0
             dUjf_dt = np.dot(self.PHIjf, dUf_dt ) # viel schneller!
-            wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) * -1 
-            q2 = dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]] * -1 
+            wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1)
+            
             wj = wjf_1 + wjf_2
-            q = q1 + q2
-            q[:,0] += Vtas
-            r = self.model.aerogrid['r']
-            rho = self.model.atmo['rho'][self.i_atmo]
-            Gamma = self.model.aero['Gamma_jj'][self.i_aero]
-            Pl = np.zeros(self.model.aerogrid['n']*6)
-            Pl[self.model.aerogrid['set_l'][:,0]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,0]
-            Pl[self.model.aerogrid['set_l'][:,1]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,1]
-            Pl[self.model.aerogrid['set_l'][:,2]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,2]
-            Pk = self.model.Dlk.T.dot(Pl)
+            Pk = self.calc_Pk_nonlin(dUmac_dt, wj)
         else:
             Pk = np.zeros(self.model.aerogrid['n']*6)
             q = np.zeros(self.model.aerogrid['n'])
@@ -502,8 +477,8 @@ class steady_nonlin(common):
         # --- aerodynamics ---   
         # --------------------
         Pk_rbm,  wj_rbm  = self.rbm_nonlin(dUcg_dt, alpha, Vtas)
-        Pk_cs,   wj_cs   = self.cs_nonlin(X, Ux2, Vtas)
-        Pk_f,    wj_f    = self.flexible_nonlin(Uf, dUf_dt, dUcg_dt, q_dyn, Vtas)
+        Pk_cs,   wj_cs   = self.cs_nonlin(dUcg_dt, X, Ux2, Vtas)
+        Pk_f,    wj_f    = self.flexible_nonlin(dUcg_dt, Uf, dUf_dt, Vtas)
         
         wj = (wj_rbm + wj_cs + wj_f)/Vtas
         Pk_idrag         = self.idrag(wj, q_dyn)
@@ -580,12 +555,12 @@ class steady_nonlin(common):
                 F1   = np.zeros(self.model.lggrid['n']) 
                 F2   = np.zeros(self.model.lggrid['n']) 
             else:
-                p1 = None
-                dp1 = None
-                ddp1 = None
-                Plg = None
-                F1 = None
-                F2 = None
+                p1 = ''
+                dp1 = ''
+                ddp1 = ''
+                Plg = ''
+                F1 = ''
+                F2 = ''
             response = {'X': X, 
                         'Y': Y,
                         't': np.array([t]),
@@ -821,12 +796,12 @@ class steady(common):
                 F1   = np.zeros(self.model.lggrid['n']) 
                 F2   = np.zeros(self.model.lggrid['n']) 
             else:
-                p1 = None
-                dp1 = None
-                ddp1 = None
-                Plg = None
-                F1 = None
-                F2 = None
+                p1 = ''
+                dp1 = ''
+                ddp1 = ''
+                Plg = ''
+                F1 = ''
+                F2 = ''
             response = {'X': X, 
                         'Y': Y,
                         't': np.array([t]),
@@ -1058,12 +1033,12 @@ class unsteady(common):
                 F1   = np.zeros(self.model.lggrid['n']) 
                 F2   = np.zeros(self.model.lggrid['n']) 
             else:
-                p1 = None
-                dp1 = None
-                ddp1 = None
-                Plg = None
-                F1 = None
-                F2 = None
+                p1 = ''
+                dp1 = ''
+                ddp1 = ''
+                Plg = ''
+                F1 = ''
+                F2 = ''
             response = {'X': X, 
                         'Y': Y,
                         't': np.array([t]),
@@ -1453,12 +1428,12 @@ class unsteady_q(common):
                 F1   = np.zeros(self.model.lggrid['n']) 
                 F2   = np.zeros(self.model.lggrid['n']) 
             else:
-                p1 = None
-                dp1 = None
-                ddp1 = None
-                Plg = None
-                F1 = None
-                F2 = None
+                p1 = ''
+                dp1 = ''
+                ddp1 = ''
+                Plg = ''
+                F1 = ''
+                F2 = ''
             response = {'X': X, 
                         'Y': Y,
                         't': np.array([t]),
