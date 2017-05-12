@@ -289,6 +289,8 @@ class trim:
         
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+        elif self.jcl.aero['method'] in [ 'steady_nonlin']:
+            equations = model_equations.steady_nonlin(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -323,6 +325,8 @@ class trim:
         import model_equations 
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not self.simcase['landinggear']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase, X0=self.response['X'])
+        elif self.jcl.aero['method'] in [ 'steady_nonlin']:
+            equations = model_equations.steady_nonlin(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase, X0=self.response['X'])
         elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
             logging.info('adding 2 x {} states for landing gear'.format(self.model.lggrid['n']))
             lg_states_X = []
