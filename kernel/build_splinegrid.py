@@ -9,9 +9,15 @@ import read_geom
 import numpy as np
 
 
-def build_splinegrid(strcgrid, filename):
-    subgrid = read_geom.Modgen_GRID(filename)
-    return build_subgrid(strcgrid, subgrid['ID'])
+def build_splinegrid(strcgrid, filenames):
+    #subgrid = read_geom.Modgen_GRID(filename)
+    for i_file in range(len(filenames)):
+        subgrid = read_geom.Modgen_GRID(filenames[i_file]) 
+        if i_file == 0:
+            subgrid_IDs = subgrid['ID']
+        else:
+            subgrid_IDs = np.hstack((subgrid_IDs,subgrid['ID']))
+    return build_subgrid(strcgrid, subgrid_IDs)
 
 def build_subgrid(strcgrid, subgrid_IDs):
     splinegrid = {'ID': [], 'CD': [], 'CP': [], 'set': [], 'offset': [],  'n': 0, }

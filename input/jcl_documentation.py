@@ -62,7 +62,7 @@ class jcl:
                        'filename_f06': 'filename.f06',          # spline matrix is written to .f06-file with PARAM    OPGTKG   1
                        # Possibility to use only a subset of the structural grid for splining. Not valid and ignored when spline method = 'nastran'
                        'splinegrid': True,                      # True or False
-                       'filename_splinegrid': 'splinegrid.bdf'  # bdf file(s) with GRIDs
+                       'filename_splinegrid': ['splinegrid.bdf']  # bdf file(s) with GRIDs
                       }
         self.mass =    {'method': 'mona', # 'mona', 'modalanalysis' or 'guyan'
                         'key': ['M1', 'M2'],
