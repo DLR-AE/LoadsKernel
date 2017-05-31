@@ -162,16 +162,17 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
             auxiliary_output.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
             auxiliary_output.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
             
-#         print '--> Drawing some plots.'  
-#         plotting = plotting_modul.plotting(jcl, model, responses)
-#         if 't_final' and 'dt' in jcl.simcase[0].keys():
-#             # nur sim
-#             plotting.plot_time_data(animation_dimensions = '3D')
-#             #plotting.make_movie(path_output, speedup_factor=1.0)
-#         else:
-#             # nur trim
-#             plotting.plot_pressure_distribution()
-#             plotting.plot_forces_deformation_interactive() 
+        print '--> Drawing some plots.'  
+        plotting = plotting_modul.plotting(jcl, model, responses)
+        if 't_final' and 'dt' in jcl.simcase[0].keys():
+            # nur sim
+            plotting.plot_time_data()
+            plotting.make_animation()
+            #plotting.make_movie(path_output, speedup_factor=1.0)
+        else:
+            # nur trim
+            plotting.plot_pressure_distribution()
+            plotting.plot_forces_deformation_interactive() 
         
     if test:
         if not 'model' in locals():
@@ -294,6 +295,8 @@ def mainprocessing_listener(q_output, path_output, job_name, jcl):
                 monstations.gather_dyn2stat(-1, m)
             logging.info( '--> Saving response(s).')
             cPickle.dump(m, f_response, cPickle.HIGHEST_PROTOCOL)
+            #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[m['i']]['subcase']) + '.mat', 'w') as f:
+            #    scipy.io.savemat(f, m)
             q_output.task_done()
     return
 

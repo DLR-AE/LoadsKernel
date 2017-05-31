@@ -161,7 +161,11 @@ class plotting:
 
             mlab.figure()   
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
-            mlab.quiver3d(x, y, z, response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]], color=(1,1,0), scale_factor=self.f_scale)
+            #mlab.quiver3d(x, y, z, response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]], color=(1,1,0), scale_factor=self.f_scale)
+            fx, fy, fz = response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]]
+            mlab.quiver3d(x, y, z, fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(1,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+            mlab.quiver3d(x+fx*self.f_scale, y+fy*self.f_scale, z+fz*self.f_scale,fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(1,1,0),  mode='cone', scale_mode='vector', scale_factor=0.2, resolution=16)
+            mlab.points3d(self.model.splinegrid['offset'][:,0], self.model.splinegrid['offset'][:,1], self.model.splinegrid['offset'][:,2], color=(1,1,0), scale_factor=self.p_scale*1.5)
             mlab.title('Pg', size=0.2, height=0.95)
             
             mlab.show()
@@ -346,7 +350,7 @@ class plotting:
         pp.close()
         logging.info('plots saved as ' + filename_pdf)
         
-    def plot_time_data(self, animation_dimensions = '2D'):
+    def plot_time_data(self):
         for i_simcase in range(len(self.jcl.simcase)):
             trimcase = self.jcl.trimcase[i_simcase]
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
@@ -371,29 +375,29 @@ class plotting:
             plt.grid('on')
             plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_aero'])
             
-            plt.figure()
-            plt.subplot(3,1,1)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['p1'])
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,95:98], '--')
-            plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
-            plt.xlabel('t [s]')
-            plt.ylabel('p1,2 [m]')
-            plt.grid('on')
-            plt.subplot(3,1,2)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F1'])
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F2'], '--')
-            plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
-            plt.xlabel('t [s]')
-            plt.ylabel('F1,2 [N]')
-            plt.grid('on')
-             
-            plt.subplot(3,1,3)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dp1'])
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,98:101], '--')
-            plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
-            plt.xlabel('t [s]')
-            plt.ylabel('dp1,2 [m/s]')
-            plt.grid('on')
+#             plt.figure()
+#             plt.subplot(3,1,1)
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['p1'])
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,95:98], '--')
+#             plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
+#             plt.xlabel('t [s]')
+#             plt.ylabel('p1,2 [m]')
+#             plt.grid('on')
+#             plt.subplot(3,1,2)
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F1'])
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F2'], '--')
+#             plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
+#             plt.xlabel('t [s]')
+#             plt.ylabel('F1,2 [N]')
+#             plt.grid('on')
+#              
+#             plt.subplot(3,1,3)
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dp1'])
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,98:101], '--')
+#             plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
+#             plt.xlabel('t [s]')
+#             plt.ylabel('dp1,2 [m/s]')
+#             plt.grid('on')
         
             plt.figure()
             plt.subplot(2,1,1)
@@ -488,35 +492,35 @@ class plotting:
             
             plt.figure()
             plt.subplot(2,1,1)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,0], 'b-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,1], 'g-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,2], 'r-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,0], 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,1], 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,2], 'r-')
             plt.xlabel('t [sec]')
             plt.ylabel('[m/s^2]')
             plt.grid('on')
             plt.legend(['du_body', 'dv_body', 'dw_body'])
             plt.subplot(2,1,2)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,3]/np.pi*180.0, 'b-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,4]/np.pi*180.0, 'g-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,5]/np.pi*180.0, 'r-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,3]/np.pi*180.0, 'b-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,4]/np.pi*180.0, 'g-')
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,5]/np.pi*180.0, 'r-')
             plt.xlabel('t [sec]')
             plt.ylabel('[deg/s^2]')
             plt.grid('on')
             plt.legend(['dp_body', 'dq_body', 'dr_body'])
             
             # show time plots
-            plt.ion()
+#             plt.ion()
             plt.show()
-            plt.ioff()
+#             plt.ioff()
             
             # plot animation
-            if animation_dimensions == '2D':
-                # option if mayavi is not installed
-                self.plot_time_animation_2d(i_simcase)
-            elif animation_dimensions == '3D':
-                # preferred
-                self.plot_time_animation_3d(i_simcase)
-            plt.close('all')
+#             if animation_dimensions == '2D':
+#                 # option if mayavi is not installed
+#                 self.plot_time_animation_2d(i_simcase)
+#             elif animation_dimensions == '3D':
+#                 # preferred
+#                 self.plot_time_animation_3d(i_simcase)
+#             plt.close('all')
             
     def plot_time_animation_2d(self, i_simcase):        
             if self.jcl.general['aircraft'] == 'ALLEGRA':
@@ -613,6 +617,10 @@ class plotting:
     def make_movie(self, path_output, speedup_factor=1.0):
         for i_simcase in range(len(self.jcl.simcase)):
             self.plot_time_animation_3d(i_simcase, path_output, speedup_factor=speedup_factor, make_movie=True)
+    
+    def make_animation(self):
+        for i_simcase in range(len(self.jcl.simcase)):
+            self.plot_time_animation_3d(i_simcase)
                   
     def plot_time_animation_3d(self, i_trimcase, path_output='./', speedup_factor=1.0, make_movie=False):
         # To Do: show simulation time in animation
@@ -738,9 +746,9 @@ class plotting:
         # BUG: mlab_source.set() funktioniert nicht bei points3d, daher der direkte Weg ueber eine pipeline
         #self.points = mlab.points3d(self.x[0,:], self.y[0,:], self.z[0,:], color=(0,0,1), scale_factor=self.p_scale)
         self.src = mlab.pipeline.scalar_scatter(self.x[0,:], self.y[0,:], self.z[0,:])
-        pts = mlab.pipeline.glyph(self.src, color=(0,0,1), scale_factor=self.p_scale)
-        self.vectors1 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u1[0,:], self.v1[0,:], self.w1[0,:], color=(0,1,0),  mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
-        self.cones1   = mlab.quiver3d(self.x[0,:]+self.u1[0,:], self.y[0,:]+self.v1[0,:], self.z[0,:]+self.w1[0,:], self.u1[0,:], self.v1[0,:], self.w1[0,:], color=(0,1,0),  mode='cone', opacity=opacity, scale_mode='vector', scale_factor=0.1, resolution=16)
+        pts = mlab.pipeline.glyph(self.src, color=(0,0,0), scale_factor=self.p_scale)
+        self.vectors1 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u1[0,:], self.v1[0,:], self.w1[0,:], color=(1,0,0),  mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
+        self.cones1   = mlab.quiver3d(self.x[0,:]+self.u1[0,:], self.y[0,:]+self.v1[0,:], self.z[0,:]+self.w1[0,:], self.u1[0,:], self.v1[0,:], self.w1[0,:], color=(1,0,0),  mode='cone', opacity=opacity, scale_mode='vector', scale_factor=0.1, resolution=16)
         self.vectors2 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u2[0,:], self.v2[0,:], self.w2[0,:], color=(0,1,1),  mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
         self.cones2   = mlab.quiver3d(self.x[0,:]+self.u2[0,:], self.y[0,:]+self.v2[0,:], self.z[0,:]+self.w2[0,:], self.u2[0,:], self.v2[0,:], self.w2[0,:], color=(0,1,1),  mode='cone', opacity=opacity, scale_mode='vector', scale_factor=0.1, resolution=16)       
         self.vectors3 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u3[0,:], self.v3[0,:], self.w3[0,:], color=(1,1,0),  mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
