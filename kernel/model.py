@@ -79,6 +79,18 @@ class model:
             logging.info('The structural model consists of {} grid points and {} coordinate systems.'.format(self.strcgrid['n'], len(self.coord['ID']) ))
             #self.Kgg = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
             
+            if self.jcl.geom.has_key('filename_shell') and not self.jcl.geom['filename_shell'] == []:
+                for i_file in range(len(self.jcl.geom['filename_shell'])):
+                    panels = read_geom.Modgen_CQUAD4(self.jcl.geom['filename_shell'][i_file]) 
+                    if i_file == 0:
+                        self.strcshell = panels
+                    else:
+                        self.strcshell['ID'] = np.hstack((self.strcshell['ID'],panels['ID']))
+                        self.strcshell['CD'] = np.hstack((self.strcshell['CD'],panels['CD']))
+                        self.strcshell['CP'] = np.hstack((self.strcshell['CP'],panels['CP']))
+                        self.strcshell['cornerpoints'] = np.vstack((self.strcshell['cornerpoints'],panels['cornerpoints']))
+                        self.strcshell['n'] += panels['n']
+            
             if not self.jcl.geom['filename_mongrid'] == '':
                 logging.info( 'Building Monitoring Stations from GRID data...')
                 self.mongrid = read_geom.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
@@ -86,7 +98,7 @@ class model:
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
                 self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
                 self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
-                spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord, self.path_output + 'mongrid_rules.png' ) 
+                #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord, self.path_output + 'mongrid_rules.png' ) 
             elif not self.jcl.geom['filename_monpnt'] == '':
                 logging.info( 'Reading Monitoring Stations from MONPNTs...')
                 self.mongrid = read_geom.Nastran_MONPNT1(self.jcl.geom['filename_monpnt']) 
@@ -94,7 +106,7 @@ class model:
                 rules = spline_rules.monstations_from_aecomp(self.mongrid, self.jcl.geom['filename_monpnt'])
                 self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
                 self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
-                spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord, self.path_output + 'mongrid_rules.png' ) 
+                #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord, self.path_output + 'mongrid_rules.png' ) 
             else: 
                 logging.warning( 'No Monitoring Stations are created!')
         
@@ -245,8 +257,8 @@ class model:
         elif self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae']:
             logging.info( 'Calculating steady AIC matrices ({} panels, k=0.0) for {} Mach number(s)...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) ))
             t_start = time.time()
-            self.aero['Qjj'], self.aero['Bjj'] = VLM.calc_Qjjs(aerogrid=self.aerogrid, Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
-            self.aero['Gamma_jj'], self.aero['Q_ind_jj'] = VLM.calc_Gammas(aerogrid=self.aerogrid, Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
+            self.aero['Qjj'], self.aero['Bjj'] = VLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
+            self.aero['Gamma_jj'], self.aero['Q_ind_jj'] = VLM.calc_Gammas(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
             logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
             self.aero['key'] = self.jcl.aero['key']
         else:
@@ -303,7 +315,7 @@ class model:
                 logging.info( 'Coupling aerogrid to strcgrid via splinegrid:')
                 self.splinegrid = build_splinegrid.build_splinegrid(self.strcgrid, self.jcl.spline['filename_splinegrid'])
                 # self.splinegrid = build_splinegrid.grid_thin_out_random(self.splinegrid, 0.05)
-                # self.splinegrid = build_splinegrid.grid_thin_out_radius(self.splinegrid, 0.5)
+                self.splinegrid = build_splinegrid.grid_thin_out_radius(self.splinegrid, 0.01)
             else:
                 logging.info( 'Coupling aerogrid directly. Doing cleanup/thin out of strcgrid to avoid singularities (safety first!)')
                 self.splinegrid = build_splinegrid.grid_thin_out_radius(self.strcgrid, 0.01)
@@ -314,7 +326,7 @@ class model:
         elif self.jcl.spline['method'] == 'nearest_neighbour':
             rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.aerogrid, '_k') 
             self.PHIk_strc = spline_functions.spline_rb(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6], sparse_output=True)
-            spline_functions.plot_splinerules(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, self.path_output + 'spline_rules.png')    
+            #spline_functions.plot_splinerules(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, self.path_output + 'spline_rules.png')    
         elif self.jcl.spline['method'] == 'nastran': 
             self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
         else:
@@ -433,7 +445,7 @@ class model:
                 self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
                 
                 # plot nodal masses
-                bm.plot_masses(MGG, Mb, cggrid, self.path_output + self.jcl.mass['key'][i_mass]+'.png')
+                #bm.plot_masses(MGG, Mb, cggrid, self.path_output + self.jcl.mass['key'][i_mass]+'.png')
         else:
             logging.error( 'Unknown mass method: ' + str(self.jcl.mass['method']))
             
