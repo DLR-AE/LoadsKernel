@@ -12,6 +12,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
 import time, os, copy, logging, cPickle
 import build_aero, write_functions
+from PIL.ImageColor import colormap
 
 
 class plotting:
@@ -46,7 +47,7 @@ class plotting:
 #             self.potatos_Fz_My = ['MON81', 'MON82', 'MON83']
             self.cuttingforces_wing = ['MON10', 'MON1', 'MON2', 'MON3', 'MON33', 'MON8']
             self.f_scale = 0.002 # vectors
-            self.p_scale = 0.1 # points
+            self.p_scale = 0.03 # points
         # Discus2c
         elif self.jcl.general['aircraft'] == 'Discus2c':
             self.potatos_Fz_Mx = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
@@ -81,13 +82,13 @@ class plotting:
 #             F = np.linalg.norm(Pk[self.model.aerogrid['set_k'][:,:3]], axis=1)
             F = Pk[self.model.aerogrid['set_k'][:,2]] # * -1.0
             cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
-            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r')#, -0.5, 0.5)
+            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r', -0.5, 0.5)
             ax.set_title('Cp for {:s}'.format(trimcase['desc']))
 #             ax.set_xlim(0, 16)
 #             ax.set_ylim(-8, 8)
             F = response['Pk_idrag'][self.model.aerogrid['set_k'][:,0]]
             cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
-            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r')#, -0.01, 0.03)
+            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r', -0.01, 0.03)
             ax.set_title('Cd_ind for {:s}'.format(trimcase['desc']))
             plt.show()
       
@@ -625,7 +626,7 @@ class plotting:
     def plot_time_animation_3d(self, i_trimcase, path_output='./', speedup_factor=1.0, make_movie=False):
         # To Do: show simulation time in animation
         from mayavi import mlab
-        
+        from tvtk.api import tvtk
         response   = self.response[i_trimcase]
         trimcase   = self.jcl.trimcase[i_trimcase]
         simcase    = self.jcl.simcase[i_trimcase] 
@@ -634,106 +635,129 @@ class plotting:
         def anim(self):
             # internal function that actually updates the animation
             while True:
-                for (x, y, z, u1, v1, w1, u2, v2, w2, u3, v3, w3) in zip(self.x, self.y, self.z, self.u1, self.v1, self.w1, self.u2, self.v2, self.w2, self.u3, self.v3, self.w3):
+                for i in range(len(response['t'])):
                     self.fig.scene.disable_render = True
-                    #self.points.mlab_source.set(x=x, y=y, z=z)
-                    self.src.outputs[0].points.from_array(np.array([x, y, z]).T)
-                    self.vectors1.mlab_source.set(x=x, y=y, z=z, u=u1, v=v1, w=w1)
-                    self.cones1.mlab_source.set(x=x+u1, y=y+v1, z=z+w1, u=u1, v=v1, w=w1)
-                    self.vectors2.mlab_source.set(x=x, y=y, z=z, u=u2, v=v2, w=w2)
-                    self.cones2.mlab_source.set(x=x+u2, y=y+v2, z=z+w2, u=u2, v=v2, w=w2)
-                    self.vectors3.mlab_source.set(x=x, y=y, z=z, u=u3, v=v3, w=w3)
-                    self.cones3.mlab_source.set(x=x+u3, y=y+v3, z=z+w3, u=u3, v=v3, w=w3)
+                    points_i = np.array([self.x[i], self.y[i], self.z[i]]).T
+                    scalars_i = self.Ug_f_scalar[i,:]
+                    update_strc_display(self, points_i, scalars_i)
+                    for src_vector, src_cone, data in zip(self.src_vectors, self.src_cones, self.vector_data):
+                        vector_data_i = np.vstack((data['u'][i,:], data['v'][i,:], data['w'][i,:])).T
+                        update_vector_display(self, src_vector, src_cone, points_i, vector_data_i)
+                    
                     # get current view and set new focal point
-                    v = mlab.view()
-                    r = mlab.roll()
-                    mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=np.array([x.mean(),y.mean(),z.mean()])) # view from right and above
+                    #v = mlab.view()
+                    #r = mlab.roll()
+                    #mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=points_i.mean(axis=0)) # view from right and above
                     self.fig.scene.disable_render = False
-                    #time.sleep(0.01)
                     yield
                 
         def movie(self):
             # internal function that actually updates the animation
             self.fig.scene.disable_render = True
-            i_frame = 0
-            for (x, y, z, u1, v1, w1, u2, v2, w2, u3, v3, w3) in zip(self.x, self.y, self.z, self.u1, self.v1, self.w1, self.u2, self.v2, self.w2, self.u3, self.v3, self.w3):
-                #self.points.mlab_source.set(x=x, y=y, z=z)
-                self.src.outputs[0].points.from_array(np.array([x, y, z]).T)
-                self.vectors1.mlab_source.set(x=x, y=y, z=z, u=u1, v=v1, w=w1)
-                self.cones1.mlab_source.set(x=x+u1, y=y+v1, z=z+w1, u=u1, v=v1, w=w1)
-                self.vectors2.mlab_source.set(x=x, y=y, z=z, u=u2, v=v2, w=w2)
-                self.cones2.mlab_source.set(x=x+u2, y=y+v2, z=z+w2, u=u2, v=v2, w=w2)
-                self.vectors3.mlab_source.set(x=x, y=y, z=z, u=u3, v=v3, w=w3)
-                self.cones3.mlab_source.set(x=x+u3, y=y+v3, z=z+w3, u=u3, v=v3, w=w3)
+            for i in range(len(response['t'])):
+                self.fig.scene.disable_render = True
+                points_i = np.array([self.x[i], self.y[i], self.z[i]]).T
+                scalars_i = self.Ug_f_scalar[i,:]
+                update_strc_display(self, points_i, scalars_i)
+                for src_vector, src_cone, data in zip(self.src_vectors, self.src_cones, self.vector_data):
+                    vector_data_i = np.vstack((data['u'][i,:], data['v'][i,:], data['w'][i,:])).T
+                    update_vector_display(self, src_vector, src_cone, points_i, vector_data_i)
                 # get current view and set new focal point
-                v = mlab.view()
-                r = mlab.roll()
-                mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=np.array([x.mean(),y.mean(),z.mean()])) # view from right and above
+                #v = mlab.view()
+                #r = mlab.roll()
+                #mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=np.array([x.mean(),y.mean(),z.mean()])) # view from right and above
                 self.fig.scene.render()
-                self.fig.scene.save_png('{}anim/subcase_{}_frame_{:06d}.png'.format(path_output, trimcase['subcase'], i_frame))
-                i_frame += 1        
+                self.fig.scene.save_png('{}anim/subcase_{}_frame_{:06d}.png'.format(path_output, trimcase['subcase'], i))
+
+        self.vector_data = []
+        def calc_vector_data(self, name='Pg_aero_global', exponent=0.33):
+            Pg = response[name]
+            # scaling to enhance small vectors
+            uvw_t0 = np.linalg.norm(Pg[:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
+            f_e = uvw_t0**exponent
+            # apply scaling to Pg
+            u = Pg[:,self.model.strcgrid['set'][:,0]] / uvw_t0 * f_e
+            v = Pg[:,self.model.strcgrid['set'][:,1]] / uvw_t0 * f_e
+            w = Pg[:,self.model.strcgrid['set'][:,2]] / uvw_t0 * f_e
+            # guard for NaNs due to pervious division by uvw
+            u[np.isnan(u)] = 0.0
+            v[np.isnan(v)] = 0.0
+            w[np.isnan(w)] = 0.0
+            # maximale Ist-Laenge eines Vektors
+            r_max = np.max((u**2.0 + v**2.0 + w**2.0)**0.5)
+            # maximale Soll-Laenge eines Vektors, abgeleitet von der Ausdehnung des Modells
+            r_scale = np.max([self.model.strcgrid['offset'][:,0].max() - self.model.strcgrid['offset'][:,0].min(), self.model.strcgrid['offset'][:,1].max() - self.model.strcgrid['offset'][:,1].min(), self.model.strcgrid['offset'][:,2].max() - self.model.strcgrid['offset'][:,2].min()])
+            # skalieren der Vektoren
+            u = u / r_max * r_scale
+            v = v / r_max * r_scale
+            w = w / r_max * r_scale
+            # store
+            self.vector_data.append({'u':u, 'v':v, 'w':w  })
             
-        # get deformations and forces
-        # x-component without rigid body motion so that the aircraft does not fly out of sight
-        self.x = self.model.strcgrid['offset'][:,0] + response['Ug'][:,self.model.strcgrid['set'][:,0]]# - response['X'][:,0].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
+        self.src_vectors = []
+        self.src_cones   = []
+        def setup_vector_display(self, vector_data, color=(1,0,0), opacity=0.4):
+             # vectors
+            ug_vector = tvtk.UnstructuredGrid(points=np.vstack((self.x[0,:], self.y[0,:], self.z[0,:])).T)
+            ug_vector.point_data.vectors = np.vstack((vector_data['u'][0,:], vector_data['v'][0,:], vector_data['w'][0,:])).T
+            src_vector = mlab.pipeline.add_dataset(ug_vector)
+            vector = mlab.pipeline.vectors(src_vector, color=color, mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
+            vector.glyph.glyph.clamping=False
+            self.src_vectors.append(src_vector)
+            # cones for vectors
+            ug_cone = tvtk.UnstructuredGrid(points=np.vstack((self.x[0,:]+vector_data['u'][0,:], self.y[0,:]+vector_data['v'][0,:], self.z[0,:]+vector_data['w'][0,:])).T)
+            ug_cone.point_data.vectors = np.vstack((vector_data['u'][0,:], vector_data['v'][0,:], vector_data['w'][0,:])).T
+            src_cone = mlab.pipeline.add_dataset(ug_cone)
+            cone = mlab.pipeline.vectors(src_cone, color=color, mode='cone', opacity=opacity, scale_mode='vector', scale_factor=0.1, resolution=16)
+            cone.glyph.glyph.clamping=False
+            self.src_cones.append(src_cone)
+        
+        def update_vector_display(self, src_vector, src_cone, points, vector):
+            src_vector.outputs[0].points.from_array(points)
+            src_vector.outputs[0].point_data.vectors.from_array(vector)
+            src_cone.outputs[0].points.from_array(points+vector)
+            src_cone.outputs[0].point_data.vectors.from_array(vector)
+            
+        def setup_strc_display(self, color=(1,1,1)):
+            points = np.vstack((self.x[0,:], self.y[0,:], self.z[0,:])).T
+            scalars = self.Ug_f_scalar[0,:]
+            ug = tvtk.UnstructuredGrid(points=points)
+            ug.point_data.scalars = scalars
+            if hasattr(self.model, 'strcshell'):
+                # plot shell as surface
+                shells = []
+                for shell in self.model.strcshell['cornerpoints']: 
+                    shells.append([np.where(self.model.strcgrid['ID']==id)[0][0] for id in shell])
+                shell_type = tvtk.Polygon().cell_type
+                ug.set_cells(shell_type, shells)
+                self.src_points = mlab.pipeline.add_dataset(ug)
+                points  = mlab.pipeline.glyph(self.src_points, color=color, scale_factor=self.p_scale)
+                surface = mlab.pipeline.surface(self.src_points, colormap='viridis') #color=color)
+            else: 
+                # plot points as glyphs
+                self.src_points = mlab.pipeline.add_dataset(ug)
+                points = mlab.pipeline.glyph(self.src_points, colormap='viridis', scale_factor=self.p_scale)
+            points.glyph.glyph.scale_mode = 'data_scaling_off'
+        
+        def update_strc_display(self, points, scalars):
+            self.src_points.outputs[0].points.from_array(points)
+            self.src_points.outputs[0].point_data.scalars.from_array(scalars)
+            
+            
+        # get deformations
+        self.x = self.model.strcgrid['offset'][:,0] + response['Ug'][:,self.model.strcgrid['set'][:,0]] - response['X'][:,0].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
         self.y = self.model.strcgrid['offset'][:,1] + response['Ug'][:,self.model.strcgrid['set'][:,1]]
         self.z = self.model.strcgrid['offset'][:,2] + response['Ug'][:,self.model.strcgrid['set'][:,2]]# - response['X'][:,2].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
-      
-        # Skalieren der Kraefte mit n-ter Wurzel bzw. Exponent
-        exponent = 0.33
-        uvw1 = np.linalg.norm(response['Pg_aero_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
-        uvw2 = np.linalg.norm(response['Pg_iner_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
-        uvw3 = np.linalg.norm(response['Pg_ext_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
-#         uvw3 = np.linalg.norm(response['Pg_cs_global'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
-        uvw1_e = uvw1**exponent
-        uvw2_e = uvw2**exponent
-        uvw3_e = uvw3**exponent
+        #self.Ug_f_scalar = np.linalg.norm(response['Ug_f'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
+        self.Ug_f_scalar = np.sum(response['Ug_f'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
         
-        u1 = response['Pg_aero_global'][:,self.model.strcgrid['set'][:,0]] / uvw1 * uvw1_e
-        v1 = response['Pg_aero_global'][:,self.model.strcgrid['set'][:,1]] / uvw1 * uvw1_e
-        w1 = response['Pg_aero_global'][:,self.model.strcgrid['set'][:,2]] / uvw1 * uvw1_e
-        u2 = response['Pg_iner_global'][:,self.model.strcgrid['set'][:,0]] / uvw2 * uvw2_e
-        v2 = response['Pg_iner_global'][:,self.model.strcgrid['set'][:,1]] / uvw2 * uvw2_e
-        w2 = response['Pg_iner_global'][:,self.model.strcgrid['set'][:,2]] / uvw2 * uvw2_e
-        u3 = response['Pg_ext_global'][:,self.model.strcgrid['set'][:,0]] / uvw3 * uvw3_e
-        v3 = response['Pg_ext_global'][:,self.model.strcgrid['set'][:,1]] / uvw3 * uvw3_e
-        w3 = response['Pg_ext_global'][:,self.model.strcgrid['set'][:,2]] / uvw3 * uvw3_e
-#         u3 = response['Pg_cs_global'][:,self.model.strcgrid['set'][:,0]] / uvw3 * uvw3_e
-#         v3 = response['Pg_cs_global'][:,self.model.strcgrid['set'][:,1]] / uvw3 * uvw3_e
-#         w3 = response['Pg_cs_global'][:,self.model.strcgrid['set'][:,2]] / uvw3 * uvw3_e
-        
-        # guard for NaNs due to pervious division by uvw
-        u1[np.isnan(u1)] = 0.0
-        v1[np.isnan(v1)] = 0.0
-        w1[np.isnan(w1)] = 0.0
-        u2[np.isnan(u2)] = 0.0
-        v2[np.isnan(v2)] = 0.0
-        w2[np.isnan(w2)] = 0.0
-        u3[np.isnan(u3)] = 0.0
-        v3[np.isnan(v3)] = 0.0
-        w3[np.isnan(w3)] = 0.0
-        
-        # maximale Ist-Laenge eines Vektors
-        r_max = np.max([(u1**2.0 + v1**2.0 + w1**2.0)**0.5, (u2**2.0 + v2**2.0 + w2**2.0)**0.5, (u3**2.0 + v3**2.0 + w3**2.0)**0.5])
-        # maximale Soll-Laenge eines Vektors, abgeleitet von der Ausdehnung des Modells
-        r_scale = np.max([self.model.strcgrid['offset'][:,0].max() - self.model.strcgrid['offset'][:,0].min(), self.model.strcgrid['offset'][:,1].max() - self.model.strcgrid['offset'][:,1].min(), self.model.strcgrid['offset'][:,2].max() - self.model.strcgrid['offset'][:,2].min()])
- 
-        # skalieren der Vektoren
-        self.u1 = u1 / r_max * r_scale
-        self.v1 = v1 / r_max * r_scale
-        self.w1 = w1 / r_max * r_scale
-        self.u2 = u2 / r_max * r_scale
-        self.v2 = v2 / r_max * r_scale
-        self.w2 = w2 / r_max * r_scale
-        self.u3 = u3 / r_max * r_scale
-        self.v3 = v3 / r_max * r_scale
-        self.w3 = w3 / r_max * r_scale
-        
-        # set up earth
-        with open('harz.pickle', 'r') as f:  
-            (x,y,elev) = cPickle.load(f)
-        
-        # set up animation
+        # get forces
+        names = ['Pg_aero_global', 'Pg_iner_global']
+        colors = [(1,0,0), (0,1,1)] # red, cyan
+        for name in names:
+            calc_vector_data(self, name)
+
+        # get figure
         if make_movie:
             logging.info('rendering offscreen simulation {:s} ...'.format(trimcase['desc']))
             mlab.options.offscreen = True
@@ -741,26 +765,27 @@ class plotting:
         else: 
             logging.info('interactive plotting of forces and deformations for simulation {:s}'.format(trimcase['desc']))
             self.fig = mlab.figure(bgcolor=(1,1,1))
-        opacity=0.4
-        mlab.points3d(self.x[0,:], self.y[0,:], self.z[0,:], color=(1,1,1), opacity=opacity, scale_factor=self.p_scale ) # intital position of aircraft, remains as a shadow in the animation for better comparision
-        # BUG: mlab_source.set() funktioniert nicht bei points3d, daher der direkte Weg ueber eine pipeline
-        #self.points = mlab.points3d(self.x[0,:], self.y[0,:], self.z[0,:], color=(0,0,1), scale_factor=self.p_scale)
-        self.src = mlab.pipeline.scalar_scatter(self.x[0,:], self.y[0,:], self.z[0,:])
-        pts = mlab.pipeline.glyph(self.src, color=(0,0,0), scale_factor=self.p_scale)
-        self.vectors1 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u1[0,:], self.v1[0,:], self.w1[0,:], color=(1,0,0),  mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
-        self.cones1   = mlab.quiver3d(self.x[0,:]+self.u1[0,:], self.y[0,:]+self.v1[0,:], self.z[0,:]+self.w1[0,:], self.u1[0,:], self.v1[0,:], self.w1[0,:], color=(1,0,0),  mode='cone', opacity=opacity, scale_mode='vector', scale_factor=0.1, resolution=16)
-        self.vectors2 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u2[0,:], self.v2[0,:], self.w2[0,:], color=(0,1,1),  mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
-        self.cones2   = mlab.quiver3d(self.x[0,:]+self.u2[0,:], self.y[0,:]+self.v2[0,:], self.z[0,:]+self.w2[0,:], self.u2[0,:], self.v2[0,:], self.w2[0,:], color=(0,1,1),  mode='cone', opacity=opacity, scale_mode='vector', scale_factor=0.1, resolution=16)       
-        self.vectors3 = mlab.quiver3d(self.x[0,:],self.y[0,:], self.z[0,:], self.u3[0,:], self.v3[0,:], self.w3[0,:], color=(1,1,0),  mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
-        self.cones3   = mlab.quiver3d(self.x[0,:]+self.u3[0,:], self.y[0,:]+self.v3[0,:], self.z[0,:]+self.w3[0,:], self.u3[0,:], self.v3[0,:], self.w3[0,:], color=(1,1,0),  mode='cone', opacity=opacity, scale_mode='vector', scale_factor=0.1, resolution=16)       
-
+            #self.fig = mlab.figure()
+        
+        # plot initial position
+        setup_strc_display(self, color=(0.9,0.9,0.9)) # light grey
+        
+        # plot initial forces     
+        opacity=0.4  
+        for data, color in zip(self.vector_data, colors):
+            setup_vector_display(self, data, color, opacity)
+        
+        # plot coordinate system
         mlab.orientation_axes()
-        # plot earth, scale colormap
-        surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
+        
+#         # get earth
+#         with open('harz.pickle', 'r') as f:  
+#             (x,y,elev) = cPickle.load(f)
+#         # plot earth, scale colormap
+#         surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
         
         #mlab.view(azimuth=180.0, elevation=90.0, roll=-90.0, distance=70.0, focalpoint=np.array([self.x.mean(),self.y.mean(),self.z.mean()])) # back view
-        distance = 5.0*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5
-        #mlab.view(azimuth=135.0, elevation=120.0, roll=-120.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
+        distance = 2.5*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5
         mlab.view(azimuth=135.0, elevation=100.0, roll=-100.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
 
         if make_movie:
@@ -769,9 +794,13 @@ class plotting:
             movie(self) # launch animation
             mlab.close()
             # h.246
-            os.system('ffmpeg -framerate {} -i {}anim/subcase_{}_frame_%06d.png  -r 30 -y {}anim/subcase_{}.mov'.format( speedup_factor/simcase['dt'], path_output, trimcase['subcase'], path_output, trimcase['subcase']) )
+            cmd = 'ffmpeg -framerate {} -i {}anim/subcase_{}_frame_%06d.png  -r 30 -y {}anim/subcase_{}.mov'.format( speedup_factor/simcase['dt'], path_output, trimcase['subcase'], path_output, trimcase['subcase']) 
+            logging.info(cmd)
+            os.system(cmd)
             # MPEG-4 - besser geeignet fuer PowerPoint & Co.
-            os.system('ffmpeg -framerate {} -i {}anim/subcase_{}_frame_%06d.png -c:v mpeg4 -q:v 3 -r 30 -y {}anim/subcase_{}.avi'.format( speedup_factor/simcase['dt'], path_output, trimcase['subcase'], path_output, trimcase['subcase']) )
+            cmd = 'ffmpeg -framerate {} -i {}anim/subcase_{}_frame_%06d.png -c:v mpeg4 -q:v 3 -r 30 -y {}anim/subcase_{}.avi'.format( speedup_factor/simcase['dt'], path_output, trimcase['subcase'], path_output, trimcase['subcase'])
+            logging.info(cmd)
+            os.system(cmd)
         else:
             anim(self) # launch animation
             mlab.show()
