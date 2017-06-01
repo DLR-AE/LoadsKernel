@@ -182,20 +182,26 @@ def Modgen_GRID(filename):
     return grid
 
 def Modgen_CQUAD4(filename):
-    logging.info('Read CQUAD4 data from ModGen file: %s' %filename)
-    data = []
+    logging.info('Read CQUAD4/CTRIA3 data from ModGen file: %s' %filename)
+    ids = []
+    cornerpoints_points = []
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
             if string.find(read_string, 'CQUAD4') !=-1 and read_string[0] != '$':
-                data.append([nastran_number_converter(read_string[8:16], 'ID'), nastran_number_converter(read_string[24:32], 'ID'), nastran_number_converter(read_string[32:40], 'ID'), nastran_number_converter(read_string[40:48], 'ID'), nastran_number_converter(read_string[48:56], 'ID')])
+                ids.append(nastran_number_converter(read_string[8:16], 'ID'),)
+                cornerpoints_points.append([nastran_number_converter(read_string[24:32], 'ID'), nastran_number_converter(read_string[32:40], 'ID'), nastran_number_converter(read_string[40:48], 'ID'), nastran_number_converter(read_string[48:56], 'ID')])
+            elif string.find(read_string, 'CTRIA3') !=-1 and read_string[0] != '$':
+                ids.append(nastran_number_converter(read_string[8:16], 'ID'),)
+                cornerpoints_points.append([nastran_number_converter(read_string[24:32], 'ID'), nastran_number_converter(read_string[32:40], 'ID'), nastran_number_converter(read_string[40:48], 'ID')])
             elif read_string == '':
                 break
-    data = np.array(data)
-    panels = {"ID": data[:,0],
-              "cornerpoints": data[:,1:5],
-              "CP": np.zeros(data[:,0].shape), # Assumption: panels are given in global coord system
-              "CD": np.zeros(data[:,0].shape),
+    ids = np.array(ids)
+    panels = {"ID": ids,
+              "cornerpoints": cornerpoints_points, # cornerpoints is a list to allow for both quad and tria elements
+              "CP": np.zeros(ids.shape), # Assumption: panels are given in global coord system
+              "CD": np.zeros(ids.shape),
+              "n": len(ids)
              }
     return panels
     

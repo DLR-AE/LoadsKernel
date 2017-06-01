@@ -88,7 +88,7 @@ class model:
                         self.strcshell['ID'] = np.hstack((self.strcshell['ID'],panels['ID']))
                         self.strcshell['CD'] = np.hstack((self.strcshell['CD'],panels['CD']))
                         self.strcshell['CP'] = np.hstack((self.strcshell['CP'],panels['CP']))
-                        self.strcshell['cornerpoints'] = np.vstack((self.strcshell['cornerpoints'],panels['cornerpoints']))
+                        self.strcshell['cornerpoints'] += panels['cornerpoints']
                         self.strcshell['n'] += panels['n']
             
             if not self.jcl.geom['filename_mongrid'] == '':
