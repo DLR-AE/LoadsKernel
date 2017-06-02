@@ -97,3 +97,88 @@ def controlsurface_meshdefo(model, jcl, job_name, path_output):
                 dz[:] = Ucfd[cfdgrid['set'][:,2]]
             
                 f.close()
+                
+def Ug_f_meshdefo(model, jcl, responses, job_name, path_output):
+                
+    for response in responses:        
+        if jcl.meshdefo.has_key('surface'):
+            markers = jcl.meshdefo['surface']['markers']
+            filename_grid = jcl.meshdefo['surface']['filename_grid']
+            logging.info( 'Extracting points belonging to marker(s) {} from grid {}'.format(str(markers), filename_grid))
+            # --- get points on surfaces according to marker ---
+            ncfile_grid = netcdf.NetCDFFile(filename_grid, 'r')
+            boundarymarker_surfaces = ncfile_grid.variables['boundarymarker_of_surfaces'][:]
+            points_of_surfacetriangles = ncfile_grid.variables['points_of_surfacetriangles'][:]
+            # expand triangles and merge with quadrilaterals
+            if 'points_of_surfacequadrilaterals' in ncfile_grid.variables:
+                points_of_surfacetriangles = np.hstack((points_of_surfacetriangles, np.zeros((len(points_of_surfacetriangles), 1), dtype=int)))
+                points_of_surfacequadrilaterals = ncfile_grid.variables['points_of_surfacequadrilaterals'][:]
+                points_of_surface = np.vstack((points_of_surfacetriangles, points_of_surfacequadrilaterals))
+            else:
+                points_of_surface = points_of_surfacetriangles
+                
+            # find global id of points on surface defined by markers 
+            points = np.array([], dtype=int)
+            for marker in markers:
+                points = np.hstack((points, np.where(boundarymarker_surfaces == marker)[0]))
+            points = np.unique(points_of_surface[points])
+            
+            # build cfdgrid
+            cfdgrid = {}
+            cfdgrid['ID'] = points
+            cfdgrid['CP'] = np.zeros(cfdgrid['ID'].shape)
+            cfdgrid['CD'] = np.zeros(cfdgrid['ID'].shape)
+            cfdgrid['n'] = len(cfdgrid['ID'])   
+            cfdgrid['offset'] = np.vstack((ncfile_grid.variables['points_xc'][:][points].copy(), ncfile_grid.variables['points_yc'][:][points].copy(), ncfile_grid.variables['points_zc'][:][points].copy() )).T
+            cfdgrid['set'] = np.arange(6*cfdgrid['n']).reshape(-1,6)
+            ncfile_grid.close()
+#             from mayavi import mlab
+#             p_scale = 0.1 # points
+#             mlab.figure()
+#             mlab.points3d(cfdgrid['offset'][:,0], cfdgrid['offset'][:,1], cfdgrid['offset'][:,2], scale_factor=p_scale)
+                    
+            # build spline matrix
+            PHIstrc_cfd = spline_functions.spline_rbf(model.splinegrid, '', cfdgrid, '', rbf_type='tps', surface_spline=True,  dimensions=[model.strcgrid['n']*6, cfdgrid['n']*6])
+           
+            i_mass     = model.mass['key'].index(jcl.trimcase[response['i']]['mass'])
+            PHIf_strc  = model.mass['PHIf_strc'][i_mass]
+            n_modes    = model.mass['n_modes'][i_mass]
+            Uf = response['X'][12:12+n_modes]
+            Ug_f_body = np.dot(PHIf_strc.T, Uf.T).T # *100.0
+            Ucfd = PHIstrc_cfd.dot(Ug_f_body)
+                
+#             from mayavi import mlab
+#             p_scale = 0.05 # points
+#             mlab.figure()
+#             mlab.points3d(model.strcgrid['offset'][:,0], model.strcgrid['offset'][:,1], model.strcgrid['offset'][:,2] ,  scale_factor=p_scale, color=(1,1,1))
+#             mlab.points3d(model.strcgrid['offset'][:,0] + Ug_f_body[model.strcgrid['set'][:,0]], model.strcgrid['offset'][:,1] + Ug_f_body[model.strcgrid['set'][:,1]], model.strcgrid['offset'][:,2] + Ug_f_body[model.strcgrid['set'][:,2]],  scale_factor=p_scale, color=(1,0,0))
+#             mlab.points3d(cfdgrid['offset'][:,0], cfdgrid['offset'][:,1], cfdgrid['offset'][:,2], scale_factor=p_scale/5.0, color=(0,0,0))
+#             mlab.points3d(cfdgrid['offset'][:,0] + Ucfd[cfdgrid['set'][:,0]], cfdgrid['offset'][:,1] + Ucfd[cfdgrid['set'][:,1]], cfdgrid['offset'][:,2] + Ucfd[cfdgrid['set'][:,2]], scale_factor=p_scale/5.0, color=(0,0,1))
+#             mlab.show()
+                
+            filename_defo = path_output + 'surface_defo_' + job_name + '_subcase_' + str(jcl.trimcase[response['i']]['subcase']) + '.nc'
+            write_cfdmesh(cfdgrid, Ucfd, filename_defo)
+
+def write_cfdmesh(cfdgrid, Ucfd, filename_defo):
+    logging.info( 'Writing ' + filename_defo)
+    f = netcdf.netcdf_file(filename_defo, 'w')
+    f.history = 'Surface deformations created by Loads Kernel'
+    f.createDimension('no_of_points', cfdgrid['n'])
+    
+    global_id = f.createVariable('global_id', 'i', ('no_of_points',))
+    x = f.createVariable('x', 'd', ('no_of_points',))
+    y = f.createVariable('y', 'd', ('no_of_points',))
+    z = f.createVariable('z', 'd', ('no_of_points',))
+    dx = f.createVariable('dx', 'd', ('no_of_points',))
+    dy = f.createVariable('dy', 'd', ('no_of_points',))
+    dz = f.createVariable('dz', 'd', ('no_of_points',))
+    
+    global_id[:] = cfdgrid['ID']
+    x[:] = cfdgrid['offset'][:,0]
+    y[:] = cfdgrid['offset'][:,1]
+    z[:] = cfdgrid['offset'][:,2]
+    dx[:] = Ucfd[cfdgrid['set'][:,0]]
+    dy[:] = Ucfd[cfdgrid['set'][:,1]]
+    dz[:] = Ucfd[cfdgrid['set'][:,2]]
+
+    f.close()
