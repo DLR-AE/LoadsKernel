@@ -80,7 +80,18 @@ class jcl:
                      'h': ft2m([0, 5500, 7500, 20000, 30000, 45000]), # altitude in meters
                     }
         self.eom = {'version': 'linear'} # 'linear, 'waszak'
-        
+        self.meshdefo = {'surface':                              # general surface mesh information
+                                    {'fileformat': 'netcdf',     # 'cgns', 'netcdf'
+                                     'markers': [1,3],           # list of markers [1, 2, ...] of surfaces to be included in deformation
+                                     'filename_grid':'tau.grid', # Tau volume or surface mesh or CGNSS surface mesh
+                                    },
+                         'volume':{},                            # general volume mesh information, unused
+                         'AIL-S1':                               # for every control surface, name as in AESURF
+                                   {'values': [-20.0, -15.0, -10.0, -5.0, 0.0, 5.0, 10.0, 15.0, 20.0], # deflections in [deg]
+                                   },
+                         'AIL-S2': {'values': [-20.0, -15.0, -10.0, -5.0, 0.0, 5.0, 10.0, 15.0, 20.0],
+                                   },
+                        } 
         # parameters for generic landing gear, see PhD Thesis of Wolf Krueger and Sunpeth Cumnuantip
         para_LG = {'stroke_length':  0.3,   # m
                     'fitting_length': 0.72, # m
