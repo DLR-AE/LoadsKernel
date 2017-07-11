@@ -20,7 +20,8 @@ class trim:
         i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
         n_modes = self.model.mass['n_modes'][i_mass]
-        u = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
+        Vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
+        u = Vtas
         z = -self.model.atmo['h'][i_atmo]
         #q = (self.trimcase['Nz'] - 1.0)*9.81/u
         
@@ -181,6 +182,121 @@ class trim:
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dp'))[0][0],1] = 'free'
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dq'))[0][0],1] = 'free'
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+        
+        # --------------
+        # --- nonlin --- 
+        # --------------
+        elif self.trimcase['manoeuver'] == 'nonlin':
+            logging.info('setting trim conditions to "nonlin"')
+            # inputs
+            self.trimcond_X = np.array([
+                ['x',        'fix',    0.0,],
+                ['y',        'fix',    0.0,],
+                ['z',        'fix',    z  ,],
+                ['phi',      'fix',    0.0,],
+                ['theta',    'free',   0.0,], # dependent on u and w if dz = 0
+                ['psi',      'fix',    0.0,],
+                ['u',        'free',   u,  ],
+                ['v',        'fix',    0.0,],
+                ['w',        'free',   0.0,],
+                ['p',        'fix',    self.trimcase['p'],],
+                ['q',        'fix',    self.trimcase['q'],],
+                ['r',        'fix',    self.trimcase['r'],],
+                ])
+            for i_mode in range(n_modes):
+                self.trimcond_X = np.vstack((self.trimcond_X ,  ['Uf'+str(i_mode), 'free', 0.0]))
+            for i_mode in range(n_modes):
+                self.trimcond_X = np.vstack((self.trimcond_X ,  ['dUf_dt'+str(i_mode), 'free', 0.0]))
+                
+            self.trimcond_X = np.vstack((self.trimcond_X , ['command_xi',   'free', 0.0,],  ['command_eta',   'free',  0.0,], ['command_zeta',   'free',  0.0,]))
+                
+            # outputs
+            self.trimcond_Y = np.array([ 
+                ['dx',       'target',   Vtas,], # dx = Vtas if dz = 0
+                ['dy',       'free',   0.0,],
+                ['dz',       'target', 0.0,],
+                ['dphi',     'free',   0.0,],
+                ['dtheta',   'free',   0.0,],
+                ['dpsi',     'free',   0.0,],
+                ['du',       'free',   0.0,],
+                ['dv',       'free',   0.0,],
+                ['dw',       'free',   0.0,],
+                ['dp',       'target', self.trimcase['pdot'],],
+                ['dq',       'target', self.trimcase['qdot'],],
+                ['dr',       'target', self.trimcase['rdot'],],
+                ])
+                
+            for i_mode in range(n_modes):
+                self.trimcond_Y = np.vstack((self.trimcond_Y ,  ['dUf_dt'+str(i_mode), 'target', 0.0]))
+            for i_mode in range(n_modes):
+                self.trimcond_Y = np.vstack((self.trimcond_Y ,  ['d2Uf_d2t'+str(i_mode), 'target', 0.0]))
+            self.trimcond_Y = np.vstack((self.trimcond_Y ,
+                                         ['dcommand_xi',    'fix',  0.0,],
+                                         ['dcommand_eta',   'fix',  0.0,],
+                                         ['dcommand_zeta',  'fix',  0.0,],
+                                       ))
+    
+            self.trimcond_Y = np.vstack((self.trimcond_Y , 
+                                         ['Nz',       'target',    self.trimcase['Nz']],
+                                         ['Vtas',     'free',  Vtas,],
+                                       ))
+        # ------------------------
+        # --- nonlin segelflug --- 
+        # ------------------------
+        elif self.trimcase['manoeuver'] == 'nonlin_segelflug':
+            logging.info('setting trim conditions to "nonlin_segelflug"')
+            # inputs
+            self.trimcond_X = np.array([
+                ['x',        'fix',    0.0,],
+                ['y',        'fix',    0.0,],
+                ['z',        'fix',    z  ,],
+                ['phi',      'fix',    0.0,],
+                ['theta',    'free',   0.0,], # dependent on u and w if dz = 0
+                ['psi',      'fix',    0.0,],
+                ['u',        'free',   u,  ],
+                ['v',        'fix',    0.0,],
+                ['w',        'free',   0.0,],
+                ['p',        'fix',    self.trimcase['p'],],
+                ['q',        'fix',    self.trimcase['q'],],
+                ['r',        'fix',    self.trimcase['r'],],
+                ])
+            for i_mode in range(n_modes):
+                self.trimcond_X = np.vstack((self.trimcond_X ,  ['Uf'+str(i_mode), 'free', 0.0]))
+            for i_mode in range(n_modes):
+                self.trimcond_X = np.vstack((self.trimcond_X ,  ['dUf_dt'+str(i_mode), 'free', 0.0]))
+                
+            self.trimcond_X = np.vstack((self.trimcond_X , ['command_xi',   'free', 0.0,],  ['command_eta',   'free',  0.0,], ['command_zeta',   'free',  0.0,]))
+                
+            # outputs
+            self.trimcond_Y = np.array([ 
+                ['dx',       'free',   Vtas,], # dx = Vtas if dz = 0
+                ['dy',       'free',   0.0,],
+                ['dz',       'free',   0.0,],
+                ['dphi',     'free',   0.0,],
+                ['dtheta',   'free',   0.0,],
+                ['dpsi',     'free',   0.0,],
+                ['du',       'target', 0.0,],
+                ['dv',       'free',   0.0,],
+                ['dw',       'target', 0.0,],
+                ['dp',       'target', self.trimcase['pdot'],],
+                ['dq',       'target', self.trimcase['qdot'],],
+                ['dr',       'target', self.trimcase['rdot'],],
+                ])
+                
+            for i_mode in range(n_modes):
+                self.trimcond_Y = np.vstack((self.trimcond_Y ,  ['dUf_dt'+str(i_mode), 'target', 0.0]))
+            for i_mode in range(n_modes):
+                self.trimcond_Y = np.vstack((self.trimcond_Y ,  ['d2Uf_d2t'+str(i_mode), 'target', 0.0]))
+            self.trimcond_Y = np.vstack((self.trimcond_Y ,
+                                         ['dcommand_xi',    'fix',  0.0,],
+                                         ['dcommand_eta',   'fix',  0.0,],
+                                         ['dcommand_zeta',  'fix',  0.0,],
+                                       ))
+    
+            self.trimcond_Y = np.vstack((self.trimcond_Y , 
+                                         ['Nz',       'free',    self.trimcase['Nz']],
+                                         ['Vtas',     'target',  Vtas,],
+                                       ))
         else:
             logging.info('setting trim conditions to "default"')
     
@@ -293,8 +409,8 @@ class trim:
         
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
-        elif self.jcl.aero['method'] in [ 'steady_nonlin']:
-            equations = model_equations.steady_nonlin(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+        elif self.jcl.aero['method'] in [ 'nonlin_steady']:
+            equations = model_equations.nonlin_steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -311,11 +427,11 @@ class trim:
             
             # if trim was successful, then do one last evaluation with the final parameters.
             if status == 1:
-                logging.info('')
-                logging.info('Trimsolution: ')
-                logging.info('--------------------')
-                for i_X in range(len(X_free)):
-                    logging.info(self.trimcond_X[:,0][np.where((self.trimcond_X[:,1] == 'free'))[0]][i_X] + ': %.4f' % float(X_free[i_X]))
+#                 logging.info('')
+#                 logging.info('Trimsolution: ')
+#                 logging.info('--------------------')
+#                 for i_X in range(len(X_free)):
+#                     logging.info(self.trimcond_X[:,0][np.where((self.trimcond_X[:,1] == 'free'))[0]][i_X] + ': %.4f' % float(X_free[i_X]))
                     
                 self.response = equations.eval_equations(X_free, time=0.0, type='trim_full_output')
             else:
@@ -329,8 +445,8 @@ class trim:
         import model_equations 
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not self.simcase['landinggear']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase, X0=self.response['X'])
-        elif self.jcl.aero['method'] in [ 'steady_nonlin']:
-            equations = model_equations.steady_nonlin(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase, X0=self.response['X'])
+        elif self.jcl.aero['method'] in [ 'nonlin_steady']:
+            equations = model_equations.nonlin_steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase, X0=self.response['X'])
         elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
             logging.info('adding 2 x {} states for landing gear'.format(self.model.lggrid['n']))
             lg_states_X = []

@@ -241,7 +241,7 @@ class discus2c:
         deta = - (self.data[line1,3] - self.data[line0,3]) / (t1 - t0)
         dzeta = (self.data[line1,4] - self.data[line0,4]) / (t1 - t0)
 
-        return [dxi, deta, dzeta*0.0]
+        return [dxi, deta, dzeta]
     
     def controller_init(self, sollwerte, mode='angular accelerations'):
         self.sollwerte = sollwerte

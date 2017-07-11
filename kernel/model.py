@@ -139,7 +139,7 @@ class model:
             logging.error( 'Unknown atmo method: ' + str(self.jcl.aero['method']))
               
         logging.info( 'Building aero model...')
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'steady_nonlin']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady']:
             # grids
             for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
                 if self.jcl.aero.has_key('method_caero'):

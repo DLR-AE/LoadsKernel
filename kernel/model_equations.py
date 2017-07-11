@@ -447,7 +447,7 @@ class common():
             
         return Plg, p2, dp2, np.array(ddp2), np.array(F1), np.array(F2)
 
-class steady_nonlin(common):
+class nonlin_steady(common):
 
     def equations(self, X, t, type):
         self.counter += 1
@@ -458,18 +458,18 @@ class steady_nonlin(common):
         Tbody2geo = np.zeros((6,6))
         Tbody2geo[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5]).T
         Tbody2geo[3:6,3:6] = calc_drehmatrix_angular_inv(X[3], X[4], X[5])
-        dUcg_dt  = np.dot(self.PHIcg_norm,np.dot(Tgeo2body, X[6:12])) # u v w p q r bodyfixed
+        dUcg_dt  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
         Uf = np.array(X[12:12+self.n_modes])
         dUf_dt = np.array(X[12+self.n_modes:12+self.n_modes*2])
                
         # aktuelle Vtas und q_dyn berechnen
-        uvw = X[6:9]
-        Vtas = sum(uvw**2)**0.5
+        dxyz = X[6:9]
+        Vtas = sum(dxyz**2)**0.5
         rho = self.model.atmo['rho'][self.i_atmo]
         q_dyn = rho/2.0*Vtas**2
-        
-        alpha = np.arctan(dUcg_dt[2]/dUcg_dt[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
-        beta  = np.arctan(dUcg_dt[1]/dUcg_dt[0]) #X[5] - np.arctan(X[7]/X[6])
+        onflow  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
+        alpha = np.arctan(onflow[2]/onflow[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
+        beta  = np.arctan(onflow[1]/onflow[0]) #X[5] - np.arctan(X[7]/X[6])
         my    = 0.0
         
         # Steuerflaechenausschlaege vom efcs holen
@@ -478,9 +478,12 @@ class steady_nonlin(common):
         # --------------------   
         # --- aerodynamics ---   
         # --------------------
-        Pk_rbm,  wj_rbm  = self.rbm_nonlin(dUcg_dt, alpha, Vtas)
-        Pk_cs,   wj_cs   = self.cs_nonlin(dUcg_dt, X, Ux2, Vtas)
-        Pk_f,    wj_f    = self.flexible_nonlin(dUcg_dt, Uf, dUf_dt, Vtas)
+        Pk_rbm,  wj_rbm  = self.rbm_nonlin(onflow, alpha, Vtas)
+        Pk_cs,   wj_cs   = self.cs_nonlin(onflow, X, Ux2, Vtas)
+        Pk_f,    wj_f    = self.flexible_nonlin(onflow, Uf, dUf_dt, Vtas)
+#         Pk_rbm,  wj_rbm  = self.rbm(onflow, alpha, q_dyn, Vtas)
+#         Pk_cs,   wj_cs   = self.cs(X, Ux2, q_dyn)
+#         Pk_f,    wj_f    = self.flexible(Uf, dUf_dt, onflow, q_dyn, Vtas)
         
         wj = (wj_rbm + wj_cs + wj_f)/Vtas
         Pk_idrag         = self.idrag(wj, q_dyn)
@@ -540,8 +543,15 @@ class steady_nonlin(common):
         # --------------   
         # --- output ---   
         # --------------
-        Y = np.hstack((X[6:12], np.dot(Tbody2geo,np.dot(self.PHIcg_norm,  d2Ucg_dt2)), dUf_dt, d2Uf_dt2, dcommand, Nxyz[2] ))    
- 
+        Y = np.hstack((np.dot(Tbody2geo,X[6:12]), 
+                       np.dot(self.PHIcg_norm,  d2Ucg_dt2), 
+                       dUf_dt, 
+                       d2Uf_dt2, 
+                       dcommand, 
+                       Nxyz[2],
+                       Vtas, 
+                     ))
+            
         if type in ['trim', 'sim']:
             return Y
         elif type in ['trim_full_output', 'sim_full_output']:
@@ -623,7 +633,7 @@ class steady_nonlin(common):
         
         elif type=='sim':
             Y = self.equations(X, time, 'sim')
-            return Y[:-1] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
+            return Y[:-2] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
             
         elif type=='sim_full_output':
             response = self.equations(X, time, 'sim_full_output')
@@ -633,6 +643,10 @@ class steady_nonlin(common):
             response = self.equations(X, time, 'trim_full_output')
             # do something with this output, e.g. plotting, animations, saving, etc.            
             logging.info('')        
+            logging.info('X: ')
+            logging.info('--------------------')
+            for i_X in range(len(response['X'])):
+                logging.info(self.trimcond_X[:,0][i_X] + ': %.4f' % float(response['X'][i_X]))
             logging.info('Y: ')
             logging.info('--------------------')
             for i_Y in range(len(response['Y'])):
