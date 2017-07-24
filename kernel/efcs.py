@@ -6,7 +6,7 @@ Created on Tue Mar  3 14:36:41 2015
 """
 import numpy as np
 import csv, logging
-import PID
+import PID, filter
 
 class mephisto:
     def __init__(self):
@@ -207,25 +207,32 @@ class discus2c:
         self.alpha_upper = 10.0 / 180 * np.pi
     
     def cs_signal_init(self, case_desc):
-        cases = ['FT-P1', 'FT-P2', 'FT-P3', 'Elev3211_A', 'Elev3211_B', 'B2B_1-10A', 'B2B_1-10B']
+        csv.register_dialect('ohme1', delimiter='\t', skipinitialspace=True)
+        csv.register_dialect('ohme2', delimiter=' ', skipinitialspace=True)
+        cases =    ['FT-P1', 'FT-P2', 'FT-P3', 'Elev3211_A', 'Elev3211_B', 'B2B_1-10A', 'B2B_1-10B', '21_M5', '21_M11', '22_M6']
+        tstart =   [ 80.0,    190.0,   168.0,   912.0,        933.0,        1236.5,      1255.0,      763.0,   1022.5,   348.0]
+        dialects = ['ohme1', 'ohme1', 'ohme1', 'ohme1',      'ohme1',      'ohme1',     'ohme1',     'ohme2', 'ohme2',  'ohme2']
         files = ['/scratch/Discus2c_Data+Info/FT-P1_Pilot1.txt',
                  '/scratch/Discus2c_Data+Info/FT-P2_Pilot2.txt',
                  '/scratch/Discus2c_Data+Info/FT-P3_Pilot1.txt',
                  '/scratch/Discus2c_Data+Info/Elev3211_2-15A_Pilot1.txt',
                  '/scratch/Discus2c_Data+Info/Elev3211_2-15B_Pilot1.txt',
                  '/scratch/Discus2c_Data+Info/B2B_1-10A_Pilot2.txt',
-                 '/scratch/Discus2c_Data+Info/B2B_1-10B_Pilot2.txt']
-        tstart = [80.0, 190.0, 168.0, 912.0, 933.0, 1236.5, 1255.0]
-        
+                 '/scratch/Discus2c_Data+Info/B2B_1-10B_Pilot2.txt',
+                 '/scratch/Discus2c_Data+Info/21_M5_Pilot2.txt',
+                 '/scratch/Discus2c_Data+Info/21_M11_Pilot2.txt',
+                 '/scratch/Discus2c_Data+Info/22_M6_Pilot2.txt']
+
         if case_desc not in cases:
             logging.error('No time signal for cs deflections found!')
             
         with open(files[cases.index(case_desc)]) as csvfile:
-            reader = csv.DictReader(csvfile, dialect='excel-tab')
+            reader = csv.DictReader(csvfile, dialect=dialects[cases.index(case_desc)])
             reader.next()  # skip second line of file
+            reader.fieldnames = [name.strip() for name in reader.fieldnames] # remove spaces from column names
             data = []
             for row in reader:
-                data.append([float(row['Time        ']), float(row['xi_l_corr   '])/180.0*np.pi, float(row['xi_r_corr   '])/180.0*np.pi, float(row['eta_corr    '])/180.0*np.pi, float(row['zeta_corr   '])/180.0*np.pi])
+                data.append([float(row['Time']), float(row['xi_l_corr'])/180.0*np.pi, float(row['xi_r_corr'])/180.0*np.pi, float(row['eta_corr'])/180.0*np.pi, float(row['zeta_corr'])/180.0*np.pi])
         self.data = np.array(data)
         self.tstart = tstart[cases.index(case_desc)]
         
