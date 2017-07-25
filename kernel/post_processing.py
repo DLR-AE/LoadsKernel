@@ -40,7 +40,8 @@ class post_processing:
         if len(response['t']) > 1:
             response['Pg_iner']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Pg_aero']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-            response['Pg_cs']          = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            #response['Pg_cs']          = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            #response['Pg_idrag']       = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Pg_ext']         = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Pg']             = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['d2Ug_dt2']       = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
@@ -57,7 +58,8 @@ class post_processing:
                 Pg_iner_f = - Mgg.dot(d2Ug_dt2_f)
                 response['Pg_iner'][i_step,:] = Pg_iner_r + Pg_iner_f
                 response['Pg_aero'][i_step,:] = self.model.PHIk_strc.T.dot(response['Pk_aero'][i_step,:])
-                response['Pg_cs'][i_step,:]   = self.model.PHIk_strc.T.dot(response['Pk_cs'][i_step,:])
+                #response['Pg_cs'][i_step,:]   = self.model.PHIk_strc.T.dot(response['Pk_cs'][i_step,:])
+                #response['Pg_idrag'][i_step,:]= self.model.PHIk_strc.T.dot(response['Pk_idrag'][i_step,:])
                 if hasattr(self.jcl, 'landinggear'):
                     response['Pg_ext'][i_step,:][self.model.lggrid['set_strcgrid']] = response['Plg'][i_step,:]
                 response['Pg'][i_step,:] = response['Pg_aero'][i_step,:] + response['Pg_iner'][i_step,:] + response['Pg_ext'][i_step,:]
@@ -74,7 +76,8 @@ class post_processing:
             Pg_iner_f = - Mgg.dot(d2Ug_dt2_f)
             response['Pg_iner'] = Pg_iner_r + Pg_iner_f
             response['Pg_aero'] = self.model.PHIk_strc.T.dot(response['Pk_aero'])
-            response['Pg_cs']   = self.model.PHIk_strc.T.dot(response['Pk_cs'])
+            #response['Pg_cs']   = self.model.PHIk_strc.T.dot(response['Pk_cs'])
+            #response['Pg_idrag']= self.model.PHIk_strc.T.dot(response['Pk_idrag'])
             response['Pg_ext']  = np.zeros((6*self.model.strcgrid['n']))
             response['Pg'] = response['Pg_aero'] + response['Pg_iner'] + response['Pg_ext']
             response['d2Ug_dt2'] = d2Ug_dt2_r + d2Ug_dt2_f
@@ -103,7 +106,8 @@ class post_processing:
         if len(response['t']) > 1:
             response['Pg_iner_global'] = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Pg_aero_global'] = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
-            response['Pg_cs_global']   = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            #response['Pg_cs_global']   = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            #response['Pg_idrag_global']= np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Pg_ext_global']  = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Ug_r']           = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Ug_f']           = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
@@ -133,7 +137,8 @@ class post_processing:
                 strcgrid_tmp['CD'] = np.repeat(1000000, self.model.strcgrid['n'])
                 response['Ug_f'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, Ug_f_body)
                 response['Pg_aero_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'][i_step,:])
-                response['Pg_cs_global'][i_step,:]   = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_cs'][i_step,:])
+                #response['Pg_cs_global'][i_step,:]   = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_cs'][i_step,:])
+                #response['Pg_idrag_global'][i_step,:]   = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_idrag'][i_step,:])
                 response['Pg_iner_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'][i_step,:])
                 response['Pg_ext_global'][i_step,:]  = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_ext'][i_step,:])
                 #response['Pg_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'][i_step,:])
@@ -163,7 +168,8 @@ class post_processing:
             strcgrid_tmp['CD'] = np.repeat(1000000, self.model.strcgrid['n'])
             response['Ug_f'] = force_trafo(strcgrid_tmp, coord_tmp, Ug_f_body)
             response['Pg_aero_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'])
-            response['Pg_cs_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_cs'])
+            #response['Pg_cs_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_cs'])
+            #response['Pg_idrag_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_idrag'])
             response['Pg_iner_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'])
             response['Pg_ext_global']  = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_ext'])
             #response['Pg_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'])
