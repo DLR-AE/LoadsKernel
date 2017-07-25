@@ -665,7 +665,7 @@ class plotting:
                 # get current view and set new focal point
                 #v = mlab.view()
                 #r = mlab.roll()
-                #mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=np.array([x.mean(),y.mean(),z.mean()])) # view from right and above
+                #mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=points_i.mean(axis=0)) # view from right and above
                 self.fig.scene.render()
                 self.fig.scene.save_png('{}anim/subcase_{}_frame_{:06d}.png'.format(path_output, trimcase['subcase'], i))
 
@@ -749,7 +749,7 @@ class plotting:
         self.y = self.model.strcgrid['offset'][:,1] + response['Ug'][:,self.model.strcgrid['set'][:,1]]
         self.z = self.model.strcgrid['offset'][:,2] + response['Ug'][:,self.model.strcgrid['set'][:,2]]# - response['X'][:,2].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
         #self.Ug_f_scalar = np.linalg.norm(response['Ug_f'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
-        self.Ug_f_scalar = np.sum(response['Ug_f'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
+        self.Ug_f_scalar = -np.sum(response['Ug_f'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
         
         # get forces
         names = ['Pg_aero_global', 'Pg_iner_global']
