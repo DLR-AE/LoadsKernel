@@ -894,6 +894,10 @@ class steady(common):
             response = self.equations(X, time, 'trim_full_output')
             # do something with this output, e.g. plotting, animations, saving, etc.            
             logging.info('')        
+            logging.info('X: ')
+            logging.info('--------------------')
+            for i_X in range(len(response['X'])):
+                logging.info(self.trimcond_X[:,0][i_X] + ': %.4f' % float(response['X'][i_X]))
             logging.info('Y: ')
             logging.info('--------------------')
             for i_Y in range(len(response['Y'])):
