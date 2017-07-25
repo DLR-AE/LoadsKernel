@@ -19,7 +19,7 @@ def csv2listofdicts(filename_csv):
             
 def repr2listofdicts(filename):
     from numpy import array
-    with open('filename', 'r') as fid:
+    with open(filename, 'r') as fid:
         trimcase_str = fid.read()
     trimcase = eval(trimcase_str)
     logging.info('Generated list of {} dicts from: {}'.format(len(trimcase), filename) )
