@@ -143,9 +143,8 @@ class App:
         # init Matplotlib Plot
         mpl.rcParams.update({'font.size': 16})
         fig1 = mpl.figure.Figure()
-        subplot = fig1.add_subplot(111)  
         # hand over subplot to plotting class
-        self.plotting = Plotting(subplot)
+        self.plotting = Plotting(fig1)
         # embed figure
         self.canvas = FigureCanvasTkAgg(fig1, master=frame_right)
         self.canvas.show()

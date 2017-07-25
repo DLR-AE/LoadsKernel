@@ -12,8 +12,9 @@ from scipy.spatial import ConvexHull
 
 
 class Plotting:
-    def __init__(self, subplot):
-        self.subplot = subplot
+    def __init__(self, fig):
+        plt.rcParams['svg.fonttype'] = 'none'
+        self.subplot = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
         pass
     
     def plot_sin(self):
@@ -29,6 +30,13 @@ class Plotting:
         for i_dataset in range(len(monstations)):
             self.potato_plot(monstations[i_dataset], station, descs[i_dataset], colors[i_dataset], dof_xaxis, dof_yaxis, var_xaxis, var_yaxis, show_hull, show_labels)
         self.subplot.legend(loc='best')
+        self.subplot.ticklabel_format(style='sci', axis='x', scilimits=(-2,2))
+        self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
+        self.subplot.grid('on')
+        yax = self.subplot.get_yaxis()
+        yax.set_label_coords(x=-0.18, y=0.5)
+        self.subplot.set_xlabel(var_xaxis)
+        self.subplot.set_ylabel(var_yaxis)
         
     def potato_plot(self, monstations, station, desc, color, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis, show_hull, show_labels):
         
@@ -63,8 +71,3 @@ class Plotting:
         else:
             crit_trimcases += monstations[station][subcase_string][:]
         
-        self.subplot.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-        self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-        self.subplot.grid('on')
-        self.subplot.set_xlabel(var_xaxis)
-        self.subplot.set_ylabel(var_yaxis)
