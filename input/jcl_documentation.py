@@ -14,6 +14,7 @@ class jcl:
         self.efcs = {'version': 'mephisto'} # name of the corresponding class in efcs.py
         self.geom = {'method': 'mona',
                      'filename_grid':['grids.bdf'],     # bdf file(s) with GRIDs and CORDs (CORD1R and CORD2R)
+                     'filename_shell':['shells.bdf'],   # bdf file(s) with CQUADs and CTRIAs, for visualization only, e.g. outer skin on the aircraft
                      'filename_monpnt': 'monpnt.bdf',   # bdf file(s) with MONPNT-cards
                      # Alternative way to define monitoring stations:
                      'filename_mongrid': 'monstations_grids.bdf',   # bdf file with GRID-cards, one monitoring station is created at each GRID point, 1st GRID point -> 1st monstation
