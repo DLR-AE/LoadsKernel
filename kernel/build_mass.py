@@ -20,14 +20,14 @@ class build_mass:
           # Mff, Kff and PHIstrc_f
           eigenvalues, eigenvectors, node_ids_all = read_geom.NASTRAN_f06_modal(self.jcl.mass['filename_S103'][i_mass])
           nodes_selection = self.strcgrid['ID']
-          modes_selection = self.jcl.mass['modes'][i_mass]           
+          modes_selection = copy.deepcopy(self.jcl.mass['modes'][i_mass])
           if self.jcl.mass['omit_rb_modes']:
               modes_selection += 6
           eigenvalues, eigenvectors = read_geom.reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection)
           Mff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedMass']
           Kff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedStiffness']
           #Dff = Kff * 0.0
-          Dff = self.calc_damping(eigenvalue[modes_selection - 1].real)
+          Dff = self.calc_damping(np.array(eigenvalues['Eigenvalue'])[self.jcl.mass['modes'][i_mass] - 1].real)
           PHIf_strc = np.zeros((len(self.jcl.mass['modes'][i_mass]), len(self.strcgrid['ID'])*6))
           for i_mode in range(len(modes_selection)):
               eigenvector = eigenvectors[str(modes_selection[i_mode])][:,1:]
