@@ -14,7 +14,7 @@ import read_geom
 import write_functions
 from grid_trafo import grid_trafo
 from  atmo_isa import atmo_isa
-import VLM
+import VLM, DLM
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -272,7 +272,8 @@ class model:
                 # ae_getaic: k = omega/U 
                 # Nastran:   k = 0.5*cref*omega/U
                 t_start = time.time()
-                Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
+                #Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
+                Qjj = DLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Mach=self.jcl.aero['Ma'], k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
                 logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
                 self.aero['Qjj_unsteady'] = Qjj # dim: Ma,k,n,n
             elif self.jcl.aero['method_AIC'] == 'nastran':
