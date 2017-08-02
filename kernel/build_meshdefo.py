@@ -81,6 +81,7 @@ class meshdefo:
             # store deformation of cfdgrid
             self.Ucfd.append(PHIi_d.dot(U_i))
             if self.plotting:
+                U_d = PHIi_d.dot(U_i)
                 mlab.points3d(grid_d['offset'][:,0], grid_d['offset'][:,1], grid_d['offset'][:,2], color=(0,0,0), mode='point')
                 mlab.points3d(grid_d['offset'][:,0] + U_d[grid_d['set'][:,0]], grid_d['offset'][:,1] + U_d[grid_d['set'][:,1]], grid_d['offset'][:,2] + U_d[grid_d['set'][:,2]], color=(0,0,1), mode='point')
             
