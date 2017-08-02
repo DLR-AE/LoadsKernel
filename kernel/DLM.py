@@ -6,31 +6,45 @@ Created on Tue Aug  1 16:56:30 2017
 @author: voss_ar
 """
 import VLM
+import copy
 import numpy as np
-# turn off warnings (divide by zero, multiply NaN, ...) as singularities are expected to occur
-np.seterr(all='ignore')
+np.seterr(all='ignore')                 # turn off warnings (divide by zero, multiply NaN, ...) as singularities are expected to occur
 import numexpr as ne
-# set up numexpr for multithreading
-n_cores = ne.detect_number_of_cores()
-ne.set_num_threads(n_cores)
-#ne.set_vml_num_threads(n_cores) 
+n_cores = ne.detect_number_of_cores()   # get number of cores and use all
+ne.set_num_threads(n_cores)             # set up numexpr for multithreading
 
-def calc_Qjjs(aerogrid, Mach, k):
-    # allocate memory
-    Qjj = np.zeros((len(Mach),len(k),aerogrid['n'],aerogrid['n']), dtype='complex')# dim: Ma,k,n,n
-    # loop over mach number  and freq.
-    for im in range(len(Mach)):
-        Ajj_VLM, Bjj = VLM.calc_Ajj(aerogrid, Mach[im])
-        for ik in range(len(k)):
-            if k[ik] == 0.0:
-                Ajj_DLM = np.zeros((aerogrid['n'],aerogrid['n'])) # kein Anteil aus DLM, da steady state
-            else:
-                Ajj_DLM = calc_Ajj(aerogrid, Mach[im], k[ik])
-            Ajj = Ajj_VLM + Ajj_DLM
-            Qjj[im,ik,:,:] = -np.linalg.inv(Ajj)
+def calc_Qjj(aerogrid, Ma, k):
+    # calc steady contributions using VLM
+    Ajj_VLM, Bjj = VLM.calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma)
+    if k == 0.0:
+        # no oscillatory / unsteady contributions at k=0.0
+        Ajj_DLM = np.zeros((aerogrid['n'],aerogrid['n']))
+    else:
+        # calc oscillatory / unsteady contributions using DLM
+        Ajj_DLM = calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma, k=k)
+    Ajj = Ajj_VLM + Ajj_DLM
+    Qjj = -np.linalg.inv(Ajj)
     return Qjj
 
-def calc_Ajj(aerogrid, Mach, k):
+def calc_Qjjs(aerogrid, Ma, k):
+    # allocate memory
+    Qjj = np.zeros((len(Ma),len(k),aerogrid['n'],aerogrid['n']), dtype='complex')# dim: Ma,k,n,n
+    # loop over mach number  and freq.
+    for im in range(len(Ma)):
+        # calc steady contributions using VLM
+        Ajj_VLM, Bjj = VLM.calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma[im])
+        for ik in range(len(k)):
+            if k[ik] == 0.0:
+                # no oscillatory / unsteady contributions at k=0.0
+                Ajj_DLM = np.zeros((aerogrid['n'],aerogrid['n']))
+            else:
+                # calc oscillatory / unsteady contributions using DLM
+                Ajj_DLM = calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma[im], k=k[ik])
+            Ajj = Ajj_VLM + Ajj_DLM
+            Qjj[im,ik] = -np.linalg.inv(Ajj)
+    return Qjj
+
+def calc_Ajj(aerogrid, Ma, k):
     # P0 = downwash recieving location x-y pair (1/2span, 3/4chord)
     # P1 = root doublet location x-y pair (0 span, 1/4chord)
     # P2 = semi-span doublet location x-y pair (1/2span, 1/4chord)
@@ -86,16 +100,16 @@ def calc_Ajj(aerogrid, Mach, k):
     # that the doublet lattice code converges to VLM results under steady
     # conditions. (Ref 2, page 3, equation 9)
 
-    Ki_w = getKappa(x01,y01,z01,cosGamma,sinGamma,k,Mach)
-    Ki_0 = getKappa(x01,y01,z01,cosGamma,sinGamma,0,Mach)
+    Ki_w = getKappa(x01,y01,z01,cosGamma,sinGamma,k,Ma)
+    Ki_0 = getKappa(x01,y01,z01,cosGamma,sinGamma,0,Ma)
     Ki = Ki_w - Ki_0
     
-    Km_w = getKappa(x02,y02,z02,cosGamma,sinGamma,k,Mach)
-    Km_0 = getKappa(x02,y02,z02,cosGamma,sinGamma,0,Mach)
+    Km_w = getKappa(x02,y02,z02,cosGamma,sinGamma,k,Ma)
+    Km_0 = getKappa(x02,y02,z02,cosGamma,sinGamma,0,Ma)
     Km = Km_w - Km_0
     
-    K0_w = getKappa(x03,y03,z03,cosGamma,sinGamma,k,Mach)
-    K0_0 = getKappa(x03,y03,z03,cosGamma,sinGamma,0,Mach)
+    K0_w = getKappa(x03,y03,z03,cosGamma,sinGamma,k,Ma)
+    K0_0 = getKappa(x03,y03,z03,cosGamma,sinGamma,0,Ma)
     K0 = K0_w - K0_0
     
     # Parabolic approximation of incremental Kernel function (ref 1, equation 7)

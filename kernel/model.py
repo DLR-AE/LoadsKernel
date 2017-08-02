@@ -273,7 +273,7 @@ class model:
                 # Nastran:   k = 0.5*cref*omega/U
                 t_start = time.time()
                 #Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
-                Qjj = DLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Mach=self.jcl.aero['Ma'], k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
+                Qjj = DLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma'], k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
                 logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
                 self.aero['Qjj_unsteady'] = Qjj # dim: Ma,k,n,n
             elif self.jcl.aero['method_AIC'] == 'nastran':
