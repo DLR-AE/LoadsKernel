@@ -11,7 +11,7 @@ import matplotlib.animation as animation
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
 import time, os, copy, logging, cPickle
-import build_aero, write_functions
+import build_aero
 from PIL.ImageColor import colormap
 
 
@@ -365,7 +365,7 @@ class plotting:
             Pb_gust = np.array(Pb_gust)
             Pb_unsteady = np.array(Pb_unsteady)
             Pb_aero = np.array(Pb_aero)
-            plt.figure()
+            plt.figure(1)
             plt.plot(self.response[i_simcase]['t'], Pb_gust[:,2], 'b-')
             plt.plot(self.response[i_simcase]['t'], Pb_unsteady[:,2], 'r-')
             plt.plot(self.response[i_simcase]['t'], Pb_gust[:,2] + Pb_unsteady[:,2], 'b--')
@@ -374,7 +374,7 @@ class plotting:
             plt.xlabel('t [sec]')
             plt.ylabel('Pb [N]')
             plt.grid('on')
-            plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_aero'])
+            plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_aero', 'Pb_aero-unsteady'])
             
 #             plt.figure()
 #             plt.subplot(3,1,1)
@@ -400,7 +400,7 @@ class plotting:
 #             plt.ylabel('dp1,2 [m/s]')
 #             plt.grid('on')
         
-            plt.figure()
+            plt.figure(2)
             plt.subplot(2,1,1)
             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['q_dyn'], 'k-')
             plt.xlabel('t [sec]')
@@ -419,7 +419,7 @@ class plotting:
             plt.ylabel('[-]/[deg]')
             
             
-            plt.figure()
+            plt.figure(3)
             plt.subplot(2,1,1)
             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,0], 'b-')
             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,1], 'g-')
@@ -437,7 +437,7 @@ class plotting:
             plt.grid('on')
             plt.legend(['phi', 'theta', 'psi'])
             
-            plt.figure()
+            plt.figure(4)
             plt.subplot(2,1,1)
             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,6], 'b-')
             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,7], 'g-')
@@ -455,7 +455,7 @@ class plotting:
             plt.grid('on')
             plt.legend(['p', 'q', 'r'])
             
-            plt.figure()
+            plt.figure(5)
             plt.subplot(2,1,1)
             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['Y'][:,6], 'b-')
             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['Y'][:,7], 'g-')
@@ -473,112 +473,9 @@ class plotting:
             plt.grid('on')
             plt.legend(['dp', 'dq', 'dr'])
             
-            plt.figure()
-            plt.subplot(2,1,1)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,0], 'b-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,1], 'g-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,2], 'r-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('[m/s]')
-            plt.grid('on')
-            plt.legend(['u_body', 'v_body', 'w_body'])
-            plt.subplot(2,1,2)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,3]/np.pi*180.0, 'b-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,4]/np.pi*180.0, 'g-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dUcg_dt'][:,5]/np.pi*180.0, 'r-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('[deg/s]')
-            plt.grid('on')
-            plt.legend(['p_body', 'q_body', 'r_body'])
             
-            plt.figure()
-            plt.subplot(2,1,1)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,0], 'b-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,1], 'g-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,2], 'r-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('[m/s^2]')
-            plt.grid('on')
-            plt.legend(['du_body', 'dv_body', 'dw_body'])
-            plt.subplot(2,1,2)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,3]/np.pi*180.0, 'b-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,4]/np.pi*180.0, 'g-')
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['d2Ucg_dt2'][:,5]/np.pi*180.0, 'r-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('[deg/s^2]')
-            plt.grid('on')
-            plt.legend(['dp_body', 'dq_body', 'dr_body'])
-            
-            # show time plots
-#             plt.ion()
-            plt.show()
-#             plt.ioff()
-            
-            # plot animation
-#             if animation_dimensions == '2D':
-#                 # option if mayavi is not installed
-#                 self.plot_time_animation_2d(i_simcase)
-#             elif animation_dimensions == '3D':
-#                 # preferred
-#                 self.plot_time_animation_3d(i_simcase)
-#             plt.close('all')
-            
-    def plot_time_animation_2d(self, i_simcase):        
-            if self.jcl.general['aircraft'] == 'ALLEGRA':
-                lim=25.0
-                length=45
-            elif self.jcl.general['aircraft'] in ['DLR F-19-S', 'MULDICON']:
-                lim=10.0
-                length=15
-            elif self.jcl.general['aircraft'] == 'Discus2c':
-                lim=10.0
-                length=5.0
-            else:
-                logging.error('Unknown aircraft: ' + str(self.jcl.general['aircraft']))
-                return
-            
-            def update_line(num, data, line1, line2, line3, ax2, ax3, t, time_text, length):
-                line1.set_data(data[1,num,:], data[2,num,:])
-                line2.set_data(data[0,num,:], data[2,num,:])
-                line3.set_data(data[0,num,:], data[1,num,:])
-                ax2.set_xlim((-10+data[0,num,0], length+data[0,num,0]))
-                ax3.set_xlim((-10+data[0,num,0], length+data[0,num,0]))
-                time_text.set_text('Time = ' + str(t[num,0]))   
-                
-            # Set up data
-            x = self.model.strcgrid['offset'][:,0] + self.response[i_simcase]['Ug'][:,self.model.strcgrid['set'][:,0]]
-            y = self.model.strcgrid['offset'][:,1] + self.response[i_simcase]['Ug'][:,self.model.strcgrid['set'][:,1]]
-            z = self.model.strcgrid['offset'][:,2] + self.response[i_simcase]['Ug'][:,self.model.strcgrid['set'][:,2]]
-            data = np.array([x,y,z])
-            t = self.response[i_simcase]['t']
-            # Set up plot
-            fig = plt.figure()
-            ax1 = plt.subplot(1,3,1)
-            line1, = ax1.plot([], [], 'r.')
-            time_text = ax1.text(-lim+2,lim-2, '')
-            ax1.set_xlim((-lim, lim))
-            ax1.set_ylim((-lim, lim))
-            ax1.grid('on')
-            ax1.set_title('Back')
-            
-            ax2 = plt.subplot(1,3,2)
-            line2, = ax2.plot([], [], 'r.')
-            ax2.set_ylim((-lim, lim))
-            ax2.set_title('Side')
-            #ax2.grid('on')
-            #update_line(0,data,line1, line2, t, time_text)
-            
-            ax3 = plt.subplot(1,3,3)
-            line3, = ax3.plot([], [], 'r.')
-            ax3.set_ylim((-lim, lim))
-            ax3.set_title('Top')
-    
-            line_ani = animation.FuncAnimation(fig, update_line, fargs=(data, line1, line2, line3, ax2, ax3, t, time_text, length), frames=len(t), interval=50, repeat=True, repeat_delay=3000)
-            # Set up formatting for the movie files
-    #         Writer = animation.writers['ffmpeg']
-    #         writer = Writer(fps=20, bitrate=2000)        
-    #         line_ani.save('/scratch/Discus2c_LoadsKernel/Elev3211_B_4sec.mp4', writer) 
-            plt.show()
+        # show time plots
+        plt.show()
    
     def plot_cs_signal(self):
         from efcs import discus2c
@@ -619,9 +516,9 @@ class plotting:
         for i_simcase in range(len(self.jcl.simcase)):
             self.plot_time_animation_3d(i_simcase, path_output, speedup_factor=speedup_factor, make_movie=True)
     
-    def make_animation(self):
+    def make_animation(self, speedup_factor=1.0):
         for i_simcase in range(len(self.jcl.simcase)):
-            self.plot_time_animation_3d(i_simcase)
+            self.plot_time_animation_3d(i_simcase, speedup_factor=speedup_factor)
                   
     def plot_time_animation_3d(self, i_trimcase, path_output='./', speedup_factor=1.0, make_movie=False):
         # To Do: show simulation time in animation
@@ -631,15 +528,17 @@ class plotting:
         trimcase   = self.jcl.trimcase[i_trimcase]
         simcase    = self.jcl.simcase[i_trimcase] 
         
-        @mlab.animate(delay=int(speedup_factor*simcase['dt']*1000.0), ui=True)
+        @mlab.animate(delay=int(simcase['dt']*1000.0/speedup_factor), ui=True)
         def anim(self):
             # internal function that actually updates the animation
             while True:
                 for i in range(len(response['t'])):
                     self.fig.scene.disable_render = True
                     points_i = np.array([self.x[i], self.y[i], self.z[i]]).T
-                    scalars_i = self.Ug_f_scalar[i,:]
+                    scalars_i = self.color_scalar[i,:]
                     update_strc_display(self, points_i, scalars_i)
+                    update_aerogrid_display(self, scalars_i)
+                    update_text_display(self, response['t'][i][0])
                     for src_vector, src_cone, data in zip(self.src_vectors, self.src_cones, self.vector_data):
                         vector_data_i = np.vstack((data['u'][i,:], data['v'][i,:], data['w'][i,:])).T
                         update_vector_display(self, src_vector, src_cone, points_i, vector_data_i)
@@ -657,8 +556,10 @@ class plotting:
             for i in range(len(response['t'])):
                 self.fig.scene.disable_render = True
                 points_i = np.array([self.x[i], self.y[i], self.z[i]]).T
-                scalars_i = self.Ug_f_scalar[i,:]
+                scalars_i = self.color_scalar[i,:]
                 update_strc_display(self, points_i, scalars_i)
+                update_aerogrid_display(self, scalars_i)
+                update_text_display(self, response['t'][i][0])
                 for src_vector, src_cone, data in zip(self.src_vectors, self.src_cones, self.vector_data):
                     vector_data_i = np.vstack((data['u'][i,:], data['v'][i,:], data['w'][i,:])).T
                     update_vector_display(self, src_vector, src_cone, points_i, vector_data_i)
@@ -670,15 +571,15 @@ class plotting:
                 self.fig.scene.save_png('{}anim/subcase_{}_frame_{:06d}.png'.format(path_output, trimcase['subcase'], i))
 
         self.vector_data = []
-        def calc_vector_data(self, name='Pg_aero_global', exponent=0.33):
+        def calc_vector_data(self, grid, set='', name='Pg_aero_global', exponent=0.33):
             Pg = response[name]
             # scaling to enhance small vectors
-            uvw_t0 = np.linalg.norm(Pg[:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
+            uvw_t0 = np.linalg.norm(Pg[:,grid['set'+set][:,(0,1,2)]], axis=2)
             f_e = uvw_t0**exponent
             # apply scaling to Pg
-            u = Pg[:,self.model.strcgrid['set'][:,0]] / uvw_t0 * f_e
-            v = Pg[:,self.model.strcgrid['set'][:,1]] / uvw_t0 * f_e
-            w = Pg[:,self.model.strcgrid['set'][:,2]] / uvw_t0 * f_e
+            u = Pg[:,grid['set'+set][:,0]] / uvw_t0 * f_e
+            v = Pg[:,grid['set'+set][:,1]] / uvw_t0 * f_e
+            w = Pg[:,grid['set'+set][:,2]] / uvw_t0 * f_e
             # guard for NaNs due to pervious division by uvw
             u[np.isnan(u)] = 0.0
             v[np.isnan(v)] = 0.0
@@ -686,7 +587,7 @@ class plotting:
             # maximale Ist-Laenge eines Vektors
             r_max = np.max((u**2.0 + v**2.0 + w**2.0)**0.5)
             # maximale Soll-Laenge eines Vektors, abgeleitet von der Ausdehnung des Modells
-            r_scale = np.max([self.model.strcgrid['offset'][:,0].max() - self.model.strcgrid['offset'][:,0].min(), self.model.strcgrid['offset'][:,1].max() - self.model.strcgrid['offset'][:,1].min(), self.model.strcgrid['offset'][:,2].max() - self.model.strcgrid['offset'][:,2].min()])
+            r_scale = 0.5*np.max([grid['offset'+set][:,0].max() - grid['offset'+set][:,0].min(), grid['offset'+set][:,1].max() - grid['offset'+set][:,1].min(), grid['offset'+set][:,2].max() - grid['offset'+set][:,2].min()])
             # skalieren der Vektoren
             u = u / r_max * r_scale
             v = v / r_max * r_scale
@@ -720,7 +621,7 @@ class plotting:
             
         def setup_strc_display(self, color=(1,1,1)):
             points = np.vstack((self.x[0,:], self.y[0,:], self.z[0,:])).T
-            scalars = self.Ug_f_scalar[0,:]
+            scalars = self.color_scalar[0,:]
             ug = tvtk.UnstructuredGrid(points=points)
             ug.point_data.scalars = scalars
             if hasattr(self.model, 'strcshell'):
@@ -743,19 +644,61 @@ class plotting:
             self.src_points.outputs[0].points.from_array(points)
             self.src_points.outputs[0].point_data.scalars.from_array(scalars)
             
+        def setup_aerogrid_display(self, color):
+            points = self.model.aerogrid['cornerpoint_grids'][:,(1,2,3)]
+            scalars = self.color_scalar[0,:]
+            ug = tvtk.UnstructuredGrid(points=points)
+            shells = []
+            for shell in self.model.aerogrid['cornerpoint_panels']: 
+                shells.append([np.where(self.model.aerogrid['cornerpoint_grids'][:,0]==id)[0][0] for id in shell])
+            shell_type = tvtk.Polygon().cell_type
+            ug.set_cells(shell_type, shells)
+            ug.cell_data.scalars = scalars
+            self.src_aerogrid = mlab.pipeline.add_dataset(ug)
             
+            points = mlab.pipeline.glyph(self.src_aerogrid, color=color, scale_factor=self.p_scale)
+            points.glyph.glyph.scale_mode = 'data_scaling_off'
+            
+            surface = mlab.pipeline.surface(self.src_aerogrid, colormap='viridis')
+            surface.actor.mapper.scalar_visibility=True
+            surface.actor.property.edge_visibility=False
+            surface.actor.property.edge_color=(0.9,0.9,0.9)
+            surface.actor.property.line_width=0.5
+        
+        def update_aerogrid_display(self, scalars):
+            self.src_aerogrid.outputs[0].cell_data.scalars.from_array(scalars)
+            self.src_aerogrid.update()
+            
+        def setup_text_display(self):
+            self.scr_text = mlab.text(x=0.1, y=0.8, text='Time', line_width=0.5, width=0.05)
+            self.scr_text.property.background_color=(1,1,1)
+            self.scr_text.property.color=(0,0,0)
+            
+        def update_text_display(self, t):
+            self.scr_text.text = 't = ' + str(t) + 's'
+
+        # --------------
+        # configure plot 
+        #---------------
+        grid = self.model.aerogrid
+        set = '_k'
+        
         # get deformations
-        self.x = self.model.strcgrid['offset'][:,0] + response['Ug'][:,self.model.strcgrid['set'][:,0]] - response['X'][:,0].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
-        self.y = self.model.strcgrid['offset'][:,1] + response['Ug'][:,self.model.strcgrid['set'][:,1]]
-        self.z = self.model.strcgrid['offset'][:,2] + response['Ug'][:,self.model.strcgrid['set'][:,2]]# - response['X'][:,2].repeat(self.model.strcgrid['n']).reshape(-1,self.model.strcgrid['n'])
-        #self.Ug_f_scalar = np.linalg.norm(response['Ug_f'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
-        self.Ug_f_scalar = -np.sum(response['Ug_f'][:,self.model.strcgrid['set'][:,(0,1,2)]], axis=2)
+#         self.x = grid['offset'+set][:,0] + response['Ug'][:,grid['set'+set][:,0]] - response['X'][:,0].repeat(grid['n']).reshape(-1,grid['n'])
+#         self.y = grid['offset'+set][:,1] + response['Ug'][:,grid['set'+set][:,1]]
+#         self.z = grid['offset'+set][:,2] + response['Ug'][:,grid['set'+set][:,2]]# - response['X'][:,2].repeat(grid['n']).reshape(-1,grid['n'])
+#         #self.Ug_scalar = np.linalg.norm(response['Ug_f'][:,grid['set'+set][:,(0,1,2)]], axis=2)
+#         self.color_scalar = -np.sum(response['Ug_f'][:,grid['set'+set][:,(0,1,2)]], axis=2)
+        self.x = np.tile(grid['offset'+set][:,0],(len(response['t']),1))
+        self.y = np.tile(grid['offset'+set][:,1],(len(response['t']),1))
+        self.z = np.tile(grid['offset'+set][:,2],(len(response['t']),1))
+        self.color_scalar = response['Pk_aero'][:,grid['set'+set][:,2]]
         
         # get forces
-        names = ['Pg_aero_global', 'Pg_iner_global']
+        names = ['Pk_gust', 'Pk_unsteady']
         colors = [(1,0,0), (0,1,1)] # red, cyan
         for name in names:
-            calc_vector_data(self, name)
+            calc_vector_data(self, grid=grid, set=set, name=name)
 
         # get figure
         if make_movie:
@@ -768,7 +711,10 @@ class plotting:
             #self.fig = mlab.figure()
         
         # plot initial position
+        setup_aerogrid_display(self, color=(0.9,0.9,0.9))
+        if hasattr(self.model, 'strcshell'): del self.model.strcshell 
         setup_strc_display(self, color=(0.9,0.9,0.9)) # light grey
+        setup_text_display(self)
         
         # plot initial forces     
         opacity=0.4  
@@ -786,7 +732,8 @@ class plotting:
         
         #mlab.view(azimuth=180.0, elevation=90.0, roll=-90.0, distance=70.0, focalpoint=np.array([self.x.mean(),self.y.mean(),self.z.mean()])) # back view
         distance = 2.5*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5
-        mlab.view(azimuth=135.0, elevation=100.0, roll=-100.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
+        #mlab.view(azimuth=135.0, elevation=100.0, roll=-100.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
+        mlab.view(azimuth=-100.0, elevation=65.0, roll=25.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
 
         if make_movie:
             if not os.path.exists('{}anim/'.format(path_output)):
