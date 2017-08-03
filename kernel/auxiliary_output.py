@@ -1,5 +1,5 @@
 
-import write_functions
+import io_functions
 import numpy as np
 import copy, getpass, platform, time, logging, csv
 from grid_trafo import *
@@ -28,12 +28,13 @@ class auxiliary_output:
                 
     def write_all_nodalloads(self, filename):
         logging.info( 'saving all nodal loads as Nastarn cards...')
+        write_nastran = io_functions.nastran_functions()
         with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
-                write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg'], self.jcl.trimcase[i_trimcase]['subcase'])
+                write_nastran.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_trimcase]['Pg'], self.jcl.trimcase[i_trimcase]['subcase'])
         with open(filename+'_subcases', 'w') as fid:         
             for i_trimcase in range(len(self.jcl.trimcase)):
-                write_functions.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
+                write_nastran.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
     
     
     def write_critical_trimcases(self, filename_csv, dyn2stat=False):
@@ -60,6 +61,7 @@ class auxiliary_output:
     
     def write_critical_nodalloads(self, filename, dyn2stat=False): 
         logging.info( 'saving critical nodal loads as Nastarn cards...')
+        write_nastran = io_functions.nastran_functions()
         if dyn2stat:
             # This is quite a complicated sorting because the subcases from dyn2stat may contain non-numeric characters. 
             # A "normal" sorting returns an undesired sequence, leading IDs in a non-ascending sequence. This a not allowed by Nastran. 
@@ -68,21 +70,21 @@ class auxiliary_output:
             with open(filename+'_Pg', 'w') as fid: 
                 for subcase_ID in subcases_IDs:
                     idx = self.dyn2stat_data['subcases_ID'].index(subcase_ID)
-                    write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx], self.dyn2stat_data['subcases_ID'][idx])
+                    write_nastran.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx], self.dyn2stat_data['subcases_ID'][idx])
             with open(filename+'_subcases', 'w') as fid:  
                 for subcase_ID in subcases_IDs:
                     idx = self.dyn2stat_data['subcases_ID'].index(subcase_ID)
-                    write_functions.write_subcases(fid, self.dyn2stat_data['subcases_ID'][idx], self.dyn2stat_data['subcases'][idx])
+                    write_nastran.write_subcases(fid, self.dyn2stat_data['subcases_ID'][idx], self.dyn2stat_data['subcases'][idx])
         else:
             crit_trimcases = self.crit_trimcases
             with open(filename+'_Pg', 'w') as fid: 
                 for i_case in range(len(self.jcl.trimcase)):
                     if self.jcl.trimcase[i_case]['subcase'] in crit_trimcases:
-                        write_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_case]['Pg'], self.jcl.trimcase[i_case]['subcase'])
+                        write_nastran.write_force_and_moment_cards(fid, self.model.strcgrid, self.response[i_case]['Pg'], self.jcl.trimcase[i_case]['subcase'])
             with open(filename+'_subcases', 'w') as fid:         
                 for i_case in range(len(self.jcl.trimcase)):
                     if self.jcl.trimcase[i_case]['subcase'] in crit_trimcases:
-                        write_functions.write_subcases(fid, self.jcl.trimcase[i_case]['subcase'], self.jcl.trimcase[i_case]['desc'])
+                        write_nastran.write_subcases(fid, self.jcl.trimcase[i_case]['subcase'], self.jcl.trimcase[i_case]['desc'])
     
     def save_cpacs_header(self):
         
@@ -134,7 +136,7 @@ class auxiliary_output:
         from tixiwrapper import Tixi
         self.tixi = Tixi()
         self.tixi.create('cpacs')
-        self.cf = write_functions.cpacs_functions(self.tixi)
+        self.cf = io_functions.cpacs_functions(self.tixi)
         
         # These paths might already exist when writing into a given CPACS-file...        
         self.cf.createPath('/cpacs', 'header')

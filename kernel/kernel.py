@@ -4,19 +4,20 @@ Created on Thu Nov 27 14:00:31 2014
 
 @author: voss_ar
 """
-import cPickle, time, imp, sys, os, multiprocessing, psutil, getpass, platform, logging
-import scipy
-from scipy import io
+import cPickle, time, multiprocessing, getpass, platform, logging, sys
 import numpy as np
-import trim as trim_modul
-import post_processing as post_processing_modul
-import monstations as monstations_modul
-import auxiliary_output as auxiliary_output_modul
-import plotting as plotting_modul
+import io_functions
+import trim
+import post_processing
+import monstations
+import auxiliary_output
+import plotting
 
 def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespace=False, path_input='../input/', path_output='../output/', jcl=None, parallel=False):
-    path_input = check_path(path_input) 
-    path_output = check_path(path_output)    
+    io = io_functions.specific_functions()
+    io_matlab = io_functions.matlab_functions()
+    path_input = io.check_path(path_input) 
+    path_output = io.check_path(path_output)    
     setup_logger(path_output, job_name )
     logging.info( 'Starting Loads Kernel with job: ' + job_name)
     logging.info( 'user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() +')')
@@ -25,13 +26,13 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
     logging.info( 'post: ' + str(post))
     logging.info( 'test: ' + str(test))
    
-    jcl = load_jcl(job_name, path_input, jcl)
+    jcl = io.load_jcl(job_name, path_input, jcl)
         
     if pre: 
         logging.info( '--> Starting preprocessing.')  
         t_start = time.time()
-        import model as model_modul
-        model = model_modul.model(jcl, path_output)
+        import model
+        model = model.model(jcl, path_output)
         model.build_model()
         model.write_aux_data()
         logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
@@ -40,7 +41,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
         t_start = time.time()
         del model.jcl
         with open(path_output + 'model_' + job_name + '.pickle', 'w') as f:
-            cPickle.dump(model.__dict__, f, cPickle.HIGHEST_PROTOCOL)
+            io.dump_pickle(model.__dict__, f)
         logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
         
     if main:
@@ -85,11 +86,10 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
     
     if statespace:
         if not 'model' in locals():
-            model = load_model(job_name, path_output)
+            model = io.load_model(job_name, path_output)
         
         logging.info( '--> Starting State Space Matrix generation for %d trimcase(s).' % len(jcl.trimcase))
         t_start = time.time()
-        monstations = monstations_modul.monstations(jcl, model)
         f = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
         for i in range(len(jcl.trimcase)):
             logging.info( '')
@@ -99,13 +99,13 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
             logging.info( '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')')
             logging.info( '========================================')
             
-            trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+            trim_i = trim.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
             trim_i.set_trimcond()
             trim_i.exec_trim()
             trim_i.calc_jacobian()
             trim_i.response['i'] = i
             logging.info( '--> Saving response(s).')
-            cPickle.dump(trim_i.response, f, cPickle.HIGHEST_PROTOCOL)
+            io.dump_pickle(trim_i.response, f)
 
             del trim_i
         f.close() # close response
@@ -113,74 +113,74 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
         
     if post:
         if not 'model' in locals():
-            model = load_model(job_name, path_output)
+            model = io.load_model(job_name, path_output)
 
         logging.info( '--> Loading monstations(s).' ) 
         with open(path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
-            monstations = cPickle.load(f)
+            monstations = io.load_pickle(f)
             
         logging.info( '--> Loading dyn2stat.'  )
         with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'r') as f:
-            dyn2stat_data = cPickle.load(f)
+            dyn2stat_data = io.load_pickle(f)
 
         logging.info( '--> Drawing some plots.' ) 
-        plotting = plotting_modul.plotting(jcl, model)
+        plt = plotting.plotting(jcl, model)
         if 't_final' and 'dt' in jcl.simcase[0].keys():
             # nur sim
-            plotting.plot_monstations_time(monstations, path_output + 'monstations_time_' + job_name + '.pdf')
-            plotting.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf', dyn2stat=True) 
-            #plotting.plot_cs_signal() # Discus2c spezifisch
+            plt.plot_monstations_time(monstations, path_output + 'monstations_time_' + job_name + '.pdf')
+            plt.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf', dyn2stat=True) 
+            #plt.plot_cs_signal() # Discus2c spezifisch
         else:
             # nur trim
-            plotting.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf') 
+            plt.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf') 
         
         # ----------------------------
         # --- try to load response ---
         # ----------------------------
-        responses = load_response(job_name, path_output)
+        responses = io.load_responses(job_name, path_output)
         
 #         logging.info( '--> statespace analysis.')
-#         import statespace_analysis as statespace_modul
-#         statespace_analysis = statespace_modul.analysis(jcl, model, responses)
+#         import statespace_analysis
+#         statespace_analysis = statespace.analysis(jcl, model, responses)
 #         #statespace_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
 #         #statespace_analysis.plot_state_space_matrices()
 #         statespace_analysis.analyse_eigenvalues(path_output + 'analyse_of_eigenvalues_' + job_name + '.pdf')
         
         logging.info( '--> Saving auxiliary output data.')
-        auxiliary_output = auxiliary_output_modul.auxiliary_output(jcl, model, jcl.trimcase)
-        auxiliary_output.crit_trimcases = plotting.crit_trimcases
+        aux_out = auxiliary_output.auxiliary_output(jcl, model, jcl.trimcase)
+        aux_out.crit_trimcases = plt.crit_trimcases
         if ('t_final' and 'dt' in jcl.simcase[0].keys()): 
-            auxiliary_output.dyn2stat_data = dyn2stat_data
-            auxiliary_output.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
-            auxiliary_output.write_critical_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=True) 
+            aux_out.dyn2stat_data = dyn2stat_data
+            aux_out.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
+            aux_out.write_critical_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=True) 
         else:
             # nur trim
-            auxiliary_output.response = load_response(job_name, path_output)
-            auxiliary_output.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=False) 
-            auxiliary_output.write_critical_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=False) 
-            auxiliary_output.write_all_nodalloads(path_output + 'nodalloads_all_' + job_name + '.bdf')
-            auxiliary_output.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
-            auxiliary_output.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
+            aux_out.response = load_response(job_name, path_output)
+            aux_out.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=False) 
+            aux_out.write_critical_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=False) 
+            aux_out.write_all_nodalloads(path_output + 'nodalloads_all_' + job_name + '.bdf')
+            aux_out.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
+            aux_out.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
             
         print '--> Drawing some plots.'  
-        plotting = plotting_modul.plotting(jcl, model, responses)
+        plt = plotting.plotting(jcl, model, responses)
         if 't_final' and 'dt' in jcl.simcase[0].keys():
             # nur sim
-            plotting.plot_time_data()
-            plotting.make_animation()
-            #plotting.make_movie(path_output, speedup_factor=1.0)
+            plt.plot_time_data()
+            #plt.make_animation()
+            #plt.make_movie(path_output, speedup_factor=1.0)
         else:
             # nur trim
-            plotting.plot_pressure_distribution()
-            plotting.plot_forces_deformation_interactive() 
+            plt.plot_pressure_distribution()
+            plt.plot_forces_deformation_interactive() 
         
     if test:
         if not 'model' in locals():
-            model = load_model(job_name, path_output)
+            model = io.load_model(job_name, path_output)
         
         logging.info( '--> Starting Main in deprecated test-mode (!!!) for %d trimcase(s).' % len(jcl.trimcase))
         t_start = time.time()
-        monstations = monstations_modul.monstations(jcl, model)
+        mon = monstations.monstations(jcl, model)
         f = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
         for i in range(len(jcl.trimcase)):
             logging.info( '')
@@ -190,40 +190,48 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
             logging.info( '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')')
             logging.info( '========================================')
             
-            trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+            trim_i = trim.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
             trim_i.set_trimcond()
             trim_i.calc_derivatives()
             trim_i.exec_trim()
             if 't_final' and 'dt' in jcl.simcase[i].keys():
                 trim_i.exec_sim()
-            post_processing_i = post_processing_modul.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
+            post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
             post_processing_i.force_summation_method()
             post_processing_i.euler_transformation()
             post_processing_i.cuttingforces()
-            monstations.gather_monstations(jcl.trimcase[i], trim_i.response)
+            mon.gather_monstations(jcl.trimcase[i], trim_i.response)
             if 't_final' and 'dt' in jcl.simcase[i].keys():
-                monstations.gather_dyn2stat(i, trim_i.response)
+                mon.gather_dyn2stat(i, trim_i.response)
             trim_i.response['i'] = i
             logging.info( '--> Saving response(s).')
-            cPickle.dump(trim_i.response, f, cPickle.HIGHEST_PROTOCOL)
+            io.dump_pickle(trim_i.response, f)
             #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
-            #    scipy.io.savemat(f2, trim_i.response)
+            #    io_matlab.save_mat(f2, trim_i.response)
             del trim_i, post_processing_i
         f.close() # close response
         
         logging.info( '--> Saving monstation(s).')
         with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
-            cPickle.dump(monstations.monstations, f, cPickle.HIGHEST_PROTOCOL)
+            io.dump_pickle(mon.monstations, f)
         with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
-            scipy.io.savemat(f, monstations.monstations)
+            scipy.io.savemat(f, mon.monstations)
         
         logging.info( '--> Saving dyn2stat.')
         with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'w') as f:
-            cPickle.dump(monstations.dyn2stat, f, cPickle.HIGHEST_PROTOCOL)
+            io.dump_pickle(mon.dyn2stat, f)
         logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
  
         # place code to test here
-                
+#         responses = io.load_response(job_name, path_output)
+#         with open(path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
+#             monstations = io.load_pickle(f)
+#  
+#         import plots_for_Discus2c
+#         plots = plots_for_Discus2c.Plots(jcl, model, responses=responses, monstations=monstations)
+#         plots.plot_ft()
+#         plots.plot_contributions()
+
 #         import test_smarty
 #         test_smarty.interpolate_pkcfd(model, jcl)
         
@@ -237,8 +245,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
     print_logo()
 
 def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
+    io = io_functions.specific_functions()
     if not 'model' in locals():
-            model = load_model(job_name, path_output)
+            model = io.load_model(job_name, path_output)
     while True:
         i = q_input.get()
         if i == 'finish':
@@ -252,26 +261,28 @@ def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
             logging.info( 'subcase: ' + str(jcl.trimcase[i]['subcase']))
             logging.info( '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')')
             logging.info( '========================================')
-            trim_i = trim_modul.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+            trim_i = trim.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
             trim_i.set_trimcond()
             #trim_i.calc_derivatives()
             trim_i.exec_trim()
             if 't_final' and 'dt' in jcl.simcase[i].keys():
                 trim_i.exec_sim()
-            post_processing_i = post_processing_modul.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
+            post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
             post_processing_i.force_summation_method()
             post_processing_i.euler_transformation()
             post_processing_i.cuttingforces()
             trim_i.response['i'] = i
+            logging.info( '--> Trimcase done, sending response to listener.')
             q_output.put(trim_i.response)
             del trim_i, post_processing_i
             q_input.task_done()
     return
 
 def mainprocessing_listener(q_output, path_output, job_name, jcl):
+    io = io_functions.specific_functions()
     if not 'model' in locals():
-            model = load_model(job_name, path_output)
-    monstations = monstations_modul.monstations(jcl, model)    
+            model = io.load_model(job_name, path_output)
+    mon = monstations.monstations(jcl, model)    
     f_response = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
     logging.info( '--> Listener ready.')
     while True:
@@ -280,90 +291,26 @@ def mainprocessing_listener(q_output, path_output, job_name, jcl):
             f_response.close() # close response
             logging.info( '--> Saving monstation(s).')
             with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
-                cPickle.dump(monstations.monstations, f, cPickle.HIGHEST_PROTOCOL)
+                io.dump_pickle(mon.monstations, f)
             #with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
-            #    scipy.io.savemat(f, monstations.monstations)
+            #    io_matlab.save_mat(f, mon.monstations)
             logging.info( '--> Saving dyn2stat.')
             with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'w') as f:
-                cPickle.dump(monstations.dyn2stat, f, cPickle.HIGHEST_PROTOCOL)
+                io.dump_pickle(mon.dyn2stat, f)
             q_output.task_done()
             logging.info( '--> Listener quit.')
             break
         else:
-            monstations.gather_monstations(jcl.trimcase[m['i']], m)
+            logging.info( '--> Received response from worker.')
+            mon.gather_monstations(jcl.trimcase[m['i']], m)
             if 't_final' and 'dt' in jcl.simcase[m['i']].keys():
-                monstations.gather_dyn2stat(-1, m)
+                mon.gather_dyn2stat(-1, m)
             logging.info( '--> Saving response(s).')
-            cPickle.dump(m, f_response, cPickle.HIGHEST_PROTOCOL)
+            io.dump_pickle(m, f_response)
             #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[m['i']]['subcase']) + '.mat', 'w') as f:
-            #    scipy.io.savemat(f, m)
+            #    io_matlab.save_mat(f, m)
             q_output.task_done()
     return
-
-def load_jcl(job_name, path_input, jcl):
-    if jcl == None:
-        logging.info( '--> Reading parameters from JCL.')
-        # import jcl dynamically by filename
-        jcl_modul = imp.load_source('jcl', path_input + job_name + '.py')
-        jcl = jcl_modul.jcl() 
-    # small check for completeness
-    attributes = ['general', 'efcs', 'geom', 'aero', 'spline', 'mass', 'atmo', 'trimcase', 'simcase']
-    for attribute in attributes:
-        if not hasattr(jcl, attribute):
-            logging.critical( 'JCL appears to be incomplete: jcl.{} missing. Exit.'.format(attribute))
-            sys.exit()
-    return jcl
-                
-def load_model(job_name, path_output):
-    logging.info( '--> Loading model data.')
-    t_start = time.time()
-    with open(path_output + 'model_' + job_name + '.pickle', 'r') as f:
-        tmp = cPickle.load(f)
-    model = New_model()
-    for key in tmp.keys(): setattr(model, key, tmp[key])
-    logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
-    return model
-
-class New_model():
-    def __init__(self):
-        pass    
-    
-def load_response(job_name, path_output):
-    logging.info( '--> Loading response(s).'  )
-    filename = path_output + 'response_' + job_name + '.pickle'
-    filestats = os.stat(filename)
-    filesize_mb = filestats.st_size /1024**2
-    mem = psutil.virtual_memory()
-    mem_total_mb = mem.total /1024**2
-    logging.info('size of total memory: ' + str(mem_total_mb) + ' Mb')
-    logging.info( 'size of response: ' + str(filesize_mb) + ' Mb')
-    if filesize_mb > mem_total_mb:
-        logging.critical( 'Response too large. Exit.')
-        sys.exit()
-    else:
-        t_start = time.time()
-        f = open(filename, 'r')
-        response = []
-        while True:
-            try:
-                response.append(cPickle.load(f))
-            except EOFError:
-                break
-        f.close()
-        # sort response
-        pos_sorted = np.argsort([resp['i'] for resp in response ])
-        response = [ response[x] for x in pos_sorted]
-        logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
-        return response 
-    
-def check_path(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-    if os.path.isdir(path) and os.access(os.path.dirname(path), os.W_OK):
-        return os.path.join(path, './') # sicherstellen, dass der Pfad mit / endet
-    else:
-        logging.CRITICAL( 'Path ' + str(path)  + ' not valid. Exit.')
-        sys.exit()
         
 def print_logo():
     logging.info( '')
