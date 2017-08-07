@@ -62,7 +62,7 @@ class specific_functions():
             response = []
             while True:
                 try:
-                    response.append(cPickle.load(f))
+                    response.append(self.load_pickle(f))
                 except EOFError:
                     break
             f.close()
@@ -71,7 +71,23 @@ class specific_functions():
             response = [ response[x] for x in pos_sorted]
             logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
             return response 
-        
+    
+    def open_responses(self, job_name, path_output):
+        logging.info( '--> Opening response(s).'  )
+        filename = path_output + 'response_' + job_name + '.pickle'
+        return open(filename, 'r')
+    
+    def load_next(self, file):
+        logging.info( '--> Loading next.'  )
+        try:
+            return self.load_pickle(file)
+        except EOFError:
+            file.close()
+            logging.critical( 'End of file; file closed; Nothing to return.')
+            return
+            
+    
+    
     def check_path(self, path):
         if not os.path.exists(path):
             os.makedirs(path)
