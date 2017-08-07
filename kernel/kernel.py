@@ -13,7 +13,7 @@ import monstations
 import auxiliary_output
 import plotting
 
-def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespace=False, path_input='../input/', path_output='../output/', jcl=None, parallel=False):
+def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, test=False, statespace=False, path_input='../input/', path_output='../output/', jcl=None, parallel=False):
     io = io_functions.specific_functions()
     io_matlab = io_functions.matlab_functions()
     path_input = io.check_path(path_input) 
@@ -155,7 +155,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
             aux_out.write_critical_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=True) 
         else:
             # nur trim
-            aux_out.response = load_response(job_name, path_output)
+            aux_out.response = io.load_responses(job_name, path_output)
             aux_out.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=False) 
             aux_out.write_critical_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=False) 
             aux_out.write_all_nodalloads(path_output + 'nodalloads_all_' + job_name + '.bdf')
@@ -174,7 +174,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
             plt.plot_pressure_distribution()
             plt.plot_forces_deformation_interactive() 
         
-    if test:
+    if main_single:
         if not 'model' in locals():
             model = io.load_model(job_name, path_output)
         
@@ -221,12 +221,18 @@ def run_kernel(job_name, pre=False, main=False, post=False, test=False, statespa
         with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'w') as f:
             io.dump_pickle(mon.dyn2stat, f)
         logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
- 
+        
+    if test:
+        if not 'model' in locals():
+            model = io.load_model(job_name, path_output)
         # place code to test here
 #         responses = io.load_response(job_name, path_output)
 #         with open(path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
 #             monstations = io.load_pickle(f)
 #  
+#         import plots_for_Muldicon
+#         plots = plots_for_Muldicon.Plots(jcl, model )
+#         plots.plot_time_data(job_name, path_output)
 #         import plots_for_Discus2c
 #         plots = plots_for_Discus2c.Plots(jcl, model, responses=responses, monstations=monstations)
 #         plots.plot_ft()
