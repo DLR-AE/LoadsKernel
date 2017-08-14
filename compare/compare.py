@@ -68,6 +68,7 @@ class App:
         menubar.add_cascade(menu=menu_file, label='File')
         menu_action = tk.Menu(menubar)
         menu_action.add_command(label='Merge Monstations', command=self.merge_monstation)
+        menu_action.add_command(label='Superpose Monstations (by subcase)', command=self.superpose_monstation_by_subcase)
         menubar.add_cascade(menu=menu_action, label='Action')
         root['menu'] = menubar
         
@@ -239,6 +240,60 @@ class App:
                     new_dataset[station]['loads']           += self.datasets['dataset'][x][station][loads_string]
                     new_dataset[station]['subcase']         += self.datasets['dataset'][x][station][subcase_string]
                     new_dataset[station]['t']               += self.datasets['dataset'][x][station][t_string]
+            # Save into data structure.
+            self.datasets['ID'].append(self.datasets['n'])  
+            self.datasets['dataset'].append(new_dataset)
+            self.datasets['color'].append(self.colors[self.datasets['n']])
+            self.datasets['desc'].append('dataset '+ str(self.datasets['n']))
+            self.datasets['n'] += 1
+            # Update fields.
+            self.update_fields()
+    
+    def superpose_monstation_by_subcase(self):
+        if len(self.lb_dataset.curselection()) > 1:
+            # Init new dataset.
+            new_dataset = {}
+            for x in self.lb_dataset.curselection():
+                print 'Working on {} ...'.format(self.datasets['desc'][x])
+                for station in self.common_monstations:
+                    # Check for dynamic loads.
+                    if np.size(self.datasets['dataset'][x][station]['t'][0]) == 1:
+                        # Scenario 1: There are only static loads.
+                        print '- {}: found static loads'.format(station)
+                        loads_string   = 'loads'
+                        subcase_string = 'subcase'
+                        t_string = 't'
+                    elif (np.size(self.datasets['dataset'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['dataset'][x][station].keys()) and (self.datasets['dataset'][x][station]['loads_dyn2stat'] != []):
+                        # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
+                        print '- {}: found dyn2stat loads -> discarding dynamic loads'.format(station)
+                        loads_string   = 'loads_dyn2stat'
+                        subcase_string = 'subcases_dyn2stat'
+                        t_string = 't_dyn2stat'
+                    else:
+                        # Scenario 3: There are only dynamic loads. 
+                        return
+                    
+                    n = len(self.datasets['dataset'][x][station][t_string])
+                    if station not in new_dataset.keys():
+                        # create (empty) entries for new monstation
+                        new_dataset[station] = {'CD': self.datasets['dataset'][x][station]['CD'],
+                                                'CP': self.datasets['dataset'][x][station]['CP'],
+                                                'offset': self.datasets['dataset'][x][station]['offset'],
+                                                'subcase': self.datasets['dataset'][x][station]['subcase'],
+                                                'loads':[np.array([0.0,0.0,0.0,0.0,0.0,0.0,])]*n,
+                                                't':self.datasets['dataset'][x][station]['t'],
+                                                }
+                    # Superpose subcases. 
+                    for i_case in range(n): 
+                        subcase = self.datasets['dataset'][x][station][subcase_string][i_case]
+                        if subcase in new_dataset[station]['subcase']:
+                            pos = new_dataset[station]['subcase'].index(subcase)
+                            new_dataset[station][loads_string][pos] = new_dataset[station][loads_string][pos] + self.datasets['dataset'][x][station][loads_string][i_case]
+                        else:
+                            print '- {}: found no match for subcases {}. Superposition not possible'.format(station, subcase )
+                            pass
+                            
+                    
             # Save into data structure.
             self.datasets['ID'].append(self.datasets['n'])  
             self.datasets['dataset'].append(new_dataset)
