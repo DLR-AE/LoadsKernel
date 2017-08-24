@@ -125,6 +125,7 @@ class jcl:
                           'pdot': -286.5/180.0*np.pi,   # roll acceleration in rad/s^2
                           'qdot': 0.0,                  # pitch acceleration in rad/s^2
                           'rdot': 0.0,                  # yaw acceleration in rad/s^2
+                          'support': [0,1,2,3,4,5]      # list of DoF to be constrained
                          },
                         ]
         self.simcase = [{}] # For every trimcase, a corresponding simcase is required. For maneuvers, it may be empty.
@@ -138,6 +139,7 @@ class jcl:
                          'cs_signal': False,    # True or False, allows playback of control surface signals via efcs
                          'controller': False,   # True or False, enables a generic controller e.g. to maintain p, q and r
                          'landinggear':False,   # True or False, enables a generic landing gear
+                         'support': [0,1,2,3,4,5]      # list of DoF to be constrained
                         },
                        ] 
         # End

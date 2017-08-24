@@ -446,6 +446,32 @@ class common():
             Plg[self.model.lggrid['set'][:,2]] = F1
             
         return Plg, p2, dp2, np.array(ddp2), np.array(F1), np.array(F2)
+    
+    def apply_support_condition(self, type, d2Ucg_dt2):
+        # With the support option, the acceleration of the selected DoFs (0,1,2,3,4,5) is set to zero.
+        # Trimcase and simcase can have different support conditions.
+        
+        # get support conditions from trimcase or simcase
+        if type in ['trim', 'trim_full_output'] and self.trimcase.has_key('support'):
+            support = self.trimcase['support']
+        elif type in ['sim', 'sim_full_output'] and self.simcase.has_key('support'):
+            support = self.simcase['support']
+        else:
+            support = []
+        # apply support conditions in-place
+        if 0 in support:
+            d2Ucg_dt2[0] = 0.0
+        if 1 in support:
+            d2Ucg_dt2[1] = 0.0
+        if 2 in support:
+            d2Ucg_dt2[2] = 0.0
+        if 3 in support:
+            d2Ucg_dt2[3] = 0.0
+        if 4 in support:
+            d2Ucg_dt2[4] = 0.0
+        if 5 in support:
+            d2Ucg_dt2[5] = 0.0      
+        
 
 class nonlin_steady(common):
 
@@ -1018,6 +1044,7 @@ class unsteady(common):
             # # non-linear EoM, bodyfixed / Waszak
             d2Ucg_dt2[0:3] = np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) + np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
             d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb[3:6,3:6]) , Pb[3:6] - np.cross(dUcg_dt[3:6], np.dot(self.Mb[3:6,3:6], dUcg_dt[3:6])) )
+            self.apply_support_condition(type, d2Ucg_dt2)
             Nxyz = (d2Ucg_dt2[0:3] - g_cg - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
         else:
             # linear EoM, bodyfixed / Nastran
