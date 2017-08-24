@@ -8,6 +8,7 @@ import numpy as np
 import sys, copy, logging
 import matplotlib.pyplot as plt
 
+
 class build_mass:
     
     def __init__(self, jcl, strcgrid, coord, octave):
@@ -15,6 +16,8 @@ class build_mass:
         self.strcgrid = strcgrid
         self.coord = coord
         self.octave = octave
+        plt.rcParams['svg.fonttype'] = 'none'
+        plt.rcParams.update({'font.size': 16})
         
     def mass_from_SOL103(self, i_mass):
           # Mff, Kff and PHIstrc_f

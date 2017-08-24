@@ -10,6 +10,8 @@ import spline_rules
 import spline_functions
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams.update({'font.size': 16})
 from mpl_toolkits.mplot3d import axes3d
 import logging
 
@@ -316,8 +318,8 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
             plt.plot(np.real(qjj_aprox), np.imag(qjj_aprox), 'r-')
             plt.xlabel('real')
             plt.ylabel('imag')
-            plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            #plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+            #plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
       
     plt.savefig(filename)
     #plt.show()
