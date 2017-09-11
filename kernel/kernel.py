@@ -9,7 +9,7 @@ import numpy as np
 import io_functions
 import trim
 import post_processing
-import monstations
+import monstations as monstations_module
 import auxiliary_output
 import plotting
 
@@ -180,7 +180,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
         
         logging.info( '--> Starting Main in deprecated test-mode (!!!) for %d trimcase(s).' % len(jcl.trimcase))
         t_start = time.time()
-        mon = monstations.monstations(jcl, model)
+        mon = monstations_module.monstations(jcl, model)
         f = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
         for i in range(len(jcl.trimcase)):
             logging.info( '')
@@ -215,7 +215,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
         with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
             io.dump_pickle(mon.monstations, f)
         with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
-            scipy.io.savemat(f, mon.monstations)
+            io_matlab.save_mat(f, mon.monstations)
         
         logging.info( '--> Saving dyn2stat.')
         with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'w') as f:
@@ -226,17 +226,22 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
         if not 'model' in locals():
             model = io.load_model(job_name, path_output)
         # place code to test here
-#         responses = io.load_response(job_name, path_output)
-#         with open(path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
-#             monstations = io.load_pickle(f)
+#        responses = io.load_responses(job_name, path_output)
+#        with open(path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
+#            monstations = io.load_pickle(f)
 #  
-#         import plots_for_Muldicon
-#         plots = plots_for_Muldicon.Plots(jcl, model )
+#        import plots_for_Muldicon
+#        plots = plots_for_Muldicon.Plots(jcl, model, responses)
+#        plots.plot_aero_spanwise()
+#         plots.plot_contributions()
 #         plots.plot_time_data(job_name, path_output)
 #         import plots_for_Discus2c
 #         plots = plots_for_Discus2c.Plots(jcl, model, responses=responses, monstations=monstations)
 #         plots.plot_ft()
 #         plots.plot_contributions()
+#         import plot_felxdefo
+#         plots = plot_felxdefo.Flexdefo(jcl, model, responses)
+#         plot.flexdefos()
 
 #         import test_smarty
 #         test_smarty.interpolate_pkcfd(model, jcl)
@@ -288,7 +293,7 @@ def mainprocessing_listener(q_output, path_output, job_name, jcl):
     io = io_functions.specific_functions()
     if not 'model' in locals():
             model = io.load_model(job_name, path_output)
-    mon = monstations.monstations(jcl, model)    
+    mon = monstations_module.monstations(jcl, model)    
     f_response = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
     logging.info( '--> Listener ready.')
     while True:
