@@ -215,11 +215,11 @@ def CAERO(filename, i_file):
                 # read first line of CAERO card
                 caerocard = {'EID': nastran_number_converter(read_string[8:16], 'ID'),
                              'CP': nastran_number_converter(read_string[24:32], 'ID'),
-                             'n_span': nastran_number_converter(read_string[32:40], 'ID'),
-                             'n_chord': nastran_number_converter(read_string[40:48], 'ID'),
+                             'n_span': nastran_number_converter(read_string[32:40], 'ID'), # n_boxes
+                             'n_chord': nastran_number_converter(read_string[40:48], 'ID'), # n_boxes
+                             'l_span': nastran_number_converter(read_string[48:56], 'ID'),
+                             'l_chord': nastran_number_converter(read_string[56:64], 'ID'),
                             }
-                if np.any([caerocard['n_span'] == 0, caerocard['n_chord'] == 0]):
-                    logging.error('Assumption of equal spaced CAERO panels is violated!')
                 # read second line of CAERO card
                 read_string = fid.readline()  
                 caerocard['X1'] = np.array([nastran_number_converter(read_string[ 8:16], 'float'), nastran_number_converter(read_string[16:24], 'float'), nastran_number_converter(read_string[24:32], 'float')])
@@ -240,7 +240,7 @@ def CAERO(filename, i_file):
                              'n_chord': nastran_number_converter(read_string[40:48], 'ID') - 1,
                             }
                 if np.any([caerocard['n_span'] == 0, caerocard['n_chord'] == 0]):
-                    logging.error('Assumption of equal spaced CAERO panels is violated!')
+                    logging.error('Assumption of equal spaced CAERO7 panels is violated!')
                 # read second line of CAERO card
                 read_string = fid.readline()  
                 caerocard['X1'] = np.array([nastran_number_converter(read_string[ 8:16], 'float'), nastran_number_converter(read_string[16:24], 'float'), nastran_number_converter(read_string[24:32], 'float')])
@@ -254,7 +254,8 @@ def CAERO(filename, i_file):
                 caerocards.append(caerocard)
             elif read_string == '':
                 break
-            
+    logging.info('Read AEFACT cards from Nastran bdf: %s' %filename)
+    aefacts = Nastran_AEFACT(filename)        
     logging.info(' - from CAERO cards, constructing corner points and aero panels')
     # from CAERO cards, construct corner points... '
     # then, combine four corner points to one panel
@@ -262,18 +263,41 @@ def CAERO(filename, i_file):
     grids = {'ID':[], 'offset':[]}
     panels = {"ID": [], 'CP':[], 'CD':[], "cornerpoints": []}
     for caerocard in caerocards:
+         # calculate LE, Root and Tip vectors [x,y,z]^T
+         LE   = caerocard['X4'] - caerocard['X1']
+         Root = caerocard['X2'] - caerocard['X1']
+         Tip  = caerocard['X3'] - caerocard['X4']
+         
+         if caerocard['n_chord'] == 0:
+             # look in AEFACT cards for the appropriate card and get spacing
+             d_chord = aefacts['values'][aefacts['ID'].index(caerocard['l_chord'])]
+             caerocard['n_chord'] = len(d_chord)-1 # n_boxes = n_division-1
+         else:
+             # assume equidistant spacing
+             d_chord = np.linspace(0.0, 1.0, caerocard['n_chord']+1 ) 
+             
+         if caerocard['n_span'] == 0:
+             # look in AEFACT cards for the appropriate card and get spacing
+             d_span = aefacts['values'][aefacts['ID'].index(caerocard['l_span'])]
+             caerocard['n_span'] = len(d_span)-1 # n_boxes = n_division-1
+         else:
+              # assume equidistant spacing
+             d_span = np.linspace(0.0, 1.0, caerocard['n_span']+1 ) 
+         
          # build matrix of corner points
-         grids_map = np.zeros((caerocard['n_chord']+1, caerocard['n_span']+1), dtype='int')
-         d_span = (caerocard['X4'] - caerocard['X1']) / caerocard['n_span']
+         # index based on n_divisions
+         grids_map = np.zeros((caerocard['n_chord']+1,caerocard['n_span']+1), dtype='int')
          for i_strip in range(caerocard['n_span']+1):
-             d_chord = ( (caerocard['X2'] - caerocard['X1']) * (caerocard['n_span'] - i_strip)/caerocard['n_span'] \
-                    +(caerocard['X3'] - caerocard['X4']) * (      0             + i_strip)/caerocard['n_span'] ) / caerocard['n_chord']
              for i_row in range(caerocard['n_chord']+1):
+                 offset = caerocard['X1'] \
+                        + LE * d_span[i_strip] \
+                        + (Root*(1.0-d_span[i_strip]) + Tip*d_span[i_strip]) * d_chord[i_row]
                  grids['ID'].append(grid_ID)
-                 grids['offset'].append(caerocard['X1']+ d_span*i_strip + d_chord*i_row)
+                 grids['offset'].append(offset)
                  grids_map[i_row,i_strip ] = grid_ID
                  grid_ID += 1
-        
+         # build panels from cornerpoints
+         # index based on n_boxes
          panel_ID =  caerocard['EID']                  
          for i_strip in range(caerocard['n_span']):
              for i_row in range(caerocard['n_chord']):
@@ -509,26 +533,32 @@ def Modgen_AESURF(filename):
             aesurf['eff'].append(nastran_number_converter(line[56:64], 'float'))
     return aesurf
 
+def Nastran_AEFACT(filename):
+    # AEFACTs have the same nomenklatur as SET1s
+    # Thus, reuse the Nastran_SET1() function with a different keyword
+    # However, AEFACTs are mostly used with float numbers.
+    return Nastran_SET1(filename, keyword='AEFACT', type='float')
+
 def Modgen_AELIST(filename):
     # AELISTs have the same nomenklatur as SET1s
     # Thus, reuse the Nastran_SET1() function with a different keyword
     return Nastran_SET1(filename, keyword='AELIST')
 
-def Nastran_SET1(filename, keyword='SET1'):
+def Nastran_SET1(filename, keyword='SET1', type='int'):
     
     sets = {'ID':[], 'values':[]}
     next_line = False
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            if string.find(read_string[:8], keyword) !=-1 and string.replace(read_string[24:32], ' ', '') == 'THRU' and read_string[:1] != '$':
-                 # Assumption: the list is defined with the help of THRU and there is only one THRU
-                startvalue = nastran_number_converter(read_string[16:24], 'int')
-                stoppvalue = nastran_number_converter(read_string[32:40], 'int')
-                values = np.arange(startvalue, stoppvalue+1)
-                sets['ID'].append(nastran_number_converter(read_string[8:16], 'int'))
-                sets['values'].append(values)
-            elif string.find(read_string[:8], keyword) !=-1 and read_string[-2:-1] == '+' and read_string[:1] != '$':
+#             if string.find(read_string[:8], keyword) !=-1 and string.replace(read_string[24:32], ' ', '') == 'THRU' and read_string[:1] != '$':
+#                  # Assumption: the list is defined with the help of THRU and there is only one THRU
+#                 startvalue = nastran_number_converter(read_string[16:24], 'int')
+#                 stoppvalue = nastran_number_converter(read_string[32:40], 'int')
+#                 values = np.arange(startvalue, stoppvalue+1)
+#                 sets['ID'].append(nastran_number_converter(read_string[8:16], 'int'))
+#                 sets['values'].append(values)
+            if string.find(read_string[:8], keyword) !=-1 and read_string[-2:-1] == '+' and read_string[:1] != '$':
                 # this is the first line
                 row = read_string[8:-2]
                 next_line = True
@@ -549,8 +579,14 @@ def Nastran_SET1(filename, keyword='SET1'):
                 
                 values = []
                 while len(row)>0:
-                    values.append(nastran_number_converter(row[:8], 'int'))
-                    row = row[8:]
+                    if string.replace(row[:8], ' ', '') == 'THRU':
+                        startvalue = values[-1]
+                        stoppvalue = nastran_number_converter(row[8:16], type)
+                        values += range(startvalue, stoppvalue+1) 
+                        row = row[16:]
+                    else:
+                        values.append(nastran_number_converter(row[:8], type))
+                        row = row[8:]
                 sets['values'].append( np.array(values) )
             if read_string == '':
                 break
