@@ -1,5 +1,5 @@
 
-import read_geom, spline_rules, spline_functions
+import read_geom, spline_rules, spline_functions, read_op2
 
 import scipy
 from scipy import sparse
@@ -166,7 +166,12 @@ class build_mass:
         Dff = self.calc_damping(eigenvalue[modes_selection - 1].real)
         return Mff, Kff, Dff, PHIf_strc.T, Maa
         
-        
+    def get_bitposes(self, x_dec):
+        bitposes = []
+        for x in x_dec:
+            binstring = np.binary_repr(x, width=32)
+            bitposes.append( binstring.index('1')+1 ) # +1 as python starts counting with 0
+        return bitposes
 
     def init_modalanalysis(self):
         # Prepare some data required for modal analysis which is not mass case dependent. 
@@ -174,13 +179,19 @@ class build_mass:
         # However, the they are only required for modal analysis...
         self.KFF = read_geom.Nastran_OP4(self.jcl.geom['filename_KFF'], sparse_output=True, sparse_format=True)
         self.GM  = read_geom.Nastran_OP4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True) 
-        logging.info( 'Read USET from OP2-file {} with get_uset.m ...'.format( self.jcl.geom['filename_uset'] ))
-        self.uset = self.octave.get_uset(self.jcl.geom['filename_uset'])
+        logging.info( 'Read USET from OP2-file {} ...'.format( self.jcl.geom['filename_uset'] ))
+        #self.uset = self.octave.get_uset(self.jcl.geom['filename_uset'])
+        #bitposes = self.uset['bitpos'] #.reshape((-1,6))
+        op2_data = read_op2.read_post_op2(self.jcl.geom['filename_uset'], verbose=True)
+        if op2_data['uset'] is None:
+            logging.error( 'No USET found in OP2-file {} !'.format( self.jcl.geom['filename_uset'] ))
+        bitposes = self.get_bitposes(op2_data['uset'])
+        
         # Reference:
         # National Aeronautics and Space Administration, The Nastran Programmer's Manual, NASA SP-223(01). Washington, D.C.: COSMIC, 1972.
         # Section 2.3.13.3 USET (TABLE), page 2.3-61
         # Annahme: es gibt (nur) das a-, s- & m-set
-        bitposes = self.uset['bitpos'] #.reshape((-1,6))
+
         i = 0
         self.pos_f = []
         self.pos_s = []
