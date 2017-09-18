@@ -20,14 +20,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import cPickle, sys, time, logging, copy
-from oct2py import octave 
+#from oct2py import octave 
 
 class model:
     def __init__(self,jcl, path_output):
         self.jcl = jcl
         self.path_output = path_output
-        for dir in sys.path:
-            octave.addpath(dir) # add path in octave so the m-file(s) are found
+        #for dir in sys.path:
+            #octave.addpath(dir) # add path in octave so the m-file(s) are found
     
     def write_aux_data(self):
         write_nastran = io_functions.nastran_functions()
@@ -358,7 +358,7 @@ class model:
                          'Dff': [],
                          'n_modes': []
                         }   
-            bm = build_mass.build_mass(self.jcl, self.strcgrid, self.coord, octave)
+            bm = build_mass.build_mass(self.jcl, self.strcgrid, self.coord )#, octave)
             
             if self.jcl.mass['method'] == 'modalanalysis': 
                 bm.init_modalanalysis()
@@ -452,4 +452,4 @@ class model:
             logging.error( 'Unknown mass method: ' + str(self.jcl.mass['method']))
             
             
-        octave.exit() # closes and cleans up octave session
+        #octave.exit() # closes and cleans up octave session

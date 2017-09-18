@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 class build_mass:
     
-    def __init__(self, jcl, strcgrid, coord, octave):
+    def __init__(self, jcl, strcgrid, coord, octave=None):
         self.jcl = jcl
         self.strcgrid = strcgrid
         self.coord = coord
