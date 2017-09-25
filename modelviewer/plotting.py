@@ -211,26 +211,26 @@ class Plotting:
     def hide_aero_strc_coupling(self):
         self.src_grid_i.remove()
         self.src_grid_d.remove()
-        self.src_spilerules.remove()
+        if  hasattr(self.model, 'coupling_rules'):
+            self.src_splinerules.remove()
         self.show_coupling=False
         mlab.draw(self.fig)
             
     def plot_aero_strc_coupling(self):
         if  hasattr(self.model, 'coupling_rules'):
-            self.src_grid_i, self.src_grid_d, self.src_spilerules \
+            self.src_grid_i, self.src_grid_d, self.src_splinerules \
             = self.plot_splinerules(self.model.splinegrid, '', self.model.aerogrid, '_k', self.model.coupling_rules, self.model.coord)
         else:
-            self.src_grid_i, self.src_grid_d, self.src_spilerules \
+            self.src_grid_i, self.src_grid_d \
             = self.plot_splinegrids(self.model.splinegrid, '', self.model.aerogrid, '_k')
         self.show_coupling=True
             
             
     def plot_splinegrids(self, grid_i,  set_i,  grid_d, set_d):
         p_scale = self.pscale # points
-        self.src_grid_i = mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2], scale_factor=p_scale*2, color=(0,1,0))
-        self.src_grid_d = mlab.points3d(grid_d['offset'+set_d][:,0], grid_d['offset'+set_d][:,1], grid_d['offset'+set_d][:,2], scale_factor=p_scale, color=(1,0,0))
-        self.src_spilerules = None
-        return src_grid_i, src_grid_d, src_spilerules
+        src_grid_i = mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2], scale_factor=p_scale*2, color=(0,1,0))
+        src_grid_d = mlab.points3d(grid_d['offset'+set_d][:,0], grid_d['offset'+set_d][:,1], grid_d['offset'+set_d][:,2], scale_factor=p_scale, color=(1,0,0))
+        return src_grid_i, src_grid_d
         
     def plot_splinerules(self, grid_i,  set_i,  grid_d, set_d, splinerules, coord):
 
