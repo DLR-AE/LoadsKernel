@@ -13,6 +13,7 @@ from mayavi.sources.utils import has_attributes
 
 class Plotting:
     def __init__(self):
+        self.pscale = 0.1
         pass
 
     def plot_nothing(self):
@@ -78,16 +79,14 @@ class Plotting:
         self.show_masses=False
         mlab.draw(self.fig)
         
-    def plot_masses(self, MGG, Mb, cggrid):
+    def plot_masses(self, MGG, Mb, cggrid, rho=2700.0):
         # get nodal masses
         m_cg = Mb[0,0]
         m = MGG.diagonal()[0::6]
         
-        radius_mass_cg = ((m_cg*3.)/(4.*2700.0*np.pi))**(1./3.) 
-        radius_masses = ((m*3.)/(4.*2700.0*np.pi))**(1./3.) #/ radius_mass_cg
-        #radius_masses = radius_masses/radius_masses.max()
-        #self.plot_nothing()
-        #self.setup_mass_display(radius_masses, radius_mass_cg, cggrid)
+        radius_mass_cg = ((m_cg*3.)/(4.*rho*np.pi))**(1./3.) 
+        radius_masses = ((m*3.)/(4.*rho*np.pi))**(1./3.) 
+
         if self.show_masses:
             self.update_mass_display(radius_masses, radius_mass_cg, cggrid)
         else:
@@ -101,16 +100,16 @@ class Plotting:
         # plot points as glyphs
         self.src_masses = mlab.pipeline.add_dataset(ug1)
         points = mlab.pipeline.glyph(self.src_masses, scale_mode='scalar', scale_factor = 1.0, color=(1,0.7,0))
-        #points.glyph.glyph.scale_mode = 'scale_by_scalar'
-        points.glyph.glyph.range = np.array([0.0, 1.0])
+        points.glyph.glyph.clamping = False
+        #points.glyph.glyph.range = np.array([0.0, 1.0])
         
         ug2 = tvtk.UnstructuredGrid(points=cggrid['offset'])
         ug2.point_data.scalars = np.array([radius_mass_cg])
         # plot points as glyphs
         self.src_mass_cg = mlab.pipeline.add_dataset(ug2)
         points = mlab.pipeline.glyph(self.src_mass_cg, scale_mode='scalar', scale_factor = 1.0, color=(1,1,0), opacity=0.3, resolution=64)
-        #points.glyph.glyph.scale_mode = 'scale_by_scalar'  
-        points.glyph.glyph.range = np.array([0.0, 1.0])      
+        points.glyph.glyph.clamping = False
+        #points.glyph.glyph.range = np.array([0.0, 1.0])      
 
     def update_mass_display(self, radius_masses, radius_mass_cg, cggrid):
         self.src_masses.outputs[0].points.from_array(self.strcgrid['offset'])
@@ -127,7 +126,7 @@ class Plotting:
         mlab.draw(self.fig)
         
     def plot_strc(self):
-        self.src_strc = self.setup_strc_display(offsets=self.strcgrid['offset'], color=(0,0,1), p_scale=0.05)
+        self.src_strc = self.setup_strc_display(offsets=self.strcgrid['offset'], color=(0,0,1), p_scale=self.pscale)
         self.show_strc=True
         mlab.draw(self.fig)
     
@@ -140,7 +139,7 @@ class Plotting:
         if self.show_mode:
             self.update_mode_display(offsets=offsets)
         else:
-            self.src_mode = self.setup_strc_display(offsets=offsets, color=(0,1,0), p_scale=0.05)
+            self.src_mode = self.setup_strc_display(offsets=offsets, color=(0,1,0), p_scale=self.pscale)
             self.show_mode=True
         mlab.draw(self.fig)
         
@@ -173,12 +172,12 @@ class Plotting:
     # --- aero ---
     #-------------
     def hide_aero(self):
-        self.src_aero.remove()
+        self.src_aerogrid.remove()
         self.show_aero=False
         mlab.draw(self.fig)
         
     def plot_aero(self):
-        self.setup_aero_display(color=(1,1,1), p_scale=0.05)
+        self.setup_aero_display(color=(1,1,1), p_scale=self.pscale)
         self.show_aero=True
         mlab.draw(self.fig)
         
@@ -227,7 +226,7 @@ class Plotting:
             
             
     def plot_splinegrids(self, grid_i,  set_i,  grid_d, set_d):
-        p_scale = 0.05 # points
+        p_scale = self.pscale # points
         self.src_grid_i = mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2], scale_factor=p_scale*2, color=(0,1,0))
         self.src_grid_d = mlab.points3d(grid_d['offset'+set_d][:,0], grid_d['offset'+set_d][:,1], grid_d['offset'+set_d][:,2], scale_factor=p_scale, color=(1,0,0))
         self.src_spilerules = None

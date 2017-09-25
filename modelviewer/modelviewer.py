@@ -110,7 +110,7 @@ class Modelviewer():
         tab_strc        = QtGui.QWidget() 
         tab_mass        = QtGui.QWidget()    
         tab_aero        = QtGui.QWidget()
-        tab_coupling      = QtGui.QWidget()
+        tab_coupling    = QtGui.QWidget()
         tab_monstations = QtGui.QWidget()
         
         # Configure tabs
@@ -129,12 +129,25 @@ class Modelviewer():
         # Elements of mass tab
         self.list_mass = QtGui.QListWidget()      
         self.list_mass.itemClicked.connect(self.get_mass_data_for_plotting)
+        self.lb_rho = QtGui.QLabel('Rho: 2700 kg/m^3')
+        # slider for generalized coordinate magnification factor
+        self.sl_rho = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.sl_rho.setMinimum(100)
+        self.sl_rho.setMaximum(3000)
+        self.sl_rho.setSingleStep(100)
+        self.sl_rho.setValue(2700)
+        self.sl_rho.setTickPosition(QtGui.QSlider.TicksBelow)
+        self.sl_rho.setTickInterval(500)
+        self.sl_rho.valueChanged.connect(self.get_mass_data_for_plotting)
         bt_mass_hide = QtGui.QPushButton('Hide')
         bt_mass_hide.clicked.connect(self.plotting.hide_masses)
         
-        layout_mass = QtGui.QGridLayout(tab_mass)
+        layout_mass = QtGui.QVBoxLayout(tab_mass)
         layout_mass.addWidget(self.list_mass)
+        layout_mass.addWidget(self.lb_rho)
+        layout_mass.addWidget(self.sl_rho)
         layout_mass.addWidget(bt_mass_hide)
+        layout_mass.addStretch(1)
         
         # Elements of strc tab
         lb_undeformed = QtGui.QLabel('Undeformed')
@@ -149,10 +162,11 @@ class Modelviewer():
         self.list_modes_mass.itemClicked.connect(self.update_modes)
         self.list_modes_number = QtGui.QListWidget()      
         self.list_modes_number.itemClicked.connect(self.get_mode_data_for_plotting)
+        self.lb_uf = QtGui.QLabel('Scaling: 1.0')
         # slider for generalized coordinate magnification factor
         self.sl_uf = QtGui.QSlider(QtCore.Qt.Horizontal)
         self.sl_uf.setMinimum(0)
-        self.sl_uf.setMaximum(20)
+        self.sl_uf.setMaximum(30)
         self.sl_uf.setSingleStep(1)
         self.sl_uf.setValue(10)
         self.sl_uf.setTickPosition(QtGui.QSlider.TicksBelow)
@@ -168,9 +182,10 @@ class Modelviewer():
         layout_strc.addWidget(lb_modes_mass,3,0,1,1)
         layout_strc.addWidget(lb_modes_number,3,1,1,1)
         layout_strc.addWidget(self.list_modes_mass,4,0,1,1)
-        layout_strc.addWidget(self.list_modes_number,4,1,1,1)       
-        layout_strc.addWidget(self.sl_uf,5,0,1,-1)
-        layout_strc.addWidget(bt_mode_hide,6,0,1,-1)
+        layout_strc.addWidget(self.list_modes_number,4,1,1,1)
+        layout_strc.addWidget(self.lb_uf,5,0,1,-1)    
+        layout_strc.addWidget(self.sl_uf,6,0,1,-1)
+        layout_strc.addWidget(bt_mode_hide,7,0,1,-1)
         #layout_strc.addStretch(1)
         
         # Elements of aero tab
@@ -214,7 +229,10 @@ class Modelviewer():
         mayavi_widget.setSizePolicy(sizePolicy)
         fig = mayavi_widget.visualization.update_plot()
         self.plotting.add_figure(fig)
-
+        
+        # ------------------------
+        # --- layout container ---
+        # ------------------------
         layout = QtGui.QGridLayout(self.container)
         layout.addWidget(tabs_widget, 0, 0)
         layout.addWidget(mayavi_widget, 0, 1)
@@ -277,21 +295,25 @@ class Modelviewer():
             self.get_mode_data_for_plotting()
     
     def get_mode_data_for_plotting(self):
+        uf_i = 10.0**(np.double(self.sl_uf.value())/10.0)
+        self.lb_uf.setText('Scaling: {:0.2f}'.format(uf_i))
         if self.list_modes_mass.currentItem() is not None and self.list_modes_number.currentItem() is not None:
             key = self.list_modes_mass.currentItem().data(0)
             i_mass = self.model.mass['key'].index(key)
             i_mode = int(self.list_modes_number.currentItem().data(0))
             uf = np.zeros((self.model.mass['n_modes'][i_mass],1))
-            uf[i_mode] = 10.0**(np.double(self.sl_uf.value())/10.0)
+            uf[i_mode] = uf_i
             ug = self.model.mass['PHIf_strc'][i_mass].T.dot(uf)
             offset_f = ug[self.model.strcgrid['set'][:,(0,1,2)]].squeeze()
             self.plotting.plot_mode(self.model.strcgrid['offset']+offset_f)
             
     def get_mass_data_for_plotting(self, *args):
+        rho = np.double(self.sl_rho.value())
+        self.lb_rho.setText('Scaling: {:0.0f} kg/m^3'.format(rho))
         if self.list_mass.currentItem() is not None:
             key = self.list_mass.currentItem().data(0)
             i_mass = self.model.mass['key'].index(key)
-            self.plotting.plot_masses(self.model.mass['MGG'][i_mass], self.model.mass['Mb'][i_mass], self.model.mass['cggrid'][i_mass])
+            self.plotting.plot_masses(self.model.mass['MGG'][i_mass], self.model.mass['Mb'][i_mass], self.model.mass['cggrid'][i_mass], rho)
             
     def load_model(self):
         # open file dialog
