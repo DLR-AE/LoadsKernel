@@ -162,6 +162,7 @@ class Modelviewer():
         self.list_modes_mass.itemClicked.connect(self.update_modes)
         self.list_modes_number = QtGui.QListWidget()      
         self.list_modes_number.itemClicked.connect(self.get_mode_data_for_plotting)
+        self.lb_freq = QtGui.QLabel('Frequency: {:0.4f}[Hz]'.format(0.0))
         self.lb_uf = QtGui.QLabel('Scaling: 1.0')
         # slider for generalized coordinate magnification factor
         self.sl_uf = QtGui.QSlider(QtCore.Qt.Horizontal)
@@ -183,9 +184,10 @@ class Modelviewer():
         layout_strc.addWidget(lb_modes_number,3,1,1,1)
         layout_strc.addWidget(self.list_modes_mass,4,0,1,1)
         layout_strc.addWidget(self.list_modes_number,4,1,1,1)
-        layout_strc.addWidget(self.lb_uf,5,0,1,-1)    
-        layout_strc.addWidget(self.sl_uf,6,0,1,-1)
-        layout_strc.addWidget(bt_mode_hide,7,0,1,-1)
+        layout_strc.addWidget(self.lb_freq,5,0,1,-1) 
+        layout_strc.addWidget(self.lb_uf,6,0,1,-1)    
+        layout_strc.addWidget(self.sl_uf,7,0,1,-1)
+        layout_strc.addWidget(bt_mode_hide,8,0,1,-1)
         #layout_strc.addStretch(1)
         
         # Elements of aero tab
@@ -306,6 +308,11 @@ class Modelviewer():
             ug = self.model.mass['PHIf_strc'][i_mass].T.dot(uf)
             offset_f = ug[self.model.strcgrid['set'][:,(0,1,2)]].squeeze()
             self.plotting.plot_mode(self.model.strcgrid['offset']+offset_f)
+            # the eigenvalue directly corresponds to the generalized stiffness if Mass is scaled to 1.0
+            eigenvalue = self.model.mass['Kff'][i_mass].diagonal()[i_mode]
+            freq = np.real(eigenvalue)**0.5 /2/np.pi
+            self.lb_freq.setText('Frequency: {:0.4f}[Hz]'.format(freq))
+            
             
     def get_mass_data_for_plotting(self, *args):
         rho = np.double(self.sl_rho.value())
