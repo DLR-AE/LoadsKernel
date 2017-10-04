@@ -362,3 +362,36 @@ class flexop:
             logging.warning( 'Commanded alpha not possible, violation of upper alpha bounds!')
             alpha = self.alpha_upper
         return alpha
+    
+class halo:
+    def __init__(self):
+        self.keys = ['STAB1', 'STAB2', 'ELEV1', 'ELEV2']
+        self.Ux2_0 = np.array([0.0, 0.0, 0.0, 0.0])
+        self.Ux2_lower = np.array([-30.0, -30.0, -30.0, -30.0])/180*np.pi
+        self.Ux2_upper = np.array([ 30.0,  30.0,  30.0,  30.0])/180*np.pi
+                
+    def efcs(self, command_xi, command_eta, command_zeta):
+
+        # Ausgangsposition
+        delta_STAB1 = self.Ux2_0[0]
+        delta_STAB2 = self.Ux2_0[1]
+        delta_ELEV1 = self.Ux2_0[2]
+        delta_ELEV2 = self.Ux2_0[3]
+        
+        # eta - Nickachse
+        delta_STAB1 -= command_eta
+        delta_STAB2 -= command_eta
+               
+        Ux2 = np.array([delta_STAB1, delta_STAB2, delta_ELEV1, delta_ELEV2])
+        
+        violation_lower = Ux2 < self.Ux2_lower
+        if np.any(violation_lower):
+            logging.warning( 'Commanded CS deflection not possible, violation of lower Ux2 bounds!')
+            Ux2[violation_lower] = self.Ux2_lower[violation_lower]
+            
+        violation_upper = Ux2 > self.Ux2_upper
+        if np.any(violation_upper):
+            logging.warning( 'Commanded CS deflection not possible, violation of upper Ux2 bounds!')
+            Ux2[violation_upper] = self.Ux2_upper[violation_upper]
+            
+        return Ux2

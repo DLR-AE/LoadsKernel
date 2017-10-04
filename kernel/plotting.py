@@ -65,6 +65,14 @@ class plotting:
             self.cuttingforces_wing = ['MON1']
             self.f_scale = 0.1 # vectors
             self.p_scale = 0.05 # points
+        # HALO
+        elif self.jcl.general['aircraft'] == 'HALO':
+            self.potatos_Fz_Mx = ['MON1']
+            self.potatos_Mx_My = ['MON1']
+            self.potatos_Fz_My = ['MON1']
+            self.cuttingforces_wing = ['MON1']
+            self.f_scale = 0.02 # vectors
+            self.p_scale = 0.4 # points
         else:
             logging.error('Unknown aircraft: ' + str(self.jcl.general['aircraft']))
             return
@@ -83,13 +91,13 @@ class plotting:
 #             F = np.linalg.norm(Pk[self.model.aerogrid['set_k'][:,:3]], axis=1)
             F = Pk[self.model.aerogrid['set_k'][:,2]] # * -1.0
             cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
-            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r', -0.5, 0.5)
+            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r',)# -0.5, 0.5)
             ax.set_title('Cp for {:s}'.format(trimcase['desc']))
 #             ax.set_xlim(0, 16)
 #             ax.set_ylim(-8, 8)
             F = response['Pk_idrag'][self.model.aerogrid['set_k'][:,0]]
             cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
-            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r', -0.01, 0.03)
+            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r',)# -0.01, 0.03)
             ax.set_title('Cd_ind for {:s}'.format(trimcase['desc']))
             plt.show()
       
@@ -538,16 +546,16 @@ class plotting:
                     points_i = np.array([self.x[i], self.y[i], self.z[i]]).T
                     scalars_i = self.color_scalar[i,:]
                     update_strc_display(self, points_i, scalars_i)
-                    update_aerogrid_display(self, scalars_i)
+                    #update_aerogrid_display(self, scalars_i)
                     update_text_display(self, response['t'][i][0])
                     for src_vector, src_cone, data in zip(self.src_vectors, self.src_cones, self.vector_data):
                         vector_data_i = np.vstack((data['u'][i,:], data['v'][i,:], data['w'][i,:])).T
                         update_vector_display(self, src_vector, src_cone, points_i, vector_data_i)
                     
                     # get current view and set new focal point
-                    #v = mlab.view()
-                    #r = mlab.roll()
-                    #mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=points_i.mean(axis=0)) # view from right and above
+                    v = mlab.view()
+                    r = mlab.roll()
+                    mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=points_i.mean(axis=0)) # view from right and above
                     self.fig.scene.disable_render = False
                     yield
                 
@@ -559,15 +567,15 @@ class plotting:
                 points_i = np.array([self.x[i], self.y[i], self.z[i]]).T
                 scalars_i = self.color_scalar[i,:]
                 update_strc_display(self, points_i, scalars_i)
-                update_aerogrid_display(self, scalars_i)
+                #update_aerogrid_display(self, scalars_i)
                 update_text_display(self, response['t'][i][0])
                 for src_vector, src_cone, data in zip(self.src_vectors, self.src_cones, self.vector_data):
                     vector_data_i = np.vstack((data['u'][i,:], data['v'][i,:], data['w'][i,:])).T
                     update_vector_display(self, src_vector, src_cone, points_i, vector_data_i)
                 # get current view and set new focal point
-                #v = mlab.view()
-                #r = mlab.roll()
-                #mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=points_i.mean(axis=0)) # view from right and above
+                v = mlab.view()
+                r = mlab.roll()
+                mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=points_i.mean(axis=0)) # view from right and above
                 self.fig.scene.render()
                 self.fig.scene.save_png('{}anim/subcase_{}_frame_{:06d}.png'.format(path_output, trimcase['subcase'], i))
 
@@ -633,7 +641,7 @@ class plotting:
                 shell_type = tvtk.Polygon().cell_type
                 ug.set_cells(shell_type, shells)
                 self.src_points = mlab.pipeline.add_dataset(ug)
-                points  = mlab.pipeline.glyph(self.src_points, color=color, scale_factor=self.p_scale)
+                points  = mlab.pipeline.glyph(self.src_points, colormap='viridis', scale_factor=self.p_scale) #color=color
                 surface = mlab.pipeline.surface(self.src_points, colormap='viridis') #color=color)
             else: 
                 # plot points as glyphs
@@ -681,23 +689,23 @@ class plotting:
         # --------------
         # configure plot 
         #---------------
-        grid = self.model.aerogrid
-        set = '_k'
+        grid = self.model.strcgrid
+        set = ''
         
         # get deformations
-#         self.x = grid['offset'+set][:,0] + response['Ug'][:,grid['set'+set][:,0]] - response['X'][:,0].repeat(grid['n']).reshape(-1,grid['n'])
-#         self.y = grid['offset'+set][:,1] + response['Ug'][:,grid['set'+set][:,1]]
-#         self.z = grid['offset'+set][:,2] + response['Ug'][:,grid['set'+set][:,2]]# - response['X'][:,2].repeat(grid['n']).reshape(-1,grid['n'])
-#         #self.Ug_scalar = np.linalg.norm(response['Ug_f'][:,grid['set'+set][:,(0,1,2)]], axis=2)
-#         self.color_scalar = -np.sum(response['Ug_f'][:,grid['set'+set][:,(0,1,2)]], axis=2)
-        self.x = np.tile(grid['offset'+set][:,0],(len(response['t']),1))
-        self.y = np.tile(grid['offset'+set][:,1],(len(response['t']),1))
-        self.z = np.tile(grid['offset'+set][:,2],(len(response['t']),1))
-        self.color_scalar = response['Pk_aero'][:,grid['set'+set][:,2]]
+        self.x = grid['offset'+set][:,0] + response['Ug'][:,grid['set'+set][:,0]]# - response['X'][:,0].repeat(grid['n']).reshape(-1,grid['n'])
+        self.y = grid['offset'+set][:,1] + response['Ug'][:,grid['set'+set][:,1]]
+        self.z = grid['offset'+set][:,2] + response['Ug'][:,grid['set'+set][:,2]]# - response['X'][:,2].repeat(grid['n']).reshape(-1,grid['n'])
+        self.color_scalar = np.linalg.norm(response['Ug_f'][:,grid['set'+set][:,(0,1,2)]], axis=2)
+        #self.color_scalar = -np.sum(response['Ug_f'][:,grid['set'+set][:,(0,1,2)]], axis=2)
+#         self.x = np.tile(grid['offset'+set][:,0],(len(response['t']),1))
+#         self.y = np.tile(grid['offset'+set][:,1],(len(response['t']),1))
+#         self.z = np.tile(grid['offset'+set][:,2],(len(response['t']),1))
+#         self.color_scalar = response['Pk_aero'][:,grid['set'+set][:,2]]
         
         # get forces
-        names = ['Pk_gust', 'Pk_unsteady']
-        colors = [(1,0,0), (0,1,1)] # red, cyan
+        names = ['Pg_aero_global', 'Pg_iner_global',]# 'Pg_idrag_global', 'Pg_cs_global']
+        colors = [(1,0,0), (0,1,1), (0,0,0), (0,0,1)] # red, cyan, black, blue
         for name in names:
             calc_vector_data(self, grid=grid, set=set, name=name)
 
@@ -712,8 +720,8 @@ class plotting:
             #self.fig = mlab.figure()
         
         # plot initial position
-        setup_aerogrid_display(self, color=(0.9,0.9,0.9))
-        if hasattr(self.model, 'strcshell'): del self.model.strcshell 
+        #setup_aerogrid_display(self, color=(0.9,0.9,0.9))
+        #if hasattr(self.model, 'strcshell'): del self.model.strcshell 
         setup_strc_display(self, color=(0.9,0.9,0.9)) # light grey
         setup_text_display(self)
         
@@ -725,17 +733,17 @@ class plotting:
         # plot coordinate system
         mlab.orientation_axes()
         
-#         # get earth
-#         with open('harz.pickle', 'r') as f:  
-#             (x,y,elev) = cPickle.load(f)
-#         # plot earth, scale colormap
-#         surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
+        # get earth
+        with open('harz.pickle', 'r') as f:  
+            (x,y,elev) = cPickle.load(f)
+        # plot earth, scale colormap
+        surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
         
         #mlab.view(azimuth=180.0, elevation=90.0, roll=-90.0, distance=70.0, focalpoint=np.array([self.x.mean(),self.y.mean(),self.z.mean()])) # back view
-        distance = 2.5*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5
+        distance = 3.5*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5
         #mlab.view(azimuth=135.0, elevation=100.0, roll=-100.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
-        #mlab.view(azimuth=-120.0, elevation=100.0, roll=-75.0,  distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from left and above
-        mlab.view(azimuth=-100.0, elevation=65.0, roll=25.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
+        mlab.view(azimuth=-120.0, elevation=100.0, roll=-75.0,  distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from left and above
+        #mlab.view(azimuth=-100.0, elevation=65.0, roll=25.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
 
         if make_movie:
             if not os.path.exists('{}anim/'.format(path_output)):
