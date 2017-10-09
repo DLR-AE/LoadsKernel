@@ -2,7 +2,8 @@ import numpy as np
 import importlib, logging
 #import time
 from trim_tools import * 
-from scipy import interpolate
+
+from scipy import interpolate, linalg
        
 
 class common():
@@ -100,7 +101,10 @@ class common():
                 self.aerodb_x2_interpolation_function.append(interpolate.interp1d(np.array(self.aerodb_x2[-1]['values'])/180.0*np.pi, np.array(self.aerodb_x2[-1]['Pk']), axis=0, bounds_error = True ))
                 logging.info('Hybrid aero is used for {}.'.format(x2_key))
                 #print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], self.aerodb_x2[-1]['q_dyn'], self.q_dyn)       
-    
+        
+        # convergence parameter for iterative evaluation
+        self.defo_old = 0.0        
+        
     def calc_Pk_nonlin(self, dUmac_dt, wj):
         Ujx1 = np.dot(self.Djx1,dUmac_dt)
         q = Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]]
@@ -977,6 +981,52 @@ class steady(common):
             logging.info('--------------------')
             
             return response
+        
+    def eval_equations_iteratively(self, X_free, time, type='trim_full_output'):
+        # this is a wrapper for the model equations 'eqn_basic'
+        i_mass = self.model.mass['key'].index(self.trimcase['mass'])
+        n_modes = self.model.mass['n_modes'][i_mass]
+        if type in ['trim']:
+            # get inputs from trimcond and apply inputs from fsolve 
+            X = np.array(self.trimcond_X[:,2], dtype='float')
+            X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
+            #print X_free
+            converged = False
+            while not converged:
+                response = self.equations(X, time, 'trim_full_output')
+                Uf_new = linalg.solve(self.Kff, response['Pf'])
+                #Pf = np.dot(self.PHIkf.T, response['Pk_aero'])
+                #d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
+    
+                # recover Uf_old from last step and blend with Uf_now
+                f_relax = 1.0
+                Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(n_modes)]
+                Uf_old = np.array(Uf_old, dtype='float')
+                Uf_new = Uf_new*f_relax + Uf_old*(1.0-f_relax)
+
+                # set new values for Uf in trimcond for next loop
+                for i_mode in range(n_modes):
+                    self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] = '{:g}'.format(Uf_new[i_mode])
+                
+                # convergence parameter for iterative evaluation  
+                Ug_f_body = np.dot(self.PHIf_strc.T, Uf_new.T).T
+                #defo_new = Ug_f_body[self.model.strcgrid['set'][:,2]].max() # Groesste Verformung, Fluegelspitze
+                defo_new = Ug_f_body.sum() # Summe ueber alle Verformungen
+                ddefo = defo_new - self.defo_old
+                self.defo_old = np.copy(defo_new)
+                if ddefo < 1.0e-9:
+                    converged = True
+                    logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, converged.'.format(self.counter, defo_new))
+                else:
+                    logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}'.format(self.counter, defo_new))
+                    
+            # get the current values from Y and substract tamlab.figure()
+            # fsolve only finds the roots; Y = 0
+            Y_target_ist = response['Y'][np.where((self.trimcond_Y[:,1] == 'target'))[0]]
+            Y_target_soll = np.array(self.trimcond_Y[:,2], dtype='float')[np.where((self.trimcond_Y[:,1] == 'target'))[0]]
+            out = Y_target_ist - Y_target_soll
+
+            return out
         
 class unsteady(common):
 

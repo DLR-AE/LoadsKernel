@@ -399,3 +399,41 @@ class trim:
             logging.error('Integration failed! Exit.')
             sys.exit()
             
+            
+    def iterative_trim(self):
+        import model_equations # Warum muss der import hier stehen??
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
+            equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+        else:
+            logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
+        
+        # remove modes from trimcond_Y and _Y
+        i_mass = self.model.mass['key'].index(self.trimcase['mass'])
+        n_modes = self.model.mass['n_modes'][i_mass]
+        
+        for i_mode in range(n_modes):
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'd2Uf_d2t'+str(i_mode)))[0][0],1] = 'fix'
+        #X0 = np.copy(self.response['X'])
+        #X_free_0 = X0[np.where((self.trimcond_X[:,1] == 'free'))[0]] # start trim with solution from normal trim
+        X_free_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]] # start trim from scratch
+        
+        if self.trimcase['manoeuver'] == 'bypass':
+            logging.info('running bypass...')
+            self.response = equations.eval_equations(X_free_0, time=0.0, type='trim_full_output')
+        else:
+            logging.info('running trim for ' + str(len(X_free_0)) + ' variables...')
+            X_free, info, status, msg= so.fsolve(equations.eval_equations_iteratively, X_free_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-6, xtol=1.0e-6 )
+            logging.info(msg)
+            logging.info('function evaluations: ' + str(info['nfev']))
+        
+            # if trim was successful, then do one last evaluation with the final parameters.
+            if status == 1:
+                self.response = equations.eval_equations(X_free, time=0.0, type='trim_full_output')
+            else:
+                self.response = None
+                logging.warning('Failure: ' + msg)
+                # store response
+       
