@@ -177,7 +177,7 @@ class rbf:
         t_start = time.time()
         logging.info(' - solving M*H=BC for H')
         self.H= scipy.linalg.solve(self.M, self.BC).T 
-        logging.info(' - done in ' + str(time.time() - t_start) + ' sec')
+        logging.info(' - done in {:.2f} sec'.format(time.time() - t_start))
         
         
     def eval_rbf(self, r):
