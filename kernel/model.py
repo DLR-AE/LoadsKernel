@@ -7,6 +7,7 @@ Created on Fri Nov 28 10:53:48 2014
 import build_mass
 import build_aero
 import build_aerodb
+import build_meshdefo
 import spline_rules
 import spline_functions
 import build_splinegrid
@@ -140,7 +141,7 @@ class model:
             logging.error( 'Unknown atmo method: ' + str(self.jcl.aero['method']))
               
         logging.info( 'Building aero model...')
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
             # grids
             for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
                 if self.jcl.aero.has_key('method_caero'):
@@ -308,7 +309,15 @@ class model:
         if self.jcl.aero['method'] == 'hybrid':   
             logging.info( 'Building aero db...')
             self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
-            
+        # -------------------
+        # ---- mesh defo ---
+        # -------------------  
+        if self.jcl.aero['method'] == 'cfd_steady':
+            meshdefo = build_meshdefo.meshdefo(self.jcl, self)
+            meshdefo.read_cfdgrids(merge_domains=True)
+            rules = spline_rules.nearest_neighbour(self.aerogrid, '_k', meshdefo.cfdgrids[0], '') 
+            self.PHIk_cfd = spline_functions.spline_rb(self.aerogrid, '_k', meshdefo.cfdgrids[0], '', rules, self.coord, dimensions=[self.aerogrid['n']*6, meshdefo.cfdgrids[0]['n']*6], sparse_output=True) 
+
         # splines 
         # PHIk_strc with 'nearest_neighbour', 'rbf' or 'nastran'
         if self.jcl.spline['method'] in ['rbf', 'nearest_neighbour']:

@@ -404,6 +404,8 @@ class trim:
         import model_equations # Warum muss der import hier stehen??
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+        if self.jcl.aero['method'] in [ 'cfd_steady']:
+            equations = model_equations.cfd_steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -425,13 +427,13 @@ class trim:
             self.response = equations.eval_equations(X_free_0, time=0.0, type='trim_full_output')
         else:
             logging.info('running trim for ' + str(len(X_free_0)) + ' variables...')
-            X_free, info, status, msg= so.fsolve(equations.eval_equations_iteratively, X_free_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-6, xtol=1.0e-6 )
+            X_free, info, status, msg= so.fsolve(equations.eval_equations_iteratively, X_free_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-3, xtol=1.0e-4 )
             logging.info(msg)
             logging.info('function evaluations: ' + str(info['nfev']))
         
             # if trim was successful, then do one last evaluation with the final parameters.
             if status == 1:
-                self.response = equations.eval_equations(X_free, time=0.0, type='trim_full_output')
+                self.response = equations.eval_equations_iteratively(X_free, time=0.0, type='trim_full_output')
             else:
                 self.response = None
                 logging.warning('Failure: ' + msg)

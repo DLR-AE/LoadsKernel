@@ -9,16 +9,32 @@ import spline_rules, spline_functions, build_splinegrid
 from build_aero import plot_aerogrid
 
 class meshdefo:
-    def  __init__(self, jcl, model, responses, plotting=False):
-        self.model = model
-        self.responses = responses
-        self.jcl = jcl
-        self.plotting=plotting
+    def  __init__(self, jcl, model, plotting=False):
+        self.jcl        = jcl
+        self.model      = model
+        self.plotting   = plotting
         if not jcl.meshdefo.has_key('surface'):
             logging.error('jcl.meshdefo has no key "surface"')
+            
+    def Ux2(self, Ux2):
+        Ujx2 = np.zeros(self.model.aerogrid['n']*6)
+        if self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'y':
+            hingeline = 'y'
+        elif self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'z':
+            hingeline = 'z'
+        else: # default
+            hingeline = 'y'
+        for x2_key in self.model.x2grid['key']:        
+            i_x2 = self.model.x2grid['key'].index(x2_key) # get position i_x2 of current control surface
+            logging.info('Apply control surface deflections of {} for {} [deg] to cfdgrid'.format(x2_key, Ux2[i_x2]/np.pi*180.0))   
+            if hingeline == 'y':
+                Ujx2 += np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
+            elif hingeline == 'z':
+                Ujx2 += np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
+        self.transfer_deformations(self.model.aerogrid, Ujx2, '_k', surface_spline=True)
 
     def controlsurfaces(self, job_name, path_output):
-         
+        # deprecated  
         if self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'y':
             hingeline = 'y'
         elif self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'z':
@@ -37,9 +53,25 @@ class meshdefo:
                         Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,value/180.0*np.pi])
                         
                     self.transfer_deformations(splinegrid, Ujx2, '_k', surface_spline=True)
-                    self.write_defo(job_name, path_output, path_output + 'surface_defo_' + job_name + '_' + x2_key + '_' + str(value) )                    
+                    self.write_deformations(job_name, path_output, path_output + 'surface_defo_' + job_name + '_' + x2_key + '_' + str(value) )                    
                     
-    def Ug_f(self, job_name, path_output):
+    def Uf(self, Uf, trimcase):
+        logging.info('Apply flexible deformations to cfdgrid')
+        # set-up spline grid
+        #splinegrid = build_splinegrid.grid_thin_out_random(model.strcgrid, 0.5)
+        splinegrid = build_splinegrid.grid_thin_out_radius(self.model.strcgrid, 0.4)
+        #splinegrid = model.strcgrid
+        # get structural deformation
+        i_mass     = self.model.mass['key'].index(trimcase['mass'])
+        PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
+        n_modes    = self.model.mass['n_modes'][i_mass]
+        Ug_f_body = np.dot(PHIf_strc.T, Uf.T).T #*100.0
+        
+        self.transfer_deformations(splinegrid, Ug_f_body)
+        #self.write_deformations(path_output + 'surface_defo_subcase_' + str(trimcase['subcase']))     
+                 
+    def Ug_f(self, path_output):
+        # deprecated  
         for response in self.responses:
             logging.info('Apply flexible deformations from subcase {} to cfdgrid'.format(str(self.jcl.trimcase[response['i']]['subcase'])))          
             # set-up spline grid
@@ -52,18 +84,24 @@ class meshdefo:
             n_modes    = self.model.mass['n_modes'][i_mass]
             Uf = response['X'][12:12+n_modes]
             Ug_f_body = np.dot(PHIf_strc.T, Uf.T).T #*100.0
-            
+             
             self.transfer_deformations(splinegrid, Ug_f_body)
-            self.write_defo(job_name, path_output, path_output + 'surface_defo_' + job_name + '_subcase_' + str(self.jcl.trimcase[response['i']]['subcase']))
-    
-    def read_cfdgrids(self):
+            self.write_deformations(path_output + 'surface_defo_' + '_subcase_' + str(self.jcl.trimcase[response['i']]['subcase']))
+
+    def read_cfdgrids(self, merge_domains=False):
         if self.jcl.meshdefo['surface'].has_key('fileformat') and self.jcl.meshdefo['surface']['fileformat']=='cgns':
-            self.read_cfdmesh_cgns()
+            self.read_cfdmesh_cgns(merge_domains)
         elif self.jcl.meshdefo['surface'].has_key('fileformat') and self.jcl.meshdefo['surface']['fileformat']=='netcdf':
-            self.read_cfdmesh_netcdf()
+            self.read_cfdmesh_netcdf(merge_domains)
         else:
             logging.error('jcl.meshdefo["surface"]["fileformat"] must be "netcdf" or "cgns"' )
             return
+        
+    def init_deformations(self):
+        # create empty deformation vectors for cfdgrids
+        self.Ucfd = []
+        for cfdgrid in self.cfdgrids:
+            self.Ucfd.append(np.zeros(cfdgrid['n']*6))
         
     def transfer_deformations(self, grid_i, U_i, set_i = '', surface_spline=False):
         if self.plotting:
@@ -73,13 +111,12 @@ class meshdefo:
             mlab.figure()
             mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2] ,  scale_factor=p_scale, color=(1,1,1))
             mlab.points3d(grid_i['offset'+set_i][:,0] + U_i[grid_i['set'+set_i][:,0]], grid_i['offset'+set_i][:,1] + U_i[grid_i['set'+set_i][:,1]], grid_i['offset'+set_i][:,2] + U_i[grid_i['set'+set_i][:,2]],  scale_factor=p_scale, color=(1,0,0))
-        self.Ucfd = []
-        for grid_d in self.cfdgrids:
+        for grid_d, Ucfd in zip(self.cfdgrids, self.Ucfd):
             logging.info('Working on marker {}'.format(grid_d['desc']))
             # build spline matrix
             PHIi_d = spline_functions.spline_rbf(grid_i, set_i, grid_d, '', rbf_type='tps', surface_spline=surface_spline, dimensions=[U_i.size, grid_d['n']*6])
             # store deformation of cfdgrid
-            self.Ucfd.append(PHIi_d.dot(U_i))
+            Ucfd += PHIi_d.dot(U_i)
             if self.plotting:
                 U_d = PHIi_d.dot(U_i)
                 mlab.points3d(grid_d['offset'][:,0], grid_d['offset'][:,1], grid_d['offset'][:,2], color=(0,0,0), mode='point')
@@ -88,7 +125,7 @@ class meshdefo:
         if self.plotting:
             mlab.show()
             
-    def write_defo(self, job_name, path_output, filename_defo):
+    def write_deformations(self, filename_defo):
         if self.jcl.meshdefo['surface'].has_key('fileformat') and self.jcl.meshdefo['surface']['fileformat']=='cgns':
             self.write_defo_cgns(filename_defo)
         elif self.jcl.meshdefo['surface'].has_key('fileformat') and self.jcl.meshdefo['surface']['fileformat']=='netcdf':
@@ -244,7 +281,7 @@ class meshdefo:
             cfdgrid['n'] = len(cfdgrid['ID'])   
             cfdgrid['offset'] = np.vstack((ncfile_grid.variables['points_xc'][:][points].copy(), ncfile_grid.variables['points_yc'][:][points].copy(), ncfile_grid.variables['points_zc'][:][points].copy() )).T
             cfdgrid['set'] = np.arange(6*cfdgrid['n']).reshape(-1,6)
-            cfdgrid['desc'] = 'all markers'
+            cfdgrid['desc'] = markers
             self.cfdgrids.append(cfdgrid)
         else:
             for marker in markers:
@@ -261,5 +298,4 @@ class meshdefo:
                 cfdgrid['desc'] = str(marker)
                 self.cfdgrids.append(cfdgrid)
         ncfile_grid.close()
-
 
