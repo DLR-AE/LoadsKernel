@@ -6,7 +6,7 @@ Created on Mon Jun  1 17:44:17 2015
 """
 import numpy as np
 
-import cPickle, time, imp, sys, os, psutil, logging
+import cPickle, time, imp, sys, os, psutil, logging, shutil
 import scipy
 from scipy import io
 
@@ -86,7 +86,11 @@ class specific_functions():
             logging.critical( 'End of file; file closed; Nothing to return.')
             return
             
-    
+    def copy_para_file(self, jcl, timcase):
+        para_path = self.check_path(jcl.aero['para_path'])
+        src = para_path+jcl.aero['para_file']
+        dst = para_path+jcl.aero['para_file']+'_subcase_{}'.format(timcase['subcase'])
+        shutil.copyfile(src, dst)
     
     def check_path(self, path):
         if not os.path.exists(path):
