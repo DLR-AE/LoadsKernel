@@ -84,6 +84,55 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
         
         logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
     
+    if main_single:
+        if not 'model' in locals():
+            model = io.load_model(job_name, path_output)
+        
+        logging.info( '--> Starting Main in deprecated test-mode (!!!) for %d trimcase(s).' % len(jcl.trimcase))
+        t_start = time.time()
+        mon = monstations_module.monstations(jcl, model)
+        f = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
+        for i in range(len(jcl.trimcase)):
+            logging.info( '')
+            logging.info( '========================================')
+            logging.info( 'trimcase: ' + jcl.trimcase[i]['desc'])
+            logging.info( 'subcase: ' + str(jcl.trimcase[i]['subcase']))
+            logging.info( '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')')
+            logging.info( '========================================')
+            
+            trim_i = trim.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+            trim_i.set_trimcond()
+            #trim_i.calc_derivatives()
+            #trim_i.exec_trim()
+            trim_i.iterative_trim()
+            if 't_final' and 'dt' in jcl.simcase[i].keys():
+                trim_i.exec_sim()
+            post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
+            post_processing_i.force_summation_method()
+            post_processing_i.euler_transformation()
+            post_processing_i.cuttingforces()
+            mon.gather_monstations(jcl.trimcase[i], trim_i.response)
+            if 't_final' and 'dt' in jcl.simcase[i].keys():
+                mon.gather_dyn2stat(i, trim_i.response)
+            trim_i.response['i'] = i
+            logging.info( '--> Saving response(s).')
+            io.dump_pickle(trim_i.response, f)
+            #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
+            #    io_matlab.save_mat(f2, trim_i.response)
+            del trim_i, post_processing_i
+        f.close() # close response
+        
+        logging.info( '--> Saving monstation(s).')
+        with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
+            io.dump_pickle(mon.monstations, f)
+        with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
+            io_matlab.save_mat(f, mon.monstations)
+        
+        logging.info( '--> Saving dyn2stat.')
+        with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'w') as f:
+            io.dump_pickle(mon.dyn2stat, f)
+        logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
+        
     if statespace:
         if not 'model' in locals():
             model = io.load_model(job_name, path_output)
@@ -162,65 +211,17 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
             aux_out.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
             aux_out.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
             
-        print '--> Drawing some plots.'  
-        plt = plotting.plotting(jcl, model, responses)
-        if 't_final' and 'dt' in jcl.simcase[0].keys():
-            # nur sim
-            plt.plot_time_data()
-            #plt.make_animation()
-            #plt.make_movie(path_output, speedup_factor=1.0)
-        else:
-            # nur trim
-            plt.plot_pressure_distribution()
-            plt.plot_forces_deformation_interactive() 
-        
-    if main_single:
-        if not 'model' in locals():
-            model = io.load_model(job_name, path_output)
-        
-        logging.info( '--> Starting Main in deprecated test-mode (!!!) for %d trimcase(s).' % len(jcl.trimcase))
-        t_start = time.time()
-        mon = monstations_module.monstations(jcl, model)
-        f = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
-        for i in range(len(jcl.trimcase)):
-            logging.info( '')
-            logging.info( '========================================')
-            logging.info( 'trimcase: ' + jcl.trimcase[i]['desc'])
-            logging.info( 'subcase: ' + str(jcl.trimcase[i]['subcase']))
-            logging.info( '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')')
-            logging.info( '========================================')
-            
-            trim_i = trim.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
-            trim_i.set_trimcond()
-            trim_i.calc_derivatives()
-            trim_i.exec_trim()
-            if 't_final' and 'dt' in jcl.simcase[i].keys():
-                trim_i.exec_sim()
-            post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
-            post_processing_i.force_summation_method()
-            post_processing_i.euler_transformation()
-            post_processing_i.cuttingforces()
-            mon.gather_monstations(jcl.trimcase[i], trim_i.response)
-            if 't_final' and 'dt' in jcl.simcase[i].keys():
-                mon.gather_dyn2stat(i, trim_i.response)
-            trim_i.response['i'] = i
-            logging.info( '--> Saving response(s).')
-            io.dump_pickle(trim_i.response, f)
-            #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
-            #    io_matlab.save_mat(f2, trim_i.response)
-            del trim_i, post_processing_i
-        f.close() # close response
-        
-        logging.info( '--> Saving monstation(s).')
-        with open(path_output + 'monstations_' + job_name + '.pickle', 'w') as f:
-            io.dump_pickle(mon.monstations, f)
-        with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
-            io_matlab.save_mat(f, mon.monstations)
-        
-        logging.info( '--> Saving dyn2stat.')
-        with open(path_output + 'dyn2stat_' + job_name + '.pickle', 'w') as f:
-            io.dump_pickle(mon.dyn2stat, f)
-        logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
+         print '--> Drawing some plots.'  
+         plt = plotting.plotting(jcl, model, responses)
+         if 't_final' and 'dt' in jcl.simcase[0].keys():
+             # nur sim
+             plt.plot_time_data()
+             #plt.make_animation()
+             #plt.make_movie(path_output, speedup_factor=1.0)
+         else:
+             # nur trim
+             plt.plot_pressure_distribution()
+             plt.plot_forces_deformation_interactive() 
         
     if test:
         if not 'model' in locals():
