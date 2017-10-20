@@ -480,7 +480,7 @@ class common():
         if 5 in support:
             d2Ucg_dt2[5] = 0.0      
     
-    def tau_prepare(self, Uf, Ux2, alpha):
+    def tau_prepare_meshdefo(self, Uf, Ux2):
         meshdefo = build_meshdefo.meshdefo(self.jcl, self.model)
         meshdefo.read_cfdgrids()
         meshdefo.init_deformations()
@@ -488,25 +488,7 @@ class common():
         meshdefo.Ux2(Ux2)
         meshdefo.write_deformations(self.jcl.aero['para_path']+'./defo/surface_defo_subcase_' + str(self.trimcase['subcase'])) 
         
-        Para   = PyPara.Parafile(self.jcl.aero['para_path']+'para')
-        para_dict = {'Angle alpha (degree)': alpha/np.pi*180.0}
-        Para.update(para_dict, 'block end', 1,)
-        self.pytau_close()
-    
-    def tau_update_para(self):
-        Para   = PyPara.Parafile(self.jcl.aero['para_path']+'para')
-        #Para.update(para_dict, block_key, block_id, key, key_value, sub_file, para_replace)
-        # general parameters
-        para_dict = {'Maximal time step number': 10000,
-                     'Reference Mach number': self.trimcase['Ma'],
-                     'Reference temperature': self.model.atmo['T'][self.i_atmo],
-                     'Reference density': self.model.atmo['rho'][self.i_atmo],
-                     'Number of domains': self.jcl.aero['tau_cores'],
-                     'Number of primary grid domains': self.jcl.aero['tau_cores'],
-                     'Output files prefix': './sol/subcase_{}'.format(self.trimcase['subcase']),
-                     'Grid prefix': './dualgrid/subcase_{}'.format(self.trimcase['subcase']),
-                     }
-        Para.update(para_dict)
+        Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))
         # deformation related parameters
         # it is important to start the deformation always from the undeformed grid !
         para_dict = {'Primary grid filename': self.jcl.meshdefo['surface']['filename_grid'],
@@ -514,6 +496,39 @@ class common():
         Para.update(para_dict)
         para_dict = {'RBF basis coordinates and deflections filename': './defo/surface_defo_subcase_{}.nc'.format(self.trimcase['subcase']),}
         Para.update(para_dict, 'group end', 0,)
+        self.pytau_close()
+    
+    def tau_update_para(self, uvwpqr):
+        Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))   
+        # Para.update(para_dict, block_key, block_id, key, key_value, sub_file, para_replace)
+             
+        # general parameters
+        para_dict = {'Reference Mach number': self.trimcase['Ma'],
+                     'Reference temperature': self.model.atmo['T'][self.i_atmo],
+                     'Reference density': self.model.atmo['rho'][self.i_atmo],
+                     'Number of domains': self.jcl.aero['tau_cores'],
+                     'Number of primary grid domains': self.jcl.aero['tau_cores'],
+                     'Output files prefix': './sol/subcase_{}'.format(self.trimcase['subcase']),
+                     'Grid prefix': './dualgrid/subcase_{}'.format(self.trimcase['subcase']),
+#                      'Maximal time step number': 10, # for testing
+                     }
+        
+        Para.update(para_dict)
+        
+        # aircraft motion related parameters
+        # given in local, body-fixed reference frame, see Tau User Guide Section 18.1 "Coordinate Systems of the TAU-Code"
+        # rotations in [deg], translations in grid units
+        para_dict = {'Origin of local coordinate system':'{} {} {}'.format(self.model.mass['cggrid'][self.i_mass]['offset'][0,0],\
+                                                                           self.model.mass['cggrid'][self.i_mass]['offset'][0,1],\
+                                                                           self.model.mass['cggrid'][self.i_mass]['offset'][0,2]),
+                     'Polynomial coefficients for translation x': '0 {}'.format(uvwpqr[0]),
+                     'Polynomial coefficients for translation y': '0 {}'.format(uvwpqr[1]),
+                     'Polynomial coefficients for translation z': '0 {}'.format(uvwpqr[2]),
+                     'Polynomial coefficients for rotation roll': '0 {}'.format(uvwpqr[3]),
+                     'Polynomial coefficients for rotation pitch':'0 {}'.format(uvwpqr[4]),
+                     'Polynomial coefficients for rotation yaw':  '0 {}'.format(uvwpqr[5]),
+                     }
+        Para.update(para_dict, 'mdf end', 0,)
         logging.info("Parameters updated.")
         self.pytau_close()
         
@@ -527,13 +542,12 @@ class common():
         old_dir = os.getcwd()
         os.chdir(self.jcl.aero['para_path'])
 
-        args_subgrids = shlex.split('ptau3d.subgrids para')
-        args_deform   = shlex.split('mpirun -n {} deformation para ./log/log with mpi'.format(self.jcl.aero['tau_cores']))
-        args_pre      = shlex.split('mpirun -n {} ptau3d.preprocessing para ./log/log with mpi'.format(self.jcl.aero['tau_cores']))
-        args_solve    = shlex.split('mpirun -n {} ptau3d.{} para ./log/log with mpi'.format(self.jcl.aero['tau_cores'], self.jcl.aero['tau_solver']))
+        args_subgrids = shlex.split('ptau3d.subgrids para_subcase_{}'.format(self.trimcase['subcase']))
+        args_deform   = shlex.split('mpirun -n {} deformation para_subcase_{} ./log/log with mpi'.format(self.jcl.aero['tau_cores'], self.trimcase['subcase']))
+        args_pre      = shlex.split('mpirun -n {} ptau3d.preprocessing para_subcase_{} ./log/log with mpi'.format(self.jcl.aero['tau_cores'], self.trimcase['subcase']))
+        args_solve    = shlex.split('mpirun -n {} ptau3d.{} para_subcase_{} ./log/log with mpi'.format(self.jcl.aero['tau_cores'], self.jcl.aero['tau_solver'], self.trimcase['subcase']))
         
-        #if self.counter > 1:
-            #subprocess.call(args_subgrids)
+        #subprocess.call(args_subgrids)
         subprocess.call(args_deform)
         subprocess.call(args_pre)
         subprocess.call(args_solve)
@@ -543,7 +557,7 @@ class common():
         
     def tau_last_solution(self):
         # get filename of surface solution from para file
-        Para   = PyPara.Parafile(self.jcl.aero['para_path']+'para')
+        Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))
         filename_surface = self.jcl.aero['para_path'] + Para.get_para_value('Surface output filename')
         self.pytau_close()
         # get filename of surface solution via pytau
@@ -622,8 +636,8 @@ class cfd_steady(common):
         # --------------------   
         # --- aerodynamics ---   
         # --------------------
-        self.tau_prepare(Uf, Ux2, alpha)
-        self.tau_update_para()
+        self.tau_update_para(X[6:12])
+        self.tau_prepare_meshdefo(Uf, Ux2)
         self.tau_run()
         Pk_cfd = self.tau_last_solution()
         
