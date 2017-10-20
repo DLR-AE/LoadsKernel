@@ -211,17 +211,17 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
             aux_out.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
             aux_out.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
             
-         print '--> Drawing some plots.'  
-         plt = plotting.plotting(jcl, model, responses)
-         if 't_final' and 'dt' in jcl.simcase[0].keys():
-             # nur sim
-             plt.plot_time_data()
-             #plt.make_animation()
-             #plt.make_movie(path_output, speedup_factor=1.0)
-         else:
-             # nur trim
-             plt.plot_pressure_distribution()
-             plt.plot_forces_deformation_interactive() 
+        print '--> Drawing some plots.'  
+        plt = plotting.plotting(jcl, model, responses)
+        if 't_final' and 'dt' in jcl.simcase[0].keys():
+            # nur sim
+            plt.plot_time_data()
+            #plt.make_animation()
+            #plt.make_movie(path_output, speedup_factor=1.0)
+        else:
+            # nur trim
+            plt.plot_pressure_distribution()
+            plt.plot_forces_deformation_interactive() 
         
     if test:
         if not 'model' in locals():
