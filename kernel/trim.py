@@ -7,6 +7,7 @@ Created on Thu Nov 27 15:35:22 2014
 import numpy as np
 import scipy.optimize as so
 import logging, sys, copy
+import io_functions
 
 class trim:
     def __init__(self, model, jcl, trimcase, simcase):
@@ -406,6 +407,7 @@ class trim:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
         if self.jcl.aero['method'] in [ 'cfd_steady']:
             equations = model_equations.cfd_steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+            io_functions.specific_functions.copy_para_file(io_functions.specific_functions(),self.jcl, self.trimcase)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
