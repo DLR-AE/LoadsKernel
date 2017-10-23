@@ -524,9 +524,9 @@ class common():
                      'Polynomial coefficients for translation x': '0 {}'.format(uvwpqr[0]),
                      'Polynomial coefficients for translation y': '0 {}'.format(uvwpqr[1]),
                      'Polynomial coefficients for translation z': '0 {}'.format(uvwpqr[2]),
-                     'Polynomial coefficients for rotation roll': '0 {}'.format(uvwpqr[3]),
-                     'Polynomial coefficients for rotation pitch':'0 {}'.format(uvwpqr[4]),
-                     'Polynomial coefficients for rotation yaw':  '0 {}'.format(uvwpqr[5]),
+                     'Polynomial coefficients for rotation roll': '0 {}'.format(uvwpqr[3]/np.pi*180.0),
+                     'Polynomial coefficients for rotation pitch':'0 {}'.format(uvwpqr[4]/np.pi*180.0),
+                     'Polynomial coefficients for rotation yaw':  '0 {}'.format(uvwpqr[5]/np.pi*180.0),
                      }
         Para.update(para_dict, 'mdf end', 0,)
         logging.info("Parameters updated.")
