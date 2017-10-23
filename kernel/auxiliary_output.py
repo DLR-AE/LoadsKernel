@@ -56,6 +56,7 @@ class auxiliary_output:
         with open(filename_csv, 'wb') as fid:
             w = csv.DictWriter(fid, crit_trimcases_info[0].keys())
             w.writeheader()
+            w = csv.DictWriter(fid, crit_trimcases_info[0].keys(), quotechar="'", quoting=csv.QUOTE_NONNUMERIC )
             w.writerows(crit_trimcases_info)
         return
     
