@@ -1366,47 +1366,109 @@ class steady(common):
         # this is a wrapper for the model equations 'eqn_basic'
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
         n_modes = self.model.mass['n_modes'][i_mass]
-        if type in ['trim']:
-            # get inputs from trimcond and apply inputs from fsolve 
-            X = np.array(self.trimcond_X[:,2], dtype='float')
-            X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
-            #print X_free
-            converged = False
-            while not converged:
-                response = self.equations(X, time, 'trim_full_output')
-                Uf_new = linalg.solve(self.Kff, response['Pf'])
-                #Pf = np.dot(self.PHIkf.T, response['Pk_aero'])
-                #d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
-    
-                # recover Uf_old from last step and blend with Uf_now
-                f_relax = 1.0
-                Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(n_modes)]
-                Uf_old = np.array(Uf_old, dtype='float')
-                Uf_new = Uf_new*f_relax + Uf_old*(1.0-f_relax)
+        
+        # get inputs from trimcond and apply inputs from fsolve 
+        X = np.array(self.trimcond_X[:,2], dtype='float')
+        X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
+        logging.info('X_free: {}'.format(X_free))
+        converged = False
+        while not converged:
+            response = self.equations(X, time, 'trim_full_output')
+            Uf_new = linalg.solve(self.Kff, response['Pf'])
+            #Pf = np.dot(self.PHIkf.T, response['Pk_aero'])
+            #d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
 
-                # set new values for Uf in trimcond for next loop
-                for i_mode in range(n_modes):
-                    self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] = '{:g}'.format(Uf_new[i_mode])
+            # recover Uf_old from last step and blend with Uf_now
+            f_relax = 1.0
+            Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(n_modes)]
+            Uf_old = np.array(Uf_old, dtype='float')
+            Uf_new = Uf_new*f_relax + Uf_old*(1.0-f_relax)
+
+            # set new values for Uf in trimcond for next loop and store in response
+            for i_mode in range(n_modes):
+                self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] = '{:g}'.format(Uf_new[i_mode])
+                response['X'][12+i_mode] = Uf_new[i_mode]
+            
+            # convergence parameter for iterative evaluation  
+            Ug_f_body = np.dot(self.PHIf_strc.T, Uf_new.T).T
+            defo_new = Ug_f_body[self.model.strcgrid['set'][:,(0,1,2)]].max() # Groesste Verformung, meistens Fluegelspitze
+            #defo_new = Ug_f_body.sum() # Summe ueber alle Verformungen
+            ddefo = defo_new - self.defo_old
+            self.defo_old = np.copy(defo_new)
+            if np.abs(ddefo) < 1.0e-6:
+                converged = True
+                logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}, converged.'.format(self.counter, defo_new, ddefo))
+            else:
+                logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}'.format(self.counter, defo_new, ddefo))
                 
-                # convergence parameter for iterative evaluation  
-                Ug_f_body = np.dot(self.PHIf_strc.T, Uf_new.T).T
-                #defo_new = Ug_f_body[self.model.strcgrid['set'][:,2]].max() # Groesste Verformung, Fluegelspitze
-                defo_new = Ug_f_body.sum() # Summe ueber alle Verformungen
-                ddefo = defo_new - self.defo_old
-                self.defo_old = np.copy(defo_new)
-                if ddefo < 1.0e-9:
-                    converged = True
-                    logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, converged.'.format(self.counter, defo_new))
-                else:
-                    logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}'.format(self.counter, defo_new))
-                    
-            # get the current values from Y and substract tamlab.figure()
-            # fsolve only finds the roots; Y = 0
-            Y_target_ist = response['Y'][np.where((self.trimcond_Y[:,1] == 'target'))[0]]
-            Y_target_soll = np.array(self.trimcond_Y[:,2], dtype='float')[np.where((self.trimcond_Y[:,1] == 'target'))[0]]
-            out = Y_target_ist - Y_target_soll
-
+        # get the current values from Y and substract tamlab.figure()
+        # fsolve only finds the roots; Y = 0
+        Y_target_ist = response['Y'][np.where((self.trimcond_Y[:,1] == 'target'))[0]]
+        Y_target_soll = np.array(self.trimcond_Y[:,2], dtype='float')[np.where((self.trimcond_Y[:,1] == 'target'))[0]]
+        out = Y_target_ist - Y_target_soll
+        
+        if type in ['trim']:
             return out
+        elif type=='trim_full_output':
+            # do something with this output, e.g. plotting, animations, saving, etc.            
+            logging.info('')        
+            logging.info('X: ')
+            logging.info('--------------------')
+            for i_X in range(len(response['X'])):
+                logging.info(self.trimcond_X[:,0][i_X] + ': %.4f' % float(response['X'][i_X]))
+            logging.info('Y: ')
+            logging.info('--------------------')
+            for i_Y in range(len(response['Y'])):
+                logging.info(self.trimcond_Y[:,0][i_Y] + ': %.4f' % float(response['Y'][i_Y]))
+
+            Pmac_rbm  = np.dot(self.model.Dkx1.T, response['Pk_rbm'])
+            Pmac_cam  = np.dot(self.model.Dkx1.T, response['Pk_cam'])
+            Pmac_cs   = np.dot(self.model.Dkx1.T, response['Pk_cs'])
+            Pmac_f    = np.dot(self.model.Dkx1.T, response['Pk_f'])
+            Pmac_idrag = np.dot(self.model.Dkx1.T, response['Pk_idrag'])
+            
+            A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
+            AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
+            Pmac_c = response['Pmac']/response['q_dyn']/A
+            # um alpha drehen, um Cl und Cd zu erhalten
+            Cl = Pmac_c[2]*np.cos(response['alpha'])+Pmac_c[0]*np.sin(response['alpha'])
+            Cd = Pmac_c[2]*np.sin(response['alpha'])+Pmac_c[0]*np.cos(response['alpha'])
+            Cd_ind_theo = Cl**2.0/np.pi/AR
+            logging.info('')
+            logging.info('--------------------')
+            logging.info('q_dyn: %.4f [Pa]' % float(response['q_dyn']))
+            logging.info('--------------------')
+            logging.info('aero derivatives:')
+            logging.info('--------------------')
+            logging.info('Cz_rbm: %.4f' % float(Pmac_rbm[2]/response['q_dyn']/A))
+            logging.info('Cz_cam: %.4f' % float(Pmac_cam[2]/response['q_dyn']/A))
+            logging.info('Cz_cs: %.4f' % float(Pmac_cs[2]/response['q_dyn']/A))
+            logging.info('Cz_f: %.4f' % float(Pmac_f[2]/response['q_dyn']/A))
+            logging.info('--------------')
+            logging.info('Cx: %.4f' % float(Pmac_c[0]))
+            logging.info('Cy: %.4f' % float(Pmac_c[1]))
+            logging.info('Cz: %.4f' % float(Pmac_c[2]))
+            logging.info('Cmx: %.6f' % float(Pmac_c[3]/self.model.macgrid['b_ref']))
+            logging.info('Cmy: %.6f' % float(Pmac_c[4]/self.model.macgrid['c_ref']))
+            logging.info('Cmz: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']))
+            #logging.info('dCmz_dbeta: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']/response['beta'])
+            logging.info('alpha: %.4f [deg]' % float(response['alpha']/np.pi*180))
+            logging.info('beta: %.4f [deg]' % float(response['beta']/np.pi*180))
+            logging.info('Cd: %.4f' % float(Cd))
+            logging.info('Cl: %.4f' % float(Cl))
+            logging.info('Cd_ind: %.6f' % float(Pmac_idrag[0]/response['q_dyn']/A))
+            logging.info('Cmz_ind: %.6f' % float(Pmac_idrag[5]/response['q_dyn']/A/self.model.macgrid['b_ref']))
+            #logging.info('e: %.4f' % float(Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn']/A)))
+            logging.info('command_xi: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])/np.pi*180.0 ))
+            logging.info('command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 ))
+            logging.info('command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 ))
+            logging.info('CS deflections [deg]: ' + str(response['Ux2']/np.pi*180))
+            #logging.info('dCz_da: %.4f' % float(Pmac_c[2]/response['alpha']))
+            #logging.info('dCmy_da: %.4f' % float(Pmac_c[4]/self.model.macgrid['c_ref']/response['alpha']))
+            #logging.info('dCmz_db: %.4f' % float(Pmac_c[4]/self.model.macgrid['b_ref']/response['beta']))
+            logging.info('--------------------')
+            
+            return response
         
 class unsteady(common):
 
