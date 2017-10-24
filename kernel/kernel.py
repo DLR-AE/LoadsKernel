@@ -87,10 +87,13 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
     if main_single:
         if not 'model' in locals():
             model = io.load_model(job_name, path_output)
-        
         logging.info( '--> Starting Main in deprecated test-mode (!!!) for %d trimcase(s).' % len(jcl.trimcase))
         t_start = time.time()
         mon = monstations_module.monstations(jcl, model)
+        restart = True
+        if restart:
+            logging.info('Restart option: loading existing responses.')
+            responses = io.load_responses(job_name, path_output)
         f = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
         for i in range(len(jcl.trimcase)):
             logging.info( '')
@@ -99,27 +102,33 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
             logging.info( 'subcase: ' + str(jcl.trimcase[i]['subcase']))
             logging.info( '(case ' +  str(i+1) + ' of ' + str(len(jcl.trimcase)) + ')')
             logging.info( '========================================')
-            
-            trim_i = trim.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
-            trim_i.set_trimcond()
-            #trim_i.calc_derivatives()
-            #trim_i.exec_trim()
-            trim_i.iterative_trim()
-            if 't_final' and 'dt' in jcl.simcase[i].keys():
-                trim_i.exec_sim()
-            post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
-            post_processing_i.force_summation_method()
-            post_processing_i.euler_transformation()
-            post_processing_i.cuttingforces()
-            mon.gather_monstations(jcl.trimcase[i], trim_i.response)
-            if 't_final' and 'dt' in jcl.simcase[i].keys():
-                mon.gather_dyn2stat(i, trim_i.response)
-            trim_i.response['i'] = i
+            if restart and i in [response['i'] for response in responses]:
+                logging.info('Restart option: found existing response.')
+                response = responses[[response['i'] for response in responses].index(i)]
+            else:
+                trim_i = trim.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+                trim_i.set_trimcond()
+                #trim_i.calc_derivatives()
+                #trim_i.exec_trim()
+                trim_i.iterative_trim()
+                if trim_i.response != None and 't_final' and 'dt' in jcl.simcase[i].keys():
+                    trim_i.exec_sim()
+                response = trim_i.response
+                del trim_i
+            if response != None:
+                post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], response)
+                post_processing_i.force_summation_method()
+                post_processing_i.euler_transformation()
+                post_processing_i.cuttingforces()
+                mon.gather_monstations(jcl.trimcase[i], response)
+                if 't_final' and 'dt' in jcl.simcase[i].keys():
+                    mon.gather_dyn2stat(i, response)
+                response['i'] = i
+                del post_processing_i
             logging.info( '--> Saving response(s).')
-            io.dump_pickle(trim_i.response, f)
+            io.dump_pickle(response, f)
             #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
-            #    io_matlab.save_mat(f2, trim_i.response)
-            del trim_i, post_processing_i
+            #    io_matlab.save_mat(f2, response)
         f.close() # close response
         
         logging.info( '--> Saving monstation(s).')
