@@ -405,7 +405,7 @@ class trim:
         import model_equations # Warum muss der import hier stehen??
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
-        if self.jcl.aero['method'] in [ 'cfd_steady']:
+        elif self.jcl.aero['method'] in [ 'cfd_steady']:
             equations = model_equations.cfd_steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
             io_functions.specific_functions.copy_para_file(io_functions.specific_functions(),self.jcl, self.trimcase)
         else:
