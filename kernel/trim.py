@@ -321,19 +321,14 @@ class trim:
             logging.info(msg)
             logging.info('function evaluations: ' + str(info['nfev']))
             
-            # if trim was successful, then do one last evaluation with the final parameters.
+            # no errors, check trim status for success
             if status == 1:
-#                 logging.info('')
-#                 logging.info('Trimsolution: ')
-#                 logging.info('--------------------')
-#                 for i_X in range(len(X_free)):
-#                     logging.info(self.trimcond_X[:,0][np.where((self.trimcond_X[:,1] == 'free'))[0]][i_X] + ': %.4f' % float(X_free[i_X]))
-                    
-                self.response = equations.eval_equations(X_free, time=0.0, type='trim_full_output')
+                # if trim was successful, then do one last evaluation with the final parameters.
+                self.response = equations.eval_equations_iteratively(X_free, time=0.0, type='trim_full_output')
             else:
                 self.response = None
-                logging.warning('Failure: ' + msg)
-                # store response
+                logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'] + msg))
+                return
             
 
         
@@ -429,15 +424,26 @@ class trim:
             self.response = equations.eval_equations(X_free_0, time=0.0, type='trim_full_output')
         else:
             logging.info('running trim for ' + str(len(X_free_0)) + ' variables...')
-            X_free, info, status, msg= so.fsolve(equations.eval_equations_iteratively, X_free_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-3, xtol=1.0e-4 )
-            logging.info(msg)
-            logging.info('function evaluations: ' + str(info['nfev']))
-        
-            # if trim was successful, then do one last evaluation with the final parameters.
-            if status == 1:
-                self.response = equations.eval_equations_iteratively(X_free, time=0.0, type='trim_full_output')
-            else:
+            try:
+                X_free, info, status, msg= so.fsolve(equations.eval_equations_iteratively, X_free_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-3, xtol=1.0e-3 )
+            except model_equations.TauError as e:
                 self.response = None
-                logging.warning('Failure: ' + msg)
-                # store response
+                logging.warning('Trim failed for subcase {} due to TauError: {}'.format(self.trimcase['subcase'], e))
+                return
+            except model_equations.ConvergenceError as e:
+                self.response = None
+                logging.warning('Trim failed for subcase {} due to ConvergenceError: {}'.format(self.trimcase['subcase'], e))
+                return
+            else:
+                logging.info(msg)
+                logging.info('function evaluations: ' + str(info['nfev']))
+            
+                # no errors, check trim status for success
+                if status == 1:
+                    # if trim was successful, then do one last evaluation with the final parameters.
+                    self.response = equations.eval_equations_iteratively(X_free, time=0.0, type='trim_full_output')
+                else:
+                    self.response = None
+                    logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'] + msg))
+                    return
        

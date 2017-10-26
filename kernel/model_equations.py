@@ -538,7 +538,7 @@ class common():
         tau_close()
         
     def tau_run(self):
-        logging.info('Starting Tau deformation, precorcessing and solver.' )
+        logging.info('Starting Tau deformation, preprocessing and solver.' )
         old_dir = os.getcwd()
         os.chdir(self.jcl.aero['para_path'])
 
@@ -548,12 +548,19 @@ class common():
         args_solve    = shlex.split('mpirun -n {} ptau3d.{} para_subcase_{} ./log/log with mpi'.format(self.jcl.aero['tau_cores'], self.jcl.aero['tau_solver'], self.trimcase['subcase']))
         
         #subprocess.call(args_subgrids)
-        subprocess.call(args_deform)
-        subprocess.call(args_pre)
-        subprocess.call(args_solve)
-                        
-        os.chdir(old_dir)
+        returncode = subprocess.call(args_deform)
+        if returncode != 0: 
+            raise TauError('Subprocess returned an error from Tau deformation, please see deformation.stdout !')          
+        returncode = subprocess.call(args_pre)
+        if returncode != 0:
+            raise TauError('Subprocess returned an error from Tau preprocessing, please see preprocessing.stdout !')
+        returncode = subprocess.call(args_solve)
+        if returncode != 0:
+            raise TauError('Subprocess returned an error from Tau solver, please see solver.stdout !')
+
         logging.info("Tau finished.")
+        os.chdir(old_dir)
+        
         
     def tau_last_solution(self):
         # get filename of surface solution from para file
@@ -604,7 +611,12 @@ class common():
 #         mlab.title('Pk_cfd', size=0.2, height=0.95)
         logging.info("Forces and moments transferred.")
         return Pk_cfd
-
+    
+class TauError(Exception):
+    '''Raise when subprocess yields a returncode != 0 from Tau'''
+class ConvergenceError(Exception):
+    '''Raise when structural deformation does not converge after xx loops'''
+  
 class cfd_steady(common):
 
     def equations(self, X, t, type):
@@ -774,7 +786,9 @@ class cfd_steady(common):
         X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
         logging.info('X_free: {}'.format(X_free))
         converged = False
+        inner_loops = 0
         while not converged:
+            inner_loops += 1
             response = self.equations(X, time, 'trim_full_output')
             Uf_new = linalg.solve(self.Kff, response['Pf'])
             #Pf = np.dot(self.PHIkf.T, response['Pk_aero'])
@@ -802,7 +816,8 @@ class cfd_steady(common):
                 logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}, converged.'.format(self.counter, defo_new, ddefo))
             else:
                 logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}'.format(self.counter, defo_new, ddefo))
-                
+            if inner_loops > 9:
+                raise ConvergenceError('No convergence of structural deformation achieved after {} inner loops. Check convergence of Tau solution and/or convergence criterion "ddefo".'.format(inner_loops))
         # get the current values from Y and substract tamlab.figure()
         # fsolve only finds the roots; Y = 0
         Y_target_ist = response['Y'][np.where((self.trimcond_Y[:,1] == 'target'))[0]]
