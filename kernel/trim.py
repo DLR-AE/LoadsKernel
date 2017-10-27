@@ -109,32 +109,32 @@ class trim:
         # ---------------------
         # --- level landing --- 
         # ---------------------
-        # to be controlled before use due to new coordinate system for rbm
-#         elif self.trimcase['manoeuver'] in ['L1wheel', 'L2wheel']:
-#             logging.info('setting trim conditions to "level landing"')
-#             # inputs
-#             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
-#             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],1] = 'fix'
-#             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],2] = self.trimcase['w']
-#             # outputs
-#             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
-#             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dw'))[0][0],1] = 'fix'
-#             
-#         # -----------------------
-#         # --- 3 wheel landing --- 
-#         # -----------------------
-#         elif self.trimcase['manoeuver'] in ['L3wheel']:
-#             logging.info('setting trim conditions to "3 wheel landing"')
-#             # inputs
-#             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
-#             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],1] = 'fix'
-#             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'w'))[0][0],2] = self.trimcase['w']
-#             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'theta'))[0][0],1] = 'fix'
-#             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'theta'))[0][0],2] = self.trimcase['theta']
-#             # outputs
-#             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
-#             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dw'))[0][0],1] = 'fix'
-#             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'Nz'))[0][0],1] = 'free'
+        elif self.trimcase['manoeuver'] in ['L1wheel', 'L2wheel']:
+            logging.info('setting trim conditions to "level landing"')
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dx'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dz'))[0][0],2] = self.trimcase['dz']
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'Vtas'))[0][0],1] = 'target'
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+             
+        # -----------------------
+        # --- 3 wheel landing --- 
+        # -----------------------
+        elif self.trimcase['manoeuver'] in ['L3wheel']:
+            logging.info('setting trim conditions to "3 wheel landing"')
+            # inputs
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dx'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dz'))[0][0],2] = self.trimcase['dz']
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'Vtas'))[0][0],1] = 'target'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'theta'))[0][0],1] = 'target'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'theta'))[0][0],2] = self.trimcase['theta']
+            # outputs
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dr'))[0][0],1] = 'free'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'Nz'))[0][0],1] = 'free'
             
         # ------------------
         # --- segelflug --- 
@@ -324,7 +324,7 @@ class trim:
             # no errors, check trim status for success
             if status == 1:
                 # if trim was successful, then do one last evaluation with the final parameters.
-                self.response = equations.eval_equations_iteratively(X_free, time=0.0, type='trim_full_output')
+                self.response = equations.eval_equations(X_free, time=0.0, type='trim_full_output')
             else:
                 self.response = None
                 logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'] + msg))
@@ -391,9 +391,9 @@ class trim:
                     self.response[key] = np.vstack((self.response[key],response_step[key]))
 
         else:
-            self.response['t'] = None
+            self.response = None
             logging.error('Integration failed! Exit.')
-            sys.exit()
+            #sys.exit()
             
             
     def iterative_trim(self):
