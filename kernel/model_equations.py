@@ -397,7 +397,7 @@ class common():
             Pmac[0] = q_dyn*self.jcl.general['A_ref'] * (Cd0 + Cd_alpha_sq*alpha**2.0)
         return Pmac    
     
-    def landinggear(self, X, Tgeo2body):
+    def landinggear(self, X, Tbody2geo):
         Plg = np.zeros(self.model.lggrid['n']*6)
         F1 = []
         F2 = []
@@ -410,8 +410,9 @@ class common():
             PHIlg_cg = self.model.mass['PHIlg_cg'][self.i_mass]
             PHIf_lg = self.model.mass['PHIf_lg'][self.i_mass]
             PHIlg_cg = self.model.mass['PHIlg_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
-            p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])) + PHIf_lg.T.dot(X[12:12+self.n_modes])                 )[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
-            dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12])) + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
+            p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])))[self.model.lggrid['set'][:,2]] #+ PHIf_lg.T.dot(X[12:12+self.n_modes]))[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
+            dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12]))))[self.model.lggrid['set'][:,2]] # + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
+            #ddp1 = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, Y[6:12]))))[self.model.lggrid['set'][:,2]] # + PHIf_lg.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
             p2  = X[12+self.n_modes*2+3:12+self.n_modes*2+3+self.model.lggrid['n']]  # position Tire center over ground
             dp2 = X[12+self.n_modes*2+3+self.model.lggrid['n']:12+self.n_modes*2+3+self.model.lggrid['n']*2] # velocity Tire center
             # loop over every landing gear
@@ -1237,9 +1238,9 @@ class steady(common):
             if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
                 PHIlg_cg = self.model.mass['PHIlg_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
                 PHIf_lg = self.model.mass['PHIf_lg'][self.model.mass['key'].index(self.trimcase['mass'])]
-                p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])) + PHIf_lg.T.dot(X[12:12+self.n_modes])                 )[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
-                dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12])) + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
-                ddp1 = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, Y[6:12])) + PHIf_lg.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
+                p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])))[self.model.lggrid['set'][:,2]] #+ PHIf_lg.T.dot(X[12:12+self.n_modes]))[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
+                dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12]))))[self.model.lggrid['set'][:,2]] # + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
+                ddp1 = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, Y[6:12]))))[self.model.lggrid['set'][:,2]] # + PHIf_lg.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
                 Plg  = np.zeros(self.model.lggrid['n']*6)
                 F1   = np.zeros(self.model.lggrid['n']) 
                 F2   = np.zeros(self.model.lggrid['n']) 
@@ -1714,7 +1715,7 @@ class landing(common):
         # -------------------- 
         # --- landing gear ---   
         # --------------------
-        Plg, p2, dp2, ddp2, F1, F2 = self.landinggear(X, Tgeo2body)
+        Plg, p2, dp2, ddp2, F1, F2 = self.landinggear(X, Tbody2geo)
         
         # ---------------------------   
         # --- summation of forces ---   
@@ -1773,9 +1774,9 @@ class landing(common):
         elif type in ['trim_full_output', 'sim_full_output']:
             # calculate translations, velocities and accelerations of some additional points
             # (might also be used for sensors in a closed-loop system
-            p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])) + PHIf_lg.T.dot(X[12:12+self.n_modes])               )[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
-            dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12])) + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
-            ddp1 = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, Y[6:12])) + PHIf_lg.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
+            p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])))[self.model.lggrid['set'][:,2]] #+ PHIf_lg.T.dot(X[12:12+self.n_modes]))[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
+            dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12]))))[self.model.lggrid['set'][:,2]] # + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
+            ddp1 = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, Y[6:12]))))[self.model.lggrid['set'][:,2]] # + PHIf_lg.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
 
             response = {'X': X, 
                         'Y': Y,

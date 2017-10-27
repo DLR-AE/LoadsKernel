@@ -362,7 +362,9 @@ class plotting:
         
     def plot_time_data(self):
         for i_simcase in range(len(self.jcl.simcase)):
-            trimcase = self.jcl.trimcase[i_simcase]
+            trimcase    = self.jcl.trimcase[i_simcase]
+            i_mass      = self.model.mass['key'].index(trimcase['mass'])
+            n_modes     = self.model.mass['n_modes'][i_mass] 
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
             Pb_gust = []
             Pb_unsteady = []
@@ -385,29 +387,29 @@ class plotting:
             plt.grid('on')
             plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_aero', 'Pb_aero-unsteady'])
             
-#             plt.figure()
-#             plt.subplot(3,1,1)
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['p1'])
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,95:98], '--')
-#             plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
-#             plt.xlabel('t [s]')
-#             plt.ylabel('p1,2 [m]')
-#             plt.grid('on')
-#             plt.subplot(3,1,2)
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F1'])
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F2'], '--')
-#             plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
-#             plt.xlabel('t [s]')
-#             plt.ylabel('F1,2 [N]')
-#             plt.grid('on')
-#              
-#             plt.subplot(3,1,3)
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dp1'])
-#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,98:101], '--')
-#             plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
-#             plt.xlabel('t [s]')
-#             plt.ylabel('dp1,2 [m/s]')
-#             plt.grid('on')
+            plt.figure(6)
+            plt.subplot(3,1,1)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['p1'])
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,12+n_modes*2+3:12+n_modes*2+3+self.model.lggrid['n']], '--')
+            plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
+            plt.xlabel('t [s]')
+            plt.ylabel('p1,2 [m]')
+            plt.grid('on')
+            plt.subplot(3,1,2)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F1'])
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F2'], '--')
+            plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
+            plt.xlabel('t [s]')
+            plt.ylabel('F1,2 [N]')
+            plt.grid('on')
+              
+            plt.subplot(3,1,3)
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dp1'])
+            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,12+n_modes*2+3+self.model.lggrid['n']:12+n_modes*2+3+self.model.lggrid['n']*2], '--')
+            plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
+            plt.xlabel('t [s]')
+            plt.ylabel('dp1,2 [m/s]')
+            plt.grid('on')
         
             plt.figure(2)
             plt.subplot(2,1,1)
@@ -704,7 +706,7 @@ class plotting:
 #         self.color_scalar = response['Pk_aero'][:,grid['set'+set][:,2]]
         
         # get forces
-        names = ['Pg_aero_global', 'Pg_iner_global',]# 'Pg_idrag_global', 'Pg_cs_global']
+        names = ['Pg_aero_global', 'Pg_iner_global', 'Pg_ext_global']# 'Pg_idrag_global', 'Pg_cs_global']
         colors = [(1,0,0), (0,1,1), (0,0,0), (0,0,1)] # red, cyan, black, blue
         for name in names:
             calc_vector_data(self, grid=grid, set=set, name=name)
@@ -734,10 +736,10 @@ class plotting:
         mlab.orientation_axes()
         
         # get earth
-        with open('harz.pickle', 'r') as f:  
-            (x,y,elev) = cPickle.load(f)
-        # plot earth, scale colormap
-        surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
+#         with open('harz.pickle', 'r') as f:  
+#             (x,y,elev) = cPickle.load(f)
+#         # plot earth, scale colormap
+#         surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
         
         #mlab.view(azimuth=180.0, elevation=90.0, roll=-90.0, distance=70.0, focalpoint=np.array([self.x.mean(),self.y.mean(),self.z.mean()])) # back view
         distance = 3.5*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5

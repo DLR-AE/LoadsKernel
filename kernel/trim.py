@@ -349,7 +349,7 @@ class trim:
                 lg_states_X.append(self.response['dp1'][i])
                 lg_states_Y.append(self.response['ddp1'][i])
             self.response['X'] = np.hstack((self.response['X'], lg_states_X ))
-            self.response['Y'] = np.hstack((self.response['Y'], lg_states_Y ))
+            self.response['Y'] = np.hstack((self.response['Y'][:-2], lg_states_Y, self.response['Y'][-2:] ))
             equations = model_equations.landing(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase, X0=self.response['X'])
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             if 'disturbance' in self.simcase.keys():
