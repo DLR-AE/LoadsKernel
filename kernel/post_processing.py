@@ -128,10 +128,16 @@ class post_processing:
                 coord_tmp['ID'].append(1000000)
                 coord_tmp['RID'].append(0)
                 coord_tmp['dircos'].append(PHIcg_norm[0:3,0:3].dot(calc_drehmatrix(response['X'][i_step,:][3], response['X'][i_step,:][4], response['X'][i_step,:][5])))
-                coord_tmp['offset'].append(response['X'][i_step,:][0:3] + np.array([0., 0., 0.,]))#self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
-
+                coord_tmp['offset'].append(response['X'][i_step,:][0:3])#self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
+                
+                coord_tmp['ID'].append(1000001)
+                coord_tmp['RID'].append(0)
+                coord_tmp['dircos'].append(np.eye(3))
+                coord_tmp['offset'].append(-self.model.mass['cggrid'][i_mass]['offset'][0])
+                
                 # apply transformation to strcgrid
                 strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
+                strcgrid_tmp['CP'] = np.repeat(1000001, self.model.strcgrid['n'])
                 grid_trafo(strcgrid_tmp, coord_tmp, 1000000)
                 response['Ug_r'][i_step,self.model.strcgrid['set'][:,0]] = strcgrid_tmp['offset'][:,0] - self.model.strcgrid['offset'][:,0]
                 response['Ug_r'][i_step,self.model.strcgrid['set'][:,1]] = strcgrid_tmp['offset'][:,1] - self.model.strcgrid['offset'][:,1]
@@ -161,9 +167,16 @@ class post_processing:
             coord_tmp['ID'].append(1000000)
             coord_tmp['RID'].append(0)
             coord_tmp['dircos'].append(PHIcg_norm[0:3,0:3].dot(calc_drehmatrix(response['X'][3], response['X'][4], response['X'][5])))
-            coord_tmp['offset'].append(response['X'][0:3] + np.array([0., 0., 0.,]))# self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
+            coord_tmp['offset'].append(response['X'][0:3]) # self.model.atmo['h'][i_atmo]])) # correction of height to zero to allow plotting in one diagram]))
+            
+            coord_tmp['ID'].append(1000001)
+            coord_tmp['RID'].append(0)
+            coord_tmp['dircos'].append(np.eye(3))
+            coord_tmp['offset'].append(-self.model.mass['cggrid'][i_mass]['offset'][0])
+            
             # apply transformation to strcgrid
             strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
+            strcgrid_tmp['CP'] = np.repeat(1000001, self.model.strcgrid['n'])
             grid_trafo(strcgrid_tmp, coord_tmp, 1000000)
             response['Ug_r'] = np.zeros(response['Pg'].shape)
             response['Ug_r'][self.model.strcgrid['set'][:,0]] = strcgrid_tmp['offset'][:,0] - self.model.strcgrid['offset'][:,0]
