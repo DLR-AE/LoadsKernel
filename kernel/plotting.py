@@ -687,7 +687,11 @@ class plotting:
             
         def update_text_display(self, t):
             self.scr_text.text = 't = ' + str(t) + 's'
-
+        
+        def setup_runway(self, length, width, elevation):
+            x, y = np.mgrid[0:length,-width/2.0:width/2.0+1]
+            elev = np.ones(x.shape)*elevation
+            mlab.surf(x, y, elev, warp_scale=1.0, color=(0.9,0.9,0.9))
         # --------------
         # configure plot 
         #---------------
@@ -740,6 +744,7 @@ class plotting:
 #             (x,y,elev) = cPickle.load(f)
 #         # plot earth, scale colormap
 #         surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
+        setup_runway(self, length=1000.0, width=15.0, elevation=0.0)
         
         #mlab.view(azimuth=180.0, elevation=90.0, roll=-90.0, distance=70.0, focalpoint=np.array([self.x.mean(),self.y.mean(),self.z.mean()])) # back view
         distance = 3.5*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5
