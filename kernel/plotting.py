@@ -45,7 +45,7 @@ class plotting:
             self.potatos_Fz_My = ['MON4', 'MON5']
 #             self.potatos_Fz_Mx = []
 #             self.potatos_Mx_My = []
-#             self.potatos_Fz_My = ['MON81', 'MON82', 'MON83']
+#             self.potatos_Fz_My = ['MON4', 'MON5', 'MON81', 'MON82', 'MON83']
             self.cuttingforces_wing = ['MON10', 'MON1', 'MON2', 'MON3', 'MON33', 'MON8']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.03 # points
@@ -387,29 +387,29 @@ class plotting:
             plt.grid('on')
             plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_aero', 'Pb_aero-unsteady'])
             
-            plt.figure(6)
-            plt.subplot(3,1,1)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['p1'])
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,12+n_modes*2+3:12+n_modes*2+3+self.model.lggrid['n']], '--')
-            plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
-            plt.xlabel('t [s]')
-            plt.ylabel('p1,2 [m]')
-            plt.grid('on')
-            plt.subplot(3,1,2)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F1'])
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F2'], '--')
-            plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
-            plt.xlabel('t [s]')
-            plt.ylabel('F1,2 [N]')
-            plt.grid('on')
-              
-            plt.subplot(3,1,3)
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dp1'])
-            plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,12+n_modes*2+3+self.model.lggrid['n']:12+n_modes*2+3+self.model.lggrid['n']*2], '--')
-            plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
-            plt.xlabel('t [s]')
-            plt.ylabel('dp1,2 [m/s]')
-            plt.grid('on')
+#             plt.figure(6)
+#             plt.subplot(3,1,1)
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['p1'])
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,12+n_modes*2+3:12+n_modes*2+3+self.model.lggrid['n']], '--')
+#             plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
+#             plt.xlabel('t [s]')
+#             plt.ylabel('p1,2 [m]')
+#             plt.grid('on')
+#             plt.subplot(3,1,2)
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F1'])
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['F2'], '--')
+#             plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
+#             plt.xlabel('t [s]')
+#             plt.ylabel('F1,2 [N]')
+#             plt.grid('on')
+#               
+#             plt.subplot(3,1,3)
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['dp1'])
+#             plt.plot(self.response[i_simcase]['t'], self.response[i_simcase]['X'][:,12+n_modes*2+3+self.model.lggrid['n']:12+n_modes*2+3+self.model.lggrid['n']*2], '--')
+#             plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
+#             plt.xlabel('t [s]')
+#             plt.ylabel('dp1,2 [m/s]')
+#             plt.grid('on')
         
             plt.figure(2)
             plt.subplot(2,1,1)
@@ -488,40 +488,6 @@ class plotting:
         # show time plots
         plt.show()
    
-    def plot_cs_signal(self):
-        from efcs import discus2c
-        discus2c = discus2c()
-        discus2c.cs_signal_init(self.jcl.trimcase[0]['desc'])
-        line0 = np.argmin(np.abs(discus2c.data[:,0] - discus2c.tstart))
-        line1 = np.argmin(np.abs(discus2c.data[:,0] - discus2c.tstart - self.jcl.simcase[0]['t_final']))
-        
-        i_mass     = self.model.mass['key'].index(self.jcl.trimcase[0]['mass'])
-        n_modes    = self.model.mass['n_modes'][i_mass] 
-        
-        cs_states = []
-        for i_step in range(len(self.response[0]['t'])):
-            cs_states.append(self.response[0]['X'][i_step, 12+n_modes*2:12+n_modes*2+3])
-        cs_states = np.array(cs_states)/np.pi*180.0
-        
-        plt.figure()
-        plt.subplot(2,1,1)
-        plt.plot(discus2c.data[line0:line1,0], discus2c.data[line0:line1,(1,2)]/np.pi*180.0, 'r')
-        plt.plot(discus2c.data[line0:line1,0], discus2c.data[line0:line1,3]/np.pi*180.0, 'c')
-        plt.plot(discus2c.data[line0:line1,0], discus2c.data[line0:line1,4]/np.pi*180.0, 'b')
-        plt.xlabel('t [sec]')
-        plt.ylabel('[deg]')
-        plt.grid('on')
-        plt.title('CS Measurement Signals')
-        plt.legend(['xi_l_corr', 'xi_r_corr', 'eta_corr', 'zeta_corr'])
-        plt.subplot(2,1,2)
-        plt.plot(self.response[0]['t'], cs_states[:,0], 'r')
-        plt.plot(self.response[0]['t'], cs_states[:,1], 'c')
-        plt.plot(self.response[0]['t'], cs_states[:,2], 'b')
-        plt.xlabel('t [sec]')
-        plt.ylabel('[deg]')
-        plt.grid('on')
-        plt.title('CS Commands in Loads Kernel')
-        plt.legend(['Xi', 'Eta', 'Zeta'])
                     
     def make_movie(self, path_output, speedup_factor=1.0):
         for i_simcase in range(len(self.jcl.simcase)):
