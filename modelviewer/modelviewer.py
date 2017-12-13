@@ -139,11 +139,21 @@ class Modelviewer():
         self.sl_rho.setTickPosition(QtGui.QSlider.TicksBelow)
         self.sl_rho.setTickInterval(500)
         self.sl_rho.valueChanged.connect(self.get_mass_data_for_plotting)
+        self.lb_cg   = QtGui.QLabel('CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(0.0, 0.0, 0.0))
+        self.lb_mass = QtGui.QLabel('Mass: {:0.2f} kg'.format(0.0))
+        self.lb_Ixx  = QtGui.QLabel('Ixx:  {:0.4g} kg m^2'.format(0.0))
+        self.lb_Iyy  = QtGui.QLabel('Iyy:  {:0.4g} kg m^2'.format(0.0))
+        self.lb_Izz  = QtGui.QLabel('Izz:  {:0.4g} kg m^2'.format(0.0))
         bt_mass_hide = QtGui.QPushButton('Hide')
         bt_mass_hide.clicked.connect(self.plotting.hide_masses)
         
         layout_mass = QtGui.QVBoxLayout(tab_mass)
         layout_mass.addWidget(self.list_mass)
+        layout_mass.addWidget(self.lb_cg)
+        layout_mass.addWidget(self.lb_mass)
+        layout_mass.addWidget(self.lb_Ixx)
+        layout_mass.addWidget(self.lb_Iyy)
+        layout_mass.addWidget(self.lb_Izz)
         layout_mass.addWidget(self.lb_rho)
         layout_mass.addWidget(self.sl_rho)
         layout_mass.addWidget(bt_mass_hide)
@@ -162,7 +172,7 @@ class Modelviewer():
         self.list_modes_mass.itemClicked.connect(self.update_modes)
         self.list_modes_number = QtGui.QListWidget()      
         self.list_modes_number.itemClicked.connect(self.get_mode_data_for_plotting)
-        self.lb_freq = QtGui.QLabel('Frequency: {:0.4f}[Hz]'.format(0.0))
+        self.lb_freq = QtGui.QLabel('Frequency: {:0.4f} Hz'.format(0.0))
         self.lb_uf = QtGui.QLabel('Scaling: 1.0')
         # slider for generalized coordinate magnification factor
         self.sl_uf = QtGui.QSlider(QtCore.Qt.Horizontal)
@@ -311,7 +321,7 @@ class Modelviewer():
             # the eigenvalue directly corresponds to the generalized stiffness if Mass is scaled to 1.0
             eigenvalue = self.model.mass['Kff'][i_mass].diagonal()[i_mode]
             freq = np.real(eigenvalue)**0.5 /2/np.pi
-            self.lb_freq.setText('Frequency: {:0.4f}[Hz]'.format(freq))
+            self.lb_freq.setText('Frequency: {:0.4f} Hz'.format(freq))
             
             
     def get_mass_data_for_plotting(self, *args):
@@ -321,6 +331,13 @@ class Modelviewer():
             key = self.list_mass.currentItem().data(0)
             i_mass = self.model.mass['key'].index(key)
             self.plotting.plot_masses(self.model.mass['MGG'][i_mass], self.model.mass['Mb'][i_mass], self.model.mass['cggrid'][i_mass], rho)
+            self.lb_cg.setText('CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(self.model.mass['cggrid'][i_mass]['offset'][0,0],
+                                                                                self.model.mass['cggrid'][i_mass]['offset'][0,1],
+                                                                                self.model.mass['cggrid'][i_mass]['offset'][0,2]))
+            self.lb_mass.setText('Mass: {:0.2f} kg'.format(self.model.mass['Mb'][i_mass][0,0]))
+            self.lb_Ixx.setText('Ixx: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][3,3]))
+            self.lb_Iyy.setText('Iyy: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][4,4]))
+            self.lb_Izz.setText('Izz: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][5,5]))
             
     def load_model(self):
         # open file dialog
