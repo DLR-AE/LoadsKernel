@@ -162,22 +162,22 @@ class nastran_functions():
             fid.write(line)
             
     
-                
-    def write_MONPNT1(self, fid,mongrid, rules):
-        for i_station in range(mongrid['n']):
-    
-            # MONPNT1 NAME LABEL
-            # AXES COMP CID X Y Z
-            # AECOMP WING AELIST 1001 1002
-            # AELIST SID E1 E2 E3 E4 E5 E6 E7
-        
-            line = 'MONPNT1 Mon{: <5d}Label{:<51d}+\n'.format(int(mongrid['ID'][i_station]), int(mongrid['ID'][i_station]))
-            fid.write(line)
-            line = '+         123456 Comp{:<3d}{:>8d}{:>8.7s}{:>8.7s}{:>8.7s}{:>8d}\n'.format(int(mongrid['ID'][i_station]), int(mongrid['CP'][i_station]), str(mongrid['offset'][i_station][0]), str(mongrid['offset'][i_station][1]), str(mongrid['offset'][i_station][2]), int(mongrid['CD'][i_station]) )
-            fid.write(line)
-            line = 'AECOMP   Comp{:<3d}    SET1{:>8d}\n'.format(int(mongrid['ID'][i_station]), int(mongrid['ID'][i_station]) )
-            fid.write(line)
-            self.write_SET1(fid, np.int(mongrid['ID'][i_station]), rules['ID_d'][i_station])
+# Function outdated and not in use. In addition, names and labels are not handled correctly.
+#     def write_MONPNT1(self, fid,mongrid, rules):
+#         for i_station in range(mongrid['n']):
+#     
+#             # MONPNT1 NAME LABEL
+#             # AXES COMP CID X Y Z
+#             # AECOMP WING AELIST 1001 1002
+#             # AELIST SID E1 E2 E3 E4 E5 E6 E7
+#         
+#             line = 'MONPNT1 Mon{: <5d}Label{:<51d}+\n'.format(int(mongrid['ID'][i_station]), int(mongrid['ID'][i_station]))
+#             fid.write(line)
+#             line = '+         123456 Comp{:<3d}{:>8d}{:>8.7s}{:>8.7s}{:>8.7s}{:>8d}\n'.format(int(mongrid['ID'][i_station]), int(mongrid['CP'][i_station]), str(mongrid['offset'][i_station][0]), str(mongrid['offset'][i_station][1]), str(mongrid['offset'][i_station][2]), int(mongrid['CD'][i_station]) )
+#             fid.write(line)
+#             line = 'AECOMP   Comp{:<3d}    SET1{:>8d}\n'.format(int(mongrid['ID'][i_station]), int(mongrid['ID'][i_station]) )
+#             fid.write(line)
+#             self.write_SET1(fid, np.int(mongrid['ID'][i_station]), rules['ID_d'][i_station])
 
 
     def write_force_and_moment_cards(self, fid, grid, Pg, SID):
