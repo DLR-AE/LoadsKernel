@@ -112,6 +112,7 @@ class Modelviewer():
         tab_aero        = QtGui.QWidget()
         tab_coupling    = QtGui.QWidget()
         tab_monstations = QtGui.QWidget()
+        tab_cs          = QtGui.QWidget()
         
         # Configure tabs
         tabs_widget = QtGui.QTabWidget()
@@ -123,6 +124,7 @@ class Modelviewer():
         tabs_widget.addTab(tab_strc, 'strc')
         tabs_widget.addTab(tab_mass,"mass")
         tabs_widget.addTab(tab_aero,"aero")
+        tabs_widget.addTab(tab_cs,"cs")
         tabs_widget.addTab(tab_coupling,"coupling") 
         tabs_widget.addTab(tab_monstations,"monstations")
         
@@ -233,6 +235,33 @@ class Modelviewer():
         layout_monstations.addWidget(bt_monstations_hide)
         layout_monstations.addStretch(1)
         
+        # Elements of cs tab
+        self.list_cs = QtGui.QListWidget()  
+        self.list_cs.itemClicked.connect(self.get_new_cs_for_plotting)
+        self.lb_deg = QtGui.QLabel('Deflection: 0 deg')
+        # slider for generalized coordinate magnification factor
+        self.sl_deg = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.sl_deg.setMinimum(-30)
+        self.sl_deg.setMaximum(30)
+        self.sl_deg.setSingleStep(10)
+        self.sl_deg.setValue(0)
+        self.sl_deg.setTickPosition(QtGui.QSlider.TicksBelow)
+        self.sl_deg.setTickInterval(10)
+        self.sl_deg.valueChanged.connect(self.get_cs_data_for_plotting)
+        self.cb_axis = QtGui.QComboBox()
+        self.cb_axis.addItems(['y-axis', 'z-axis'])
+        self.cb_axis.currentIndexChanged.connect(self.get_cs_data_for_plotting)
+        bt_cs_hide = QtGui.QPushButton('Hide')
+        bt_cs_hide.clicked.connect(self.plotting.hide_cs)
+        
+        layout_cs = QtGui.QVBoxLayout(tab_cs)
+        layout_cs.addWidget(self.list_cs)
+        layout_cs.addWidget(self.lb_deg)
+        layout_cs.addWidget(self.sl_deg)
+        layout_cs.addWidget(self.cb_axis)
+        layout_cs.addWidget(bt_cs_hide)
+        layout_cs.addStretch(1)
+        
         # ----------------------------
         # --- set up Mayavi Figure ---
         # ----------------------------
@@ -338,6 +367,26 @@ class Modelviewer():
             self.lb_Ixx.setText('Ixx: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][3,3]))
             self.lb_Iyy.setText('Iyy: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][4,4]))
             self.lb_Izz.setText('Izz: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][5,5]))
+    
+    
+    def get_new_cs_for_plotting(self, *args):
+        # To show a different control surface, new points need to be created. Thus, remove last control surface from plot.
+        if self.plotting.show_cs:
+            self.plotting.hide_cs()
+        self.sl_deg.setValue(0.0)
+        self.lb_deg.setText('Deflection: {:0.0f} deg'.format(0.0))
+        self.get_cs_data_for_plotting()
+        
+    def get_cs_data_for_plotting(self, *args):
+        deg = np.double(self.sl_deg.value())
+        self.lb_deg.setText('Deflection: {:0.0f} deg'.format(deg))
+        if self.list_cs.currentItem() is not None:
+            # determine cs
+            key = self.list_cs.currentItem().data(0)
+            i_surf = self.model.x2grid['key'].index(key)
+            axis = self.cb_axis.currentText()
+            # hand over for plotting
+            self.plotting.plot_cs(i_surf, axis, deg)
             
     def load_model(self):
         # open file dialog
@@ -366,6 +415,11 @@ class Modelviewer():
         for key in self.model.mass['key']:
             self.list_mass.addItem(QtGui.QListWidgetItem(key))
             self.list_modes_mass.addItem(QtGui.QListWidgetItem(key))
+
+        self.list_cs.clear()
+        for key in self.model.x2grid['key']:
+            self.list_cs.addItem(QtGui.QListWidgetItem(key))
+            
     
 if __name__ == "__main__":
     modelviewer = Modelviewer()

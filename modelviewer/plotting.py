@@ -23,6 +23,7 @@ class Plotting:
         self.show_mode=False
         self.show_aero=False
         self.show_coupling=False
+        self.show_cs=False
         
     def add_figure(self, fig):
         self.fig = fig
@@ -32,6 +33,7 @@ class Plotting:
     def add_model(self, model):
         self.model = model
         self.strcgrid = model.strcgrid
+        self.aerogrid = model.aerogrid
         self.calc_distance()
         self.calc_focalpoint()
 
@@ -282,4 +284,39 @@ class Plotting:
         = self.plot_splinerules(self.model.mongrid, '', self.model.strcgrid, '', self.model.mongrid_rules, self.model.coord)
         self.show_monstations=True
 
-            
+    # ----------
+    # --- cs ---
+    #-----------
+    def hide_cs(self):
+        self.src_cs.remove()
+        self.show_cs=False
+        mlab.draw(self.fig)
+        
+    def plot_cs(self, i_surf, axis, deg):
+        # determine deflections
+        if axis == 'y-axis':
+            Uj = np.dot(self.model.Djx2[i_surf],[0,0,0,0,deg/180.0*np.pi,0])
+        elif axis == 'z-axis':
+            Uj = np.dot(self.model.Djx2[i_surf],[0,0,0,0,0,deg/180.0*np.pi]) 
+        else:
+            Uj = np.dot(self.model.Djx2[i_surf],[0,0,0,0,0,0]) 
+        # find those panels belonging to the current control surface i_surf
+        members_of_i_surf = [np.where(self.aerogrid['ID']==x)[0][0] for x in self.model.x2grid['ID'][i_surf]]
+        points = self.aerogrid['offset_k'][members_of_i_surf,:]+Uj[self.aerogrid['set_k'][members_of_i_surf,:][:,(0,1,2)]]
+        
+        if self.show_cs:
+            self.update_cs_display(points)
+        else:
+            self.setup_cs_display(points)
+            self.show_cs=True
+        mlab.draw(self.fig)
+
+    def setup_cs_display(self, points):        
+        ug = tvtk.UnstructuredGrid(points=points)
+        # plot points as glyphs
+        self.src_cs = mlab.pipeline.add_dataset(ug)
+        points = mlab.pipeline.glyph(self.src_cs, scale_mode='scalar', scale_factor=self.pscale, color=(1,0,0))
+        points.glyph.glyph.scale_mode = 'data_scaling_off'
+
+    def update_cs_display(self, points):
+        self.src_cs.outputs[0].points.from_array(points)
