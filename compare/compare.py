@@ -142,7 +142,6 @@ class App:
         
         
         # init Matplotlib Plot
-        mpl.rcParams.update({'font.size': 16})
         fig1 = mpl.figure.Figure()
         # hand over subplot to plotting class
         self.plotting = Plotting(fig1)

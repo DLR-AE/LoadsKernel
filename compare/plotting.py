@@ -13,7 +13,8 @@ from scipy.spatial import ConvexHull
 
 class Plotting:
     def __init__(self, fig):
-        plt.rcParams['svg.fonttype'] = 'none'
+        plt.rcParams.update({'font.size': 16,
+                             'svg.fonttype':'none'})
         self.subplot = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
         pass
     
