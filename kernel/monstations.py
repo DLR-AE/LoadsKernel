@@ -93,6 +93,12 @@ class monstations:
                 loads_dyn2stat.append(self.monstations[key]['loads'][i_case][pos_min_loads_over_time[4],:])
                 Pg_dyn2stat.append(response['Pg'][pos_min_loads_over_time[4],:])
                 subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]) + '_' + key + '_My_min')
+            elif mode == 'stat2stat':
+                loads_dyn2stat.append(self.monstations[key]['loads'][i_case])
+                Pg_dyn2stat.append(response['Pg'])
+                subcases_dyn2stat.append(str(self.monstations[key]['subcase'][i_case]))# + '_t={:05.3f}'.format(self.monstations[key]['t'][i_case][0]))
+                t_dyn2stat.append(response['t'][0])
+                
             # save to monstations
             self.monstations[key]['loads_dyn2stat'] += loads_dyn2stat
             self.monstations[key]['subcases_dyn2stat'] += subcases_dyn2stat
@@ -111,5 +117,7 @@ class monstations:
             self.dyn2stat['subcases_ID'] += [ int(all_subcases_dyn2stat[p].replace('_t=', '').replace('.', '')) for p in pos]
         elif mode == 'origin-based':
             self.dyn2stat['subcases_ID'] += [ int(all_subcases_dyn2stat[i].split('_')[0])*1000+i  for i in range(len(all_subcases_dyn2stat))]
+        elif mode == 'stat2stat':
+            self.dyn2stat['subcases_ID'] += [ int(all_subcases_dyn2stat[p]) for p in pos]
             
             

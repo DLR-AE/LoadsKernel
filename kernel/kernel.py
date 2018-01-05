@@ -122,7 +122,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
                 post_processing_i.cuttingforces()
                 mon.gather_monstations(jcl.trimcase[i], response)
                 if 't_final' and 'dt' in jcl.simcase[i].keys():
-                    mon.gather_dyn2stat(i, response)
+                    mon.gather_dyn2stat(i, response, mode='time-based')
+                else:
+                    mon.gather_dyn2stat(i, response, mode='stat2stat')
                 response['i'] = i
                 del post_processing_i
             logging.info( '--> Saving response(s).')
@@ -192,11 +194,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
             # nur trim
             plt.plot_monstations(monstations, path_output + 'monstations_' + job_name + '.pdf') 
         
-        # ----------------------------
-        # --- try to load response ---
-        # ----------------------------
-        responses = io.load_responses(job_name, path_output)
-        
+
 #         logging.info( '--> statespace analysis.')
 #         import statespace_analysis
 #         statespace_analysis = statespace.analysis(jcl, model, responses)
@@ -216,21 +214,22 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
             aux_out.response = io.load_responses(job_name, path_output)
             aux_out.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=False) 
             aux_out.write_critical_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=False) 
-            aux_out.write_all_nodalloads(path_output + 'nodalloads_all_' + job_name + '.bdf')
-            aux_out.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
-            aux_out.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
-            
-        print '--> Drawing some plots.'  
-        plt = plotting.plotting(jcl, model, responses)
-        if 't_final' and 'dt' in jcl.simcase[0].keys():
-            # nur sim
-            plt.plot_time_data()
-            #plt.make_animation()
-            #plt.make_movie(path_output, speedup_factor=1.0)
-        else:
-            # nur trim
-            plt.plot_pressure_distribution()
-            plt.plot_forces_deformation_interactive() 
+            #aux_out.write_all_nodalloads(path_output + 'nodalloads_all_' + job_name + '.bdf')
+            #aux_out.save_nodaldefo(path_output + 'nodaldefo_' + job_name)
+            #aux_out.save_cpacs(path_output + 'cpacs_' + job_name + '.xml')
+
+        #responses = io.load_responses(job_name, path_output)
+        #print '--> Drawing more plots.'  
+        #plt = plotting.plotting(jcl, model, responses)
+        #if 't_final' and 'dt' in jcl.simcase[0].keys():
+        #    # nur sim
+        #    plt.plot_time_data()
+        #    #plt.make_animation()
+        #    #plt.make_movie(path_output, speedup_factor=1.0)
+        #else:
+        #    # nur trim
+        #    plt.plot_pressure_distribution()
+        #    plt.plot_forces_deformation_interactive() 
         
     if test:
         if not 'model' in locals():
@@ -252,6 +251,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_single=False, t
 #         import plot_felxdefo
 #         plots = plot_felxdefo.Flexdefo(jcl, model, responses)
 #         plot.flexdefos()
+#         import plots_for_HALO
+#         plots = plots_for_HALO.Plots(path_output, jcl, model, responses=responses, monstations=monstations)
+#         plots.plot_ft()
 
 #         import test_smarty
 #         test_smarty.interpolate_pkcfd(model, jcl)
@@ -325,7 +327,9 @@ def mainprocessing_listener(q_output, path_output, job_name, jcl):
             logging.info( '--> Received response from worker.')
             mon.gather_monstations(jcl.trimcase[m['i']], m)
             if 't_final' and 'dt' in jcl.simcase[m['i']].keys():
-                mon.gather_dyn2stat(-1, m)
+                mon.gather_dyn2stat(-1, m, mode='time-based')
+            else:
+                mon.gather_dyn2stat(-1, m, mode='stat2stat')
             logging.info( '--> Saving response(s).')
             io.dump_pickle(m, f_response)
             #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[m['i']]['subcase']) + '.mat', 'w') as f:
