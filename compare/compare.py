@@ -69,6 +69,7 @@ class App:
         menu_action = tk.Menu(menubar)
         menu_action.add_command(label='Merge Monstations', command=self.merge_monstation)
         menu_action.add_command(label='Superpose Monstations (by subcase)', command=self.superpose_monstation_by_subcase)
+        menu_action.add_command(label='Save Monstations', command=self.save_monstation)
         menubar.add_cascade(menu=menu_action, label='Action')
         root['menu'] = menubar
         
@@ -317,7 +318,19 @@ class App:
             # update fields
             self.update_fields()
             self.file_opt['initialdir'] = os.path.split(filename)[0]
-
+    
+    def save_monstation(self):
+        if self.lb_dataset.curselection() != () and len(self.lb_dataset.curselection()) == 1:
+            dataset_sel = self.datasets['dataset'][self.lb_dataset.curselection()[0]]
+            # open file dialog
+            filename = tkFileDialog.asksaveasfilename(**self.file_opt)
+            if filename != '':
+                self.save_pickle(filename, dataset_sel)
+                print 'Dataset {} saved to {}'.format(self.datasets['desc'][self.lb_dataset.curselection()[0]], filename )
+            
+    def save_pickle(self, filename, data):
+        with open(filename, 'w') as f:
+            cPickle.dump(data, f, cPickle.HIGHEST_PROTOCOL)
         
     def load_pickle(self, filename):
         with open(filename, 'r') as f:
