@@ -41,15 +41,18 @@ class auxiliary_output:
         # eigentlich gehoert diese Funtion eher zum post-processing als zum
         # plotten, kann aber erst nach dem plotten ausgefuehrt werden...
         if dyn2stat:
-            crit_trimcases = list(set([int(crit_trimcase.split('_')[0]) for crit_trimcase in self.crit_trimcases])) # extract original subcase number
+            crit_trimcases = list(set([int(str(crit_trimcase).split('_')[0]) for crit_trimcase in self.crit_trimcases])) # extract original subcase number
         else: 
             crit_trimcases = self.crit_trimcases
         crit_trimcases_info = []
         for i_case in range(len(self.jcl.trimcase)):
             if self.jcl.trimcase[i_case]['subcase'] in crit_trimcases:
-                trimcase = copy.deepcopy(self.jcl.trimcase[i_case])
-                if dyn2stat:
-                    trimcase.update(self.jcl.simcase[i_case]) # merge infos from simcase with trimcase
+                trimcase = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
+                            'desc':     self.jcl.trimcase[i_case]['desc'],}
+#                 does not work if maneuver and time simulations are handled simultaneously
+#                 trimcase = copy.deepcopy(self.jcl.trimcase[i_case])
+#                 if dyn2stat:
+#                     trimcase.update(self.jcl.simcase[i_case]) # merge infos from simcase with trimcase
                 crit_trimcases_info.append(trimcase)
                 
         logging.info('writing critical trimcases cases to: ' + filename_csv)
