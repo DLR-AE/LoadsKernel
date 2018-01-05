@@ -42,10 +42,7 @@ class plotting:
         elif self.jcl.general['aircraft'] == 'MULDICON':
             self.potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
             self.potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
-            self.potatos_Fz_My = ['MON4', 'MON5']
-#             self.potatos_Fz_Mx = []
-#             self.potatos_Mx_My = []
-#             self.potatos_Fz_My = ['MON4', 'MON5', 'MON81', 'MON82', 'MON83']
+            self.potatos_Fz_My = ['MON4', 'MON5', 'MON81', 'MON82', 'MON83']
             self.cuttingforces_wing = ['MON10', 'MON1', 'MON2', 'MON3', 'MON33', 'MON8']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.03 # points
@@ -67,10 +64,10 @@ class plotting:
             self.p_scale = 0.05 # points
         # HALO
         elif self.jcl.general['aircraft'] == 'HALO':
-            self.potatos_Fz_Mx = ['MON1']
-            self.potatos_Mx_My = ['MON1']
-            self.potatos_Fz_My = ['MON1']
-            self.cuttingforces_wing = ['MON1']
+            self.potatos_Fz_Mx = ['PMS_L', 'PMS_R']
+            self.potatos_Mx_My = ['PMS_L', 'PMS_R']
+            self.potatos_Fz_My = ['PMS_L', 'PMS_R']
+            self.cuttingforces_wing = ['PMS_L', 'PMS_R']
             self.f_scale = 0.02 # vectors
             self.p_scale = 0.4 # points
         else:
