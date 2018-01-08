@@ -185,9 +185,12 @@ class App:
             
     def update_plot(self):
         if self.lb_dataset.curselection() != () and self.lb_mon.curselection() != ():
-            dataset_sel = [self.datasets['dataset'][i] for i in self.lb_dataset.curselection()]
-            color_sel   = [self.datasets['color'][i] for i in self.lb_dataset.curselection()]
-            desc_sel    = [self.datasets['desc'][i] for i in self.lb_dataset.curselection()]
+            # Reverse current selection of datasets for plotting. The dataset added/created last is plotted first.
+            # This is useful for example after merging different datasets. The resulting dataset would obscure the view if plotted last. 
+            current_selection_reversed = list(reversed(self.lb_dataset.curselection()))
+            dataset_sel = [self.datasets['dataset'][i] for i in current_selection_reversed]
+            color_sel   = [self.datasets['color'][i] for i in current_selection_reversed]
+            desc_sel    = [self.datasets['desc'][i] for i in current_selection_reversed]
             mon_sel     = self.common_monstations[self.lb_mon.curselection()]
             self.plotting.potato_plots( dataset_sel, 
                                         mon_sel, 
