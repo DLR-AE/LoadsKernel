@@ -205,10 +205,10 @@ def plot_aerogrid(aerogrid, cp = '', colormap = 'jet', value_min = '', value_max
     # (plotting all at once is much more complicated!)
     for i_panel in range(aerogrid['n']):
         # construct matrices xx, yy and zz from cornerpoints for each panale
-        point0 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel,0],1:]
-        point1 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel,1],1:]
-        point2 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel,2],1:]
-        point3 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel,3],1:]
+        point0 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel][0],1:]
+        point1 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel][1],1:]
+        point2 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel][2],1:]
+        point3 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel][3],1:]
         xx = np.array(([point0[0,0], point1[0,0]], [point3[0,0], point2[0,0]]))
         yy = np.array(([point0[0,1], point1[0,1]], [point3[0,1], point2[0,1]]))
         zz = np.array(([point0[0,2], point1[0,2]], [point3[0,2], point2[0,2]]))
