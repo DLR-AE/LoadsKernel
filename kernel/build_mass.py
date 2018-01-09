@@ -30,7 +30,7 @@ class build_mass:
           Mff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedMass']
           Kff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedStiffness']
           #Dff = Kff * 0.0
-          Dff = self.calc_damping(np.array(eigenvalues['Eigenvalue'])[self.jcl.mass['modes'][i_mass] - 1].real)
+          Dff = self.calc_damping(np.array(eigenvalues['Eigenvalue']).real)
           PHIf_strc = np.zeros((len(self.jcl.mass['modes'][i_mass]), len(self.strcgrid['ID'])*6))
           for i_mode in range(len(modes_selection)):
               eigenvector = eigenvectors[str(modes_selection[i_mode])][:,1:]
