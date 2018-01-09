@@ -395,3 +395,10 @@ class halo:
             Ux2[violation_upper] = self.Ux2_upper[violation_upper]
             
         return Ux2
+class dummy:
+    def __init__(self):
+        self.keys = ['dummy']
+        self.Ux2 = np.array([0.0])
+                
+    def efcs(self, command_xi, command_eta, command_zeta):
+        return self.Ux2
