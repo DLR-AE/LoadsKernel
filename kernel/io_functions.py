@@ -99,7 +99,7 @@ class specific_functions():
         if not os.path.exists(path):
             os.makedirs(path)
         if os.path.isdir(path) and os.access(os.path.dirname(path), os.W_OK):
-            return os.path.join(path, './') # sicherstellen, dass der Pfad mit / endet
+            return os.path.join(path, '') # sicherstellen, dass der Pfad mit / endet
         else:
             logging.CRITICAL( 'Path ' + str(path)  + ' not valid. Exit.')
             sys.exit()
