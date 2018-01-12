@@ -142,6 +142,7 @@ class Modelviewer():
         self.sl_rho.setTickInterval(500)
         self.sl_rho.valueChanged.connect(self.get_mass_data_for_plotting)
         self.lb_cg   = QtGui.QLabel('CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(0.0, 0.0, 0.0))
+        self.lb_cg_mac = QtGui.QLabel('CG: x={:0.4f} % MAC'.format(0.0))
         self.lb_mass = QtGui.QLabel('Mass: {:0.2f} kg'.format(0.0))
         self.lb_Ixx  = QtGui.QLabel('Ixx:  {:0.4g} kg m^2'.format(0.0))
         self.lb_Iyy  = QtGui.QLabel('Iyy:  {:0.4g} kg m^2'.format(0.0))
@@ -152,6 +153,7 @@ class Modelviewer():
         layout_mass = QtGui.QVBoxLayout(tab_mass)
         layout_mass.addWidget(self.list_mass)
         layout_mass.addWidget(self.lb_cg)
+        layout_mass.addWidget(self.lb_cg_mac)
         layout_mass.addWidget(self.lb_mass)
         layout_mass.addWidget(self.lb_Ixx)
         layout_mass.addWidget(self.lb_Iyy)
@@ -363,6 +365,16 @@ class Modelviewer():
             self.lb_cg.setText('CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(self.model.mass['cggrid'][i_mass]['offset'][0,0],
                                                                                 self.model.mass['cggrid'][i_mass]['offset'][0,1],
                                                                                 self.model.mass['cggrid'][i_mass]['offset'][0,2]))
+            # cg_mac = (x_cg - x_mac)*c_ref * 100 [%]
+            # negativ bedeutet Vorlage --> stabil
+            cg_mac = (self.model.mass['cggrid'][i_mass]['offset'][0,0]-self.model.macgrid['offset'][0,0])/self.model.macgrid['c_ref']*100.0
+            if cg_mac == 0.0:
+                rating = 'indifferent'
+            elif cg_mac < 0.0:
+                rating = 'stable'
+            elif cg_mac > 0.0:
+                rating = 'unstable'
+            self.lb_cg_mac.setText('CG: x={:0.4f} % MAC, {}'.format(cg_mac, rating))
             self.lb_mass.setText('Mass: {:0.2f} kg'.format(self.model.mass['Mb'][i_mass][0,0]))
             self.lb_Ixx.setText('Ixx: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][3,3]))
             self.lb_Iyy.setText('Iyy: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][4,4]))
