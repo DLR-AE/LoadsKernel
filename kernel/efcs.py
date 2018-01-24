@@ -73,13 +73,13 @@ class mephisto:
     def controller_init(self, command_0, setpoint_q):
         self.command_0 = command_0
         # set up dampfer
-        self.damper = PID.PID_standart(Kp = 0.5, Ti = 0.5, Td = 0.0, t=0.0)
+        self.damper = PID.PID_standart(Kp = 0.12, Ti = 0.08, Td = 0.0, t=0.0)
         self.damper.SetPoint=setpoint_q
         self.damper.sample_time=0.0
         #self.damper.windup_guard=0.01
         
         # set up actuator
-        self.actuator = PID.PID_ideal(Kp = 10.0, Ki = 0.0, Kd = 0.0, t=0.0)
+        self.actuator = PID.PID_ideal(Kp = 100.0, Ki = 0.0, Kd = 0.0, t=0.0)
         self.actuator.SetPoint=0.0
         self.actuator.sample_time=0.0
         self.max_actuator_speed = 40.0/180.0*np.pi
