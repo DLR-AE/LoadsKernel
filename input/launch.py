@@ -5,6 +5,7 @@ cwd = os.getcwd()
 sys.path.append(cwd)
 # Here you add the location of the Loads Kernel 
 sys.path.append("../kernel")
+sys.path.append("/opt/tau/bin/py_el")
 import kernel
 
 
