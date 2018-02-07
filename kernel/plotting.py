@@ -57,7 +57,7 @@ class plotting:
             self.f_scale = 0.1 # vectors
             self.p_scale = 0.05 # points
         # FLEXOP
-        elif self.jcl.general['aircraft'] == 'FLEXOP':
+        elif self.jcl.general['aircraft'] in ['FLEXOP', 'fs35']:
             self.potatos_Fz_Mx = ['MON1']
             self.potatos_Mx_My = ['MON1']
             self.potatos_Fz_My = ['MON1']
