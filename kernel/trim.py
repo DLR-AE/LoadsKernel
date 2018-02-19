@@ -355,9 +355,15 @@ class trim:
             if 'disturbance' in self.simcase.keys():
                 logging.info('adding disturbance of {} to state(s) '.format(self.simcase['disturbance']))
                 self.response['X'][11+self.simcase['disturbance_mode']] += self.simcase['disturbance']
-            # initialize lag states with zero and extend steady response vectors X and Y
-            logging.info('adding {} x {} unsteady lag states to the system'.format(self.model.aerogrid['n'],self.model.aero['n_poles']))
-            lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
+            # Initialize lag states with zero and extend steady response vectors X and Y
+            # Distinguish between pyhsical rfa on panel level and generalized rfa. This influences the number of lag states.
+            if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'halfgeneralized':
+                n_modes = self.model.mass['n_modes'][self.model.mass['key'].index(self.trimcase['mass'])]
+                logging.info('adding {} x {} unsteady lag states to the system'.format(2 * n_modes,self.model.aero['n_poles']))
+                lag_states = np.zeros((2 * n_modes * self.model.aero['n_poles'])) 
+            else:
+                logging.info('adding {} x {} unsteady lag states to the system'.format(self.model.aerogrid['n'],self.model.aero['n_poles']))
+                lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
             self.response['X'] = np.hstack((self.response['X'], lag_states ))
             self.response['Y'] = np.hstack((self.response['Y'], lag_states ))
             equations = model_equations.unsteady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y, self.simcase, X0=self.response['X'])

@@ -107,7 +107,11 @@ class common():
                 #print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], self.aerodb_x2[-1]['q_dyn'], self.q_dyn)       
         
         # convergence parameter for iterative evaluation
-        self.defo_old = 0.0        
+        self.defo_old = 0.0    
+        
+        if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'halfgeneralized':
+            self.PHI_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat']).dot(self.model.mass['PHIjf'][self.i_mass])
+            self.PHI_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjf'][self.i_mass])
         
     def calc_Pk_nonlin(self, dUmac_dt, wj):
         Ujx1 = np.dot(self.Djx1,dUmac_dt)
@@ -298,7 +302,112 @@ class common():
             
         return Pk_idrag
     
-    def unsteady(self, X, t, wj, q_dyn, Vtas):
+    def unsteady(self, X, t, wj, Uf, dUf_dt, onflow, q_dyn, Vtas):
+        if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'generalized':
+            logging.error('Generalized RFA not yet implemented.')
+        if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'halfgeneralized':
+            Pk_unsteady, Pk_unsteady_B, Pk_unsteady_D, dlag_states_dt =  self.unsteady_halfgeneralized(X, t, Uf, dUf_dt, onflow, q_dyn, Vtas)
+        else: # 'physical'
+            dUmac_dt = np.dot(self.PHImac_cg, onflow)
+            # modale Verformung
+            Ujf = np.dot(self.PHIjf, Uf )
+            wjf_1 = np.sum(self.model.aerogrid['N'][:] * np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3]),axis=1) / Vtas
+            # modale Bewegung
+            dUjf_dt = np.dot(self.PHIjf, dUf_dt ) # viel schneller!
+            wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1.0
+            wjf = wjf_1 + wjf_2
+            Pk_unsteady, Pk_unsteady_B, Pk_unsteady_D, dlag_states_dt = self.unsteady_pyhsical(X, t, wjf, q_dyn, Vtas)
+            
+        return Pk_unsteady, dlag_states_dt
+
+    def unsteady_halfgeneralized(self, X, t, Uf, dUf_dt, dUcg_dt, q_dyn, Vtas):
+        n_modes     = self.n_modes
+        n_poles     = self.model.aero['n_poles']
+        betas       = self.model.aero['betas']
+        #ABCD        = self.model.mass['ABCDff'][self.i_mass][self.i_aero]
+        ABCD        = self.model.aero['ABCD'][self.i_aero]
+        c_ref       = self.jcl.general['c_ref']
+    
+        lag_states_1 = X[12+self.n_modes*2+3:12+self.n_modes*2+3+self.n_modes*n_poles].reshape((self.n_modes,n_poles))
+        lag_states_2 = X[12+self.n_modes*2+3+self.n_modes*n_poles:12+self.n_modes*2+3+self.n_modes*n_poles*2].reshape((self.n_modes,n_poles))
+        c_over_Vtas = (0.5*c_ref)/Vtas
+        
+#         dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt)
+#         # modale Verformung
+#         Ujf = np.dot(self.PHIjf, Uf )
+#         wjf_1 = np.sum(self.model.aerogrid['N'][:] * np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3]),axis=1) / Vtas
+#         wjf_1 = self.PHI_1.dot(Uf)
+#         # modale Bewegung
+#         dUjf_dt = np.dot(self.PHIjf, dUf_dt ) # viel schneller!
+#         wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1.0
+#         wjf_2 = self.PHI_2.dot(dUf_dt) / Vtas * -1
+#         wjf = wjf_1 + wjf_2
+        
+        if t <= 0.0: # initial step
+            self.t_old  = np.copy(t) 
+#             self.wjf_old = np.copy(wjf) 
+#             self.dwjf_dt_old = np.zeros(self.model.aerogrid['n'])
+            self.dUf_dt_old = np.copy(dUf_dt)
+            self.d2Uf_d2t_old = np.zeros(n_modes)
+            #self.dlag_states_dt_old = np.zeros(self.n_modes*n_poles*2)
+            
+        dt = t - self.t_old
+
+        # dwf_dt mittels "backward differences" berechnen
+        if dt > 0.0: # solver laeuft vorwaerts
+#             dwjf_dt = (wjf - self.wjf_old) / dt
+#             self.dwjf_dt_old = np.copy(dwjf_dt)
+            d2Uf_d2t = (dUf_dt-self.dUf_dt_old) / dt
+            self.d2Uf_d2t_old = np.copy(d2Uf_d2t)
+            
+        else: # solver bleibt stehen oder laeuft zurueck
+#             dwjf_dt = self.dwjf_dt_old
+            d2Uf_d2t = self.d2Uf_d2t_old
+
+        # save for next step
+        self.t_old  = np.copy(t)
+#         self.wjf_old = np.copy(wjf)
+        self.dUf_dt_old = np.copy(dUf_dt)
+
+        # B - Daemfungsterm
+        cp_unsteady = ABCD[1,:,:].dot(self.PHI_1).dot(dUf_dt) * c_over_Vtas \
+                    + ABCD[1,:,:].dot(self.PHI_2).dot(d2Uf_d2t) / Vtas * -1.0 * c_over_Vtas 
+        flunsteady = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*cp_unsteady
+        Plunsteady = np.zeros((6*self.model.aerogrid['n']))
+        Plunsteady[self.model.aerogrid['set_l'][:,0]] = flunsteady[0,:]
+        Plunsteady[self.model.aerogrid['set_l'][:,1]] = flunsteady[1,:]
+        Plunsteady[self.model.aerogrid['set_l'][:,2]] = flunsteady[2,:]
+        Pk_unsteady_B = self.model.Dlk.T.dot(Plunsteady)
+        
+        # C - Beschleunigungsterm -entfaellt -
+        
+        # D1-Dn - lag states
+        dwff_dt_1 = dUf_dt
+        dlag_states_dt_1 = dwff_dt_1.repeat(n_poles).reshape((n_modes, n_poles)) - betas*lag_states_1/c_over_Vtas
+        dlag_states_dt_1 = dlag_states_dt_1.reshape((-1))
+        
+        dwff_dt_2 = d2Uf_d2t / Vtas * -1.0
+        dlag_states_dt_2 = dwff_dt_2.repeat(n_poles).reshape((n_modes, n_poles)) - betas*lag_states_2/c_over_Vtas
+        dlag_states_dt_2 = dlag_states_dt_2.reshape((-1))
+        
+        dlag_states_dt = np.concatenate((dlag_states_dt_1, dlag_states_dt_2))
+  
+        D_dot_lag = np.zeros(self.model.aerogrid['n'])
+        for i_pole in np.arange(0,self.model.aero['n_poles']):
+            D_dot_lag += ABCD[3+i_pole,:,:].dot(self.PHI_1).dot(lag_states_1[:,i_pole])
+            D_dot_lag += ABCD[3+i_pole,:,:].dot(self.PHI_2).dot(lag_states_2[:,i_pole])
+        cp_unsteady = D_dot_lag 
+        flunsteady = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*cp_unsteady
+        Plunsteady = np.zeros(6*self.model.aerogrid['n'])
+        Plunsteady[self.model.aerogrid['set_l'][:,0]] = flunsteady[0,:]
+        Plunsteady[self.model.aerogrid['set_l'][:,1]] = flunsteady[1,:]
+        Plunsteady[self.model.aerogrid['set_l'][:,2]] = flunsteady[2,:]
+        Pk_unsteady_D = self.model.Dlk.T.dot(Plunsteady)
+       
+        Pk_unsteady =  Pk_unsteady_D + Pk_unsteady_B
+        return Pk_unsteady, Pk_unsteady_B, Pk_unsteady_D, dlag_states_dt
+    
+    def unsteady_pyhsical(self, X, t, wj, q_dyn, Vtas):
         n_j         = self.model.aerogrid['n']
         n_poles     = self.model.aero['n_poles']
         betas       = self.model.aero['betas']
@@ -1525,7 +1634,7 @@ class unsteady(common):
         
         wj = wj_rbm + wj_cam + wj_cs + wj_f + wj_gust
         Pk_idrag         = self.idrag(wj, q_dyn)
-        Pk_unsteady, Pk_unsteady_B, Pk_unsteady_D, dlag_states_dt = self.unsteady(X, t, wj, q_dyn, Vtas)
+        Pk_unsteady, dlag_states_dt = self.unsteady(X, t, wj, Uf, dUf_dt, onflow, q_dyn, Vtas)
         
         Pk_cfd = Pk_rbm*0.0
         
