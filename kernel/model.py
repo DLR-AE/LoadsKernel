@@ -158,6 +158,15 @@ class model:
                     self.aerogrid['n'] += subgrid['n']
                     self.aerogrid['cornerpoint_panels'] = np.vstack((self.aerogrid['cornerpoint_panels'],subgrid['cornerpoint_panels']))
                     self.aerogrid['cornerpoint_grids'] = np.vstack((self.aerogrid['cornerpoint_grids'],subgrid['cornerpoint_grids']))
+            # cast normal vector of panels into a matrix of form (n, n*6)
+            self.aerogrid['Nmat'] = np.zeros((self.aerogrid['n'], self.aerogrid['n']*6))
+            for x in range(self.aerogrid['n']):
+                self.aerogrid['Nmat'][x,self.aerogrid['set_k'][x,(0,1,2)]] = self.aerogrid['N'][x,(0,1,2)]
+            # cast normal vector of panels into a matrix of form (n, n*6)
+            self.aerogrid['Rmat'] = np.zeros((self.aerogrid['n']*6, self.aerogrid['n']*6))
+            for x in range(self.aerogrid['n']):
+                self.aerogrid['Rmat'][x*6+1,self.aerogrid['set_k'][x,5]] = 1.0
+                self.aerogrid['Rmat'][x*6+2,self.aerogrid['set_k'][x,4]] = 1.0
                        
             # Correctionfor camber and twist, W2GJ
             if self.jcl.aero['filename_deriv_4_W2GJ']:
@@ -350,7 +359,7 @@ class model:
                          'PHIf_strc': [],
                          'PHIf_lg': [],
                          'PHIjf': [],
-                         'PHIjf2': [],
+                         'PHIlf': [],
                          'PHIkf': [],
                          'Mff': [],
                          'Kff': [],
@@ -411,19 +420,11 @@ class model:
                 PHIcg_norm = spline_functions.spline_rb(cggrid_norm, '', cggrid, '', rules, self.coord) 
                 
                 PHIjf = np.dot(self.Djk, self.PHIk_strc.dot(PHIf_strc.T))                
+                PHIlf = np.dot(self.Dlk.toarray(), self.PHIk_strc.dot(PHIf_strc.T))
                 PHIkf = self.PHIk_strc.dot(PHIf_strc.T)
 
                 Mfcg=PHIf_strc.dot(-MGG.dot(PHIstrc_cg))
-                
-                PHIjf2 = []
-                n_modes = len(self.jcl.mass['modes'][i_mass])
-                for i_mode in range(n_modes):
-                    Uf =  np.zeros(n_modes)
-                    Uf[i_mode] += 1.0
-                    Ujf = np.dot(PHIjf, Uf )
-                    PHIjf2.append(np.sum(self.aerogrid['N'][:] * Ujf[self.aerogrid['set_j'][:,(0,1,2)]],axis=1))
-                PHIjf2 = np.transpose(np.array(PHIjf2))
-                
+
                 # save all matrices to data structure
                 self.mass['key'].append(self.jcl.mass['key'][i_mass])
                 self.mass['Mb'].append(Mb)
@@ -438,7 +439,7 @@ class model:
                 self.mass['PHInorm_cg'].append(PHInorm_cg)
                 self.mass['PHIf_strc'].append(PHIf_strc) 
                 self.mass['PHIjf'].append(PHIjf)
-                self.mass['PHIjf2'].append(PHIjf2)
+                self.mass['PHIlf'].append(PHIlf)
                 self.mass['PHIkf'].append(PHIkf)
                 self.mass['Mff'].append(Mff) 
                 self.mass['Kff'].append(Kff) 
