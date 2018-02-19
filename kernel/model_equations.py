@@ -324,49 +324,31 @@ class common():
         n_modes     = self.n_modes
         n_poles     = self.model.aero['n_poles']
         betas       = self.model.aero['betas']
-        #ABCD        = self.model.mass['ABCDff'][self.i_mass][self.i_aero]
         ABCD        = self.model.aero['ABCD'][self.i_aero]
         c_ref       = self.jcl.general['c_ref']
-    
+        # There are lag states for the rotational motion (_1) and for the translational motion (_2).
+        # This is to separate the lag states as the AIC matrices need to be generalized differently for the two cases.
+        # In addition, the lag states depend on the generalized velocity and the generalized acceleration.
         lag_states_1 = X[12+self.n_modes*2+3:12+self.n_modes*2+3+self.n_modes*n_poles].reshape((self.n_modes,n_poles))
         lag_states_2 = X[12+self.n_modes*2+3+self.n_modes*n_poles:12+self.n_modes*2+3+self.n_modes*n_poles*2].reshape((self.n_modes,n_poles))
         c_over_Vtas = (0.5*c_ref)/Vtas
-        
-#         dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt)
-#         # modale Verformung
-#         Ujf = np.dot(self.PHIjf, Uf )
-#         wjf_1 = np.sum(self.model.aerogrid['N'][:] * np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3]),axis=1) / Vtas
-#         wjf_1 = self.PHI_1.dot(Uf)
-#         # modale Bewegung
-#         dUjf_dt = np.dot(self.PHIjf, dUf_dt ) # viel schneller!
-#         wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1.0
-#         wjf_2 = self.PHI_2.dot(dUf_dt) / Vtas * -1
-#         wjf = wjf_1 + wjf_2
-        
         if t <= 0.0: # initial step
             self.t_old  = np.copy(t) 
-#             self.wjf_old = np.copy(wjf) 
-#             self.dwjf_dt_old = np.zeros(self.model.aerogrid['n'])
             self.dUf_dt_old = np.copy(dUf_dt)
             self.d2Uf_d2t_old = np.zeros(n_modes)
-            #self.dlag_states_dt_old = np.zeros(self.n_modes*n_poles*2)
             
         dt = t - self.t_old
 
-        # dwf_dt mittels "backward differences" berechnen
+        # d2Uf_d2t mittels "backward differences" berechnen
         if dt > 0.0: # solver laeuft vorwaerts
-#             dwjf_dt = (wjf - self.wjf_old) / dt
-#             self.dwjf_dt_old = np.copy(dwjf_dt)
             d2Uf_d2t = (dUf_dt-self.dUf_dt_old) / dt
             self.d2Uf_d2t_old = np.copy(d2Uf_d2t)
             
         else: # solver bleibt stehen oder laeuft zurueck
-#             dwjf_dt = self.dwjf_dt_old
             d2Uf_d2t = self.d2Uf_d2t_old
 
         # save for next step
         self.t_old  = np.copy(t)
-#         self.wjf_old = np.copy(wjf)
         self.dUf_dt_old = np.copy(dUf_dt)
 
         # B - Daemfungsterm
@@ -394,8 +376,8 @@ class common():
   
         D_dot_lag = np.zeros(self.model.aerogrid['n'])
         for i_pole in np.arange(0,self.model.aero['n_poles']):
-            D_dot_lag += ABCD[3+i_pole,:,:].dot(self.PHI_1).dot(lag_states_1[:,i_pole])
-            D_dot_lag += ABCD[3+i_pole,:,:].dot(self.PHI_2).dot(lag_states_2[:,i_pole])
+            D_dot_lag += ABCD[3+i_pole,:,:].dot(self.PHI_1).dot(lag_states_1[:,i_pole]) \
+                       + ABCD[3+i_pole,:,:].dot(self.PHI_2).dot(lag_states_2[:,i_pole])
         cp_unsteady = D_dot_lag 
         flunsteady = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*cp_unsteady
         Plunsteady = np.zeros(6*self.model.aerogrid['n'])

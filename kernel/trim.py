@@ -357,7 +357,9 @@ class trim:
                 self.response['X'][11+self.simcase['disturbance_mode']] += self.simcase['disturbance']
             # Initialize lag states with zero and extend steady response vectors X and Y
             # Distinguish between pyhsical rfa on panel level and generalized rfa. This influences the number of lag states.
-            if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'halfgeneralized':
+            if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'generalized':
+                logging.error('Generalized RFA not yet implemented.')
+            elif self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'halfgeneralized':
                 n_modes = self.model.mass['n_modes'][self.model.mass['key'].index(self.trimcase['mass'])]
                 logging.info('adding {} x {} unsteady lag states to the system'.format(2 * n_modes,self.model.aero['n_poles']))
                 lag_states = np.zeros((2 * n_modes * self.model.aero['n_poles'])) 
