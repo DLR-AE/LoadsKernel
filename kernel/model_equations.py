@@ -308,15 +308,15 @@ class common():
         if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'halfgeneralized':
             Pk_unsteady, Pk_unsteady_B, Pk_unsteady_D, dlag_states_dt =  self.unsteady_halfgeneralized(X, t, Uf, dUf_dt, onflow, q_dyn, Vtas)
         else: # 'physical'
-            dUmac_dt = np.dot(self.PHImac_cg, onflow)
-            # modale Verformung
-            Ujf = np.dot(self.PHIjf, Uf )
-            wjf_1 = np.sum(self.model.aerogrid['N'][:] * np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3]),axis=1) / Vtas
-            # modale Bewegung
-            dUjf_dt = np.dot(self.PHIjf, dUf_dt ) # viel schneller!
-            wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1.0
-            wjf = wjf_1 + wjf_2
-            Pk_unsteady, Pk_unsteady_B, Pk_unsteady_D, dlag_states_dt = self.unsteady_pyhsical(X, t, wjf, q_dyn, Vtas)
+#             dUmac_dt = np.dot(self.PHImac_cg, onflow)
+#             # modale Verformung
+#             Ujf = np.dot(self.PHIjf, Uf )
+#             wjf_1 = np.sum(self.model.aerogrid['N'][:] * np.cross(Ujf[self.model.aerogrid['set_j'][:,(3,4,5)]], dUmac_dt[0:3]),axis=1) / Vtas
+#             # modale Bewegung
+#             dUjf_dt = np.dot(self.PHIjf, dUf_dt ) # viel schneller!
+#             wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1.0
+#             wjf = wjf_1 + wjf_2
+            Pk_unsteady, Pk_unsteady_B, Pk_unsteady_D, dlag_states_dt = self.unsteady_pyhsical(X, t, wj, q_dyn, Vtas)
             
         return Pk_unsteady, dlag_states_dt
 
