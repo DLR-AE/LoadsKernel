@@ -11,15 +11,16 @@ import PyTauModuleInit, PyPara, PyDeform, PyPrep, PySolv
 from tau_python import *
 
 class common():
-    def __init__(self, model, jcl, trimcase, trimcond_X, trimcond_Y, simcase = False, X0=''):
+    def __init__(self, trim, X0=''):
         logging.info('Init model equations.')
-        self.model = model
-        self.jcl = jcl
-        self.trimcase = trimcase
-        self.simcase = simcase
-        self.trimcond_X = trimcond_X
-        self.trimcond_Y = trimcond_Y
-        self.counter = 0
+        self.model      = trim.model
+        self.jcl        = trim.jcl
+        self.trimcase   = trim.trimcase
+        self.simcase    = trim.simcase
+        self.trimcond_X = trim.trimcond_X
+        self.trimcond_Y = trim.trimcond_Y
+        self.trim       = trim
+        self.counter    = 0
         
         self.i_atmo     = self.model.atmo['key'].index(self.trimcase['altitude'])
         self.i_aero     = self.model.aero['key'].index(self.trimcase['aero'])
@@ -57,7 +58,7 @@ class common():
  
         # import aircraft-specific class from efcs.py dynamically 
         module = importlib.import_module('efcs')
-        efcs_class = getattr(module, jcl.efcs['version'])
+        efcs_class = getattr(module, self.jcl.efcs['version'])
         # init efcs
         self.efcs =  efcs_class() 
         
@@ -1150,7 +1151,7 @@ class nonlin_steady(common):
         
         elif type=='sim':
             Y = self.equations(X, time, 'sim')
-            return Y[:-2] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
+            return Y[self.trim.idx_state_derivatives+self.trim.idx_input_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
             
         elif type=='sim_full_output':
             response = self.equations(X, time, 'sim_full_output')
@@ -1401,7 +1402,7 @@ class steady(common):
         
         elif type=='sim':
             Y = self.equations(X, time, 'sim')
-            return Y[:-2] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
+            return Y[self.trim.idx_state_derivatives+self.trim.idx_input_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
             
         elif type=='sim_full_output':
             response = self.equations(X, time, 'sim_full_output')
@@ -1746,7 +1747,7 @@ class unsteady(common):
         # evaluate model equations
         if type=='sim':
             Y = self.equations(X, time, 'sim')
-            return Y[:-2] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
+            return Y[self.trim.idx_state_derivatives+self.trim.idx_input_derivatives+self.trim.idx_lag_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
             
         elif type=='sim_full_output':
             response = self.equations(X, time, 'sim_full_output')
@@ -1915,7 +1916,7 @@ class landing(common):
         # evaluate model equations
         if type=='sim':
             Y = self.equations(X, time, 'sim')
-            return Y[:-2] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
+            return Y[self.trim.idx_state_derivatives+self.trim.idx_input_derivatives+self.trim.idx_lg_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
             
         elif type=='sim_full_output':
             response = self.equations(X, time, 'sim_full_output')
