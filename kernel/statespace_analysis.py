@@ -205,7 +205,8 @@ class analysis:
         #idx_pos = np.where(eigenvalue.imag / 2.0 / np.pi >= 0.1)[0]  # nur oszillierende Eigenbewegungen
         # calculate all eigenvalues
         eigenvalue, eigenvector = eig(response['A'])
-        idx_pos = np.where(eigenvalue.imag / 2.0 / np.pi >= 0.01)[0]  # nur oszillierende Eigenbewegungen
+        bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
+        idx_pos = np.where(np.logical_and(eigenvalue.__abs__() / bandbreite >= 0.001, eigenvalue.imag >= 0.0))[0]  # nur oszillierende Eigenbewegungen
         n_eigenvalues = idx_pos.__len__()
         idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
         eigenvalue = eigenvalue[idx_pos][idx_sort]
@@ -226,8 +227,9 @@ class analysis:
         for i in range(1, len(self.responses)):
             response = self.responses[i]
             logging.info('Calculating eigenvalues...')
-            eigenvalue, eigenvector = linalg.eigs(response['A'], k=n_eigenvalues*2, which='LI') 
-            idx_pos = np.where(eigenvalue.imag / 2.0 / np.pi >= 0.1)[0]
+            #eigenvalue, eigenvector = linalg.eigs(response['A'], k=n_eigenvalues*2, which='LI') 
+            eigenvalue, eigenvector = eig(response['A'])
+            idx_pos = np.where(np.logical_and(eigenvalue.__abs__() / bandbreite >= 0.001, eigenvalue.imag >= 0.0))[0]
 #             eigenvalue, eigenvector = eig(response['A'])
 #             idx_pos = range(len(eigenvalue))
             # idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))
