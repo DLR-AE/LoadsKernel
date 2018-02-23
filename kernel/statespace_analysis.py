@@ -7,6 +7,7 @@ import itertools
 from scipy.optimize import curve_fit
 from scipy import signal
 from scipy.sparse import linalg
+from scipy.linalg import eig
 
 class analysis:
     def __init__(self, jcl, model, responses):
@@ -191,34 +192,8 @@ class analysis:
         
         pp.close()
         # plt.show()
-
-    def plot_state_space_matrices(self):
-        for i in range(len(self.responses)):
-            response = self.responses[i]
-            
-            A = np.zeros(response['jac'].shape)
-            B = np.zeros(response['jac'].shape)
-            C = np.zeros(response['jac'].shape)
-            D = np.zeros(response['jac'].shape)
-            A[:-4, :-3] = response['A']
-            B[:-4, -3:] = response['B']
-            C[-4:, :-3] = response['C']
-            D[-4:, -3:] = response['D']
-            
-            plt.figure()
-            plt.spy(A, marker='s', color='k', markersize=5)  # , markersize, aspect, hold)
-            plt.spy(B, marker='s', color='r', markersize=5)
-            plt.spy(C, marker='s', color='b', markersize=5)
-            plt.spy(D, marker='s', color='g', markersize=5)
-            plt.legend(['A', 'B', 'C', 'D'], loc='best')
-            plt.grid('on')
-            
-        plt.show()
      
-    def analyse_eigenvalues(self, filename_pdf):
-        eigenvalues = []
-        eigenvectors = []
-        
+    def analyse_eigenvalues(self, filename_pdf):       
         # calculate eigenvalues at first reduced frequencies
         # then loop over the rest and use MAC for tracking
         i = 0
@@ -226,55 +201,52 @@ class analysis:
         modes = self.jcl.mass['modes'][self.jcl.mass['key'].index(self.jcl.trimcase[i]['mass'])]
         
         logging.info('Calculating eigenvalues...')
-        eigenvalue, eigenvector = linalg.eigs(response['A'], k=modes.size * 2, which='LI') 
-        idx_pos = np.where(eigenvalue.imag / 2.0 / np.pi >= 0.1)[0]  # nur oszillierende Eigenbewegungen
-#         from scipy.linalg import eig
-#         eigenvalue, eigenvector = eig(response['A'])
-#         idx_pos = range(len(eigenvalue))
+        #eigenvalue, eigenvector = linalg.eigs(response['A'], k=modes.size * 2, which='LI') 
+        #idx_pos = np.where(eigenvalue.imag / 2.0 / np.pi >= 0.1)[0]  # nur oszillierende Eigenbewegungen
+        # calculate all eigenvalues
+        eigenvalue, eigenvector = eig(response['A'])
+        idx_pos = np.where(eigenvalue.imag / 2.0 / np.pi >= 0.01)[0]  # nur oszillierende Eigenbewegungen
+        n_eigenvalues = idx_pos.__len__()
         idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
-        eigenvalues.append(eigenvalue[idx_pos][idx_sort])
-        eigenvectors.append(eigenvector[:, idx_pos][:, idx_sort])
-        freqs = eigenvalues[i].imag / 2.0 / np.pi
-        #damping = eigenvalues[i].real * 2.0
-        damping = - eigenvalues[i].real / np.abs(eigenvalues[i])
-        logging.info('Found {} eigenvalues with frequencies [Hz]:'.format(len(eigenvalues[i])))
-        logging.info(freqs)
-        # logging.info('with damping ratios:')
-        # logging.info(damping)
-        
-        response['freqs'] = freqs
-        response['damping'] = damping
-        desc = 'Ma {}'.format(self.jcl.trimcase[i]['Ma'])
+        eigenvalue = eigenvalue[idx_pos][idx_sort]
+        eigenvector = eigenvector[:, idx_pos][:, idx_sort]
+        # store to response
+        response['eigenvalues'] = eigenvalue
+        response['eigenvectors'] = eigenvector
+        # calculate frequencies and damping ratios
+        #response['freqs'] = eigenvalue.imag / 2.0 / np.pi
+        response['freqs'] = eigenvalue.__abs__()/ 2.0 / np.pi # nach Goran
+        # lambda = sigma +- j*omega
+        # omega0 = sqrt(sigma^2+omega^2)
+        # D = - sigma / omega0
+        response['damping'] = - eigenvalue.real / np.abs(eigenvalue)
+        logging.info('Found {} eigenvalues with frequencies [Hz]:'.format(len(eigenvalue)))
+        logging.info(response['freqs'])
             
         for i in range(1, len(self.responses)):
             response = self.responses[i]
             logging.info('Calculating eigenvalues...')
-            eigenvalue, eigenvector = linalg.eigs(response['A'], k=modes.size * 2, which='LI') 
+            eigenvalue, eigenvector = linalg.eigs(response['A'], k=n_eigenvalues*2, which='LI') 
             idx_pos = np.where(eigenvalue.imag / 2.0 / np.pi >= 0.1)[0]
 #             eigenvalue, eigenvector = eig(response['A'])
 #             idx_pos = range(len(eigenvalue))
             # idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))
             # MAC, fig = calc_MAC(eigenvectors[0],eigenvectors[0])
             # MAC, fig = calc_MAC(eigenvector[:,idx_pos][:,idx_sort],eigenvector[:,idx_pos][:,idx_sort])
-            MAC = calc_MAC(eigenvectors[i - 1], eigenvector[:, idx_pos], plot=False)
+            MAC = calc_MAC(self.responses[i-1]['eigenvectors'], eigenvector[:, idx_pos], plot=False)
             idx_sort_MAC = [MAC[x, :].argmax() for x in range(MAC.shape[0])]
-            eigenvalues.append(eigenvalue[idx_pos][idx_sort_MAC])
-            eigenvectors.append(eigenvector[:, idx_pos][:, idx_sort_MAC])
-            
-            # lambda = sigma +- j*omega
-            # omega0 = sqrt(sigma^2+omega^2)
-            # D = - sigma / omega0
-            freqs = eigenvalues[i].imag / 2.0 / np.pi
-            #damping = eigenvalues[i].real * 2.0
-            damping = - eigenvalues[i].real / np.abs(eigenvalues[i])
-            logging.info('Found {} eigenvalues with frequencies [Hz]:'.format(len(eigenvalues[i])))
-            logging.info(freqs)
-            # logging.info('with damping ratios:')
-            # logging.info(damping)
-            
-            response['freqs'] = freqs
-            response['damping'] = damping
-            desc = 'Ma {}'.format(self.jcl.trimcase[i]['Ma'])
+            eigenvalue = eigenvalue[idx_pos][idx_sort_MAC]
+            eigenvector = eigenvector[:, idx_pos][:, idx_sort_MAC]
+
+            # store to response
+            response['eigenvalues'] = eigenvalue
+            response['eigenvectors'] = eigenvector
+            # calculate frequencies and damping ratios
+            #response['freqs'] = eigenvalue.imag / 2.0 / np.pi
+            response['freqs'] = eigenvalue.__abs__()/ 2.0 / np.pi # nach Goran
+            response['damping'] = - eigenvalue.real / np.abs(eigenvalue)
+            logging.info('Found {} eigenvalues with frequencies [Hz]:'.format(len(eigenvalue)))
+            logging.info(response['freqs'])
 
         # set up plotting and logging
         freqs = np.array([self.responses[i]['freqs'] for i in range(len(self.responses))])
@@ -282,16 +254,16 @@ class analysis:
         Ma = np.array([trimcase['Ma'] for trimcase in self.jcl.trimcase])
         colors = itertools.cycle(( plt.cm.jet(np.linspace(0, 1, 11)) ))
         markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
-        desc = ['M ' + str(mode) for mode in modes]
+        desc = [str(mode) for mode in range(n_eigenvalues)]
         
         pp = PdfPages(filename_pdf)
         
         fig1 = plt.figure()
-        ax1 = fig1.gca()
+        ax1 = fig1.add_axes([0.15, 0.15, 0.5, 0.75]) # List is [left, bottom, width, height]
         fig2 = plt.figure()
-        ax2 = fig2.gca()
+        ax2 = fig2.add_axes([0.15, 0.15, 0.5, 0.75]) # List is [left, bottom, width, height]
         fig3 = plt.figure()
-        ax3 = fig3.gca()
+        ax3 = fig3.add_axes([0.15, 0.15, 0.5, 0.75]) # List is [left, bottom, width, height]
         
         for j in range(freqs.shape[1]): 
             marker = next(markers)
@@ -302,35 +274,27 @@ class analysis:
         
         ax1.set_xlabel('Ma')
         ax1.set_ylabel('f [Hz]')
-        ax1.grid(b=True, which='both', axis='both')
-        ax1.legend(loc='best', fontsize=10)
-        #ax1.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
-        #ax1.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-        lgd1 = ax1.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2)
-        pp.savefig(fig1, additional_artists=[lgd1],  bbox_inches="tight")
-        
+
         ax2.set_xlabel('Ma')
         ax2.set_ylabel('Damping ratio zeta')
-        ax2.set_yscale('symlog',linthreshy=0.0001, subsy=[2,3,4,5,6,7,8,9])
-        ax2.grid(b=True, which='both', axis='both')
-        ax2.legend(loc='best', fontsize=10)
-        #ax2.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
-        #ax2.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-        lgd2 = ax2.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2)
-        pp.savefig(fig2, additional_artists=[lgd2],  bbox_inches="tight")
 
         ax3.set_xlabel('Damping ratio zeta')
-        ax3.set_xscale('symlog',linthreshx=0.0001, subsx=[2,3,4,5,6,7,8,9])
         ax3.set_ylabel('f [Hz]')
-        ax3.grid(b=True, which='both', axis='both')
-        ax3.legend(loc='best', fontsize=10)
-        #ax3.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
-        #ax3.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-        lgd3 = ax3.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2)
-        pp.savefig(fig3, additional_artists=[lgd3],  bbox_inches="tight")
-
+        
+        for ax in [ax1, ax2, ax3]:
+            yax = ax.get_yaxis()
+            yax.set_label_coords(x=-0.18, y=0.5)
+            ax.grid(b=True, which='both', axis='both')
+            #ax3.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
+            #ax3.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+            lgd = ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2, fontsize=10)
+        
+        pp.savefig(fig1)
+        pp.savefig(fig2)
+        pp.savefig(fig3)
         pp.close()
-        plt.close()
+        
+        plt.show()
         
 def calc_MAC(X, Y, plot=True):
     MAC = np.zeros((X.shape[1], Y.shape[1]))
