@@ -180,8 +180,8 @@ class Modelviewer():
         self.lb_uf = QtGui.QLabel('Scaling: 1.0')
         # slider for generalized coordinate magnification factor
         self.sl_uf = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.sl_uf.setMinimum(0)
-        self.sl_uf.setMaximum(30)
+        self.sl_uf.setMinimum(-25)
+        self.sl_uf.setMaximum(+25)
         self.sl_uf.setSingleStep(1)
         self.sl_uf.setValue(10)
         self.sl_uf.setTickPosition(QtGui.QSlider.TicksBelow)
@@ -338,7 +338,7 @@ class Modelviewer():
             self.get_mode_data_for_plotting()
     
     def get_mode_data_for_plotting(self):
-        uf_i = 10.0**(np.double(self.sl_uf.value())/10.0)
+        uf_i = np.sign(np.double(self.sl_uf.value())) * 10.0**(np.abs(np.double(self.sl_uf.value()))/10.0)
         self.lb_uf.setText('Scaling: {:0.2f}'.format(uf_i))
         if self.list_modes_mass.currentItem() is not None and self.list_modes_number.currentItem() is not None:
             key = self.list_modes_mass.currentItem().data(0)
