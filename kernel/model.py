@@ -165,8 +165,8 @@ class model:
             # cast normal vector of panels into a matrix of form (n, n*6)
             self.aerogrid['Rmat'] = np.zeros((self.aerogrid['n']*6, self.aerogrid['n']*6))
             for x in range(self.aerogrid['n']):
-                self.aerogrid['Rmat'][x*6+1,self.aerogrid['set_k'][x,5]] = 1.0
-                self.aerogrid['Rmat'][x*6+2,self.aerogrid['set_k'][x,4]] = 1.0
+                self.aerogrid['Rmat'][x*6+1,self.aerogrid['set_k'][x,5]] = -1.0 # Bug found by Roman. Onflow x r yields a negative downwash
+                self.aerogrid['Rmat'][x*6+2,self.aerogrid['set_k'][x,4]] =  1.0
                        
             # Correctionfor camber and twist, W2GJ
             if self.jcl.aero['filename_deriv_4_W2GJ']:
