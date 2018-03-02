@@ -223,9 +223,11 @@ class trim:
 #         X0 = np.array(self.trimcond_X[:,2], dtype='float')
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
             equations = model_equations.steady(self)
-            X0 = np.array(self.trimcond_X[:,2], dtype='float')
+#             X0 = np.array(self.trimcond_X[:,2], dtype='float')
+            X0 = self.response['X']
             n_poles     = 0
             n_j         = self.model.aerogrid['n']
+            self.idx_lag_states = []
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             # initialize lag states with zero and extend steady response vectors X and Y
             if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'generalized':
@@ -241,7 +243,8 @@ class trim:
                 lag_states = np.zeros((self.model.aerogrid['n'] * self.model.aero['n_poles'])) 
                 n_poles     = self.model.aero['n_poles']
                 n_j         = self.model.aerogrid['n']
-            X0 = np.hstack((np.array(self.trimcond_X[:,2], dtype='float'), lag_states ))
+#             X0 = np.hstack((np.array(self.trimcond_X[:,2], dtype='float'), lag_states ))
+            X0 = np.hstack((self.response['X'], lag_states ))
              # add lag states to system
             self.n_lag_states = lag_states.__len__()
             self.idx_lag_states         = range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lag_states)
@@ -274,14 +277,19 @@ class trim:
         
         logging.info('Calculating jacobian for ' + str(len(X0)) + ' variables...')
         jac = approx_jacobian(X0=X0, func=equations.equations, epsilon=0.001, dt=1.0) # epsilon sollte klein sein, dt sollte 1.0s sein
-        X = self.response['X']
-        Y = self.response['Y']
+#         X = self.response['X']
+#         Y = self.response['Y']
         self.response.clear()
-        self.response['X'] = X
-        self.response['Y'] = Y
+#         self.response['X'] = X
+#         self.response['Y'] = Y
+        self.response = {}
         self.response['X0'] = X0 # Linearisierungspunkt
         self.response['Y0'] = equations.equations(X0, t=0.0, type='trim')
         self.response['jac'] = jac
+        self.response['states'] = self.states[:,0]
+        self.response['state_derivativess'] = self.state_derivatives[:,0]
+        self.response['inputs'] = self.inputs[:,0]
+        self.response['outputs'] = self.outputs[:,0]
         
         
         i_mass      = self.model.mass['key'].index(self.trimcase['mass'])
@@ -298,6 +306,9 @@ class trim:
         self.response['B'] = jac[idx_A,:][:,idx_B] # reaction of aircraft on external excitation
         self.response['C'] = jac[idx_C,:][:,idx_A] # sensors
         self.response['D'] = jac[idx_C,:][:,idx_B] # reaction of sensors on external excitation
+        self.response['idx_A'] = idx_A
+        self.response['idx_B'] = idx_B
+        self.response['idx_C'] = idx_C
             
     def calc_derivatives(self):
         import model_equations # Warum muss der import hier stehen??
