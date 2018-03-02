@@ -111,6 +111,14 @@ class New_model():
 class matlab_functions():
     def __init__(self):
         pass
+    
+    def save_responses(self, f, responses):
+        # Lists can not be handles by savemat, thus convert list to stack of objects. 
+        ObjectStack = np.empty((len(responses),), dtype=np.object)
+        for i in range(len(responses)):
+            ObjectStack[i] = responses[i]
+        self.save_mat(f, {"responses":ObjectStack})
+        
     def save_mat(self, f, data):
         scipy.io.savemat(f, data)
 
