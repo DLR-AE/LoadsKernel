@@ -24,6 +24,7 @@ class Plotting:
         self.show_aero=False
         self.show_coupling=False
         self.show_cs=False
+        self.show_cell=False
         
     def add_figure(self, fig):
         self.fig = fig
@@ -43,7 +44,13 @@ class Plotting:
                           + (self.strcgrid['offset'][:,2].max()-self.strcgrid['offset'][:,2].min())**2 )**0.5
     def calc_focalpoint(self):
         self.focalpoint = (self.strcgrid['offset'].min(axis=0) + self.strcgrid['offset'].max(axis=0))/2.0
-        
+    
+    def set_view_high_left_above(self):
+        self.azimuth   =  60.0
+        self.elevation = -30.0
+        self.roll      =  35.0
+        self.set_view()
+    
     def set_view_left_above(self):
         self.azimuth   =  60.0
         self.elevation = -65.0
@@ -320,3 +327,53 @@ class Plotting:
 
     def update_cs_display(self, points):
         self.src_cs.outputs[0].points.from_array(points)
+
+        
+    def hide_cell(self):
+        self.src_cell.remove()
+        self.show_cell=False
+        mlab.draw(self.fig)
+        
+    def plot_cell(self, cell_data, culling=False):
+        if self.show_cell:
+            self.update_cell_display(cell_data=cell_data)
+        else:
+            self.setup_cell_display(offsets=self.strcgrid['offset'], color=(0,0,1), p_scale=self.pscale, cell_data=cell_data, culling=culling)
+            self.show_cell=True
+        mlab.draw(self.fig)
+           
+    def setup_cell_display(self, offsets, color, p_scale, cell_data, culling):
+        ug = tvtk.UnstructuredGrid(points=offsets)
+        #ug.point_data.scalars = scalars
+        if hasattr(self.model, 'strcshell'):
+            # plot shell as surface
+            shells = []
+            for shell in self.model.strcshell['cornerpoints']: 
+                shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell])
+            shell_type = tvtk.Polygon().cell_type
+            ug.set_cells(shell_type, shells)
+            ug.cell_data.scalars = cell_data
+            self.src_cell = mlab.pipeline.add_dataset(ug)
+            #points  = mlab.pipeline.glyph(self.src_cell, color=color, scale_factor=p_scale) 
+            surface = mlab.pipeline.surface(self.src_cell, opacity=1.0, line_width=0.5, colormap='plasma')
+            surface.actor.property.edge_visibility=True
+            if culling:
+                surface.actor.property.backface_culling=True
+            else:
+                surface.actor.property.backface_culling=False
+            cbar = mlab.colorbar(surface, title='data', orientation='vertical')
+            cbar._label_text_property.color=(0,0,0)
+            cbar._label_text_property.font_family='times'
+            cbar._label_text_property.bold=False
+            cbar._label_text_property.italic=False
+            
+        else: 
+            # plot points as glyphs
+            self.src_cell = mlab.pipeline.add_dataset(ug)
+            points = mlab.pipeline.glyph(self.src_cell, color=color, scale_factor=p_scale)
+            points.glyph.glyph.scale_mode = 'data_scaling_off'
+
+    def update_cell_display(self, cell_data):
+        self.src_cell.outputs[0].cell_data.scalars.from_array(cell_data)
+        self.src_cell.update()
+        

@@ -14,6 +14,7 @@ sys.path.append("../kernel")
 
 import io_functions
 from plotting import Plotting
+from pytran import NastranSOL101
 
 # First, and before importing any Enthought packages, set the ETS_TOOLKIT
 # environment variable to qt4, to tell Traits that we will use Qt.
@@ -91,7 +92,14 @@ class Modelviewer():
         self.file_opt['initialdir'] = os.getcwd()
         self.file_opt['title']      = 'Open a Loads Kernel Model'
         
+        # define file options
+        self.hdf5_opt = {}
+        self.hdf5_opt['filters']  = "Nastran HDF5 files (*.h5);;all files (*.*)"
+        self.hdf5_opt['initialdir'] = os.getcwd()
+        self.hdf5_opt['title']      = 'Open a Nastran HDF5 File'
+        
         self.plotting = Plotting()
+        self.nastran = NastranSOL101()
         self.initGUI()
         pass
     
@@ -113,12 +121,14 @@ class Modelviewer():
         tab_coupling    = QtGui.QWidget()
         tab_monstations = QtGui.QWidget()
         tab_cs          = QtGui.QWidget()
+        tab_celldata     = QtGui.QWidget()
         
         # Configure tabs
         tabs_widget = QtGui.QTabWidget()
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
         tabs_widget.setSizePolicy(sizePolicy)
         tabs_widget.setMinimumWidth(300)
+        tabs_widget.setMaximumWidth(450)
         
         # Add widgets to tabs
         tabs_widget.addTab(tab_strc, 'strc')
@@ -127,6 +137,7 @@ class Modelviewer():
         tabs_widget.addTab(tab_cs,"cs")
         tabs_widget.addTab(tab_coupling,"coupling") 
         tabs_widget.addTab(tab_monstations,"monstations")
+        tabs_widget.addTab(tab_celldata,"pytran")
         
         # Elements of mass tab
         self.list_mass = QtGui.QListWidget()      
@@ -264,6 +275,20 @@ class Modelviewer():
         layout_cs.addWidget(bt_cs_hide)
         layout_cs.addStretch(1)
         
+        # Elements of results tab
+        self.list_celldata = QtGui.QListWidget()  
+        self.list_celldata.itemClicked.connect(self.get_new_cell_data_for_plotting)
+        self.cb_culling = QtGui.QCheckBox('Culling On/Off')
+        self.cb_culling.stateChanged.connect(self.toggle_culling)
+        bt_cell_hide = QtGui.QPushButton('Hide')
+        bt_cell_hide.clicked.connect(self.plotting.hide_cell)
+        
+        layout_celldata = QtGui.QVBoxLayout(tab_celldata)
+        layout_celldata.addWidget(self.list_celldata)
+        layout_celldata.addWidget(self.cb_culling)
+        layout_celldata.addWidget(bt_cell_hide)
+        layout_celldata.addStretch(1)
+        
         # ----------------------------
         # --- set up Mayavi Figure ---
         # ----------------------------
@@ -291,6 +316,13 @@ class Modelviewer():
         loadButton.setShortcut('Ctrl+L')
         loadButton.triggered.connect(self.load_model)
         fileMenu.addAction(loadButton)
+        
+        self.loadButton_nastran = QtGui.QAction('Load Nastran results', self.window)
+        self.loadButton_nastran.setShortcut('Ctrl+R')
+        self.loadButton_nastran.setDisabled(True)
+        self.loadButton_nastran.triggered.connect(self.load_nastran_results)
+        fileMenu.addAction(self.loadButton_nastran)
+        
         # Add exit button
         exitButton = QtGui.QAction('Exit', self.window)
         exitButton.setShortcut('Ctrl+Q')
@@ -299,6 +331,10 @@ class Modelviewer():
                 
         fileMenu = mainMenu.addMenu('View')
         # Add view buttons
+        bt_view_high_left_above = QtGui.QAction('High Left Above', self.window)
+        bt_view_high_left_above.triggered.connect(self.plotting.set_view_high_left_above)
+        fileMenu.addAction(bt_view_high_left_above)
+        
         bt_view_left_above = QtGui.QAction('Left Above', self.window)
         bt_view_left_above.triggered.connect(self.plotting.set_view_left_above)
         fileMenu.addAction(bt_view_left_above)
@@ -399,7 +435,20 @@ class Modelviewer():
             axis = self.cb_axis.currentText()
             # hand over for plotting
             self.plotting.plot_cs(i_surf, axis, deg)
-            
+    
+    def get_new_cell_data_for_plotting(self, *args):
+        if self.list_celldata.currentItem() is not None:
+            # determine cs
+            key = self.list_celldata.currentItem().data(0)
+            celldata = self.nastran.celldata[key]
+            culling = self.cb_culling.isChecked() # True/False
+            self.plotting.plot_cell(celldata, culling)
+    
+    def toggle_culling(self):
+        self.plotting.hide_cell()
+        self.get_new_cell_data_for_plotting()
+        
+    
     def load_model(self):
         # open file dialog
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'], self.file_opt['filters'])[0]
@@ -420,6 +469,7 @@ class Modelviewer():
             self.plotting.plot_nothing()
             self.file_opt['initialdir'] = os.path.split(filename)[0]
             self.container.show()
+            self.loadButton_nastran.setEnabled(True)
 
     def update_fields(self):
         self.list_mass.clear()
@@ -432,6 +482,22 @@ class Modelviewer():
         for key in self.model.x2grid['key']:
             self.list_cs.addItem(QtGui.QListWidgetItem(key))
             
+    def load_nastran_results(self):
+        filename = QtGui.QFileDialog.getOpenFileName(self.window, self.hdf5_opt['title'], self.hdf5_opt['initialdir'], self.hdf5_opt['filters'])[0]
+        if filename != '':
+            self.nastran.load_file(filename)
+            self.nastran.add_model(self.model)
+            self.nastran.prepare_celldata()
+            self.update_celldata()
+    
+    def update_celldata(self):
+        self.list_celldata.clear()
+        for key in self.nastran.celldata.keys():
+            self.list_celldata.addItem(QtGui.QListWidgetItem(key))
+            
+            
+        
+        
     
 if __name__ == "__main__":
     modelviewer = Modelviewer()
