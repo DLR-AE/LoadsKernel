@@ -11,12 +11,12 @@ import PyTauModuleInit, PyPara, PyDeform, PyPrep, PySolv
 from tau_python import *
 
 class common():
-    def __init__(self, trim, X0=''):
+    def __init__(self, trim, X0='', simcase=''):
         logging.info('Init model equations.')
         self.model      = trim.model
         self.jcl        = trim.jcl
         self.trimcase   = trim.trimcase
-        self.simcase    = trim.simcase
+        self.simcase    = simcase
         self.trimcond_X = trim.trimcond_X
         self.trimcond_Y = trim.trimcond_Y
         self.trim       = trim

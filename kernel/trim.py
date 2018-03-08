@@ -384,9 +384,9 @@ class trim:
     def exec_sim(self):
         import model_equations 
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not self.simcase['landinggear']:
-            equations = model_equations.steady(self, X0=self.response['X'])
+            equations = model_equations.steady(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
-            equations = model_equations.nonlin_steady(self, X0=self.response['X'])
+            equations = model_equations.nonlin_steady(self, X0=self.response['X'], simcase=self.simcase)
         elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
             logging.info('adding 2 x {} states for landing gear'.format(self.model.lggrid['n']))
             lg_states = []
@@ -404,7 +404,7 @@ class trim:
             self.idx_lg_states         = range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lag_states)
             self.idx_lg_derivatives    = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states)
             self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states+self.n_outputs)
-            equations = model_equations.landing(self, X0=self.response['X'])
+            equations = model_equations.landing(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             if 'disturbance' in self.simcase.keys():
                 logging.info('adding disturbance of {} to state(s) '.format(self.simcase['disturbance']))
@@ -427,7 +427,7 @@ class trim:
             self.idx_lag_states         = range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lag_states)
             self.idx_lag_derivatives    = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states)
             self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states+self.n_outputs)
-            equations = model_equations.unsteady(self, X0=self.response['X'])
+            equations = model_equations.unsteady(self, X0=self.response['X'], simcase=self.simcase)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
 
