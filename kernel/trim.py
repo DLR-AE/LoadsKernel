@@ -401,8 +401,8 @@ class trim:
             self.response['X'] = np.hstack((self.response['X'], lg_states ))
             self.response['Y'] = np.hstack((self.response['Y'][self.idx_state_derivatives + self.idx_input_derivatives], lg_derivatives, self.response['Y'][self.idx_outputs] ))
             self.n_lg_states = lg_states.__len__()
-            self.idx_lg_states         = range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lag_states)
-            self.idx_lg_derivatives    = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states)
+            self.idx_lg_states         = range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lg_states)
+            self.idx_lg_derivatives    = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states)
             self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states+self.n_outputs)
             equations = model_equations.landing(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
