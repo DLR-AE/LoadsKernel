@@ -24,12 +24,16 @@ def calc_Qjj(aerogrid, Ma, k):
         Ajj_DLM = calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma, k=k)
     Ajj = Ajj_VLM + Ajj_DLM
     Qjj = -np.linalg.inv(Ajj)
-    return Qjj
 
-def calc_Qjjs(aerogrid, Ma, k):
+def calc_Qjjs(aerogrid, Ma, k, xz_symmetry=False):
     # allocate memory
     Qjj = np.zeros((len(Ma),len(k),aerogrid['n'],aerogrid['n']), dtype='complex')# dim: Ma,k,n,n
-    # loop over mach number  and freq.
+    # Consideration of XZ symmetry like in VLM.
+    if xz_symmetry:
+        n = aerogrid['n']
+        aerogrid = VLM.mirror_aerogrid_xz(aerogrid)
+        
+    # loop over mach number and freq.
     for im in range(len(Ma)):
         # calc steady contributions using VLM
         Ajj_VLM, Bjj = VLM.calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma[im])
@@ -41,7 +45,11 @@ def calc_Qjjs(aerogrid, Ma, k):
                 # calc oscillatory / unsteady contributions using DLM
                 Ajj_DLM = calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma[im], k=k[ik])
             Ajj = Ajj_VLM + Ajj_DLM
-            Qjj[im,ik] = -np.linalg.inv(Ajj)
+            Ajj_inv = -np.linalg.inv(Ajj)
+            if xz_symmetry:
+                Qjj[im,ik] = Ajj_inv[0:n,0:n]-Ajj_inv[n:2*n,0:n]
+            else:
+                Qjj[im,ik] = Ajj_inv
     return Qjj
 
 def calc_Ajj(aerogrid, Ma, k):

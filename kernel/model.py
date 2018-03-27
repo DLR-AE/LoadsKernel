@@ -278,7 +278,16 @@ class model:
                 # Nastran:   k = 0.5*cref*omega/U
                 t_start = time.time()
                 #Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
-                Qjj = DLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma'], k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
+                if 'xz_symmetry' in self.jcl.aero: 
+                    logging.info( ' - XZ Symmetry: {}'.format( str(self.jcl.aero['xz_symmetry']) ) )
+                    Qjj = DLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), 
+                                        Ma=self.jcl.aero['Ma'], 
+                                        k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']), 
+                                        xz_symmetry=self.jcl.aero['xz_symmetry'])
+                else:
+                    Qjj = DLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), 
+                                        Ma=self.jcl.aero['Ma'], 
+                                        k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
                 logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
                 self.aero['Qjj_unsteady'] = Qjj # dim: Ma,k,n,n
             elif self.jcl.aero['method_AIC'] == 'nastran':
