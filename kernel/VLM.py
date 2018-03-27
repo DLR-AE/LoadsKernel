@@ -7,12 +7,10 @@ Created on Fri May  5 14:37:24 2017
 """
 
 import numpy as np
-import cPickle, time, scipy
+import cPickle, time, scipy, copy
 from scipy import io
 
 def calc_induced_velocities(aerogrid, Ma):
-    panels = aerogrid['cornerpoint_panels']
-    grids = aerogrid['cornerpoint_grids']
     #
     #                   l_2
     #             4 o---------o 3
@@ -131,6 +129,25 @@ def calc_induced_velocities(aerogrid, Ma):
     
     return D1, D2, D3
 
+def mirror_aerogrid_xz(aerogrid):
+    tmp = copy.deepcopy(aerogrid)
+    # mirror y-coord
+    tmp['offset_j'][:,1]  = - tmp['offset_j'][:,1]
+    tmp['offset_P1'][:,1] = - tmp['offset_P1'][:,1]
+    tmp['offset_P3'][:,1] = - tmp['offset_P3'][:,1]
+    tmp['N'][:,1] = - aerogrid['N'][:,1]
+    tmp['N'][:,2] = - aerogrid['N'][:,2]
+    # assemble both grids
+    aerogrid_xzsym = {'offset_j':  np.vstack((aerogrid['offset_j'],  tmp['offset_j'])),
+                      'offset_P1': np.vstack((aerogrid['offset_P1'], tmp['offset_P1'])),
+                      'offset_P3': np.vstack((aerogrid['offset_P3'], tmp['offset_P3'])),
+                      'N': np.vstack((aerogrid['N'], tmp['N'])),
+                      'A': np.hstack((aerogrid['A'], tmp['A'])),
+                      'l': np.hstack((aerogrid['l'], tmp['l'])),
+                      'n': aerogrid['n']*2,
+                      }
+    return aerogrid_xzsym
+
 def calc_Ajj(aerogrid, Ma):
     D1, D2, D3 = calc_induced_velocities(aerogrid, Ma)
     # define area, chord length and spann of each panel
@@ -143,16 +160,35 @@ def calc_Ajj(aerogrid, Ma):
     Bjj = (D2 + D3)*0.5*A/span
     return Ajj, Bjj
 
-def calc_Qjj(aerogrid, Ma):
+def calc_Qjj(aerogrid, Ma, xz_symmetry=False):
+    '''
+    Symmetry about xz-plane:
+    Only the right hand side is give. The (missing) left hand side is created virtually using mirror_aerogrid_xz().
+    The AIC matrix is calculated for the whole system and can be partitioned into terms:
+    AIC = |RR|LR|
+          |RL|LL|
+    with
+    RR - influence of right side onto right side,
+    LL - influence of left side onto left side,
+    RL and LR - influence from left side onto right side. Due to symmetry, both term are identical.
+    Then, for symmetric motions: AIC_sym  = RR - LR 
+    And, for asymmetric motions: AIC_asym = RR + LR  ??? -> to be checked !!!
+    '''
+    if xz_symmetry:
+        n = aerogrid['n']
+        aerogrid = mirror_aerogrid_xz(aerogrid)
     Ajj, Bjj = calc_Ajj(aerogrid, Ma)
     Qjj = -np.linalg.inv(Ajj)
-    return Qjj, Bjj
+    if xz_symmetry:
+        return Qjj[0:n,0:n]-Qjj[n:2*n,0:n], Bjj[0:n,0:n]-Bjj[n:2*n,0:n]
+    else:
+        return Qjj, Bjj
 
-def calc_Qjjs(aerogrid, Ma):
+def calc_Qjjs(aerogrid, Ma, xz_symmetry=False):
     Qjj = np.zeros((len(Ma), aerogrid['n'], aerogrid['n'])) # dim: Ma,n,n
     Bjj = np.zeros((len(Ma), aerogrid['n'], aerogrid['n'])) # dim: Ma,n,n
     for i_Ma in range(len(Ma)):
-        Qjj[i_Ma,:,:], Bjj[i_Ma,:,:] = calc_Qjj(aerogrid, Ma[i_Ma])
+        Qjj[i_Ma,:,:], Bjj[i_Ma,:,:] = calc_Qjj(aerogrid, Ma[i_Ma], xz_symmetry)
     return Qjj, Bjj
 
 def calc_Gamma(aerogrid, Ma):

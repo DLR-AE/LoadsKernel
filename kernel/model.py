@@ -258,8 +258,12 @@ class model:
         elif self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae']:
             logging.info( 'Calculating steady AIC matrices ({} panels, k=0.0) for {} Mach number(s)...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) ))
             t_start = time.time()
-            self.aero['Qjj'], self.aero['Bjj'] = VLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
-            self.aero['Gamma_jj'], self.aero['Q_ind_jj'] = VLM.calc_Gammas(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
+            if 'xz_symmetry' in self.jcl.aero: 
+                logging.info( ' - XZ Symmetry: {}'.format( str(self.jcl.aero['xz_symmetry']) ) )
+                self.aero['Qjj'], self.aero['Bjj'] = VLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma'], xz_symmetry=self.jcl.aero['xz_symmetry']) # dim: Ma,n,n
+            else: 
+                self.aero['Qjj'], self.aero['Bjj'] = VLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
+                self.aero['Gamma_jj'], self.aero['Q_ind_jj'] = VLM.calc_Gammas(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
             logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
             self.aero['key'] = self.jcl.aero['key']
         else:
