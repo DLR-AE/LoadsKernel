@@ -452,6 +452,8 @@ class trim:
         if integrator.successful():
             logging.info('Simulation finished.')
             logging.info('running (again) with full outputs at selected time steps...')
+            equations = model_equations.unsteady(self, X0=self.response['X'], simcase=self.simcase)
+            equations.eval_equations(self.response['X'], 0.0, type='sim_full_output')
             for i_step in np.arange(0,len(t)):
                 response_step = equations.eval_equations(X_t[i_step], t[i_step], type='sim_full_output')
                 for key in self.response.keys():
