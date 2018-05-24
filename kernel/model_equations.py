@@ -636,9 +636,9 @@ class common():
         os.chdir(self.jcl.aero['para_path'])
 
         args_subgrids = shlex.split('ptau3d.subgrids para_subcase_{}'.format(self.trimcase['subcase']))
-        args_deform   = shlex.split('mpirun -n {} deformation para_subcase_{} ./log/log with mpi'.format(self.jcl.aero['tau_cores'], self.trimcase['subcase']))
-        args_pre      = shlex.split('mpirun -n {} ptau3d.preprocessing para_subcase_{} ./log/log with mpi'.format(self.jcl.aero['tau_cores'], self.trimcase['subcase']))
-        args_solve    = shlex.split('mpirun -n {} ptau3d.{} para_subcase_{} ./log/log with mpi'.format(self.jcl.aero['tau_cores'], self.jcl.aero['tau_solver'], self.trimcase['subcase']))
+        args_deform   = shlex.split('mpirun -n {} deformation para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'], self.trimcase['subcase'], self.trimcase['subcase']))
+        args_pre      = shlex.split('mpirun -n {} ptau3d.preprocessing para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'], self.trimcase['subcase'], self.trimcase['subcase']))
+        args_solve    = shlex.split('mpirun -n {} ptau3d.{} para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'], self.jcl.aero['tau_solver'], self.trimcase['subcase'], self.trimcase['subcase']))
         
         #subprocess.call(args_subgrids)
         returncode = subprocess.call(args_deform)
