@@ -138,10 +138,11 @@ class meshdefo:
         logging.info( 'Writing ' + filename_defo + '.nc')
         f = netcdf.netcdf_file(filename_defo + '.nc', 'w')
         f.history = 'Surface deformations created by Loads Kernel'
-        # calc total number of points
-        n = 0
-        for cfdgrid in self.cfdgrids: n += cfdgrid['n'] 
-        f.createDimension('no_of_points', n)
+        # Calc total number of surface points becasue one point may belong to multiple markers.
+        IDs = np.array([])
+        for cfdgrid in self.cfdgrids: IDs = np.concatenate((IDs, cfdgrid['ID']))
+        IDs = np.unique(IDs)        
+        f.createDimension('no_of_points', IDs.__len__())
         # create variables
         global_id = f.createVariable('global_id', 'i', ('no_of_points',))
         x = f.createVariable('x', 'd', ('no_of_points',))
@@ -151,17 +152,14 @@ class meshdefo:
         dy = f.createVariable('dy', 'd', ('no_of_points',))
         dz = f.createVariable('dz', 'd', ('no_of_points',))
         # fill variables with data
-        i = 0
         for cfdgrid, Ucfd in zip(self.cfdgrids, self.Ucfd):
-            size = cfdgrid['n']
-            global_id[i:i+size] = cfdgrid['ID']
-            x[i:i+size] = cfdgrid['offset'][:,0]
-            y[i:i+size] = cfdgrid['offset'][:,1]
-            z[i:i+size] = cfdgrid['offset'][:,2]
-            dx[i:i+size] = Ucfd[cfdgrid['set'][:,0]]
-            dy[i:i+size] = Ucfd[cfdgrid['set'][:,1]]
-            dz[i:i+size] = Ucfd[cfdgrid['set'][:,2]]
-            i += size
+            global_id[cfdgrid['ID']] = cfdgrid['ID']
+            x[cfdgrid['ID']] = cfdgrid['offset'][:,0]
+            y[cfdgrid['ID']] = cfdgrid['offset'][:,1]
+            z[cfdgrid['ID']] = cfdgrid['offset'][:,2]
+            dx[cfdgrid['ID']] = Ucfd[cfdgrid['set'][:,0]]
+            dy[cfdgrid['ID']] = Ucfd[cfdgrid['set'][:,1]]
+            dz[cfdgrid['ID']] = Ucfd[cfdgrid['set'][:,2]]
         f.close()
 
     def write_defo_cgns(self, filename_defo):
