@@ -253,24 +253,23 @@ class meshdefo:
         filename_grid = self.jcl.meshdefo['surface']['filename_grid']
         markers = self.jcl.meshdefo['surface']['markers']
         logging.info( 'Extracting points belonging to marker(s) {} from grid {}'.format(str(markers), filename_grid))
-        # --- get points on surfaces according to marker ---
+        # --- get all points on surfaces ---
         ncfile_grid = netcdf.NetCDFFile(filename_grid, 'r')
         boundarymarker_surfaces = ncfile_grid.variables['boundarymarker_of_surfaces'][:]
-        points_of_surfacetriangles = ncfile_grid.variables['points_of_surfacetriangles'][:]
-        # expand triangles and merge with quadrilaterals
+        points_of_surface = []
+        # merge triangles with quadrilaterals
+        if 'points_of_surfacetriangles' in ncfile_grid.variables:
+            points_of_surface += ncfile_grid.variables['points_of_surfacetriangles'][:].tolist()
         if 'points_of_surfacequadrilaterals' in ncfile_grid.variables:
-            points_of_surfacetriangles = np.hstack((points_of_surfacetriangles, np.zeros((len(points_of_surfacetriangles), 1), dtype=int)))
-            points_of_surfacequadrilaterals = ncfile_grid.variables['points_of_surfacequadrilaterals'][:]
-            points_of_surface = np.vstack((points_of_surfacetriangles, points_of_surfacequadrilaterals))
-        else:
-            points_of_surface = points_of_surfacetriangles
+            points_of_surface += ncfile_grid.variables['points_of_surfacequadrilaterals'][:].tolist()
+        
         self.cfdgrids = []
         if merge_domains:   
-            # find global id of points on surface defined by markers 
-            points = np.array([], dtype=int)
+            # --- get points on surfaces according to marker ---
+            surfaces = np.array([], dtype=int)
             for marker in markers:
-                points = np.hstack((points, np.where(boundarymarker_surfaces == marker)[0]))
-            points = np.unique(points_of_surface[points])
+                surfaces = np.hstack((surfaces, np.where(boundarymarker_surfaces == marker)[0]))
+            points = np.unique([points_of_surface[s] for s in surfaces])
             # build cfdgrid
             cfdgrid = {}
             cfdgrid['ID'] = points
@@ -280,11 +279,13 @@ class meshdefo:
             cfdgrid['offset'] = np.vstack((ncfile_grid.variables['points_xc'][:][points].copy(), ncfile_grid.variables['points_yc'][:][points].copy(), ncfile_grid.variables['points_zc'][:][points].copy() )).T
             cfdgrid['set'] = np.arange(6*cfdgrid['n']).reshape(-1,6)
             cfdgrid['desc'] = markers
+            cfdgrid['points_of_surface'] = [points_of_surface[s] for s in surfaces]
             self.cfdgrids.append(cfdgrid)
         else:
             for marker in markers:
-                points = np.where(boundarymarker_surfaces == marker)[0]
-                points = np.unique(points_of_surface[points])
+                # --- get points on surfaces according to marker ---
+                surfaces = np.where(boundarymarker_surfaces == marker)[0]
+                points = np.unique([points_of_surface[s] for s in surfaces])                
                 # build cfdgrid
                 cfdgrid = {}
                 cfdgrid['ID'] = points
@@ -294,6 +295,7 @@ class meshdefo:
                 cfdgrid['offset'] = np.vstack((ncfile_grid.variables['points_xc'][:][points].copy(), ncfile_grid.variables['points_yc'][:][points].copy(), ncfile_grid.variables['points_zc'][:][points].copy() )).T
                 cfdgrid['set'] = np.arange(6*cfdgrid['n']).reshape(-1,6)
                 cfdgrid['desc'] = str(marker)
+                cfdgrid['points_of_surface'] = [points_of_surface[s] for s in surfaces]
                 self.cfdgrids.append(cfdgrid)
         ncfile_grid.close()
 
