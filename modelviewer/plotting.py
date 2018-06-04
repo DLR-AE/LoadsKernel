@@ -22,6 +22,7 @@ class Plotting:
         self.show_strc=False
         self.show_mode=False
         self.show_aero=False
+        self.show_cfdgrids=False
         self.show_coupling=False
         self.show_cs=False
         self.show_cell=False
@@ -37,6 +38,9 @@ class Plotting:
         self.aerogrid = model.aerogrid
         self.calc_distance()
         self.calc_focalpoint()
+        
+    def add_cfdgrids(self, cfdgrids):
+        self.cfdgrids = cfdgrids
 
     def calc_distance(self):
         self.distance = 1.5*(  (self.strcgrid['offset'][:,0].max()-self.strcgrid['offset'][:,0].min())**2 \
@@ -213,6 +217,35 @@ class Plotting:
     def update_aero_display(self, scalars): # currently unused
         self.src_aerogrid.outputs[0].cell_data.scalars.from_array(scalars)
         self.src_aerogrid.update()
+        
+    def hide_cfdgrids(self):
+        for src in self.src_cfdgrids:
+            src.remove()
+        self.show_cfdgrids=False
+        mlab.draw(self.fig)
+        
+    def plot_cfdgrids(self, markers):
+        self.src_cfdgrids = []
+        for cfdgrid in self.cfdgrids:
+            if int(cfdgrid['desc']) in markers:
+                self.setup_cfdgrid_display(grid=cfdgrid, color=(1,1,1), scalars=None)
+        self.show_cfdgrids=True
+        mlab.draw(self.fig)
+
+    def setup_cfdgrid_display(self, grid, color, scalars):
+        ug = tvtk.UnstructuredGrid(points=grid['offset'])
+        #ug.point_data.scalars = scalars
+        shells = []
+        for shell in grid['points_of_surface']: 
+            shells.append([np.where(grid['ID']==id)[0][0] for id in shell])
+        shell_type = tvtk.Polygon().cell_type
+        ug.set_cells(shell_type, shells)
+        src_cfdgrid = mlab.pipeline.add_dataset(ug)
+        self.src_cfdgrids.append(src_cfdgrid)
+        
+        surface = mlab.pipeline.surface(src_cfdgrid, opacity=1.0, line_width=0.5, color=color)
+        surface.actor.property.edge_visibility=True    
+    
 
     # --------------
     # --- coupling ---

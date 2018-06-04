@@ -15,6 +15,7 @@ sys.path.append("../kernel")
 import io_functions
 from plotting import Plotting
 from pytran import NastranSOL101
+from cfdgrid import TauGrid
 
 # First, and before importing any Enthought packages, set the ETS_TOOLKIT
 # environment variable to qt4, to tell Traits that we will use Qt.
@@ -98,8 +99,15 @@ class Modelviewer():
         self.hdf5_opt['initialdir'] = os.getcwd()
         self.hdf5_opt['title']      = 'Open a Nastran HDF5 File'
         
+        # define file options
+        self.nc_opt = {}
+        self.nc_opt['filters']  = "all files (*.*)"
+        self.nc_opt['initialdir'] = os.getcwd()
+        self.nc_opt['title']      = 'Open a Tau Grid File'
+        
         self.plotting = Plotting()
         self.nastran = NastranSOL101()
+        self.taugrid = TauGrid()
         self.initGUI()
         pass
     
@@ -221,9 +229,17 @@ class Modelviewer():
         bt_aero_hide = QtGui.QPushButton('Hide')
         bt_aero_hide.clicked.connect(self.plotting.hide_aero)
         
+        self.list_markers = QtGui.QListWidget()
+        self.list_markers.setSelectionMode(QtGui.QAbstractItemView.SelectionMode.ExtendedSelection) # allow multiple selections
+        self.list_markers.itemSelectionChanged.connect(self.get_new_markers_for_plotting)
+        bt_cfdgrid_hide = QtGui.QPushButton('Hide CFD Grids')
+        bt_cfdgrid_hide.clicked.connect(self.plotting.hide_cfdgrids)
+        
         layout_aero = QtGui.QVBoxLayout(tab_aero)
         layout_aero.addWidget(bt_aero_show)
         layout_aero.addWidget(bt_aero_hide)
+        layout_aero.addWidget(self.list_markers)
+        layout_aero.addWidget(bt_cfdgrid_hide)
         layout_aero.addStretch(1)
         
         # Elements of coupling tab
@@ -322,6 +338,12 @@ class Modelviewer():
         self.loadButton_nastran.setDisabled(True)
         self.loadButton_nastran.triggered.connect(self.load_nastran_results)
         fileMenu.addAction(self.loadButton_nastran)
+        
+        self.loadButton_cfdgrid = QtGui.QAction('Load Tau Grid', self.window)
+        self.loadButton_cfdgrid.setShortcut('Ctrl+T')
+        self.loadButton_cfdgrid.setDisabled(True)
+        self.loadButton_cfdgrid.triggered.connect(self.load_tau_grid)
+        fileMenu.addAction(self.loadButton_cfdgrid)
         
         # Add exit button
         exitButton = QtGui.QAction('Exit', self.window)
@@ -444,6 +466,20 @@ class Modelviewer():
             culling = self.cb_culling.isChecked() # True/False
             self.plotting.plot_cell(celldata, culling)
     
+    def get_new_markers_for_plotting(self, *args):
+        # To show a different control surface, new points need to be created. Thus, remove last control surface from plot.
+        if self.plotting.show_cfdgrids:
+            self.plotting.hide_cfdgrids()
+        self.get_markers_for_plotting()
+            
+    def get_markers_for_plotting(self, *args):
+        if self.list_markers.currentItem() is not None:
+            # determine marker
+            items = self.list_markers.selectedItems()
+            selected_markers = [int(item.text()) for item in items]
+            self.plotting.plot_cfdgrids(selected_markers)
+        pass
+    
     def toggle_culling(self):
         self.plotting.hide_cell()
         self.get_new_cell_data_for_plotting()
@@ -470,6 +506,7 @@ class Modelviewer():
             self.file_opt['initialdir'] = os.path.split(filename)[0]
             self.container.show()
             self.loadButton_nastran.setEnabled(True)
+            self.loadButton_cfdgrid.setEnabled(True)
 
     def update_fields(self):
         self.list_mass.clear()
@@ -495,8 +532,17 @@ class Modelviewer():
         for key in self.nastran.celldata.keys():
             self.list_celldata.addItem(QtGui.QListWidgetItem(key))
             
-            
-        
+    def load_tau_grid(self):
+        filename = QtGui.QFileDialog.getOpenFileName(self.window, self.nc_opt['title'], self.nc_opt['initialdir'], self.nc_opt['filters'])[0]
+        if filename != '':
+            self.taugrid.load_file(filename)
+            self.plotting.add_cfdgrids(self.taugrid.cfdgrids)
+            self.update_markers()
+    
+    def update_markers(self):
+        self.list_markers.clear()
+        for cfdgrid in self.taugrid.cfdgrids:
+            self.list_markers.addItem(QtGui.QListWidgetItem(cfdgrid['desc']))
         
     
 if __name__ == "__main__":
