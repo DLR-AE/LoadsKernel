@@ -13,7 +13,10 @@ import monstations as monstations_module
 import auxiliary_output
 import plotting
 
-def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, test=False, statespace=False, path_input='../input/', path_output='../output/', jcl=None, parallel=False):
+def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, test=False, statespace=False, 
+               path_input='../input/', 
+               path_output='../output/', 
+               jcl=None, parallel=False, restart=False):
     io = io_functions.specific_functions()
     io_matlab = io_functions.matlab_functions()
     path_input = io.check_path(path_input) 
@@ -90,7 +93,6 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
         logging.info( '--> Starting Main in deprecated test-mode (!!!) for %d trimcase(s).' % len(jcl.trimcase))
         t_start = time.time()
         mon = monstations_module.monstations(jcl, model)
-        restart = False
         if restart:
             logging.info('Restart option: loading existing responses.')
             responses = io.load_responses(job_name, path_output)
