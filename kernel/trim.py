@@ -22,7 +22,9 @@ class trim:
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
         n_modes = self.model.mass['n_modes'][i_mass]
         Vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
-        u = Vtas
+        Theta = 1.0/180.0*np.pi # starting with a small angle of attack increases the performance and convergence of the CFD solution
+        u = Vtas*np.cos(Theta)
+        w = Vtas*np.sin(Theta)
         z = -self.model.atmo['h'][i_atmo]
         #q = (self.trimcase['Nz'] - 1.0)*9.81/u
         
@@ -36,11 +38,11 @@ class trim:
             ['y',        'fix',    0.0,],
             ['z',        'fix',    z  ,],
             ['phi',      'fix',    0.0,],
-            ['theta',    'free',   0.0,], # dependent on u and w if dz = 0
+            ['theta',    'free',   Theta,], # dependent on u and w if dz = 0
             ['psi',      'fix',    0.0,],
             ['u',        'free',   u,  ],
             ['v',        'fix',    0.0,],
-            ['w',        'free',   0.0,],
+            ['w',        'free',   w,],
             ['p',        'fix',    self.trimcase['p'],],
             ['q',        'fix',    self.trimcase['q'],],
             ['r',        'fix',    self.trimcase['r'],],
@@ -342,6 +344,14 @@ class trim:
         logging.info('--------------------------------------------------------------------------------------')
                             
     def exec_trim(self):
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady']:
+            self.direct_trim()
+        elif self.jcl.aero['method'] in [ 'cfd_steady']:
+            self.iterative_trim()
+        else:
+            logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
+        
+    def direct_trim(self):
         # The purpose of HYBRD is to find a zero of a system of N non-
         # linear functions in N variables by a modification of the Powell
         # hybrid method.  The user must provide a subroutine which calcu-
@@ -378,9 +388,7 @@ class trim:
                 self.response = None
                 logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'] + msg))
                 return
-            
 
-        
     def exec_sim(self):
         import model_equations 
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not self.simcase['landinggear']:
