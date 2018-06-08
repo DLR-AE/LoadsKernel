@@ -85,7 +85,7 @@ def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type='tps', surface_spline=Fa
     else:
         dimensions_i = 6*len(grid_i['set'+set_i])
         dimensions_d = 6*len(grid_d['set'+set_d])
-    logging.info(' - expanding spline matrix to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i))
+    logging.debug(' - expanding spline matrix to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i))
     PHI = sp.coo_matrix((dimensions_d , dimensions_i))
     #logging.info(' - for x translations')
     PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,0], grid_i['set'+set_i][:,0])
@@ -106,7 +106,7 @@ def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type='tps', surface_spline=Fa
 #     PHI[np.ix_(grid_d['set'+set_d][:,3], grid_i['set'+set_i][:,3])] = PHI_tmp
 #     PHI[np.ix_(grid_d['set'+set_d][:,4], grid_i['set'+set_i][:,4])] = PHI_tmp
 #     PHI[np.ix_(grid_d['set'+set_d][:,5], grid_i['set'+set_i][:,5])] = PHI_tmp
-    logging.info(' - splining done.')
+    logging.debug(' - splining done.')
     return PHI
 
 def sparse_insert_coo(sparsematrix, submatrix, idx1, idx2):
@@ -122,7 +122,7 @@ class rbf:
 
     def build_M(self):
         # Nomenklatur nach Neumann & Krueger
-        logging.info(' - building M')
+        logging.debug(' - building M')
         if self.surface_spline:
             self.A = np.vstack((np.ones(self.n_fe),self.nodes_fe[0:2,:]))
         else:
@@ -151,7 +151,7 @@ class rbf:
 
     def build_splinematrix(self):
         # Nomenklatur nach Neumann & Krueger
-        logging.info(' - building B and C')
+        logging.debug(' - building B and C')
         if self.surface_spline:
             self.B = np.vstack((np.ones(self.n_cfd),self.nodes_cfd[0:2,:]))
         else:
@@ -175,9 +175,9 @@ class rbf:
         # print str(time.time() - t_start) + 'sec'
         
         t_start = time.time()
-        logging.info(' - solving M*H=BC for H')
+        logging.debug(' - solving M*H=BC for H')
         self.H= scipy.linalg.solve(self.M, self.BC).T 
-        logging.info(' - done in {:.2f} sec'.format(time.time() - t_start))
+        logging.debug(' - done in {:.2f} sec'.format(time.time() - t_start))
         
         
     def eval_rbf(self, r):
@@ -210,9 +210,9 @@ class rbf:
         self.surface_spline = surface_spline
         logging.info('Splining (rbf) of {:.0f} points to {:.0f} points...'.format(self.n_cfd , self.n_fe))
         if self.surface_spline:
-            logging.info('Using surface formulation (2D xy surface)')
+            logging.debug('Using surface formulation (2D xy surface)')
         else:
-            logging.info('Using volume formulation (3D)')
+            logging.debug('Using volume formulation (3D)')
 
 # Assumptions: 
 # - grids have 6 dof

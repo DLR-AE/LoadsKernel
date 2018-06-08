@@ -112,7 +112,7 @@ class meshdefo:
             mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2] ,  scale_factor=p_scale, color=(1,1,1))
             mlab.points3d(grid_i['offset'+set_i][:,0] + U_i[grid_i['set'+set_i][:,0]], grid_i['offset'+set_i][:,1] + U_i[grid_i['set'+set_i][:,1]], grid_i['offset'+set_i][:,2] + U_i[grid_i['set'+set_i][:,2]],  scale_factor=p_scale, color=(1,0,0))
         for grid_d, Ucfd in zip(self.cfdgrids, self.Ucfd):
-            logging.info('Working on marker {}'.format(grid_d['desc']))
+            logging.debug('Working on marker {}'.format(grid_d['desc']))
             # build spline matrix
             PHIi_d = spline_functions.spline_rbf(grid_i, set_i, grid_d, '', rbf_type='tps', surface_spline=surface_spline, dimensions=[U_i.size, grid_d['n']*6])
             # store deformation of cfdgrid

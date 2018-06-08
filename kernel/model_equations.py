@@ -622,7 +622,7 @@ class common():
                      'Polynomial coefficients for rotation yaw':  '0 {}'.format(uvwpqr[5]/np.pi*180.0),
                      }
         Para.update(para_dict, 'mdf end', 0,)
-        logging.info("Parameters updated.")
+        logging.debug("Parameters updated.")
         self.pytau_close()
         
     def pytau_close(self):
@@ -651,7 +651,7 @@ class common():
         if returncode != 0:
             raise TauError('Subprocess returned an error from Tau solver, please see solver.stdout !')
 
-        logging.info("Tau finished.")
+        logging.info("Tau finished normally.")
         os.chdir(old_dir)
         
         
@@ -668,9 +668,9 @@ class common():
         # gather from multiple domains
         old_dir = os.getcwd()
         os.chdir(self.jcl.aero['para_path'])
-        with open("gather.para",'w') as fid:
+        with open('gather_subcase_{}.para'.format(self.trimcase['subcase']),'w') as fid:
             fid.write('Restart-data prefix : {}'.format(filename_surface))
-        subprocess.call(['gather', 'gather.para'])
+        subprocess.call(['gather', 'gather_subcase_{}.para'.format(self.trimcase['subcase'])])
         os.chdir(old_dir)
         logging.info( 'Reading {}'.format(filename_surface))
 
@@ -681,7 +681,7 @@ class common():
         # this could be relevant if not all markers in the pval file are used
         meshdefo = build_meshdefo.meshdefo(self.jcl, self.model)
         meshdefo.read_cfdgrids(merge_domains=True)
-        logging.info('Working on marker {}'.format(meshdefo.cfdgrids[0]['desc']))
+        logging.debug('Working on marker {}'.format(meshdefo.cfdgrids[0]['desc']))
         pos = []
         for ID in meshdefo.cfdgrids[0]['ID']: 
             pos.append(np.where(global_id == ID)[0][0]) 
@@ -702,8 +702,6 @@ class common():
 #         mlab.points3d(x, y, z)
 #         mlab.quiver3d(x, y, z, Pk_cfd[self.model.aerogrid['set_k'][:,0]], Pk_cfd[self.model.aerogrid['set_k'][:,1]], Pk_cfd[self.model.aerogrid['set_k'][:,2]], color=(0,1,1))
 #         mlab.title('Pk_cfd', size=0.2, height=0.95)
-        logging.info("Forces and moments transferred.")
-        return Pk_cfd
     
 class TauError(Exception):
     '''Raise when subprocess yields a returncode != 0 from Tau'''

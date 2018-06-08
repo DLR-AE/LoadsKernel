@@ -292,14 +292,15 @@ def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
             trim_i.exec_trim()
             if 't_final' and 'dt' in jcl.simcase[i].keys():
                 trim_i.exec_sim()
-            post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
-            post_processing_i.force_summation_method()
-            post_processing_i.euler_transformation()
-            post_processing_i.cuttingforces()
-            trim_i.response['i'] = i
-            logging.info( '--> Trimcase done, sending response to listener.')
-            q_output.put(trim_i.response)
-            del trim_i, post_processing_i
+            if trim_i.response != None:
+                post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
+                post_processing_i.force_summation_method()
+                post_processing_i.euler_transformation()
+                post_processing_i.cuttingforces()
+                trim_i.response['i'] = i
+                logging.info( '--> Trimcase done, sending response to listener.')
+                q_output.put(trim_i.response)
+                del trim_i, post_processing_i
             q_input.task_done()
     return
 
@@ -355,10 +356,10 @@ def print_logo():
 def setup_logger(path_output, job_name ):
     logging.basicConfig(format='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', 
                         datefmt='%d/%m/%Y %H:%M:%S', 
-                        level=logging.DEBUG,
+                        level=logging.INFO,
                         filename=path_output+'log_'+job_name+".txt", 
                         filemode='w')
-    # define a Handler which writes INFO messages or higher to the sys.stderr
+    # define a Handler which writes INFO messages or higher to the sys.stout
     console = logging.StreamHandler(sys.stdout)
     console.setLevel(logging.INFO)
     # set a format which is simpler for console use
