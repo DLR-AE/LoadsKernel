@@ -36,6 +36,25 @@ class auxiliary_output:
             for i_trimcase in range(len(self.jcl.trimcase)):
                 write_nastran.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
     
+    def write_successful_trimcases(self, filename_csv):
+        sucessfull_trimcases_info = []
+        for i_case in range(len(self.jcl.trimcase)):
+            trimcase = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
+                        'desc':     self.jcl.trimcase[i_case]['desc'],}
+            if self.response[i_case] != None:
+                sucessfull_trimcases_info.append(trimcase)
+        logging.info('writing successful trimcases cases to: ' + filename_csv)
+        self.write_trimcases(sucessfull_trimcases_info, filename_csv)
+        
+    def write_failed_trimcases(self, filename_csv):
+        failed_trimcases_info = []
+        for i_case in range(len(self.jcl.trimcase)):
+            trimcase = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
+                        'desc':     self.jcl.trimcase[i_case]['desc'],}
+            if self.response[i_case] == None:
+                failed_trimcases_info.append(trimcase)
+        logging.info('writing failed trimcases cases to: ' + filename_csv)
+        self.write_trimcases(failed_trimcases_info, filename_csv)
     
     def write_critical_trimcases(self, filename_csv, dyn2stat=False):
         # eigentlich gehoert diese Funtion eher zum post-processing als zum
@@ -56,11 +75,17 @@ class auxiliary_output:
                 crit_trimcases_info.append(trimcase)
                 
         logging.info('writing critical trimcases cases to: ' + filename_csv)
+        self.write_trimcases(crit_trimcases_info, filename_csv)
+    
+    def write_trimcases(self, trimcases_info, filename_csv):
         with open(filename_csv, 'wb') as fid:
-            w = csv.DictWriter(fid, crit_trimcases_info[0].keys())
-            w.writeheader()
-            w = csv.DictWriter(fid, crit_trimcases_info[0].keys(), quotechar="'", quoting=csv.QUOTE_NONNUMERIC )
-            w.writerows(crit_trimcases_info)
+            if trimcases_info.__len__() > 0:
+                w = csv.DictWriter(fid, trimcases_info[0].keys())
+                w.writeheader()
+                w = csv.DictWriter(fid, trimcases_info[0].keys(), quotechar="'", quoting=csv.QUOTE_NONNUMERIC )
+                w.writerows(trimcases_info)
+            else:
+                fid.write('None')
         return
     
     def write_critical_nodalloads(self, filename, dyn2stat=False): 
