@@ -67,11 +67,11 @@ class specific_functions():
                     break
             f.close()
                         
-            # remove failed trims with response == None
-            response = [resp for resp in response if resp != None]
-            # sort response
-            pos_sorted = np.argsort([resp['i'] for resp in response ])
-            response = [ response[x] for x in pos_sorted]
+#             # remove failed trims with response == None
+#             response = [resp for resp in response if resp != None]
+#             # sort response
+#             pos_sorted = np.argsort([resp['i'] for resp in response ])
+#             response = [ response[x] for x in pos_sorted]
             logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
             return response 
     
