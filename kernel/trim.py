@@ -386,7 +386,7 @@ class trim:
                 self.response = equations.eval_equations(X_free, time=0.0, type='trim_full_output')
             else:
                 self.response = None
-                logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'] + msg))
+                logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'], msg))
                 return
 
     def exec_sim(self):
@@ -469,8 +469,8 @@ class trim:
 
         else:
             self.response = None
-            logging.error('Integration failed! Exit.')
-            #sys.exit()
+            logging.warning('Integration failed!')
+            return
             
             
     def iterative_trim(self):
