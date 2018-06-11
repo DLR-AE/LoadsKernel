@@ -124,9 +124,9 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
                 post_processing_i.cuttingforces()
                 mon.gather_monstations(jcl.trimcase[i], response)
                 if 't_final' and 'dt' in jcl.simcase[i].keys():
-                    mon.gather_dyn2stat(i, response, mode='time-based')
+                    mon.gather_dyn2stat(-1, response, mode='time-based')
                 else:
-                    mon.gather_dyn2stat(i, response, mode='stat2stat')
+                    mon.gather_dyn2stat(-1, response, mode='stat2stat')
                 response['i'] = i
                 del post_processing_i
             logging.info( '--> Saving response(s).')
@@ -214,6 +214,8 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
         else:
             # nur trim
             aux_out.response = io.load_responses(job_name, path_output)
+            aux_out.write_successful_trimcases(path_output + 'successful_trimcases_' + job_name + '.csv') 
+            aux_out.write_failed_trimcases(path_output + 'failed_trimcases_' + job_name + '.csv') 
             aux_out.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=False) 
             aux_out.write_critical_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=False) 
             #aux_out.write_all_nodalloads(path_output + 'nodalloads_all_' + job_name + '.bdf')
@@ -301,6 +303,10 @@ def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
                 logging.info( '--> Trimcase done, sending response to listener.')
                 q_output.put(trim_i.response)
                 del trim_i, post_processing_i
+            else:
+                # trim failed, no post processing, save 'None'
+                q_output.put(trim_i.response)
+                del trim_i
             q_input.task_done()
     return
 
@@ -326,7 +332,7 @@ def mainprocessing_listener(q_output, path_output, job_name, jcl):
             q_output.task_done()
             logging.info( '--> Listener quit.')
             break
-        else:
+        elif m != None:
             logging.info( '--> Received response from worker.')
             mon.gather_monstations(jcl.trimcase[m['i']], m)
             if 't_final' and 'dt' in jcl.simcase[m['i']].keys():
@@ -338,6 +344,12 @@ def mainprocessing_listener(q_output, path_output, job_name, jcl):
             #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[m['i']]['subcase']) + '.mat', 'w') as f:
             #    io_matlab.save_mat(f, m)
             q_output.task_done()
+        else:
+            # trim failed, no post processing, save 'None'
+            logging.info( '--> Saving response(s).')
+            io.dump_pickle(m, f_response)
+            q_output.task_done()
+            
     return
         
 def print_logo():
