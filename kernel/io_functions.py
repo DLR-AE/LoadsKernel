@@ -92,9 +92,24 @@ class specific_functions():
     def copy_para_file(self, jcl, timcase):
         para_path = self.check_path(jcl.aero['para_path'])
         src = para_path+jcl.aero['para_file']
-        dst = para_path+jcl.aero['para_file']+'_subcase_{}'.format(timcase['subcase'])
+        dst = para_path+'para_subcase_{}'.format(timcase['subcase'])
         shutil.copyfile(src, dst)
+        
+    def check_para_path(self, jcl):
+        jcl.aero['para_path'] = self.check_path(jcl.aero['para_path'])
     
+    def check_tau_folders(self, jcl):
+        para_path = self.check_path(jcl.aero['para_path'])
+        # check and create default folders for Tau
+        if not os.path.exists(os.path.join(para_path, 'log')):
+            os.makedirs(os.path.join(para_path, 'log'))
+        if not os.path.exists(os.path.join(para_path, 'sol')):
+            os.makedirs(os.path.join(para_path, 'sol'))
+        if not os.path.exists(os.path.join(para_path, 'defo')):
+            os.makedirs(os.path.join(para_path, 'defo'))
+        if not os.path.exists(os.path.join(para_path, 'dualgrid')):
+            os.makedirs(os.path.join(para_path, 'dualgrid'))
+
     def check_path(self, path):
         if not os.path.exists(path):
             os.makedirs(path)
