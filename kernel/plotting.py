@@ -72,6 +72,13 @@ class plotting:
             self.cuttingforces_wing = ['PMS_L', 'PMS_R']
             self.f_scale = 0.02 # vectors
             self.p_scale = 0.4 # points
+        elif self.jcl.general['aircraft'] in ['ACFA']:
+            self.potatos_Fz_Mx = ['MON1']
+            self.potatos_Mx_My = ['MON1']
+            self.potatos_Fz_My = ['MON1']
+            self.cuttingforces_wing = ['MON1']
+            self.f_scale = 0.002 # vectors
+            self.p_scale = 0.4 # points
         else:
             logging.error('Unknown aircraft: ' + str(self.jcl.general['aircraft']))
             return
@@ -271,6 +278,7 @@ class plotting:
                 dof_xaxis=2
                 dof_yaxis=4
                 self.potato_plot_nicely(monstations, station, pp, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
+        plt.close(fig)
           
     def cuttingforces_along_wing_plots(self, monstations, pp, cuttingforces_wing, dyn2stat=False):
         logging.info('start plotting cutting forces along wing...')
@@ -315,6 +323,7 @@ class plotting:
             self.subplot.set_xlabel('y [m]')
             self.subplot.set_ylabel(cuttingforces[i_cuttingforce])
             pp.savefig()
+        plt.close(fig)
               
     def plot_monstations_time(self, monstations, filename_pdf):
         logging.info('start plotting cutting forces over time ...')
