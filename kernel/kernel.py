@@ -95,7 +95,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
         mon = monstations_module.monstations(jcl, model)
         if restart:
             logging.info('Restart option: loading existing responses.')
-            responses = io.load_responses(job_name, path_output)
+            responses = io.load_responses(job_name, path_output, remove_failed=True)
         f = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
         for i in range(len(jcl.trimcase)):
             logging.info( '')
@@ -305,6 +305,7 @@ def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
                 del trim_i, post_processing_i
             else:
                 # trim failed, no post processing, save 'None'
+                logging.info( '--> Trimcase failed, sending response to listener.')
                 q_output.put(trim_i.response)
                 del trim_i
             q_input.task_done()
@@ -346,6 +347,7 @@ def mainprocessing_listener(q_output, path_output, job_name, jcl):
             q_output.task_done()
         else:
             # trim failed, no post processing, save 'None'
+            logging.info( "--> Received response ('None') from worker.")
             logging.info( '--> Saving response(s).')
             io.dump_pickle(m, f_response)
             q_output.task_done()
