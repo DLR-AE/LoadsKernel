@@ -44,7 +44,7 @@ class specific_functions():
         logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
         return model
         
-    def load_responses(self, job_name, path_output):
+    def load_responses(self, job_name, path_output, remove_failed=False, sorted=False):
         logging.info( '--> Loading response(s).'  )
         filename = path_output + 'response_' + job_name + '.pickle'
         filestats = os.stat(filename)
@@ -66,12 +66,14 @@ class specific_functions():
                 except EOFError:
                     break
             f.close()
-                        
-#             # remove failed trims with response == None
-#             response = [resp for resp in response if resp != None]
-#             # sort response
-#             pos_sorted = np.argsort([resp['i'] for resp in response ])
-#             response = [ response[x] for x in pos_sorted]
+            
+            if remove_failed: 
+                # remove failed trims with response == None
+                response = [resp for resp in response if resp != None]
+            if sorted:
+                # sort response
+                pos_sorted = np.argsort([resp['i'] for resp in response ])
+                response = [ response[x] for x in pos_sorted]
             logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
             return response 
     
