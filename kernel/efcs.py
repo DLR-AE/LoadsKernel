@@ -12,8 +12,8 @@ class mephisto:
     def __init__(self):
         self.keys = ['AIL-S1', 'AIL-S2', 'AIL-S3', 'AIL-S4']
         self.Ux2_0 = np.array([0.0, 0.0, 0.0, 0.0])
-        self.Ux2_lower = np.array([-20.0, -20.0,-20.0,-20.0])/180*np.pi
-        self.Ux2_upper = np.array([ 20.0,  20.0, 20.0, 20.0])/180*np.pi
+        self.Ux2_lower = np.array([-15.0, -15.0,-15.0,-15.0])/180*np.pi
+        self.Ux2_upper = np.array([ 15.0,  15.0, 15.0, 15.0])/180*np.pi
         
         self.alpha_lower = -5.0/180*np.pi
         self.alpha_upper = 10.0/180*np.pi
