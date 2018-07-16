@@ -4,7 +4,7 @@ Created on Thu Nov 27 14:00:31 2014
 
 @author: voss_ar
 """
-import cPickle, time, multiprocessing, getpass, platform, logging, sys
+import cPickle, time, multiprocessing, getpass, platform, logging, sys, copy
 import numpy as np
 import io_functions
 import trim
@@ -16,7 +16,8 @@ import plotting
 def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, test=False, statespace=False, 
                path_input='../input/', 
                path_output='../output/', 
-               jcl=None, parallel=False, restart=False):
+               jcl=None, parallel=False, restart=False,
+               machinefile=None):
     io = io_functions.specific_functions()
     io_matlab = io_functions.matlab_functions()
     path_input = io.check_path(path_input) 
@@ -71,10 +72,17 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
         logging.info( '--> Launching 1 listener.')
         listener = pool.apply_async(mainprocessing_listener, (q_output, path_output, job_name, jcl)) # put listener to work
         n_workers = n_processes - 1
+        
+        #mpi_hosts = ['rabe', 'rabe', 'rabe', 'kranich', 'kranich', 'kranich']
+        mpi_hosts = setup_mpi_hosts(jcl, n_workers, machinefile)
         logging.info( '--> Launching {} worker(s).'.format(str(n_workers)))
         workers = []
         for i_worker in range(n_workers):
-            workers.append(pool.apply_async(mainprocessing_worker, (q_input, q_output, path_output, job_name, jcl)))
+            i_jcl = copy.deepcopy(jcl)
+            i_jcl.aero['mpi_hosts'] = mpi_hosts[:jcl.aero['tau_cores']] # assign hosts
+            i_jcl.aero['machinefile'] = machinefile
+            mpi_hosts = mpi_hosts[jcl.aero['tau_cores']:] # remaining hosts
+            workers.append(pool.apply_async(mainprocessing_worker, (q_input, q_output, path_output, job_name, i_jcl)))
             
         q_input.join() # blocks until worker is done
         for i_worker in range(n_workers):
@@ -381,7 +389,24 @@ def setup_logger(path_output, job_name ):
     # tell the handler to use this format
     console.setFormatter(formatter)
     # add the handler to the root logger
-    logging.getLogger('').addHandler(console)    
+    logging.getLogger('').addHandler(console)   
+    
+def setup_mpi_hosts(jcl, n_workers, machinefile):
+    n_required = jcl.aero['tau_cores'] * n_workers
+    if machinefile == None:
+        # all work is done on this node
+        mpi_hosts = [platform.node()]*n_required
+    else:
+        mpi_hosts = []
+        with open(machinefile) as f:
+            lines = f.readlines()
+        for line in lines[1:]:
+            line = line.split(' slots=')
+            mpi_hosts += [line[0]]*int(line[1])
+    if mpi_hosts.__len__() < n_required:
+         logging.error('Number of given hosts ({}) smaller than required hosts ({}). Exit.'.format(mpi_hosts.__len__(), n_required))
+         sys.exit()
+    return mpi_hosts
     
 if __name__ == "__main__":
     print "Please use the launch-script 'launch.py' from your input directory."
