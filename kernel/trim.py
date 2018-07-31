@@ -384,8 +384,10 @@ class trim:
             if status == 1:
                 # if trim was successful, then do one last evaluation with the final parameters.
                 self.response = equations.eval_equations(X_free, time=0.0, type='trim_full_output')
+                self.successful = True
             else:
-                self.response = None
+                self.response = {}
+                self.successful = False
                 logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'], msg))
                 return
 
@@ -468,7 +470,7 @@ class trim:
                     self.response[key] = np.vstack((self.response[key],response_step[key]))
 
         else:
-            self.response = None
+            self.response = {}
             logging.warning('Integration failed!')
             return
             
@@ -521,8 +523,10 @@ class trim:
                 if status == 1:
                     # if trim was successful, then do one last evaluation with the final parameters.
                     self.response = equations.eval_equations_iteratively(X_free, time=0.0, type='trim_full_output')
+                    self.successful = True
                 else:
-                    self.response = None
+                    self.response = {}
+                    self.successful = False
                     logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'], msg))
                     return
        
