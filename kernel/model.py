@@ -321,16 +321,10 @@ class model:
         if self.jcl.aero['method'] == 'hybrid':   
             logging.info( 'Building aero db...')
             self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
-        # -------------------
-        # ---- mesh defo ---
-        # -------------------  
-        if self.jcl.aero['method'] == 'cfd_steady':
-            meshdefo = build_meshdefo.meshdefo(self.jcl, self)
-            meshdefo.read_cfdgrids(merge_domains=True)
-            rules = spline_rules.nearest_neighbour(self.aerogrid, '_k', meshdefo.cfdgrids[0], '') 
-            self.PHIk_cfd = spline_functions.spline_rb(self.aerogrid, '_k', meshdefo.cfdgrids[0], '', rules, self.coord, dimensions=[self.aerogrid['n']*6, meshdefo.cfdgrids[0]['n']*6], sparse_output=True) 
-
-        # splines 
+        
+        # ----------------
+        # ---- splines ---
+        # ----------------  
         # PHIk_strc with 'nearest_neighbour', 'rbf' or 'nastran'
         if self.jcl.spline['method'] in ['rbf', 'nearest_neighbour']:
             if self.jcl.spline['splinegrid'] == True:
@@ -354,7 +348,24 @@ class model:
             self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
         else:
             logging.error( 'Unknown spline method.')
+        
+        # -------------------
+        # ---- mesh defo ---
+        # -------------------  
+        if self.jcl.aero['method'] == 'cfd_steady':
+            meshdefo = build_meshdefo.meshdefo(self.jcl, self)
+            meshdefo.read_cfdgrids(merge_domains=True)
+            # Option A: CFD forces are transferred to the aerogrid. 
+            # This allows a direct integration into existing procedures and a comparison to VLM forces.
+            rules = spline_rules.nearest_neighbour(self.aerogrid, '_k', meshdefo.cfdgrids[0], '') 
+            self.PHIk_cfd = spline_functions.spline_rb(self.aerogrid, '_k', meshdefo.cfdgrids[0], '', rules, self.coord, dimensions=[self.aerogrid['n']*6, meshdefo.cfdgrids[0]['n']*6], sparse_output=True) 
+            # Option B: CFD forces are directly transferred to the strcgrid. 
+            # This is more physical and for example allows the application of forces on upper and lower side.
+            # The splinegrid from above is re-used.
+            rules = spline_rules.nearest_neighbour(self.splinegrid, '', meshdefo.cfdgrids[0], '') 
+            self.PHIcfd_strc = spline_functions.spline_rb(self.splinegrid, '', meshdefo.cfdgrids[0], '', rules, self.coord, dimensions=[self.strcgrid['n']*6, meshdefo.cfdgrids[0]['n']*6], sparse_output=True) 
 
+        
         logging.info( 'Building mass model...')
         if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan']:
             self.mass = {'key': [],
@@ -364,6 +375,7 @@ class model:
                          'cggrid': [],
                          'cggrid_norm': [],
                          'PHIstrc_cg': [],
+                         'PHIcfd_cg': [],
                          'PHIlg_cg': [],
                          'PHImac_cg': [],
                          'PHIcg_mac': [],
@@ -374,6 +386,7 @@ class model:
                          'PHIjf': [],
                          'PHIlf': [],
                          'PHIkf': [],
+                         'PHIcfd_f': [],
                          'Mff': [],
                          'Kff': [],
                          'Dff': [],
@@ -414,7 +427,11 @@ class model:
 
                 rules = spline_rules.rules_point(cggrid, self.strcgrid)
                 PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
-                
+                if self.jcl.aero['method'] == 'cfd_steady':
+                    rules = spline_rules.rules_point(cggrid, meshdefo.cfdgrids[0])
+                    PHIcfd_cg = spline_functions.spline_rb(cggrid, '', meshdefo.cfdgrids[0], '', rules, self.coord)
+                    self.mass['PHIcfd_cg'].append(PHIcfd_cg)
+                    
                 if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
                     rules = spline_rules.rules_point(cggrid, self.lggrid)
                     PHIlg_cg = spline_functions.spline_rb(cggrid, '', self.lggrid, '', rules, self.coord)
@@ -432,9 +449,14 @@ class model:
                 rules = spline_rules.rules_point(cggrid_norm, cggrid)
                 PHIcg_norm = spline_functions.spline_rb(cggrid_norm, '', cggrid, '', rules, self.coord) 
                 
+                # some pre-multiplications to speed-up main processing
                 PHIjf = np.dot(self.Djk, self.PHIk_strc.dot(PHIf_strc.T))                
                 PHIlf = np.dot(self.Dlk.toarray(), self.PHIk_strc.dot(PHIf_strc.T))
                 PHIkf = self.PHIk_strc.dot(PHIf_strc.T)
+                
+                if self.jcl.aero['method'] == 'cfd_steady':
+                    PHIcfd_f = self.PHIcfd_strc.dot(PHIf_strc.T)
+                    self.mass['PHIcfd_f'].append(PHIcfd_f)
 
                 Mfcg=PHIf_strc.dot(-MGG.dot(PHIstrc_cg))
 
@@ -458,9 +480,6 @@ class model:
                 self.mass['Kff'].append(Kff) 
                 self.mass['Dff'].append(Dff) 
                 self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
-                
-                # plot nodal masses
-                #bm.plot_masses(MGG, Mb, cggrid, self.path_output + self.jcl.mass['key'][i_mass]+'.png')
         else:
             logging.error( 'Unknown mass method: ' + str(self.jcl.mass['method']))
             
