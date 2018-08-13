@@ -184,6 +184,15 @@ class plotting:
             mlab.points3d(self.model.splinegrid['offset'][:,0], self.model.splinegrid['offset'][:,1], self.model.splinegrid['offset'][:,2], color=(1,1,0), scale_factor=self.p_scale*1.5)
             mlab.title('Pg', size=0.2, height=0.95)
             
+            mlab.figure()   
+            mlab.points3d(x, y, z, scale_factor=self.p_scale)
+            #mlab.quiver3d(x, y, z, response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]], color=(1,1,0), scale_factor=self.f_scale)
+            fx, fy, fz = response['Pg_cfd'][self.model.strcgrid['set'][:,0]], response['Pg_cfd'][self.model.strcgrid['set'][:,1]], response['Pg_cfd'][self.model.strcgrid['set'][:,2]]
+            mlab.quiver3d(x, y, z, fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(1,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+            mlab.quiver3d(x+fx*self.f_scale, y+fy*self.f_scale, z+fz*self.f_scale,fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(1,1,0),  mode='cone', scale_mode='vector', scale_factor=0.2, resolution=16)
+            mlab.points3d(self.model.splinegrid['offset'][:,0], self.model.splinegrid['offset'][:,1], self.model.splinegrid['offset'][:,2], color=(1,1,0), scale_factor=self.p_scale*1.5)
+            mlab.title('Pg_cfd', size=0.2, height=0.95)
+            
             mlab.show()
 
     def plot_monstations(self, monstations, filename_pdf, dyn2stat=False):
