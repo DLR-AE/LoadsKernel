@@ -82,7 +82,6 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
             i_jcl = copy.deepcopy(jcl)
             if jcl.aero['method'] in ['cfd_steady']:
                 i_jcl.aero['mpi_hosts'] = mpi_hosts[:jcl.aero['tau_cores']] # assign hosts
-                i_jcl.aero['machinefile'] = machinefile
                 mpi_hosts = mpi_hosts[jcl.aero['tau_cores']:] # remaining hosts
             workers.append(pool.apply_async(mainprocessing_worker, (q_input, q_output, path_output, job_name, i_jcl)))
             
@@ -123,7 +122,6 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
                 i_jcl = copy.deepcopy(jcl)
                 if jcl.aero['method'] in ['cfd_steady']:
                     i_jcl.aero['mpi_hosts'] = mpi_hosts[:jcl.aero['tau_cores']] # assign hosts
-                    i_jcl.aero['machinefile'] = machinefile
                 trim_i = trim.trim(model, i_jcl, i_jcl.trimcase[i], i_jcl.simcase[i])
                 trim_i.set_trimcond()
                 #trim_i.calc_derivatives()
@@ -132,7 +130,10 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
                 if trim_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
                     trim_i.exec_sim()
                 response = trim_i.response
-            if trim_i.successful:
+                response['i'] = i
+                response['successful'] = trim_i.successful
+                del trim_i
+            if response['successful']:
                 post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], response)
                 post_processing_i.force_summation_method()
                 post_processing_i.euler_transformation()
@@ -143,11 +144,10 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
                 else:
                     mon.gather_dyn2stat(-1, response, mode='stat2stat')
                 del post_processing_i
-            response['i'] = i
-            response['successful'] = trim_i.successful
+            
             logging.info( '--> Saving response(s).')
             io.dump_pickle(response, f)
-            del trim_i
+            
             #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
             #    io_matlab.save_mat(f2, response)
         f.close() # close response
@@ -311,10 +311,12 @@ def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
             trim_i.exec_trim()
             if trim_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
                 trim_i.exec_sim()
-            trim_i.response['i'] = i
-            trim_i.response['successful'] = trim_i.successful
-            if trim_i.successful:
-                post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
+            response = trim_i.response
+            response['i'] = i
+            response['successful'] = trim_i.successful
+            del trim_i
+            if response['successful']:
+                post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], response)
                 post_processing_i.force_summation_method()
                 post_processing_i.euler_transformation()
                 post_processing_i.cuttingforces()
@@ -323,9 +325,8 @@ def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
             else:
                 # trim failed, no post processing
                 logging.info( '--> Trimcase failed, sending response to listener.')
-            q_output.put(trim_i.response)
+            q_output.put(response)
             q_input.task_done()
-            del trim_i
     return
 
 def mainprocessing_listener(q_output, path_output, job_name, jcl):
@@ -405,7 +406,9 @@ def setup_mpi_hosts(jcl, n_workers, machinefile):
         mpi_hosts = []
         with open(machinefile) as f:
             lines = f.readlines()
-        for line in lines[1:]:
+        for line in lines[1:]: 
+            # Use first host for Load Kernel only.
+            # Use all other hosts (except first) for mpi executions.
             line = line.split(' slots=')
             mpi_hosts += [line[0]]*int(line[1])
     if mpi_hosts.__len__() < n_required:
