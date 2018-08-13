@@ -41,7 +41,7 @@ class auxiliary_output:
         for i_case in range(len(self.jcl.trimcase)):
             trimcase = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
                         'desc':     self.jcl.trimcase[i_case]['desc'],}
-            if self.response[i_case] != None:
+            if self.response[i_case]['successful']:
                 sucessfull_trimcases_info.append(trimcase)
         logging.info('writing successful trimcases cases to: ' + filename_csv)
         self.write_trimcases(sucessfull_trimcases_info, filename_csv)
@@ -51,7 +51,7 @@ class auxiliary_output:
         for i_case in range(len(self.jcl.trimcase)):
             trimcase = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
                         'desc':     self.jcl.trimcase[i_case]['desc'],}
-            if self.response[i_case] == None:
+            if not self.response[i_case]['successful']:
                 failed_trimcases_info.append(trimcase)
         logging.info('writing failed trimcases cases to: ' + filename_csv)
         self.write_trimcases(failed_trimcases_info, filename_csv)

@@ -68,8 +68,8 @@ class specific_functions():
             f.close()
             
             if remove_failed: 
-                # remove failed trims with response == None
-                response = [resp for resp in response if resp != None]
+                # remove failed trims
+                response = [resp for resp in response if resp['successful']]
             if sorted:
                 # sort response
                 pos_sorted = np.argsort([resp['i'] for resp in response ])

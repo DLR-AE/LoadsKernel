@@ -4,7 +4,7 @@ Created on Thu Nov 27 14:00:31 2014
 
 @author: voss_ar
 """
-import cPickle, time, multiprocessing, getpass, platform, logging, sys
+import cPickle, time, multiprocessing, getpass, platform, logging, sys, copy
 import numpy as np
 import io_functions
 import trim
@@ -16,7 +16,8 @@ import plotting
 def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, test=False, statespace=False, 
                path_input='../input/', 
                path_output='../output/', 
-               jcl=None, parallel=False, restart=False):
+               jcl=None, parallel=False, restart=False,
+               machinefile=None):
     io = io_functions.specific_functions()
     io_matlab = io_functions.matlab_functions()
     path_input = io.check_path(path_input) 
@@ -71,10 +72,18 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
         logging.info( '--> Launching 1 listener.')
         listener = pool.apply_async(mainprocessing_listener, (q_output, path_output, job_name, jcl)) # put listener to work
         n_workers = n_processes - 1
+        
+        if jcl.aero['method'] in ['cfd_steady']:
+            #mpi_hosts = ['rabe', 'rabe', 'rabe', 'kranich', 'kranich', 'kranich']
+            mpi_hosts = setup_mpi_hosts(jcl, n_workers, machinefile)
         logging.info( '--> Launching {} worker(s).'.format(str(n_workers)))
         workers = []
         for i_worker in range(n_workers):
-            workers.append(pool.apply_async(mainprocessing_worker, (q_input, q_output, path_output, job_name, jcl)))
+            i_jcl = copy.deepcopy(jcl)
+            if jcl.aero['method'] in ['cfd_steady']:
+                i_jcl.aero['mpi_hosts'] = mpi_hosts[:jcl.aero['tau_cores']] # assign hosts
+                mpi_hosts = mpi_hosts[jcl.aero['tau_cores']:] # remaining hosts
+            workers.append(pool.apply_async(mainprocessing_worker, (q_input, q_output, path_output, job_name, i_jcl)))
             
         q_input.join() # blocks until worker is done
         for i_worker in range(n_workers):
@@ -92,6 +101,8 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
             model = io.load_model(job_name, path_output)
         logging.info( '--> Starting Main in deprecated test-mode (!!!) for %d trimcase(s).' % len(jcl.trimcase))
         t_start = time.time()
+        if jcl.aero['method'] in ['cfd_steady']:
+            mpi_hosts = setup_mpi_hosts(jcl, n_workers=1, machinefile=machinefile)
         mon = monstations_module.monstations(jcl, model)
         if restart:
             logging.info('Restart option: loading existing responses.')
@@ -108,16 +119,21 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
                 logging.info('Restart option: found existing response.')
                 response = responses[[response['i'] for response in responses].index(i)]
             else:
-                trim_i = trim.trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+                i_jcl = copy.deepcopy(jcl)
+                if jcl.aero['method'] in ['cfd_steady']:
+                    i_jcl.aero['mpi_hosts'] = mpi_hosts[:jcl.aero['tau_cores']] # assign hosts
+                trim_i = trim.trim(model, i_jcl, i_jcl.trimcase[i], i_jcl.simcase[i])
                 trim_i.set_trimcond()
                 #trim_i.calc_derivatives()
                 trim_i.exec_trim()
                 #trim_i.iterative_trim()
-                if trim_i.response != None and 't_final' and 'dt' in jcl.simcase[i].keys():
+                if trim_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
                     trim_i.exec_sim()
                 response = trim_i.response
+                response['i'] = i
+                response['successful'] = trim_i.successful
                 del trim_i
-            if response != None:
+            if response['successful']:
                 post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], response)
                 post_processing_i.force_summation_method()
                 post_processing_i.euler_transformation()
@@ -127,10 +143,11 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
                     mon.gather_dyn2stat(-1, response, mode='time-based')
                 else:
                     mon.gather_dyn2stat(-1, response, mode='stat2stat')
-                response['i'] = i
                 del post_processing_i
+            
             logging.info( '--> Saving response(s).')
             io.dump_pickle(response, f)
+            
             #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
             #    io_matlab.save_mat(f2, response)
         f.close() # close response
@@ -213,7 +230,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
             aux_out.write_critical_nodalloads(path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=True) 
         else:
             # nur trim
-            aux_out.response = io.load_responses(job_name, path_output)
+            aux_out.response = io.load_responses(job_name, path_output, sorted=True)
             aux_out.write_successful_trimcases(path_output + 'successful_trimcases_' + job_name + '.csv') 
             aux_out.write_failed_trimcases(path_output + 'failed_trimcases_' + job_name + '.csv') 
             aux_out.write_critical_trimcases(path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=False) 
@@ -292,22 +309,23 @@ def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
             trim_i.set_trimcond()
             #trim_i.calc_derivatives()
             trim_i.exec_trim()
-            if 't_final' and 'dt' in jcl.simcase[i].keys():
+            if trim_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
                 trim_i.exec_sim()
-            if trim_i.response != None:
-                post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], trim_i.response)
+            response = trim_i.response
+            response['i'] = i
+            response['successful'] = trim_i.successful
+            del trim_i
+            if response['successful']:
+                post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], response)
                 post_processing_i.force_summation_method()
                 post_processing_i.euler_transformation()
                 post_processing_i.cuttingforces()
-                trim_i.response['i'] = i
                 logging.info( '--> Trimcase done, sending response to listener.')
-                q_output.put(trim_i.response)
-                del trim_i, post_processing_i
+                del post_processing_i
             else:
-                # trim failed, no post processing, save 'None'
+                # trim failed, no post processing
                 logging.info( '--> Trimcase failed, sending response to listener.')
-                q_output.put(trim_i.response)
-                del trim_i
+            q_output.put(response)
             q_input.task_done()
     return
 
@@ -333,24 +351,20 @@ def mainprocessing_listener(q_output, path_output, job_name, jcl):
             q_output.task_done()
             logging.info( '--> Listener quit.')
             break
-        elif m != None:
-            logging.info( '--> Received response from worker.')
+        elif m['successful']:
+            logging.info( "--> Received response ('successful') from worker.")
             mon.gather_monstations(jcl.trimcase[m['i']], m)
             if 't_final' and 'dt' in jcl.simcase[m['i']].keys():
                 mon.gather_dyn2stat(-1, m, mode='time-based')
             else:
                 mon.gather_dyn2stat(-1, m, mode='stat2stat')
-            logging.info( '--> Saving response(s).')
-            io.dump_pickle(m, f_response)
-            #with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[m['i']]['subcase']) + '.mat', 'w') as f:
-            #    io_matlab.save_mat(f, m)
-            q_output.task_done()
+
         else:
             # trim failed, no post processing, save 'None'
-            logging.info( "--> Received response ('None') from worker.")
-            logging.info( '--> Saving response(s).')
-            io.dump_pickle(m, f_response)
-            q_output.task_done()
+            logging.info( "--> Received response ('failed') from worker.")
+        logging.info( '--> Saving response(s).')
+        io.dump_pickle(m, f_response)
+        q_output.task_done()
             
     return
         
@@ -381,7 +395,26 @@ def setup_logger(path_output, job_name ):
     # tell the handler to use this format
     console.setFormatter(formatter)
     # add the handler to the root logger
-    logging.getLogger('').addHandler(console)    
+    logging.getLogger('').addHandler(console)   
+    
+def setup_mpi_hosts(jcl, n_workers, machinefile):
+    n_required = jcl.aero['tau_cores'] * n_workers
+    if machinefile == None:
+        # all work is done on this node
+        mpi_hosts = [platform.node()]*n_required
+    else:
+        mpi_hosts = []
+        with open(machinefile) as f:
+            lines = f.readlines()
+        for line in lines[1:]: 
+            # Use first host for Load Kernel only.
+            # Use all other hosts (except first) for mpi executions.
+            line = line.split(' slots=')
+            mpi_hosts += [line[0]]*int(line[1])
+    if mpi_hosts.__len__() < n_required:
+         logging.error('Number of given hosts ({}) smaller than required hosts ({}). Exit.'.format(mpi_hosts.__len__(), n_required))
+         sys.exit()
+    return mpi_hosts
     
 if __name__ == "__main__":
     print "Please use the launch-script 'launch.py' from your input directory."
