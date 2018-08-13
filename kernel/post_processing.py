@@ -45,6 +45,7 @@ class post_processing:
             #response['Pg_cs']          = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             #response['Pg_idrag']       = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Pg_ext']         = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            response['Pg_cfd']         = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Pg']             = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['d2Ug_dt2']       = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             for i_step in range(len(response['t'])):
@@ -64,9 +65,11 @@ class post_processing:
                 #response['Pg_unsteady'][i_step,:]   = self.model.PHIk_strc.T.dot(response['Pk_unsteady'][i_step,:])
                 #response['Pg_cs'][i_step,:]   = self.model.PHIk_strc.T.dot(response['Pk_cs'][i_step,:])
                 #response['Pg_idrag'][i_step,:]= self.model.PHIk_strc.T.dot(response['Pk_idrag'][i_step,:])
+                if self.jcl.aero['method'] == 'cfd_steady':
+                    response['Pg_cfd'][i_step,:] = self.model.PHIcfd_strc.T.dot(response['Pcfd'][i_step,:])
                 if hasattr(self.jcl, 'landinggear'):
                     response['Pg_ext'][i_step,self.model.lggrid['set_strcgrid']] = response['Plg'][i_step,self.model.lggrid['set']]
-                response['Pg'][i_step,:] = response['Pg_aero'][i_step,:] + response['Pg_iner'][i_step,:] + response['Pg_ext'][i_step,:]
+                response['Pg'][i_step,:] = response['Pg_aero'][i_step,:] + response['Pg_iner'][i_step,:] + response['Pg_ext'][i_step,:] + response['Pg_cfd'][i_step,:]
                 response['d2Ug_dt2'][i_step,:] = d2Ug_dt2_r + d2Ug_dt2_f
         else:
             if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
@@ -83,7 +86,10 @@ class post_processing:
             #response['Pg_cs']   = self.model.PHIk_strc.T.dot(response['Pk_cs'])
             #response['Pg_idrag']= self.model.PHIk_strc.T.dot(response['Pk_idrag'])
             response['Pg_ext']  = np.zeros((6*self.model.strcgrid['n']))
-            response['Pg'] = response['Pg_aero'] + response['Pg_iner'] + response['Pg_ext']
+            response['Pg_cfd']  = np.zeros((6*self.model.strcgrid['n']))
+            if self.jcl.aero['method'] == 'cfd_steady':
+                response['Pg_cfd'] = self.model.PHIcfd_strc.T.dot(response['Pcfd'])
+            response['Pg'] = response['Pg_aero'] + response['Pg_iner'] + response['Pg_ext'] + response['Pg_cfd']
             response['d2Ug_dt2'] = d2Ug_dt2_r + d2Ug_dt2_f
             # das muss raus kommen:
             #np.dot(self.model.mass['Mb'][i_mass],np.hstack((response['d2Ucg_dt2'][0:3] - response['g_cg'], response['d2Ucg_dt2'][3:6])))
@@ -115,6 +121,7 @@ class post_processing:
             #response['Pg_cs_global']   = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             #response['Pg_idrag_global']= np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Pg_ext_global']  = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+            response['Pg_cfd_global']  = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Ug_r']           = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Ug_f']           = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
             response['Ug']             = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
@@ -155,6 +162,7 @@ class post_processing:
                 #response['Pg_idrag_global'][i_step,:]   = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_idrag'][i_step,:])
                 response['Pg_iner_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'][i_step,:])
                 response['Pg_ext_global'][i_step,:]  = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_ext'][i_step,:])
+                response['Pg_cfd_global'][i_step,:]  = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_cfd'][i_step,:])
                 #response['Pg_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'][i_step,:])
                 response['Ug'][i_step,:] = response['Ug_r'][i_step,:] + response['Ug_f'][i_step,:]
                 
@@ -193,6 +201,7 @@ class post_processing:
             #response['Pg_idrag_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_idrag'])
             response['Pg_iner_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'])
             response['Pg_ext_global']  = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_ext'])
+            response['Pg_cfd_global']  = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_cfd'])
             #response['Pg_global'] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'])
             response['Ug'] = response['Ug_r'] + response['Ug_f']
  

@@ -62,6 +62,12 @@ class common():
         # init efcs
         self.efcs =  efcs_class() 
         
+        # get cfd splining matrices
+        if self.jcl.aero['method'] == 'cfd_steady':
+            self.PHIcfd_strc = self.model.PHIcfd_strc
+            self.PHIcfd_cg   = self.model.mass['PHIcfd_cg'][self.i_mass] 
+            self.PHIcfd_f    = self.model.mass['PHIcfd_f'][self.i_mass] 
+        
         # set-up 1-cos gust           
         if self.simcase and self.simcase['gust']:
             # Vtas aus trim condition berechnen
@@ -691,18 +697,26 @@ class common():
         Pcfd[meshdefo.cfdgrids[0]['set'][:,0]] = ncfile_pval.variables['x-force'][:][pos].copy()
         Pcfd[meshdefo.cfdgrids[0]['set'][:,1]] = ncfile_pval.variables['y-force'][:][pos].copy()
         Pcfd[meshdefo.cfdgrids[0]['set'][:,2]] = ncfile_pval.variables['z-force'][:][pos].copy()
-        # transfer to aero set 'k'
-        Pk_cfd = self.model.PHIk_cfd.T.dot(Pcfd)
-        return Pk_cfd     
-        
+        return Pcfd
+    
+#         Pk_cfd = self.model.PHIk_cfd.T.dot(Pcfd)
+#         Pg_cfd = self.PHIcfd_strc.T.dot(Pcfd)
 #         from mayavi import mlab
-#         x = self.model.aerogrid['offset_k'][:,0]
-#         y = self.model.aerogrid['offset_k'][:,1]
-#         z = self.model.aerogrid['offset_k'][:,2]
+#         x = self.model.strcgrid['offset'][:,0]
+#         y = self.model.strcgrid['offset'][:,1]
+#         z = self.model.strcgrid['offset'][:,2]
 #         mlab.figure()   
 #         mlab.points3d(x, y, z)
-#         mlab.quiver3d(x, y, z, Pk_cfd[self.model.aerogrid['set_k'][:,0]], Pk_cfd[self.model.aerogrid['set_k'][:,1]], Pk_cfd[self.model.aerogrid['set_k'][:,2]], color=(0,1,1))
-#         mlab.title('Pk_cfd', size=0.2, height=0.95)
+#         mlab.quiver3d(x, y, z, Pg_cfd[self.model.strcgrid['set'][:,0]], Pg_cfd[self.model.strcgrid['set'][:,1]], Pg_cfd[self.model.strcgrid['set'][:,2]], color=(0,0,1))
+#         mlab.title('Pg_cfd', size=0.2, height=0.95)
+# 
+#         x = meshdefo.cfdgrids[0]['offset'][:,0]
+#         y = meshdefo.cfdgrids[0]['offset'][:,1]
+#         z = meshdefo.cfdgrids[0]['offset'][:,2]
+#         mlab.figure()   
+#         mlab.points3d(x, y, z)
+#         mlab.quiver3d(x, y, z, Pcfd[meshdefo.cfdgrids[0]['set'][:,0]], Pcfd[meshdefo.cfdgrids[0]['set'][:,1]], Pcfd[meshdefo.cfdgrids[0]['set'][:,2]], color=(0,0,1))
+#         mlab.title('Pg_cfd', size=0.2, height=0.95)
     
 class TauError(Exception):
     '''Raise when subprocess yields a returncode != 0 from Tau'''
@@ -743,16 +757,17 @@ class cfd_steady(common):
         self.tau_update_para(X[6:12])
         self.tau_prepare_meshdefo(Uf, Ux2)
         self.tau_run()
-        Pk_cfd = self.tau_last_solution()
+        Pcfd = self.tau_last_solution()
         
-        
-        Pk_rbm      = Pk_cfd*0.0
-        Pk_cam      = Pk_cfd*0.0
-        Pk_cs       = Pk_cfd*0.0
-        Pk_f        = Pk_cfd*0.0
-        Pk_gust     = Pk_cfd*0.0
-        Pk_idrag    = Pk_cfd*0.0
-        Pk_unsteady = Pk_cfd*0.0   
+        Pk_rbm      = np.zeros(6*self.model.aerogrid['n'])
+        Pk_cam      = Pk_rbm*0.0
+        Pk_cs       = Pk_rbm*0.0
+        Pk_f        = Pk_rbm*0.0
+        Pk_gust     = Pk_rbm*0.0
+        Pk_idrag    = Pk_rbm*0.0
+        Pk_unsteady = Pk_rbm*0.0 
+        Pk_cfd      = Pk_rbm*0.0
+
         # -------------------------------  
         # --- correction coefficients ---   
         # -------------------------------
@@ -763,7 +778,7 @@ class cfd_steady(common):
         # ---------------------------
         Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_cfd + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero)
-        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr
+        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + np.dot(self.PHIcfd_cg.T, Pcfd)
         
         g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
         g_cg = np.dot(self.PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
@@ -783,7 +798,7 @@ class cfd_steady(common):
             d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb)[3:6,3:6], Pb[3:6] )
             Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
         
-        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
+        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) + np.dot(self.PHIcfd_f.T, Pcfd)
         # flexible EoM
         d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
         
@@ -865,6 +880,7 @@ class cfd_steady(common):
                         'ddp1': ddp1,
                         'F1': F1,
                         'F2': F2,
+                        'Pcfd': Pcfd,
                        }
             return response        
         
