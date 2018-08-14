@@ -581,7 +581,6 @@ class common():
     
     def tau_prepare_meshdefo(self, Uf, Ux2):
         meshdefo = build_meshdefo.meshdefo(self.jcl, self.model)
-        meshdefo.read_cfdgrids()
         meshdefo.init_deformations()
         meshdefo.Uf(Uf, self.trimcase)
         meshdefo.Ux2(Ux2)
