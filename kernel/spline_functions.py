@@ -87,27 +87,14 @@ def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type='tps', surface_spline=Fa
         dimensions_d = 6*len(grid_d['set'+set_d])
     logging.debug(' - expanding spline matrix to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i))
     PHI = sp.coo_matrix((dimensions_d , dimensions_i))
-    #logging.info(' - for x translations')
     PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,0], grid_i['set'+set_i][:,0])
-    #logging.info(' - for y translations')
     PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])
-    #logging.info(' - for z translations')
     PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,2], grid_i['set'+set_i][:,2])
-    #logging.info(' - for x rotations')
-    PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,3], grid_i['set'+set_i][:,3])
-    #logging.info(' - for y rotations')
-    PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,4], grid_i['set'+set_i][:,4])
-    #logging.info(' - for z rotations')
-    PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,5], grid_i['set'+set_i][:,5])
-#     PHI = np.zeros((dimensions_d, dimensions_i))
-#     PHI[np.ix_(grid_d['set'+set_d][:,0], grid_i['set'+set_i][:,0])] = PHI_tmp
-#     PHI[np.ix_(grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])] = PHI_tmp
-#     PHI[np.ix_(grid_d['set'+set_d][:,2], grid_i['set'+set_i][:,2])] = PHI_tmp
-#     PHI[np.ix_(grid_d['set'+set_d][:,3], grid_i['set'+set_i][:,3])] = PHI_tmp
-#     PHI[np.ix_(grid_d['set'+set_d][:,4], grid_i['set'+set_i][:,4])] = PHI_tmp
-#     PHI[np.ix_(grid_d['set'+set_d][:,5], grid_i['set'+set_i][:,5])] = PHI_tmp
+#     PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,3], grid_i['set'+set_i][:,3])
+#     PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,4], grid_i['set'+set_i][:,4])
+#     PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,5], grid_i['set'+set_i][:,5])
     logging.debug(' - splining done.')
-    return PHI
+    return PHI.tobsr() # better sparse format
 
 def sparse_insert_coo(sparsematrix, submatrix, idx1, idx2):
     # For sparse matrices, "fancy indexing" is not supported / not implemented as of 2017
@@ -290,7 +277,7 @@ def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='',
             
     splinematrix = T_d.transpose().dot(T_di).dot(T_i)
     if sparse_output:
-        return splinematrix
+        return splinematrix.tocsc() # better sparse format than lil_matrix
     else:
         return splinematrix.toarray() 
         
