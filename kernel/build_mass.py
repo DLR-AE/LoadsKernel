@@ -93,7 +93,8 @@ class build_mass:
         # Anstelle die Inverse zu bilden, wird ein Gleichungssystem geloest. Das ist schneller!
         logging.info( " - solving")
         self.Goa = - scipy.sparse.linalg.spsolve(K['C'], K['B_trans'])
-        self.Kaa = K['A'] + K['B'].dot(self.Goa)
+        self.Goa = self.Goa.toarray() # Sparse format is no longer required as Goa is dense anyway!
+        self.Kaa = K['A'].toarray() + K['B'].dot(self.Goa) # make sure the output is an ndarray
         
     def guyanreduction(self, i_mass, MFF, plot=False):
         # First, Guyan's equations are solved for the current mass matrix.
@@ -113,7 +114,7 @@ class build_mass:
         # Maa = M['A'] - M['B'].dot(self.Goa) - self.Goa.T.dot( M['B_trans'] - M['C'].dot(self.Goa) )
         
         # b) General Dynamic Reduction as implemented in Nastran (signs are switched!)
-        Maa = M['A'] + M['B'].dot(self.Goa) + self.Goa.T.dot( M['B_trans'] + M['C'].dot(self.Goa) )
+        Maa = M['A'].toarray() + M['B'].dot(self.Goa) + self.Goa.T.dot( M['B_trans'].toarray() + M['C'].dot(self.Goa) ) # make sure the output is an ndarray
         
         modes_selection = copy.deepcopy(self.jcl.mass['modes'][i_mass])         
         if self.jcl.mass['omit_rb_modes']: 
