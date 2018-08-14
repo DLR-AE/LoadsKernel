@@ -19,6 +19,7 @@ from  atmo_isa import atmo_isa
 import VLM, DLM
 
 import numpy as np
+import scipy.sparse as sp
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import cPickle, sys, time, logging, copy
@@ -91,7 +92,6 @@ class model:
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
                 self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
                 self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
-                #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord, self.path_output + 'mongrid_rules.png' ) 
             elif not self.jcl.geom['filename_monpnt'] == '':
                 logging.info( 'Reading Monitoring Stations from MONPNTs...')
                 self.mongrid = read_geom.Nastran_MONPNT1(self.jcl.geom['filename_monpnt']) 
@@ -99,7 +99,6 @@ class model:
                 rules = spline_rules.monstations_from_aecomp(self.mongrid, self.jcl.geom['filename_monpnt'])
                 self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
                 self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
-                #spline_functions.plot_splinerules(self.mongrid, '', self.strcgrid, '', self.mongrid_rules, self.coord, self.path_output + 'mongrid_rules.png' ) 
             else: 
                 logging.warning( 'No Monitoring Stations are created!')
         
@@ -160,15 +159,18 @@ class model:
                     self.aerogrid['cornerpoint_panels'] = np.vstack((self.aerogrid['cornerpoint_panels'],subgrid['cornerpoint_panels']))
                     self.aerogrid['cornerpoint_grids'] = np.vstack((self.aerogrid['cornerpoint_grids'],subgrid['cornerpoint_grids']))
             # cast normal vector of panels into a matrix of form (n, n*6)
-            self.aerogrid['Nmat'] = np.zeros((self.aerogrid['n'], self.aerogrid['n']*6))
+            #self.aerogrid['Nmat'] = np.zeros((self.aerogrid['n'], self.aerogrid['n']*6))
+            self.aerogrid['Nmat'] = sp.lil_matrix((self.aerogrid['n'], self.aerogrid['n']*6), dtype=float)
             for x in range(self.aerogrid['n']):
                 self.aerogrid['Nmat'][x,self.aerogrid['set_k'][x,(0,1,2)]] = self.aerogrid['N'][x,(0,1,2)]
+            self.aerogrid['Nmat'] = self.aerogrid['Nmat'].tocsc()
             # cast normal vector of panels into a matrix of form (n, n*6)
-            self.aerogrid['Rmat'] = np.zeros((self.aerogrid['n']*6, self.aerogrid['n']*6))
+            #self.aerogrid['Rmat'] = np.zeros((self.aerogrid['n']*6, self.aerogrid['n']*6))
+            self.aerogrid['Rmat'] = sp.lil_matrix((self.aerogrid['n']*6, self.aerogrid['n']*6), dtype=float)
             for x in range(self.aerogrid['n']):
                 self.aerogrid['Rmat'][x*6+1,self.aerogrid['set_k'][x,5]] = -1.0 # Bug found by Roman. Onflow x r yields a negative downwash
                 self.aerogrid['Rmat'][x*6+2,self.aerogrid['set_k'][x,4]] =  1.0
-                       
+            self.aerogrid['Rmat'] = self.aerogrid['Rmat'].tocsc()
             # Correctionfor camber and twist, W2GJ
             if self.jcl.aero['filename_deriv_4_W2GJ']:
                 # parsing of several files possible, must be in correct sequence
@@ -195,12 +197,12 @@ class model:
                 self.macgrid['offset'] = np.array([self.jcl.general['MAC_ref']])
             
             rules = spline_rules.rules_aeropanel(self.aerogrid)
-            self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord)
+            self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord, sparse_output=True)
             self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
             
             rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
-            self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord)
-            self.Djx1 = np.dot(self.Djk, self.Dkx1)
+            self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord, sparse_output=False)
+            self.Djx1 = self.Djk.dot(self.Dkx1)
             #self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
             
             # control surfaces
@@ -463,8 +465,8 @@ class model:
                 PHIcg_norm = spline_functions.spline_rb(cggrid_norm, '', cggrid, '', rules, self.coord) 
                 
                 # some pre-multiplications to speed-up main processing
-                PHIjf = np.dot(self.Djk, self.PHIk_strc.dot(PHIf_strc.T))                
-                PHIlf = np.dot(self.Dlk.toarray(), self.PHIk_strc.dot(PHIf_strc.T))
+                PHIjf = self.Djk.dot(self.PHIk_strc.dot(PHIf_strc.T))
+                PHIlf = self.Dlk.dot(self.PHIk_strc.dot(PHIf_strc.T))
                 PHIkf = self.PHIk_strc.dot(PHIf_strc.T)
 
                 Mfcg=PHIf_strc.dot(-MGG.dot(PHIstrc_cg))
