@@ -5,7 +5,7 @@ from trim_tools import *
 
 from scipy import interpolate, linalg
 import scipy.io.netcdf as netcdf
-import build_meshdefo
+import meshdefo
 
 import PyTauModuleInit, PyPara, PyDeform, PyPrep, PySolv
 from tau_python import *
@@ -580,11 +580,11 @@ class common():
             d2Ucg_dt2[5] = 0.0      
     
     def tau_prepare_meshdefo(self, Uf, Ux2):
-        meshdefo = build_meshdefo.meshdefo(self.jcl, self.model)
-        meshdefo.init_deformations()
-        meshdefo.Uf(Uf, self.trimcase)
-        meshdefo.Ux2(Ux2)
-        meshdefo.write_deformations(self.jcl.aero['para_path']+'./defo/surface_defo_subcase_' + str(self.trimcase['subcase'])) 
+        defo = meshdefo.meshdefo(self.jcl, self.model)
+        defo.init_deformations()
+        defo.Uf(Uf, self.trimcase)
+        defo.Ux2(Ux2)
+        defo.write_deformations(self.jcl.aero['para_path']+'./defo/surface_defo_subcase_' + str(self.trimcase['subcase'])) 
         
         Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))
         # deformation related parameters
@@ -685,17 +685,15 @@ class common():
 
         # determine the positions of the points in the pval file
         # this could be relevant if not all markers in the pval file are used
-        meshdefo = build_meshdefo.meshdefo(self.jcl, self.model)
-        meshdefo.read_cfdgrids(merge_domains=True)
-        logging.debug('Working on marker {}'.format(meshdefo.cfdgrids[0]['desc']))
+        logging.debug('Working on marker {}'.format(self.model.cfdgrid['desc']))
         pos = []
-        for ID in meshdefo.cfdgrids[0]['ID']: 
+        for ID in self.model.cfdgrid['ID']: 
             pos.append(np.where(global_id == ID)[0][0]) 
         # build force vector from cfd solution                    
-        Pcfd = np.zeros(meshdefo.cfdgrids[0]['n']*6)
-        Pcfd[meshdefo.cfdgrids[0]['set'][:,0]] = ncfile_pval.variables['x-force'][:][pos].copy()
-        Pcfd[meshdefo.cfdgrids[0]['set'][:,1]] = ncfile_pval.variables['y-force'][:][pos].copy()
-        Pcfd[meshdefo.cfdgrids[0]['set'][:,2]] = ncfile_pval.variables['z-force'][:][pos].copy()
+        Pcfd = np.zeros(self.model.cfdgrid['n']*6)
+        Pcfd[self.model.cfdgrid['set'][:,0]] = ncfile_pval.variables['x-force'][:][pos].copy()
+        Pcfd[self.model.cfdgrid['set'][:,1]] = ncfile_pval.variables['y-force'][:][pos].copy()
+        Pcfd[self.model.cfdgrid['set'][:,2]] = ncfile_pval.variables['z-force'][:][pos].copy()
         return Pcfd
     
 #         Pk_cfd = self.model.PHIk_cfd.T.dot(Pcfd)
