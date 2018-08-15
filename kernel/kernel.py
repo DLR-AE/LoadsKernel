@@ -5,6 +5,7 @@ Created on Thu Nov 27 14:00:31 2014
 @author: voss_ar
 """
 import cPickle, time, multiprocessing, getpass, platform, logging, sys, copy
+from multiprocessing.managers import SyncManager
 import numpy as np
 import io_functions
 import trim
@@ -18,6 +19,8 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
                path_output='../output/', 
                jcl=None, parallel=False, restart=False,
                machinefile=None):
+    host_name = platform.node()
+    port = 50000
     io = io_functions.specific_functions()
     io_matlab = io_functions.matlab_functions()
     path_input = io.check_path(path_input) 
@@ -51,15 +54,18 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
     if main:
         logging.info( '--> Starting Main for %d trimcase(s).' % len(jcl.trimcase))
         t_start = time.time()        
-        manager = multiprocessing.Manager()
-        q_input = manager.Queue()  
-        q_output = manager.Queue() 
-        
+        q_input = multiprocessing.JoinableQueue()
+        q_output = multiprocessing.JoinableQueue()
+        manager = QueueManager(address=(host_name, port), authkey='simsalabim')
+        manager.register('get_q_input', callable=lambda:q_input)
+        manager.register('get_q_output', callable=lambda:q_output)
+        manager.start()
+
         # putting trimcases into queue
         for i in range(len(jcl.trimcase)):
             q_input.put(i)
         logging.info( '--> All trimcases queued, waiting for execution.')
-        
+
         if type(parallel)==int:
             n_processes = parallel
         elif parallel:
@@ -70,7 +76,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
             
         pool = multiprocessing.Pool(n_processes)
         logging.info( '--> Launching 1 listener.')
-        listener = pool.apply_async(mainprocessing_listener, (q_output, path_output, job_name, jcl)) # put listener to work
+        listener = pool.apply_async(mainprocessing_listener, (host_name, port, path_output, job_name, jcl)) # put listener to work
         n_workers = n_processes - 1
         
         if jcl.aero['method'] in ['cfd_steady']:
@@ -83,7 +89,7 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
             if jcl.aero['method'] in ['cfd_steady']:
                 i_jcl.aero['mpi_hosts'] = mpi_hosts[:jcl.aero['tau_cores']] # assign hosts
                 mpi_hosts = mpi_hosts[jcl.aero['tau_cores']:] # remaining hosts
-            workers.append(pool.apply_async(mainprocessing_worker, (q_input, q_output, path_output, job_name, i_jcl)))
+            workers.append(pool.apply_async(mainprocessing_worker, (host_name, port, path_output, job_name, i_jcl)))
             
         q_input.join() # blocks until worker is done
         for i_worker in range(n_workers):
@@ -288,10 +294,14 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
     logging.info( 'Loads Kernel finished.')
     print_logo()
 
-def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
+def mainprocessing_worker(host_name, port, path_output, job_name, jcl):
     io = io_functions.specific_functions()
     if not 'model' in locals():
-            model = io.load_model(job_name, path_output)
+        model = io.load_model(job_name, path_output)
+    remote = QueueManager(address=(host_name, port), authkey='simsalabim' )
+    remote.connect()
+    q_input  = remote.get_q_input()
+    q_output = remote.get_q_output()
     while True:
         i = q_input.get()
         if i == 'finish':
@@ -329,10 +339,15 @@ def mainprocessing_worker(q_input, q_output, path_output, job_name, jcl):
             q_input.task_done()
     return
 
-def mainprocessing_listener(q_output, path_output, job_name, jcl):
+def mainprocessing_listener(host_name, port, path_output, job_name, jcl):
     io = io_functions.specific_functions()
     if not 'model' in locals():
-            model = io.load_model(job_name, path_output)
+        model = io.load_model(job_name, path_output)
+    # connect to host
+    remote = QueueManager(address=(host_name, port), authkey='simsalabim' )
+    remote.connect()
+    q_output = remote.get_q_output()
+    
     mon = monstations_module.monstations(jcl, model)    
     f_response = open(path_output + 'response_' + job_name + '.pickle', 'w') # open response
     logging.info( '--> Listener ready.')
@@ -415,7 +430,10 @@ def setup_mpi_hosts(jcl, n_workers, machinefile):
          logging.error('Number of given hosts ({}) smaller than required hosts ({}). Exit.'.format(mpi_hosts.__len__(), n_required))
          sys.exit()
     return mpi_hosts
-    
+
+class QueueManager(SyncManager):             
+    pass
+
 if __name__ == "__main__":
     print "Please use the launch-script 'launch.py' from your input directory."
     sys.exit()
