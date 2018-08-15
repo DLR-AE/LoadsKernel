@@ -91,7 +91,6 @@ def run_kernel(job_name, pre=False, main=False, post=False, main_debug=False, te
                 mpi_hosts = mpi_hosts[jcl.aero['tau_cores']:] # remaining hosts
             workers.append(pool.apply_async(mainprocessing_worker, (host_name, port, path_output, job_name, i_jcl)))
             
-        q_input.join() # blocks until worker is done
         for i_worker in range(n_workers):
             q_input.put('finish') # putting finish signal into queue for worker
         q_input.join()
