@@ -26,9 +26,8 @@ import cPickle, sys, time, logging, copy
 #from oct2py import octave 
 
 class model:
-    def __init__(self,jcl, path_output):
+    def __init__(self, jcl):
         self.jcl = jcl
-        self.path_output = path_output
         #for dir in sys.path:
             #octave.addpath(dir) # add path in octave so the m-file(s) are found
     
