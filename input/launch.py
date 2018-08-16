@@ -25,8 +25,10 @@ import kernel
 
 
 # kernel.run_kernel('jcl_MULDICON_ll3_gust', pre=False, main=False, post=True, path_output='/scratch/MULDICON_stability', parallel=4)
-kernel.run_kernel('jcl_MULDICON_ll3', pre=False, statespace=True, post=False, path_output='/scratch/MULDICON_stability', parallel=4)
+k = kernel.Kernel('jcl_MULDICON_ll3_cfd', pre=False, main=True, post=False, path_output='/scratch/test', parallel=False, machinefile='/scratch/test/machinefile')
 
 
 # kernel.run_kernel('jcl_MULDICON_gust_loadsloop0', pre=False, main=True, post=True, path_input='/scratch/test', path_output='/scratch/test', parallel=True)
 # kernel.run_kernel('jcl_MULDICON_maneuver_loadsloop0', pre=False, main=False, post=True, path_input='/scratch/test', path_output='/scratch/test', parallel=True)
+
+k.run()
