@@ -508,11 +508,13 @@ class trim:
             try:
                 X_free, info, status, msg= so.fsolve(equations.eval_equations_iteratively, X_free_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-3, xtol=1.0e-3 )
             except model_equations.TauError as e:
-                self.response = None
+                self.response = {}
+                self.successful = False
                 logging.warning('Trim failed for subcase {} due to TauError: {}'.format(self.trimcase['subcase'], e))
                 return
             except model_equations.ConvergenceError as e:
-                self.response = None
+                self.response = {}
+                self.successful = False
                 logging.warning('Trim failed for subcase {} due to ConvergenceError: {}'.format(self.trimcase['subcase'], e))
                 return
             else:
