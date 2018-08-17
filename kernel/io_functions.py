@@ -6,7 +6,7 @@ Created on Mon Jun  1 17:44:17 2015
 """
 import numpy as np
 
-import cPickle, time, imp, sys, os, psutil, logging, shutil
+import cPickle, time, imp, sys, os, psutil, logging, shutil, re
 import scipy
 from scipy import io
 
@@ -76,6 +76,18 @@ class specific_functions():
                 response = [ response[x] for x in pos_sorted]
             logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
             return response 
+    
+    def gather_responses(self, job_name, path):
+        logging.info( '--> Gathering response(s).'  )
+        filenames = os.listdir(path)
+        filenames.sort()
+        response = []
+        for filename in filenames:
+            if re.match('response_{}_subcase_[\d]*.pickle'.format(job_name), filename) is not None:
+                logging.debug('loading {}'.format(filename))
+                with open(os.path.join(path, filename), 'r') as f:
+                    response.append(self.load_pickle(f))
+        return response
     
     def open_responses(self, job_name, path_output):
         logging.info( '--> Opening response(s).'  )

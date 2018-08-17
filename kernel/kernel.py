@@ -79,18 +79,55 @@ class Kernel():
 
     def run_cluster(self, i):
         i = int(i)
+        self.setup_logger_cluster(i=i)
         io = io_functions.specific_functions()
         self.jcl = io.load_jcl(self.job_name, self.path_input, self.jcl)
-        self.setup_logger_cluster(i=i)
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
         logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
-        logging.info('main: cluster array mode')
+        logging.info('cluster array mode')
 
         self.run_main_single(i)
 
         logging.info('Loads Kernel finished.')
         self.print_logo()
+    
+    def gather_cluster(self):
+        self.setup_logger()
+        t_start = time.time()
+        logging.info('Starting Loads Kernel with job: ' + self.job_name)
+        logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
+        logging.info('cluster gather mode')
+        io = io_functions.specific_functions()
+        self.jcl = io.load_jcl(self.job_name, self.path_input, self.jcl)
+        model = io.load_model(self.job_name, self.path_output)
+        responses = io.gather_responses(self.job_name, io.check_path(self.path_output+'responses'))
+        mon = monstations_module.monstations(self.jcl, model)
+        f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'w')  # open response
+        for i in range(len(self.jcl.trimcase)):
+            response = responses[[response['i'] for response in responses].index(i)]
+            if response['successful']:
+                mon.gather_monstations(self.jcl.trimcase[i], response)
+                if 't_final' and 'dt' in self.jcl.simcase[i].keys():
+                    mon.gather_dyn2stat(-1, response, mode='time-based')
+                else:
+                    mon.gather_dyn2stat(-1, response, mode='stat2stat')
 
+            logging.info('--> Saving response(s).')
+            io.dump_pickle(response, f)
+        f.close()  # close response
+
+        logging.info('--> Saving monstation(s).')
+        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'w') as f:
+            io.dump_pickle(mon.monstations, f)
+
+        logging.info('--> Saving dyn2stat.')
+        with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'w') as f:
+            io.dump_pickle(mon.dyn2stat, f)
+        logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
+        
+        logging.info('Loads Kernel finished.')
+        self.print_logo()
+        
     def run_pre(self):
         logging.info('--> Starting preprocessing.')
         t_start = time.time()
