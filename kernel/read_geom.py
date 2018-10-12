@@ -398,33 +398,48 @@ def Nastran_OP4(filename, sparse_output=False, sparse_format=False ):
                 # end of file reached or the last "dummy column" is reached
                 break
             elif sparse_format:
-                    i_col = nastran_number_converter(read_string[0:8], 'int') - 1
-                    n_words = nastran_number_converter(read_string[16:24], 'int')
-                    while n_words > 0:
-                        
-                        read_string = fid.readline()
-                        L = np.int(nastran_number_converter(read_string[0:16], 'int')/65536 - 1)
+                if n_row > 65535:
+                    bigmat = True
+                    # For BIGMAT matrices, the length L and row position i_row are given directly in record 3.
+                    # L, IROW
+                else:
+                    bigmat = False
+                    # Non-BIGMAT matrices have a string header IS, located in record 3, from which the length L and row position i_row are derived by
+                    # L = INT(IS/65536) - 1
+                    # IROW = IS - 65536(L + 1)
+                i_col = nastran_number_converter(read_string[0:8], 'int') - 1
+                n_words = nastran_number_converter(read_string[16:24], 'int')
+                while n_words > 0:
+                    
+                    read_string = fid.readline()
+                    if not bigmat:
+                        IS = nastran_number_converter(read_string[0:16], 'int')
+                        L = np.int(IS/65536 - 1)
                         n_words -= L+1
-                        i_row = nastran_number_converter(read_string[0:16], 'int') - 65536*(L+1) -1
-                        # figure out how many lines the datablock will have
+                        i_row = IS - 65536*(L+1) -1
+                    else:
+                        L = np.int(nastran_number_converter(read_string[0:8], 'int') - 1)
+                        n_words -= L+2
+                        i_row = nastran_number_converter(read_string[8:16], 'int') -1
+                    # figure out how many lines the datablock will have
+                    if type_real:
+                        n_items = L/2 # items that go into the column
+                        n_lines = int(math.ceil(n_items/5.0))
+                    elif type_complex:
+                        n_items = L/2 / 2 # items that go into the column
+                        n_lines = int(math.ceil(n_items/2.5))
+                    # read lines of datablock
+                    row = ''
+                    for i_line in range(n_lines):
+                        row += fid.readline()[:-1]
+                        
+                    for i_item in range(n_items):
                         if type_real:
-                            n_items = L/2 # items that go into the column
-                            n_lines = int(math.ceil(n_items/5.0))
+                            data[i_col, i_row + i_item] = nastran_number_converter(row[:16], 'float')
+                            row = row[16:]
                         elif type_complex:
-                            n_items = L/2 / 2 # items that go into the column
-                            n_lines = int(math.ceil(n_items/2.5))
-                        # read lines of datablock
-                        row = ''
-                        for i_line in range(n_lines):
-                            row += fid.readline()[:-1]
-                            
-                        for i_item in range(n_items):
-                            if type_real:
-                                data[i_col, i_row + i_item] = nastran_number_converter(row[:16], 'float')
-                                row = row[16:]
-                            elif type_complex:
-                                data[i_col, i_row + i_item] = np.complex(nastran_number_converter(row[:16], 'float'), nastran_number_converter(row[16:32], 'float'))
-                                row = row[32:]
+                            data[i_col, i_row + i_item] = np.complex(nastran_number_converter(row[:16], 'float'), nastran_number_converter(row[16:32], 'float'))
+                            row = row[32:]
                     
             elif not sparse_format:
                 i_col = nastran_number_converter(read_string[0:8], 'int') - 1
