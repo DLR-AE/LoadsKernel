@@ -180,6 +180,14 @@ class model:
                     else:
                         self.camber_twist['ID'] = np.hstack((self.camber_twist['ID'], subgrid['ID']))
                         self.camber_twist['cam_rad'] = np.hstack((self.camber_twist['cam_rad'], subgrid['cam_rad']))
+            elif self.jcl.aero['filename_DMI_W2GJ']:
+                for i_file in range(len(self.jcl.aero['filename_DMI_W2GJ'])):
+                    DMI = read_geom.Nastran_DMI(self.jcl.aero['filename_DMI_W2GJ'][i_file]) 
+                    if i_file == 0:
+                        data = DMI['data']
+                    else:
+                        data = np.hstack((data, DMI['data']))
+                self.camber_twist = {'ID':self.aerogrid['ID'], 'cam_rad':data}
             else:
                 logging.info( 'No W2GJ data (correction of camber and twist) given, setting to zero')
                 self.camber_twist = {'ID':self.aerogrid['ID'], 'cam_rad':np.zeros(self.aerogrid['ID'].shape)}

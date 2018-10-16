@@ -346,6 +346,46 @@ def nastran_number_converter(string_in, type, default=0):
         except:
             out = int(default)  
     return out
+
+def Nastran_DMI(filename):
+    DMI = {}
+    with open(filename, 'r') as fid:
+        while True:
+            read_string = fid.readline()
+            if read_string[:3] == 'DMI' and nastran_number_converter(read_string[16:24], 'int') == 0:
+                # this is the header
+                DMI['NAME'] = string.replace(read_string[8:16],' ','') # matrix name
+                DMI['FORM'] = nastran_number_converter(read_string[24:32], 'int')
+                DMI['TIN']  = nastran_number_converter(read_string[32:40], 'int')
+                DMI['n_row']  = nastran_number_converter(read_string[56:64], 'int')
+                DMI['n_col']  = nastran_number_converter(read_string[64:72], 'int')
+                if DMI['TIN'] in [1,2]:
+                    DMI['data'] = sp.lil_matrix((DMI['n_col'], DMI['n_row']), dtype=float)
+                elif DMI['TIN'] in [3,4]:
+                    logging.error('Complex DMI matrix input NOT supported.')
+                logging.info('Read {} data from file: {}'.format(DMI['NAME'], filename))
+                while True:
+                    # now we read column by column
+                    read_string = fid.readline()
+                    if read_string[:3] == 'DMI' and nastran_number_converter(read_string[16:24], 'int') != 0:
+                        # new column
+                        i_col = nastran_number_converter(read_string[16:24], 'int')
+                        col = read_string[24:-1]
+                        # figure out how many lines the column will have
+                        n_items = DMI['n_row'] # items that go into the column
+                        n_lines = int(math.ceil((n_items-3)/4.0))
+                        for i_line in range(n_lines):
+                            col += fid.readline()[8:-1]
+                        for i_item in range(n_items):
+                            DMI['data'][i_col-1, nastran_number_converter(col[:8], 'int')-1] = nastran_number_converter(col[8:16], 'float')
+                            col = col[16:]
+                    else:
+                        break
+            elif read_string == '':
+                # end of file
+                break
+    return DMI                
+    
     
 def Nastran_OP4(filename, sparse_output=False, sparse_format=False ):
     # Assumptions:
@@ -671,9 +711,11 @@ def Modgen_W2GJ(filename):
     for line in lines:
         if string.find(line, 'CAM_RAD') !=-1 and line[0] != '$':
             pos_ID = line.split().index('ID-CAE1')
+            pos_BOX = line.split().index('ID-BOX')
             pos_CAM_RAD = line.split().index('CAM_RAD')
         elif line[0] != '$':
-            ID.append(nastran_number_converter(line.split()[pos_ID], 'int'))
+            # ID of every single aero panel
+            ID.append(nastran_number_converter(line.split()[pos_ID], 'int') + nastran_number_converter(line.split()[pos_BOX], 'int') - 1)
             cam_rad.append(nastran_number_converter(line.split()[pos_CAM_RAD], 'float'))
 
     camber_twist = {'ID': np.array(ID),
