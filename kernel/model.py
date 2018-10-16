@@ -184,9 +184,9 @@ class model:
                 for i_file in range(len(self.jcl.aero['filename_DMI_W2GJ'])):
                     DMI = read_geom.Nastran_DMI(self.jcl.aero['filename_DMI_W2GJ'][i_file]) 
                     if i_file == 0:
-                        data = DMI['data']
+                        data = DMI['data'].toarray().squeeze()
                     else:
-                        data = np.hstack((data, DMI['data']))
+                        data = np.hstack((data, DMI['data'].toarray().squeeze()))
                 self.camber_twist = {'ID':self.aerogrid['ID'], 'cam_rad':data}
             else:
                 logging.info( 'No W2GJ data (correction of camber and twist) given, setting to zero')
