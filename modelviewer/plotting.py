@@ -192,12 +192,12 @@ class Plotting:
         self.show_aero=False
         mlab.draw(self.fig)
         
-    def plot_aero(self, scalars=None):
-        self.setup_aero_display(scalars)
+    def plot_aero(self, scalars=None, vminmax=[-10.0, 10.0]):
+        self.setup_aero_display(scalars, vminmax)
         self.show_aero=True
         mlab.draw(self.fig)
         
-    def setup_aero_display(self, scalars):
+    def setup_aero_display(self, scalars, vminmax):
         ug = tvtk.UnstructuredGrid(points=self.model.aerogrid['cornerpoint_grids'][:,(1,2,3)])
         shells = []
         for shell in self.model.aerogrid['cornerpoint_panels']: 
@@ -212,7 +212,7 @@ class Plotting:
         points.glyph.glyph.scale_mode = 'data_scaling_off'
         
         if scalars != None:
-            surface = mlab.pipeline.surface(self.src_aerogrid, colormap='plasma')
+            surface = mlab.pipeline.surface(self.src_aerogrid, colormap='coolwarm', vmin=vminmax[0], vmax=vminmax[1])
         else:
             surface = mlab.pipeline.surface(self.src_aerogrid, color=(1,1,1))
         #surface.actor.mapper.scalar_visibility=True
@@ -226,6 +226,7 @@ class Plotting:
             cbar._label_text_property.font_family='times'
             cbar._label_text_property.bold=False
             cbar._label_text_property.italic=False
+            cbar.number_of_labels=5
         
     def hide_cfdgrids(self):
         for src in self.src_cfdgrids:
