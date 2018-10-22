@@ -180,7 +180,7 @@ class Modelviewer():
         layout_mass.addWidget(self.lb_rho)
         layout_mass.addWidget(self.sl_rho)
         layout_mass.addWidget(bt_mass_hide)
-        layout_mass.addStretch(1)
+        #layout_mass.addStretch(1)
         
         # Elements of strc tab
         lb_undeformed = QtGui.QLabel('Undeformed')
@@ -225,7 +225,10 @@ class Modelviewer():
         
         # Elements of aero tab
         bt_aero_show = QtGui.QPushButton('Show')
-        bt_aero_show.clicked.connect(self.plotting.plot_aero)
+        bt_aero_show.clicked.connect(self.toggle_w2gj)
+        self.cb_w2gj = QtGui.QCheckBox('Color by W2GJ [deg]')
+        self.cb_w2gj.setChecked(False)
+        self.cb_w2gj.stateChanged.connect(self.toggle_w2gj)
         bt_aero_hide = QtGui.QPushButton('Hide')
         bt_aero_hide.clicked.connect(self.plotting.hide_aero)
         
@@ -237,10 +240,11 @@ class Modelviewer():
         
         layout_aero = QtGui.QVBoxLayout(tab_aero)
         layout_aero.addWidget(bt_aero_show)
+        layout_aero.addWidget(self.cb_w2gj)
         layout_aero.addWidget(bt_aero_hide)
         layout_aero.addWidget(self.list_markers)
         layout_aero.addWidget(bt_cfdgrid_hide)
-        layout_aero.addStretch(1)
+        #layout_aero.addStretch(1)
         
         # Elements of coupling tab
         bt_coupling_show = QtGui.QPushButton('Show')
@@ -289,7 +293,7 @@ class Modelviewer():
         layout_cs.addWidget(self.sl_deg)
         layout_cs.addWidget(self.cb_axis)
         layout_cs.addWidget(bt_cs_hide)
-        layout_cs.addStretch(1)
+        #layout_cs.addStretch(1)
         
         # Elements of results tab
         self.list_celldata = QtGui.QListWidget()  
@@ -412,7 +416,6 @@ class Modelviewer():
             freq = np.real(eigenvalue)**0.5 /2/np.pi
             self.lb_freq.setText('Frequency: {:0.4f} Hz'.format(freq))
             
-            
     def get_mass_data_for_plotting(self, *args):
         rho = np.double(self.sl_rho.value())
         self.lb_rho.setText('Scaling: {:0.0f} kg/m^3'.format(rho))
@@ -438,7 +441,16 @@ class Modelviewer():
             self.lb_Iyy.setText('Iyy: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][4,4]))
             self.lb_Izz.setText('Izz: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][5,5]))
     
-    
+    def toggle_w2gj(self):
+        if self.cb_w2gj.isChecked():
+            if self.plotting.show_aero:
+                self.plotting.hide_aero()
+            self.plotting.plot_aero(self.model.camber_twist['cam_rad']/np.pi*180.0)
+        else:
+            if self.plotting.show_aero:
+                self.plotting.hide_aero()
+            self.plotting.plot_aero()
+                
     def get_new_cs_for_plotting(self, *args):
         # To show a different control surface, new points need to be created. Thus, remove last control surface from plot.
         if self.plotting.show_cs:
@@ -483,7 +495,6 @@ class Modelviewer():
     def toggle_culling(self):
         self.plotting.hide_cell()
         self.get_new_cell_data_for_plotting()
-        
     
     def load_model(self):
         # open file dialog

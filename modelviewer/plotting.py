@@ -46,6 +46,7 @@ class Plotting:
         self.distance = 1.5*(  (self.strcgrid['offset'][:,0].max()-self.strcgrid['offset'][:,0].min())**2 \
                           + (self.strcgrid['offset'][:,1].max()-self.strcgrid['offset'][:,1].min())**2 \
                           + (self.strcgrid['offset'][:,2].max()-self.strcgrid['offset'][:,2].min())**2 )**0.5
+    
     def calc_focalpoint(self):
         self.focalpoint = (self.strcgrid['offset'].min(axis=0) + self.strcgrid['offset'].max(axis=0))/2.0
     
@@ -86,6 +87,7 @@ class Plotting:
     # ------------
     # --- mass ---
     #-------------
+    
     def hide_masses(self):
         self.src_masses.remove()
         self.src_mass_cg.remove()
@@ -133,6 +135,7 @@ class Plotting:
     # ------------
     # --- strc ---
     #-------------
+    
     def hide_strc(self):
         self.src_strc.remove()
         self.show_strc=False
@@ -176,7 +179,6 @@ class Plotting:
         points.glyph.glyph.scale_mode = 'data_scaling_off'
         return src_strc
         
-        
     def update_mode_display(self, offsets):
         self.src_mode.outputs[0].points.from_array(offsets)
         #self.src_mode.outputs[0].point_data.scalars.from_array(scalars)
@@ -184,39 +186,46 @@ class Plotting:
     # ------------
     # --- aero ---
     #-------------
+    
     def hide_aero(self):
         self.src_aerogrid.remove()
         self.show_aero=False
         mlab.draw(self.fig)
         
-    def plot_aero(self):
-        self.setup_aero_display(color=(1,1,1), p_scale=self.pscale)
+    def plot_aero(self, scalars=None):
+        self.setup_aero_display(scalars)
         self.show_aero=True
         mlab.draw(self.fig)
         
-    def setup_aero_display(self, color, p_scale):
+    def setup_aero_display(self, scalars):
         ug = tvtk.UnstructuredGrid(points=self.model.aerogrid['cornerpoint_grids'][:,(1,2,3)])
         shells = []
         for shell in self.model.aerogrid['cornerpoint_panels']: 
             shells.append([np.where(self.model.aerogrid['cornerpoint_grids'][:,0]==id)[0][0] for id in shell])
         shell_type = tvtk.Polygon().cell_type
         ug.set_cells(shell_type, shells)
-        #ug.cell_data.scalars = scalars
+        if scalars != None:
+            ug.cell_data.scalars = scalars
         self.src_aerogrid = mlab.pipeline.add_dataset(ug)
         
-        points = mlab.pipeline.glyph(self.src_aerogrid, color=color, scale_factor=p_scale)
+        points = mlab.pipeline.glyph(self.src_aerogrid, color=(0,0,0), scale_factor=self.pscale)
         points.glyph.glyph.scale_mode = 'data_scaling_off'
         
-        surface = mlab.pipeline.surface(self.src_aerogrid, color=color)
-        surface.actor.mapper.scalar_visibility=False
+        if scalars != None:
+            surface = mlab.pipeline.surface(self.src_aerogrid, colormap='plasma')
+        else:
+            surface = mlab.pipeline.surface(self.src_aerogrid, color=(1,1,1))
+        #surface.actor.mapper.scalar_visibility=True
         surface.actor.property.edge_visibility=True
-        #surface.actor.property.edge_color=(0.9,0.9,0.9)
         surface.actor.property.edge_color=(0,0,0)
         surface.actor.property.line_width=0.5
-    
-    def update_aero_display(self, scalars): # currently unused
-        self.src_aerogrid.outputs[0].cell_data.scalars.from_array(scalars)
-        self.src_aerogrid.update()
+        
+        if scalars != None:
+            cbar = mlab.colorbar(surface, title='', orientation='vertical')
+            cbar._label_text_property.color=(0,0,0)
+            cbar._label_text_property.font_family='times'
+            cbar._label_text_property.bold=False
+            cbar._label_text_property.italic=False
         
     def hide_cfdgrids(self):
         for src in self.src_cfdgrids:
@@ -250,6 +259,7 @@ class Plotting:
     # --------------
     # --- coupling ---
     #---------------
+    
     def hide_aero_strc_coupling(self):
         self.src_grid_i.remove()
         self.src_grid_d.remove()
@@ -266,7 +276,6 @@ class Plotting:
             self.src_grid_i, self.src_grid_d \
             = self.plot_splinegrids(self.model.splinegrid, '', self.model.aerogrid, '_k')
         self.show_coupling=True
-            
             
     def plot_splinegrids(self, grid_i,  set_i,  grid_d, set_d):
         p_scale = self.pscale # points
@@ -312,6 +321,7 @@ class Plotting:
     # --------------
     # --- monstations ---
     #---------------
+    
     def hide_monstations(self):
         self.src_mongrid_i.remove()
         self.src_mongrid_d.remove()
@@ -327,6 +337,7 @@ class Plotting:
     # ----------
     # --- cs ---
     #-----------
+    
     def hide_cs(self):
         self.src_cs.remove()
         self.show_cs=False
@@ -361,7 +372,6 @@ class Plotting:
     def update_cs_display(self, points):
         self.src_cs.outputs[0].points.from_array(points)
 
-        
     def hide_cell(self):
         self.src_cell.remove()
         self.show_cell=False
