@@ -250,6 +250,9 @@ class model:
             
         else:
             logging.error( 'Unknown aero method: ' + str(self.jcl.aero['method']))
+            
+        logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(self.aerogrid['n'], len(self.x2grid['ID']) ))
+
         # -----------    
         # --- AIC ---
         # -----------
@@ -346,6 +349,8 @@ class model:
             else:
                 logging.info( 'Coupling aerogrid directly. Doing cleanup/thin out of strcgrid to avoid singularities (safety first!)')
                 self.splinegrid = build_splinegrid.grid_thin_out_radius(self.strcgrid, 0.01)
+        
+        logging.info('The spline model consists of {} grid points.'.format(self.splinegrid['n']))
 
         if self.jcl.spline['method'] == 'rbf': 
             self.PHIk_strc = spline_functions.spline_rbf(self.splinegrid, '',self.aerogrid, '_k', 'tps', dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6] )
@@ -368,7 +373,8 @@ class model:
             cfdgrids.read_surface(merge_domains=False)
             self.cfdgrid  = cfdgrids.cfdgrid
             self.cfdgrids = cfdgrids.cfdgrids
-            
+            logging.info('The CFD surface grid consists of {} grid points and {} boundary markers.'.format(self.cfdgrid['n'], self.cfdgrids.__len__()) )
+
             # Option A: CFD forces are transferred to the aerogrid. 
             # This allows a direct integration into existing procedures and a comparison to VLM forces.
             rules = spline_rules.nearest_neighbour(self.aerogrid, '_k', self.cfdgrid, '') 
