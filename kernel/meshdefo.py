@@ -30,14 +30,17 @@ class meshdefo:
                 Ujx2 += np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
             elif hingeline == 'z':
                 Ujx2 += np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
-        self.transfer_deformations(self.model.aerogrid, Ujx2, '_k', surface_spline=True)
+        self.transfer_deformations(self.model.aerogrid, Ujx2, '_k', surface_spline=False)
                     
     def Uf(self, Uf, trimcase):
         logging.info('Apply flexible deformations to cfdgrid')
         # set-up spline grid
-        #splinegrid = build_splinegrid.grid_thin_out_random(model.strcgrid, 0.5)
-        splinegrid = build_splinegrid.grid_thin_out_radius(self.model.strcgrid, 0.4)
-        #splinegrid = model.strcgrid
+        if self.jcl.spline['splinegrid'] == True:
+            splinegrid = self.model.strcgrid
+        else:
+            #splinegrid = build_splinegrid.grid_thin_out_random(model.strcgrid, 0.5)
+            splinegrid = build_splinegrid.grid_thin_out_radius(self.model.strcgrid, 0.4)
+        
         # get structural deformation
         i_mass     = self.model.mass['key'].index(trimcase['mass'])
         PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
@@ -102,13 +105,14 @@ class meshdefo:
         dz = f.createVariable('dz', 'd', ('no_of_points',))
         # fill variables with data
         for cfdgrid, Ucfd in zip(self.cfdgrids, self.Ucfd):
-            global_id[cfdgrid['ID']] = cfdgrid['ID']
-            x[cfdgrid['ID']] = cfdgrid['offset'][:,0]
-            y[cfdgrid['ID']] = cfdgrid['offset'][:,1]
-            z[cfdgrid['ID']] = cfdgrid['offset'][:,2]
-            dx[cfdgrid['ID']] = Ucfd[cfdgrid['set'][:,0]]
-            dy[cfdgrid['ID']] = Ucfd[cfdgrid['set'][:,1]]
-            dz[cfdgrid['ID']] = Ucfd[cfdgrid['set'][:,2]]
+            pos = [np.where(IDs==ID)[0][0] for ID in cfdgrid['ID']]
+            global_id[pos] = cfdgrid['ID']
+            x[pos] = cfdgrid['offset'][:,0]
+            y[pos] = cfdgrid['offset'][:,1]
+            z[pos] = cfdgrid['offset'][:,2]
+            dx[pos] = Ucfd[cfdgrid['set'][:,0]]
+            dy[pos] = Ucfd[cfdgrid['set'][:,1]]
+            dz[pos] = Ucfd[cfdgrid['set'][:,2]]
         f.close()
 
     def write_defo_cgns(self, filename_defo):
