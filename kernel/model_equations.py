@@ -900,7 +900,7 @@ class cfd_steady(common):
             #d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
 
             # recover Uf_old from last step and blend with Uf_now
-            f_relax = 1.0
+            f_relax = 0.9
             Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(n_modes)]
             Uf_old = np.array(Uf_old, dtype='float')
             Uf_new = Uf_new*f_relax + Uf_old*(1.0-f_relax)
@@ -916,7 +916,7 @@ class cfd_steady(common):
             #defo_new = Ug_f_body.sum() # Summe ueber alle Verformungen
             ddefo = defo_new - self.defo_old
             self.defo_old = np.copy(defo_new)
-            if np.abs(ddefo) < 1.0e-6:
+            if np.abs(ddefo) < self.jcl.general['b_ref']*1.0e-5:
                 converged = True
                 logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}, converged.'.format(self.counter, defo_new, ddefo))
             else:
@@ -1500,7 +1500,7 @@ class steady(common):
             #d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
 
             # recover Uf_old from last step and blend with Uf_now
-            f_relax = 1.0
+            f_relax = 0.9
             Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(n_modes)]
             Uf_old = np.array(Uf_old, dtype='float')
             Uf_new = Uf_new*f_relax + Uf_old*(1.0-f_relax)
@@ -1516,7 +1516,7 @@ class steady(common):
             #defo_new = Ug_f_body.sum() # Summe ueber alle Verformungen
             ddefo = defo_new - self.defo_old
             self.defo_old = np.copy(defo_new)
-            if np.abs(ddefo) < 1.0e-6:
+            if np.abs(ddefo) < self.jcl.general['b_ref']*1.0e-5:
                 converged = True
                 logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}, converged.'.format(self.counter, defo_new, ddefo))
             else:
