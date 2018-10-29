@@ -5,7 +5,7 @@ Created on Tue Mar  3 14:36:41 2015
 @author: voss_ar
 """
 import numpy as np
-import csv, logging
+import csv, logging, copy
 import PID, filter
 
 class mephisto:
@@ -151,29 +151,40 @@ class allegra:
 
 class XRF1:
     def __init__(self):
-        self.keys = ['ELEV1', 'ELEV2', 'RUDDER']
-        self.Ux2_0 = np.array([0.0, 0.0, 0.0])
-        self.Ux2_lower = np.array([-30.0, -30.0, -30.0])/180*np.pi
-        self.Ux2_upper = np.array([ 30.0,  30.0, 30.0])/180*np.pi
+        self.keys = ['L11FLP', #0
+                     'L12FLP', #1
+                     'L13AIL', #2
+                     'L14FLP', #3
+                     'R11FLP', #4
+                     'R12FLP', #5
+                     'R13AIL', #6
+                     'R14FLP', #7
+                     'L21ELV', #8
+                     'R21ELV', #9
+                     'L31RUB', #10
+                     ]
+        self.Ux2_0 = np.array([0.0]*18)
+        self.Ux2_lower = np.array([-30.0]*18)/180*np.pi
+        self.Ux2_upper = np.array([ 30.0]*18)/180*np.pi
         
-        self.alpha_lower = -4.0/180*np.pi
-        self.alpha_upper = 6.0/180*np.pi
+        self.alpha_lower = -10.0/180*np.pi
+        self.alpha_upper =  10.0/180*np.pi
                 
     def efcs(self, command_xi, command_eta, command_zeta):
-
+        
         # Ausgangsposition
-        delta_ELEV1 = self.Ux2_0[0]
-        delta_ELEV2 = self.Ux2_0[1]
-        delta_RUDDER = self.Ux2_0[2]              
+        Ux2 = copy.deepcopy(self.Ux2_0)            
+        
+        # xi - Rollachse
+        Ux2[6] -= command_xi
+        Ux2[2]  += command_xi
         
         # eta - Nickachse
-        delta_ELEV1 -= command_eta
-        delta_ELEV2 -= command_eta
+        Ux2[8] -= command_eta
+        Ux2[9] -= command_eta
         
         # zeta - Gierachse
-        delta_RUDDER = command_zeta
-        
-        Ux2 = np.array([delta_ELEV1, delta_ELEV2, delta_RUDDER])
+        Ux2[10] += command_zeta
         
         violation_lower = Ux2 < self.Ux2_lower
         if np.any(violation_lower):
