@@ -163,9 +163,9 @@ class XRF1:
                      'R21ELV', #9
                      'L31RUB', #10
                      ]
-        self.Ux2_0 = np.array([0.0]*18)
-        self.Ux2_lower = np.array([-30.0]*18)/180*np.pi
-        self.Ux2_upper = np.array([ 30.0]*18)/180*np.pi
+        self.Ux2_0 = np.array([0.0]*11)
+        self.Ux2_lower = np.array([-30.0]*11)/180*np.pi
+        self.Ux2_upper = np.array([ 30.0]*11)/180*np.pi
         
         self.alpha_lower = -10.0/180*np.pi
         self.alpha_upper =  10.0/180*np.pi
@@ -184,7 +184,7 @@ class XRF1:
         Ux2[9] -= command_eta
         
         # zeta - Gierachse
-        Ux2[10] += command_zeta
+        Ux2[10] -= command_zeta
         
         violation_lower = Ux2 < self.Ux2_lower
         if np.any(violation_lower):
