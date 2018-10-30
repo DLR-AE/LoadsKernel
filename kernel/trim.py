@@ -173,6 +173,18 @@ class trim:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dq'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
         
+        # ----------------
+        # --- CS fixed --- 
+        # ----------------
+        elif self.trimcase['manoeuver'] == 'Xi&Zeta-fixed':
+            logging.info('setting trim conditions to "Xi&Zeta-fixed"')
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],2] = self.trimcase['command_xi']
+            self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],2] = self.trimcase['command_zeta']
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'          
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
+            
         # --------------
         # --- bypass --- 
         # --------------
@@ -316,7 +328,9 @@ class trim:
         import model_equations # Warum muss der import hier stehen??
         
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
-            equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+            equations = model_equations.steady(self)
+        elif self.jcl.aero['method'] in [ 'nonlin_steady']:
+            equations = model_equations.nonlin_steady(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -324,7 +338,7 @@ class trim:
         delta = 0.01   
             
         X0 = np.array(self.trimcond_X[:,2], dtype='float')
-        response0 = equations.equations(X0, 0.0, 'sim_full_output')
+        response0 = equations.equations(X0, 0.0, 'trim_full_output')
         logging.info('Calculating derivatives for ' + str(len(X0)) + ' variables...')
         logging.info('MAC_ref = {}'.format(self.jcl.general['MAC_ref']))
         logging.info('A_ref = {}'.format(self.jcl.general['A_ref']))
@@ -333,11 +347,11 @@ class trim:
         logging.info('')
         logging.info('Derivatives given in body axis (aft-right-up):')
         logging.info('--------------------------------------------------------------------------------------')
-        logging.info('                     Cx         Cy         Cz         Cmx        Cmx        Cmz')
+        logging.info('                     Cx         Cy         Cz         Cmx        Cmy        Cmz')
         for i in range(len(X0)):
             Xi = copy.deepcopy(X0)
             Xi[i] += delta
-            response = equations.equations(Xi, 0.0, 'sim_full_output')
+            response = equations.equations(Xi, 0.0, 'trim_full_output')
             Pmac_c = (response['Pmac']-response0['Pmac'])/response['q_dyn']/A/delta
             tmp = '{:>20} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g}'.format( self.trimcond_X[i,0], Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref'] )
             logging.info(tmp)
