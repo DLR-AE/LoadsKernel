@@ -79,6 +79,13 @@ class plotting:
             self.cuttingforces_wing = ['MON1']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.4 # points
+        elif self.jcl.general['aircraft'] in ['XRF1']:
+            self.potatos_Fz_Mx = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
+            self.potatos_Mx_My = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
+            self.potatos_Fz_My = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
+            self.cuttingforces_wing = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
+            self.f_scale = 0.002 # vectors
+            self.p_scale = 0.4 # points
         else:
             logging.error('Unknown aircraft: ' + str(self.jcl.general['aircraft']))
             return
@@ -101,10 +108,10 @@ class plotting:
             ax.set_title('Cp for {:s}'.format(trimcase['desc']))
 #             ax.set_xlim(0, 16)
 #             ax.set_ylim(-8, 8)
-            F = response['Pk_idrag'][self.model.aerogrid['set_k'][:,0]]
-            cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
-            ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r',)# -0.01, 0.03)
-            ax.set_title('Cd_ind for {:s}'.format(trimcase['desc']))
+#             F = response['Pk_idrag'][self.model.aerogrid['set_k'][:,0]]
+#             cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
+#             ax = build_aero.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r',)# -0.01, 0.03)
+#             ax.set_title('Cd_ind for {:s}'.format(trimcase['desc']))
             plt.show()
       
     def plot_forces_deformation_interactive(self):
