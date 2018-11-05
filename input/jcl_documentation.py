@@ -32,6 +32,8 @@ class jcl:
                      'method_caero': 'CAERO1',                               # aerogrid is given by CAERO1, CAERO7 or by CQUAD4 cards
                      'filename_caero_bdf': ['CAERO1_bdf'],                   # bdf file(s) with CAERO1 or CQUAD4-cards for aerogrid. IDs in ascending order.
                      'filename_deriv_4_W2GJ': ['filename.deriv_4_W2GJ'],     # ModGen output for camber and twist correction. Same order as the aerogrid.
+                     # Alternative definition of camber and twist correction :
+                     'filename_DMI_W2GJ': [],                                # DMI Matrix for camber and twist correction. Same order as the aerogrid.
                      'filename_aesurf': ['filename.AESURF'],                 # bdf file(s) with AESURF-cards
                      'filename_aelist': ['filename.AELIST'],                 # bdf file(s) with AELIST-cards
                      'hingeline': 'z',                                       # The hingeline of a CS is given by a CORD. Either the y- or the z-axis is taken as hingeline. 'y', 'z' 
