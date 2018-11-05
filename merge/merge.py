@@ -9,7 +9,6 @@ sys.path.append("../kernel")
 import io_functions
 import auxiliary_output
 import plotting
-import kernel
 import numpy as np
 
 class Merge:
@@ -65,7 +64,7 @@ class Merge:
             
     def run_merge(self, job_name, jobs_to_merge):
            
-        kernel.setup_logger(self.path_output, job_name )
+        self.setup_logger( job_name )
         logging.info( 'Starting Loads Merge')
         logging.info( 'user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() +')')
         io = io_functions.specific_functions()
@@ -162,12 +161,29 @@ class Merge:
         aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
         aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=True) 
     
+    def setup_logger(self, job_name):
+        # define a Handler which writes INFO messages or higher to the sys.stout
+        console = logging.StreamHandler(sys.stdout)
+        console.setLevel(logging.INFO)
+        formatter = logging.Formatter(fmt='%(levelname)s: %(message)s')  # set a format which is simpler for console use
+        console.setFormatter(formatter)  # tell the handler to use this format
+        # define a Handler which writes INFO messages or higher to a log file
+        logfile = logging.FileHandler(filename=self.path_output + 'log_' + job_name + ".txt", mode='w')
+        logfile.setLevel(logging.INFO)
+        formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
+        logfile.setFormatter(formatter)
+        # add the handler(s) to the root logger
+        logger = logging.getLogger('')
+        logger.setLevel(logging.INFO)
+        logger.addHandler(console)
+        logger.addHandler(logfile)
+    
 if __name__ == "__main__":
 #     print "Please use the launch-script 'launch.py' from your input directory."
 #     sys.exit()
-    jobs_to_merge = ['jcl_MULDICON_maneuver_loadsloop3', 
-                     'jcl_MULDICON_gust_loadsloop3',
-                     'jcl_MULDICON_lg_loadsloop3']
-    m = Merge(path_input='/scratch/MULDICON_workingcopy/jcl', path_output='/scratch/MULDICON_LoadsKernel')
-    m.run_merge('jcl_MULDICON_merged_loadsloop3', jobs_to_merge)
+    jobs_to_merge = ['jcl_MULDICON_maneuver_loadsloop0', 
+                     'jcl_MULDICON_gust_loadsloop0',
+                     'jcl_MULDICON_lg_loadsloop0']
+    m = Merge(path_input='/scratch/MULDICON_workingcopy_fullfe/jcl', path_output='/scratch/MULDICON_LoadsKernel_fullfe')
+    m.run_merge('jcl_MULDICON_merged_loadsloop0', jobs_to_merge)
     
