@@ -7,7 +7,6 @@ Created on Fri Nov 28 10:53:48 2014
 import build_mass
 import build_aero
 import build_aerodb
-import build_meshdefo
 import spline_rules
 import spline_functions
 import build_splinegrid
