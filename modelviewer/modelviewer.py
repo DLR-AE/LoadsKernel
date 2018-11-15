@@ -108,8 +108,7 @@ class Modelviewer():
         self.plotting = Plotting()
         self.nastran = NastranSOL101()
         self.taugrid = TauGrid()
-        self.initGUI()
-        pass
+        self.initGUI()   
     
     def initGUI(self):
         # Don't create a new QApplication, it would unhook the Events
@@ -192,7 +191,6 @@ class Modelviewer():
         layout_strc.addWidget(self.lb_uf,6,0,1,-1)    
         layout_strc.addWidget(self.sl_uf,7,0,1,-1)
         layout_strc.addWidget(bt_mode_hide,8,0,1,-1)
-        #layout_strc.addStretch(1)
     
     def initMassTab(self):
         tab_mass        = QtGui.QWidget()  
@@ -230,7 +228,6 @@ class Modelviewer():
         layout_mass.addWidget(self.lb_rho)
         layout_mass.addWidget(self.sl_rho)
         layout_mass.addWidget(bt_mass_hide)
-        #layout_mass.addStretch(1)
     
     def initAeroTab(self):
         tab_aero        = QtGui.QWidget()
@@ -256,7 +253,6 @@ class Modelviewer():
         layout_aero.addWidget(bt_aero_hide)
         layout_aero.addWidget(self.list_markers)
         layout_aero.addWidget(bt_cfdgrid_hide)
-        #layout_aero.addStretch(1)
     
     def initCouplingTab(self):
         tab_coupling    = QtGui.QWidget()
@@ -276,15 +272,14 @@ class Modelviewer():
         tab_monstations = QtGui.QWidget()
         self.tabs_widget.addTab(tab_monstations,"monstations")
         # Elements of monstations tab
-        bt_monstations_show = QtGui.QPushButton('Show')
-        bt_monstations_show.clicked.connect(self.plotting.plot_monstations)
+        self.list_monstations = QtGui.QListWidget()      
+        self.list_monstations.itemClicked.connect(self.get_monstation_for_plotting)
         bt_monstations_hide = QtGui.QPushButton('Hide')
         bt_monstations_hide.clicked.connect(self.plotting.hide_monstations)
         
         layout_monstations = QtGui.QVBoxLayout(tab_monstations)
-        layout_monstations.addWidget(bt_monstations_show)
+        layout_monstations.addWidget(self.list_monstations)
         layout_monstations.addWidget(bt_monstations_hide)
-        layout_monstations.addStretch(1)
     
     def initCSTab(self):
         tab_cs          = QtGui.QWidget()
@@ -314,7 +309,6 @@ class Modelviewer():
         layout_cs.addWidget(self.sl_deg)
         layout_cs.addWidget(self.cb_axis)
         layout_cs.addWidget(bt_cs_hide)
-        #layout_cs.addStretch(1)
     
     def initPytranTab(self):
         tab_celldata     = QtGui.QWidget()
@@ -351,22 +345,22 @@ class Modelviewer():
         mainMenu = self.window.menuBar()
         fileMenu = mainMenu.addMenu('File')
         # Add load button
-        loadButton = QtGui.QAction('Load model', self.window)
-        loadButton.setShortcut('Ctrl+L')
-        loadButton.triggered.connect(self.load_model)
-        fileMenu.addAction(loadButton)
+        loadButtonModel = QtGui.QAction('Load model', self.window)
+        loadButtonModel.setShortcut('Ctrl+L')
+        loadButtonModel.triggered.connect(self.load_model)
+        fileMenu.addAction(loadButtonModel)
         
-        self.loadButton_nastran = QtGui.QAction('Load Nastran results', self.window)
-        self.loadButton_nastran.setShortcut('Ctrl+R')
-        self.loadButton_nastran.setDisabled(True)
-        self.loadButton_nastran.triggered.connect(self.load_nastran_results)
-        fileMenu.addAction(self.loadButton_nastran)
+        self.loadButtonNastran = QtGui.QAction('Load Nastran results', self.window)
+        self.loadButtonNastran.setShortcut('Ctrl+R')
+        self.loadButtonNastran.setDisabled(True)
+        self.loadButtonNastran.triggered.connect(self.load_nastran_results)
+        fileMenu.addAction(self.loadButtonNastran)
         
-        self.loadButton_cfdgrid = QtGui.QAction('Load Tau Grid', self.window)
-        self.loadButton_cfdgrid.setShortcut('Ctrl+T')
-        self.loadButton_cfdgrid.setDisabled(True)
-        self.loadButton_cfdgrid.triggered.connect(self.load_tau_grid)
-        fileMenu.addAction(self.loadButton_cfdgrid)
+        self.loadButtonCfdgrid = QtGui.QAction('Load Tau Grid', self.window)
+        self.loadButtonCfdgrid.setShortcut('Ctrl+T')
+        self.loadButtonCfdgrid.setDisabled(True)
+        self.loadButtonCfdgrid.triggered.connect(self.load_tau_grid)
+        fileMenu.addAction(self.loadButtonCfdgrid)
         
         # Add exit button
         exitButton = QtGui.QAction('Exit', self.window)
@@ -457,6 +451,12 @@ class Modelviewer():
             self.lb_Iyy.setText('Iyy: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][4,4]))
             self.lb_Izz.setText('Izz: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][5,5]))
     
+    def get_monstation_for_plotting(self, *args):
+        if self.list_monstations.currentItem() is not None:
+            key = self.list_monstations.currentItem().data(0)
+            self.plotting.plot_monstations(monstation=key)
+           
+    
     def toggle_w2gj(self):
         if self.cb_w2gj.isChecked():
             if self.plotting.show_aero:
@@ -506,7 +506,6 @@ class Modelviewer():
             items = self.list_markers.selectedItems()
             selected_markers = [int(item.text()) for item in items]
             self.plotting.plot_cfdgrids(selected_markers)
-        pass
     
     def toggle_culling(self):
         self.plotting.hide_cell()
@@ -532,8 +531,8 @@ class Modelviewer():
             self.plotting.plot_nothing()
             self.file_opt['initialdir'] = os.path.split(filename)[0]
             self.container.show()
-            self.loadButton_nastran.setEnabled(True)
-            self.loadButton_cfdgrid.setEnabled(True)
+            self.loadButtonNastran.setEnabled(True)
+            self.loadButtonCfdgrid.setEnabled(True)
 
     def update_fields(self):
         self.list_mass.clear()
@@ -545,6 +544,11 @@ class Modelviewer():
         self.list_cs.clear()
         for key in self.model.x2grid['key']:
             self.list_cs.addItem(QtGui.QListWidgetItem(key))
+            
+        self.list_monstations.clear()
+        for key in self.model.mongrid['ID']:
+            self.list_monstations.addItem(QtGui.QListWidgetItem(str(key)))
+        
             
     def load_nastran_results(self):
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.hdf5_opt['title'], self.hdf5_opt['initialdir'], self.hdf5_opt['filters'])[0]

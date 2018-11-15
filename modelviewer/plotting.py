@@ -26,6 +26,7 @@ class Plotting:
         self.show_coupling=False
         self.show_cs=False
         self.show_cell=False
+        self.show_monstations=False
         
     def add_figure(self, fig):
         self.fig = fig
@@ -330,9 +331,15 @@ class Plotting:
         self.show_monstations=False
         mlab.draw(self.fig)
             
-    def plot_monstations(self):
+    def plot_monstations(self, monstation):
+        if self.show_monstations:
+            self.hide_monstations()
+        pos = self.model.mongrid_rules['ID_i'].index(int(monstation))
+        rules = {'ID_i': [self.model.mongrid_rules['ID_i'][pos]],
+                 'ID_d': [self.model.mongrid_rules['ID_d'][pos]],
+                } 
         self.src_mongrid_i, self.src_mongrid_d, self.src_mongrid_rules \
-        = self.plot_splinerules(self.model.mongrid, '', self.model.strcgrid, '', self.model.mongrid_rules, self.model.coord)
+        = self.plot_splinerules(self.model.mongrid, '', self.model.strcgrid, '', rules, self.model.coord)
         self.show_monstations=True
 
     # ----------
