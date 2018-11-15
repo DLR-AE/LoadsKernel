@@ -44,8 +44,7 @@ class meshdefo:
         # get structural deformation
         i_mass     = self.model.mass['key'].index(trimcase['mass'])
         PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
-        n_modes    = self.model.mass['n_modes'][i_mass]
-        Ug_f_body = np.dot(PHIf_strc.T, Uf.T).T #*100.0
+        Ug_f_body = np.dot(PHIf_strc.T, Uf.T).T
         
         self.transfer_deformations(splinegrid, Ug_f_body)
 
@@ -90,10 +89,25 @@ class meshdefo:
         logging.info( 'Writing ' + filename_defo + '.nc')
         f = netcdf.netcdf_file(filename_defo + '.nc', 'w')
         f.history = 'Surface deformations created by Loads Kernel'
-        # Calc total number of surface points becasue one point may belong to multiple markers.
-        IDs = np.array([])
-        for cfdgrid in self.cfdgrids: IDs = np.concatenate((IDs, cfdgrid['ID']))
-        IDs = np.unique(IDs)        
+        
+        # Assemble temporary output. One point may belong to multiple markers.
+        tmp_IDs = np.array([])
+        tmp_x = np.array([])
+        tmp_y = np.array([])
+        tmp_z = np.array([])
+        tmp_dx = np.array([])
+        tmp_dy = np.array([])
+        tmp_dz = np.array([])
+        for cfdgrid, Ucfd in zip(self.cfdgrids, self.Ucfd): 
+            tmp_IDs = np.concatenate((tmp_IDs, cfdgrid['ID']))
+            tmp_x = np.concatenate((tmp_x, cfdgrid['offset'][:,0]))
+            tmp_y = np.concatenate((tmp_y, cfdgrid['offset'][:,1]))
+            tmp_z = np.concatenate((tmp_z, cfdgrid['offset'][:,2]))
+            tmp_dx = np.concatenate((tmp_dx, Ucfd[cfdgrid['set'][:,0]]))
+            tmp_dy = np.concatenate((tmp_dy, Ucfd[cfdgrid['set'][:,1]]))
+            tmp_dz = np.concatenate((tmp_dz, Ucfd[cfdgrid['set'][:,2]]))
+        IDs, pos = np.unique(tmp_IDs, return_index=True)
+        
         f.createDimension('no_of_points', IDs.__len__())
         # create variables
         global_id = f.createVariable('global_id', 'i', ('no_of_points',))
@@ -104,15 +118,14 @@ class meshdefo:
         dy = f.createVariable('dy', 'd', ('no_of_points',))
         dz = f.createVariable('dz', 'd', ('no_of_points',))
         # fill variables with data
-        for cfdgrid, Ucfd in zip(self.cfdgrids, self.Ucfd):
-            pos = [np.where(IDs==ID)[0][0] for ID in cfdgrid['ID']]
-            global_id[pos] = cfdgrid['ID']
-            x[pos] = cfdgrid['offset'][:,0]
-            y[pos] = cfdgrid['offset'][:,1]
-            z[pos] = cfdgrid['offset'][:,2]
-            dx[pos] = Ucfd[cfdgrid['set'][:,0]]
-            dy[pos] = Ucfd[cfdgrid['set'][:,1]]
-            dz[pos] = Ucfd[cfdgrid['set'][:,2]]
+        global_id = IDs
+        x = tmp_x[pos]
+        y = tmp_y[pos]
+        z = tmp_z[pos]
+        dx = tmp_dx[pos]
+        dy = tmp_dy[pos]
+        dz = tmp_dz[pos]
+
         f.close()
 
     def write_defo_cgns(self, filename_defo):
