@@ -119,69 +119,40 @@ class Modelviewer():
         self.container = QtGui.QWidget()
         self.container.hide()
         
-        # -------------------
-        # --- set up tabs ---
-        # -------------------        
-        # Create Widgets
-        tab_strc        = QtGui.QWidget() 
-        tab_mass        = QtGui.QWidget()    
-        tab_aero        = QtGui.QWidget()
-        tab_coupling    = QtGui.QWidget()
-        tab_monstations = QtGui.QWidget()
-        tab_cs          = QtGui.QWidget()
-        tab_celldata     = QtGui.QWidget()
+        self.initTabs()
+        self.initMayaviFigure()
+        self.initWindow()
+
+        # ------------------------
+        # --- layout container ---
+        # ------------------------
+        layout = QtGui.QGridLayout(self.container)
+        layout.addWidget(self.tabs_widget, 0, 0)
+        layout.addWidget(self.mayavi_widget, 0, 1)
         
-        # Configure tabs
-        tabs_widget = QtGui.QTabWidget()
+        # Start the main event loop.
+        app.exec_()
+        
+    def initTabs(self):
+        # Configure tabs widget
+        self.tabs_widget = QtGui.QTabWidget()
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
-        tabs_widget.setSizePolicy(sizePolicy)
-        tabs_widget.setMinimumWidth(300)
-        tabs_widget.setMaximumWidth(450)
+        self.tabs_widget.setSizePolicy(sizePolicy)
+        self.tabs_widget.setMinimumWidth(300)
+        self.tabs_widget.setMaximumWidth(450)
         
-        # Add widgets to tabs
-        tabs_widget.addTab(tab_strc, 'strc')
-        tabs_widget.addTab(tab_mass,"mass")
-        tabs_widget.addTab(tab_aero,"aero")
-        tabs_widget.addTab(tab_cs,"cs")
-        tabs_widget.addTab(tab_coupling,"coupling") 
-        tabs_widget.addTab(tab_monstations,"monstations")
-        tabs_widget.addTab(tab_celldata,"pytran")
+        # Add tabs
+        self.initStrcTab()
+        self.initMassTab()
+        self.initAeroTab()
+        self.initCSTab()
+        self.initCouplingTab()
+        self.initMonstationsTab()
+        self.initPytranTab()
         
-        # Elements of mass tab
-        self.list_mass = QtGui.QListWidget()      
-        self.list_mass.itemClicked.connect(self.get_mass_data_for_plotting)
-        self.lb_rho = QtGui.QLabel('Rho: 2700 kg/m^3')
-        # slider for generalized coordinate magnification factor
-        self.sl_rho = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.sl_rho.setMinimum(100)
-        self.sl_rho.setMaximum(3000)
-        self.sl_rho.setSingleStep(100)
-        self.sl_rho.setValue(2700)
-        self.sl_rho.setTickPosition(QtGui.QSlider.TicksBelow)
-        self.sl_rho.setTickInterval(500)
-        self.sl_rho.valueChanged.connect(self.get_mass_data_for_plotting)
-        self.lb_cg   = QtGui.QLabel('CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(0.0, 0.0, 0.0))
-        self.lb_cg_mac = QtGui.QLabel('CG: x={:0.4f} % MAC'.format(0.0))
-        self.lb_mass = QtGui.QLabel('Mass: {:0.2f} kg'.format(0.0))
-        self.lb_Ixx  = QtGui.QLabel('Ixx:  {:0.4g} kg m^2'.format(0.0))
-        self.lb_Iyy  = QtGui.QLabel('Iyy:  {:0.4g} kg m^2'.format(0.0))
-        self.lb_Izz  = QtGui.QLabel('Izz:  {:0.4g} kg m^2'.format(0.0))
-        bt_mass_hide = QtGui.QPushButton('Hide')
-        bt_mass_hide.clicked.connect(self.plotting.hide_masses)
-        
-        layout_mass = QtGui.QVBoxLayout(tab_mass)
-        layout_mass.addWidget(self.list_mass)
-        layout_mass.addWidget(self.lb_cg)
-        layout_mass.addWidget(self.lb_cg_mac)
-        layout_mass.addWidget(self.lb_mass)
-        layout_mass.addWidget(self.lb_Ixx)
-        layout_mass.addWidget(self.lb_Iyy)
-        layout_mass.addWidget(self.lb_Izz)
-        layout_mass.addWidget(self.lb_rho)
-        layout_mass.addWidget(self.sl_rho)
-        layout_mass.addWidget(bt_mass_hide)
-        #layout_mass.addStretch(1)
-        
+    def initStrcTab(self):
+        tab_strc        = QtGui.QWidget() 
+        self.tabs_widget.addTab(tab_strc, 'strc')
         # Elements of strc tab
         lb_undeformed = QtGui.QLabel('Undeformed')
         bt_strc_show = QtGui.QPushButton('Show')
@@ -222,7 +193,48 @@ class Modelviewer():
         layout_strc.addWidget(self.sl_uf,7,0,1,-1)
         layout_strc.addWidget(bt_mode_hide,8,0,1,-1)
         #layout_strc.addStretch(1)
+    
+    def initMassTab(self):
+        tab_mass        = QtGui.QWidget()  
+        self.tabs_widget.addTab(tab_mass,"mass")
+        # Elements of mass tab
+        self.list_mass = QtGui.QListWidget()      
+        self.list_mass.itemClicked.connect(self.get_mass_data_for_plotting)
+        self.lb_rho = QtGui.QLabel('Rho: 2700 kg/m^3')
+        # slider for generalized coordinate magnification factor
+        self.sl_rho = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.sl_rho.setMinimum(100)
+        self.sl_rho.setMaximum(3000)
+        self.sl_rho.setSingleStep(100)
+        self.sl_rho.setValue(2700)
+        self.sl_rho.setTickPosition(QtGui.QSlider.TicksBelow)
+        self.sl_rho.setTickInterval(500)
+        self.sl_rho.valueChanged.connect(self.get_mass_data_for_plotting)
+        self.lb_cg   = QtGui.QLabel('CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(0.0, 0.0, 0.0))
+        self.lb_cg_mac = QtGui.QLabel('CG: x={:0.4f} % MAC'.format(0.0))
+        self.lb_mass = QtGui.QLabel('Mass: {:0.2f} kg'.format(0.0))
+        self.lb_Ixx  = QtGui.QLabel('Ixx:  {:0.4g} kg m^2'.format(0.0))
+        self.lb_Iyy  = QtGui.QLabel('Iyy:  {:0.4g} kg m^2'.format(0.0))
+        self.lb_Izz  = QtGui.QLabel('Izz:  {:0.4g} kg m^2'.format(0.0))
+        bt_mass_hide = QtGui.QPushButton('Hide')
+        bt_mass_hide.clicked.connect(self.plotting.hide_masses)
         
+        layout_mass = QtGui.QVBoxLayout(tab_mass)
+        layout_mass.addWidget(self.list_mass)
+        layout_mass.addWidget(self.lb_cg)
+        layout_mass.addWidget(self.lb_cg_mac)
+        layout_mass.addWidget(self.lb_mass)
+        layout_mass.addWidget(self.lb_Ixx)
+        layout_mass.addWidget(self.lb_Iyy)
+        layout_mass.addWidget(self.lb_Izz)
+        layout_mass.addWidget(self.lb_rho)
+        layout_mass.addWidget(self.sl_rho)
+        layout_mass.addWidget(bt_mass_hide)
+        #layout_mass.addStretch(1)
+    
+    def initAeroTab(self):
+        tab_aero        = QtGui.QWidget()
+        self.tabs_widget.addTab(tab_aero,"aero")
         # Elements of aero tab
         bt_aero_show = QtGui.QPushButton('Show')
         bt_aero_show.clicked.connect(self.toggle_w2gj)
@@ -245,7 +257,10 @@ class Modelviewer():
         layout_aero.addWidget(self.list_markers)
         layout_aero.addWidget(bt_cfdgrid_hide)
         #layout_aero.addStretch(1)
-        
+    
+    def initCouplingTab(self):
+        tab_coupling    = QtGui.QWidget()
+        self.tabs_widget.addTab(tab_coupling,"coupling") 
         # Elements of coupling tab
         bt_coupling_show = QtGui.QPushButton('Show')
         bt_coupling_show.clicked.connect(self.plotting.plot_aero_strc_coupling)
@@ -256,7 +271,10 @@ class Modelviewer():
         layout_coupling.addWidget(bt_coupling_show)
         layout_coupling.addWidget(bt_coupling_hide)
         layout_coupling.addStretch(1)
-        
+    
+    def initMonstationsTab(self):
+        tab_monstations = QtGui.QWidget()
+        self.tabs_widget.addTab(tab_monstations,"monstations")
         # Elements of monstations tab
         bt_monstations_show = QtGui.QPushButton('Show')
         bt_monstations_show.clicked.connect(self.plotting.plot_monstations)
@@ -267,7 +285,10 @@ class Modelviewer():
         layout_monstations.addWidget(bt_monstations_show)
         layout_monstations.addWidget(bt_monstations_hide)
         layout_monstations.addStretch(1)
-        
+    
+    def initCSTab(self):
+        tab_cs          = QtGui.QWidget()
+        self.tabs_widget.addTab(tab_cs,"cs")
         # Elements of cs tab
         self.list_cs = QtGui.QListWidget()  
         self.list_cs.itemClicked.connect(self.get_new_cs_for_plotting)
@@ -294,7 +315,10 @@ class Modelviewer():
         layout_cs.addWidget(self.cb_axis)
         layout_cs.addWidget(bt_cs_hide)
         #layout_cs.addStretch(1)
-        
+    
+    def initPytranTab(self):
+        tab_celldata     = QtGui.QWidget()
+        self.tabs_widget.addTab(tab_celldata,"pytran")
         # Elements of results tab
         self.list_celldata = QtGui.QListWidget()  
         self.list_celldata.itemClicked.connect(self.get_new_cell_data_for_plotting)
@@ -308,23 +332,18 @@ class Modelviewer():
         layout_celldata.addWidget(self.cb_culling)
         layout_celldata.addWidget(bt_cell_hide)
         layout_celldata.addStretch(1)
-        
+    
+    def initMayaviFigure(self):
         # ----------------------------
         # --- set up Mayavi Figure ---
         # ----------------------------
-        mayavi_widget = MayaviQWidget(self.container)
+        self.mayavi_widget = MayaviQWidget(self.container)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
-        mayavi_widget.setSizePolicy(sizePolicy)
-        fig = mayavi_widget.visualization.update_plot()
+        self.mayavi_widget.setSizePolicy(sizePolicy)
+        fig = self.mayavi_widget.visualization.update_plot()
         self.plotting.add_figure(fig)
-        
-        # ------------------------
-        # --- layout container ---
-        # ------------------------
-        layout = QtGui.QGridLayout(self.container)
-        layout.addWidget(tabs_widget, 0, 0)
-        layout.addWidget(mayavi_widget, 0, 1)
-                
+    
+    def initWindow(self):
         # ------------------------------
         # --- set up window and menu ---
         # ------------------------------
@@ -380,9 +399,6 @@ class Modelviewer():
         self.window.setCentralWidget(self.container)
         self.window.setWindowTitle("Loads Kernel Model Viewer")
         self.window.show()
-        
-        # Start the main event loop.
-        app.exec_()
     
     def update_modes(self):
         if self.list_modes_mass.currentItem() is not None:
