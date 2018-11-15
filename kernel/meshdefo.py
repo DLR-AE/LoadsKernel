@@ -91,7 +91,7 @@ class meshdefo:
         f.history = 'Surface deformations created by Loads Kernel'
         
         # Assemble temporary output. One point may belong to multiple markers.
-        tmp_IDs = np.array([])
+        tmp_IDs = np.array([], dtype='int')
         tmp_x = np.array([])
         tmp_y = np.array([])
         tmp_z = np.array([])
@@ -118,13 +118,13 @@ class meshdefo:
         dy = f.createVariable('dy', 'd', ('no_of_points',))
         dz = f.createVariable('dz', 'd', ('no_of_points',))
         # fill variables with data
-        global_id = IDs
-        x = tmp_x[pos]
-        y = tmp_y[pos]
-        z = tmp_z[pos]
-        dx = tmp_dx[pos]
-        dy = tmp_dy[pos]
-        dz = tmp_dz[pos]
+        global_id[:] = IDs
+        x[:] = tmp_x[pos]
+        y[:] = tmp_y[pos]
+        z[:] = tmp_z[pos]
+        dx[:] = tmp_dx[pos]
+        dy[:] = tmp_dy[pos]
+        dz[:] = tmp_dz[pos]
 
         f.close()
 
