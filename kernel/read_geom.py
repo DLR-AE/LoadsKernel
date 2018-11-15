@@ -158,7 +158,6 @@ def Nastran_weightgenerator(filename):
                 
         return np.array(massmatrix_0), np.array(inertia), offset_cg, CID
            
-
 def Modgen_GRID(filename):
     logging.info('Read GRID data from ModGen file: %s' %filename)
     grids = []
@@ -170,13 +169,12 @@ def Modgen_GRID(filename):
                 line = line + '        '
             grids.append([nastran_number_converter(line[8:16], 'ID'), nastran_number_converter(line[16:24], 'CP'), nastran_number_converter(line[24:32], 'float'), nastran_number_converter(line[32:40], 'float'), nastran_number_converter(line[40:48], 'float'), nastran_number_converter(line[48:56], 'CD')])
             
-    grids = np.array(grids)
-    n = len(grids[:,0])
-    grid = {"ID": grids[:,0],
-            "offset":grids[:,2:5],
+    n = len(grids)
+    grid = {"ID": np.array([grid[0] for grid in grids]),
+            "offset":np.array([grid[2:5] for grid in grids]),
             "n": n,
-            "CP": grids[:,1],
-            "CD": grids[:,5],
+            "CP": np.array([grid[1] for grid in grids]),
+            "CD": np.array([grid[5] for grid in grids]),
             "set": np.arange(n*6).reshape((n,6)),
            }
     return grid
@@ -385,8 +383,7 @@ def Nastran_DMI(filename):
                 # end of file
                 break
     return DMI                
-    
-    
+     
 def Nastran_OP4(filename, sparse_output=False, sparse_format=False ):
     # Assumptions:
     # - only one matrix is give per file
@@ -722,7 +719,6 @@ def Modgen_W2GJ(filename):
                     'cam_rad':np.array(cam_rad),
                    }
     return camber_twist
-
 
 def Nastran_NodeLocationReport(filename):
     IDs = set()
