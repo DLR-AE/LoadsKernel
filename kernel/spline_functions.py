@@ -336,5 +336,6 @@ def sparse_insert(sparsematrix, submatrix, idx1, idx2):
     # matrix multiplication is faster and memory consumption is much (!!!) lower. 
     for id1 in range(np.shape(submatrix)[0]):
         for id2 in range(np.shape(submatrix)[1]):
-            sparsematrix[ idx1[id1], idx2[id2] ] = submatrix[id1,id2]
+            if submatrix[id1,id2] != 0.0:
+                sparsematrix[ idx1[id1], idx2[id2] ] = submatrix[id1,id2]
     return sparsematrix 
