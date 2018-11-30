@@ -653,9 +653,13 @@ class common():
         returncode = subprocess.call(args_pre)
         if returncode != 0:
             raise TauError('Subprocess returned an error from Tau preprocessing, please see preprocessing.stdout !')
-        returncode = subprocess.call(args_solve)
-        if returncode != 0:
-            raise TauError('Subprocess returned an error from Tau solver, please see solver.stdout !')
+        
+        if self.counter == 1:
+            self.tau_prepare_initial_solution(args_solve)
+        else:
+            returncode = subprocess.call(args_solve)
+            if returncode != 0:
+                raise TauError('Subprocess returned an error from Tau solver, please see solver.stdout !')
 
         logging.info("Tau finished normally.")
         os.chdir(old_dir)
@@ -686,9 +690,14 @@ class common():
         # determine the positions of the points in the pval file
         # this could be relevant if not all markers in the pval file are used
         logging.debug('Working on marker {}'.format(self.model.cfdgrid['desc']))
-        pos = []
-        for ID in self.model.cfdgrid['ID']: 
-            pos.append(np.where(global_id == ID)[0][0]) 
+        # Because our mesh IDs are sorted and the Tau output is sorted, there is no need for an additional sorting.
+        # Exception: Additional surface markers are written to the Tau output, which are not used for coupling.
+        if global_id.__len__() == self.model.cfdgrid['n']:
+            pos = range(self.model.cfdgrid['n'])
+        else:
+            pos = []
+            for ID in self.model.cfdgrid['ID']: 
+                pos.append(np.where(global_id == ID)[0][0]) 
         # build force vector from cfd solution                    
         Pcfd = np.zeros(self.model.cfdgrid['n']*6)
         Pcfd[self.model.cfdgrid['set'][:,0]] = ncfile_pval.variables['x-force'][:][pos].copy()
@@ -714,6 +723,25 @@ class common():
 #         mlab.points3d(x, y, z)
 #         mlab.quiver3d(x, y, z, Pcfd[meshdefo.cfdgrids[0]['set'][:,0]], Pcfd[meshdefo.cfdgrids[0]['set'][:,1]], Pcfd[meshdefo.cfdgrids[0]['set'][:,2]], color=(0,0,1))
 #         mlab.title('Pg_cfd', size=0.2, height=0.95)
+    
+    def tau_prepare_initial_solution(self, args_solve):   
+        Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))  
+        # general parameters
+        para_dicts = [{'Inviscid flux discretization type': 'Upwind',
+                       'Order of upwind flux (1-2)': 1.0,
+                       'Maximal time step number': 300, 
+                      },
+                      {'Inviscid flux discretization type': Para.get_para_value('Inviscid flux discretization type'),
+                       'Order of upwind flux (1-2)': Para.get_para_value('Order of upwind flux (1-2)'),
+                       'Maximal time step number': Para.get_para_value('Maximal time step number'), 
+                      }]
+        for para_dict in para_dicts:
+            Para.update(para_dict)
+            logging.debug("Parameters set for Upwind solution.")
+            returncode = subprocess.call(args_solve)
+            if returncode != 0:
+                raise TauError('Subprocess returned an error from Tau solver, please see solver.stdout !')
+
     
 class TauError(Exception):
     '''Raise when subprocess yields a returncode != 0 from Tau'''
@@ -895,12 +923,13 @@ class cfd_steady(common):
         while not converged:
             inner_loops += 1
             response = self.equations(X, time, 'trim_full_output')
+            logging.info('Inner iteration {:>3d}, calculate structural deformations...'.format(self.counter))
             Uf_new = linalg.solve(self.Kff, response['Pf'])
             #Pf = np.dot(self.PHIkf.T, response['Pk_aero'])
             #d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
 
             # recover Uf_old from last step and blend with Uf_now
-            f_relax = 0.9
+            f_relax = 0.8
             Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(n_modes)]
             Uf_old = np.array(Uf_old, dtype='float')
             Uf_new = Uf_new*f_relax + Uf_old*(1.0-f_relax)
@@ -921,7 +950,7 @@ class cfd_steady(common):
                 logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}, converged.'.format(self.counter, defo_new, ddefo))
             else:
                 logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}'.format(self.counter, defo_new, ddefo))
-            if inner_loops > 9:
+            if inner_loops > 20:
                 raise ConvergenceError('No convergence of structural deformation achieved after {} inner loops. Check convergence of Tau solution and/or convergence criterion "ddefo".'.format(inner_loops))
         # get the current values from Y and substract tamlab.figure()
         # fsolve only finds the roots; Y = 0
