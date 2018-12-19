@@ -79,9 +79,9 @@ class Kernel():
 
     def run_cluster(self, i):
         i = int(i)
+        self.setup_logger_cluster(i=i)
         io = io_functions.specific_functions()
         self.jcl = io.load_jcl(self.job_name, self.path_input, self.jcl)
-        self.setup_logger_cluster(i=i)
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
         logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
         logging.info('cluster array mode')
