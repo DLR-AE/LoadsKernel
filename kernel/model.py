@@ -35,11 +35,11 @@ class Model:
     def build_model(self):
         self.build_coord()
         self.build_strc()
+        self.build_strcshell
         self.build_mongrid()
         self.build_lggrid()
         self.build_atmo()
         self.build_aero()
-        self.build_AICs()
         self.build_aerodb()
         self.build_splines()
         self.build_cfdgrid()
@@ -81,7 +81,8 @@ class Model:
             grid_trafo(self.strcgrid, self.coord, 0)
             logging.info('The structural model consists of {} grid points and {} coordinate systems.'.format(self.strcgrid['n'], len(self.coord['ID']) ))
             #self.Kgg = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
-            
+    
+    def build_strcshell(self):
             if self.jcl.geom.has_key('filename_shell') and not self.jcl.geom['filename_shell'] == []:
                 for i_file in range(len(self.jcl.geom['filename_shell'])):
                     panels = read_geom.Modgen_CQUAD4(self.jcl.geom['filename_shell'][i_file]) 
@@ -145,6 +146,19 @@ class Model:
     def build_aero(self):
         logging.info( 'Building aero model...')
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
+            self.build_aerogrid()
+            self.build_aero_matrices()
+            self.build_W2GJ()
+            self.build_macgrid()
+            self.build_cs()
+            self.build_AICs_steady()
+            self.build_AICs_unsteady()
+        else:
+            logging.error( 'Unknown aero method: ' + str(self.jcl.aero['method']))
+            
+        logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(self.aerogrid['n'], len(self.x2grid['ID']) ))
+            
+    def build_aerogrid(self):
             # grids
             for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
                 if self.jcl.aero.has_key('method_caero'):
@@ -171,6 +185,9 @@ class Model:
                     self.aerogrid['n'] += subgrid['n']
                     self.aerogrid['cornerpoint_panels'] = np.vstack((self.aerogrid['cornerpoint_panels'],subgrid['cornerpoint_panels']))
                     self.aerogrid['cornerpoint_grids'] = np.vstack((self.aerogrid['cornerpoint_grids'],subgrid['cornerpoint_grids']))
+    
+    def build_aero_matrices(self):
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
             # cast normal vector of panels into a matrix of form (n, n*6)
             #self.aerogrid['Nmat'] = np.zeros((self.aerogrid['n'], self.aerogrid['n']*6))
             self.aerogrid['Nmat'] = sp.lil_matrix((self.aerogrid['n'], self.aerogrid['n']*6), dtype=float)
@@ -184,6 +201,9 @@ class Model:
                 self.aerogrid['Rmat'][x*6+1,self.aerogrid['set_k'][x,5]] = -1.0 # Bug found by Roman. Onflow x r yields a negative downwash
                 self.aerogrid['Rmat'][x*6+2,self.aerogrid['set_k'][x,4]] =  1.0
             self.aerogrid['Rmat'] = self.aerogrid['Rmat'].tocsc()
+            
+    def build_W2GJ(self):
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
             # Correctionfor camber and twist, W2GJ
             if self.jcl.aero['filename_deriv_4_W2GJ']:
                 # parsing of several files possible, must be in correct sequence
@@ -205,7 +225,9 @@ class Model:
             else:
                 logging.info( 'No W2GJ data (correction of camber and twist) given, setting to zero')
                 self.camber_twist = {'ID':self.aerogrid['ID'], 'cam_rad':np.zeros(self.aerogrid['ID'].shape)}
-            
+    
+    def build_macgrid(self):
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
             # build mac grid from geometry, except other values are given in general section of jcl
             self.macgrid = build_aero_functions.build_macgrid(self.aerogrid, self.jcl.general['b_ref'])
             if self.jcl.general.has_key('A_ref'):
@@ -224,7 +246,9 @@ class Model:
             rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
             self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord, sparse_output=False)
             self.Djx1 = self.Djk.dot(self.Dkx1)
-            
+    
+    def build_cs(self):
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
             # control surfaces
             self.x2grid, self.coord = build_aero_functions.build_x2grid(self.jcl.aero, self.aerogrid, self.coord)            
             self.Djx2 = []
@@ -245,28 +269,8 @@ class Model:
                 dimensions = [6,6*len(self.aerogrid['ID'])]
                 rules = spline_rules.rules_point(hingegrid, surfgrid)
                 self.Djx2.append(spline_functions.spline_rb(hingegrid, '', surfgrid, '_j', rules, self.coord, dimensions))
-                
-#                 Uj = np.dot(self.Djx2[i_surf],[0,0,0,0,0,20.0/180*np.pi])      
-#                 Ux = self.aerogrid['offset_j'][:,0] + Uj[self.aerogrid['set_j'][:,0]]
-#                 Uy = self.aerogrid['offset_j'][:,1] + Uj[self.aerogrid['set_j'][:,1]]
-#                 Uz = self.aerogrid['offset_j'][:,2] + Uj[self.aerogrid['set_j'][:,2]]
-#                  
-#                 fig = plt.figure()
-#                 ax = fig.add_subplot(111, projection='3d')
-#                 ax.scatter(self.aerogrid['offset_j'][:,0], self.aerogrid['offset_j'][:,1], self.aerogrid['offset_j'][:,2], color='g', marker='.' )
-#                 ax.scatter(Ux, Uy, Uz, color='r', marker='.' )
-#                 ax.set_xlabel('x')
-#                 ax.set_ylabel('y')
-#                 ax.set_zlabel('z')
-#                 ax.auto_scale_xyz([0, 9], [-9, 9], [0, 2])
-#             plt.show()
-            
-        else:
-            logging.error( 'Unknown aero method: ' + str(self.jcl.aero['method']))
-            
-        logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(self.aerogrid['n'], len(self.x2grid['ID']) ))
     
-    def build_AICs(self):
+    def build_AICs_steady(self):
         # -----------    
         # --- AIC ---
         # -----------
@@ -296,7 +300,7 @@ class Model:
         else:
             logging.error( 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
         
-        # unsteady
+    def build_AICs_unsteady(self):
         if self.jcl.aero['method'] == 'mona_unsteady':
             if self.jcl.aero['method_AIC'] == 'dlm':
                 logging.info( 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) ))
