@@ -132,7 +132,7 @@ class Kernel():
         logging.info('--> Starting preprocessing.')
         t_start = time.time()
         import model as model_modul
-        model = model_modul.Model(self.jcl)
+        model = model_modul.Model(self.jcl, self.path_output)
         model.build_model()
         model.write_aux_data()
 

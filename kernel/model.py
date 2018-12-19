@@ -44,7 +44,7 @@ class Model:
         self.build_aerodb()
         self.build_splines()
         self.build_cfdgrid()
-        self.build_mass()
+        self.mass_specific_part()
         
     def build_coord(self):
         self.coord = {'ID': [0, 9300],
@@ -447,8 +447,8 @@ class Model:
             # loop over mass configurations
             for i_mass in range(len(self.jcl.mass['key'])):
                 self.mass['key'].append(self.jcl.mass['key'][i_mass])
-                self.build_mass()
-                self.build_translation_matrices()
+                self.build_mass(bm, i_mass)
+                self.build_translation_matrices(i_mass)
                 
     def build_mass(self, bm, i_mass):
         logging.info( 'Mass configuration {} of {}: {} '.format(i_mass+1, len(self.jcl.mass['key']), self.jcl.mass['key'][i_mass]))
@@ -472,13 +472,18 @@ class Model:
         self.mass['MGG'].append(MGG)
         self.mass['cggrid'].append(cggrid)
         self.mass['cggrid_norm'].append(cggrid_norm)
-        self.mass['PHIstrc_cg'].append(PHIstrc_cg)
+        self.mass['PHIf_strc'].append(PHIf_strc)
         self.mass['Mff'].append(Mff) 
         self.mass['Kff'].append(Kff) 
         self.mass['Dff'].append(Dff) 
         self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
                 
-    def build_translation_matrices(self):
+    def build_translation_matrices(self, i_mass):
+        cggrid          = self.mass['cggrid'][i_mass]
+        cggrid_norm     = self.mass['cggrid_norm'][i_mass]
+        MGG             = self.mass['MGG'][i_mass]
+        PHIf_strc       = self.mass['PHIf_strc'][i_mass]
+                
         rules = spline_rules.rules_point(cggrid, self.strcgrid)
         PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
         
@@ -520,7 +525,7 @@ class Model:
         self.mass['PHIcg_mac'].append(PHIcg_mac)
         self.mass['PHIcg_norm'].append(PHIcg_norm)
         self.mass['PHInorm_cg'].append(PHInorm_cg)
-        self.mass['PHIf_strc'].append(PHIf_strc) 
+        self.mass['PHIstrc_cg'].append(PHIstrc_cg) 
         self.mass['PHIjf'].append(PHIjf)
         self.mass['PHIlf'].append(PHIlf)
         self.mass['PHIkf'].append(PHIkf)
