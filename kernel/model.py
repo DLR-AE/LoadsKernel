@@ -4,9 +4,9 @@ Created on Fri Nov 28 10:53:48 2014
 
 @author: voss_ar
 """
-import build_mass
-import build_aero
-import build_aerodb
+import build_mass_class
+import build_aero_functions
+import build_aerodb_functions
 import spline_rules
 import spline_functions
 import build_splinegrid
@@ -22,13 +22,10 @@ import scipy.sparse as sp
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import cPickle, sys, time, logging, copy
-#from oct2py import octave 
 
-class model:
+class Model:
     def __init__(self, jcl):
         self.jcl = jcl
-        #for dir in sys.path:
-            #octave.addpath(dir) # add path in octave so the m-file(s) are found
     
     def write_aux_data(self):
         # No input data should be written in the model set-up !
@@ -36,11 +33,26 @@ class model:
         pass
 
     def build_model(self):
+        self.build_coord()
+        self.build_strc()
+        self.build_mongrid()
+        self.build_lggrid()
+        self.build_atmo()
+        self.build_aero()
+        self.build_AICs()
+        self.build_aerodb()
+        self.build_splines()
+        self.build_cfdgrid()
+        self.build_mass()
+        
+    def build_coord(self):
         self.coord = {'ID': [0, 9300],
                       'RID': [0, 0],
                       'dircos': [np.eye(3), np.array([[-1, 0, 0], [0, 1, 0], [0, 0, -1]])],
                       'offset': [np.array([0,0,0]), np.array([0,0,0])],
-                     }        
+                     }
+    
+    def build_strc(self):
         logging.info( 'Building structural model...')
         if self.jcl.geom['method'] == 'mona':
             
@@ -63,7 +75,6 @@ class model:
             self.strcgrid['ID'] = self.strcgrid['ID'][sort_vector]
             self.strcgrid['CD'] = self.strcgrid['CD'][sort_vector]
             self.strcgrid['CP'] = self.strcgrid['CP'][sort_vector]
-            #self.strcgrid['set'] = self.strcgrid['set'][sort_vector,:]
             self.strcgrid['offset'] = self.strcgrid['offset'][sort_vector,:]
             
             # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
@@ -82,7 +93,9 @@ class model:
                         self.strcshell['CP'] = np.hstack((self.strcshell['CP'],panels['CP']))
                         self.strcshell['cornerpoints'] += panels['cornerpoints']
                         self.strcshell['n'] += panels['n']
-            
+    
+    def build_mongrid(self):
+        if self.jcl.geom['method'] == 'mona':
             if not self.jcl.geom['filename_mongrid'] == '':
                 logging.info( 'Building Monitoring Stations from GRID data...')
                 self.mongrid = read_geom.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
@@ -100,13 +113,14 @@ class model:
             else: 
                 logging.warning( 'No Monitoring Stations are created!')
         
-        
+    def build_lggrid(self):
         if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
             logging.info('Building lggrid from landing gear attachment points...')
             self.lggrid = build_splinegrid.build_subgrid(self.strcgrid, self.jcl.landinggear['attachment_point'] )
             self.lggrid['set_strcgrid'] = copy.deepcopy(self.lggrid['set'])
             self.lggrid['set'] = np.arange(0,6*self.lggrid['n']).reshape(-1,6)
-            
+    
+    def build_atmo(self):
         logging.info( 'Building atmo model...')
         if self.jcl.atmo['method']=='ISA':
             self.atmo = {'key':[],
@@ -127,15 +141,16 @@ class model:
 
         else:
             logging.error( 'Unknown atmo method: ' + str(self.jcl.aero['method']))
-              
+    
+    def build_aero(self):
         logging.info( 'Building aero model...')
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
             # grids
             for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
                 if self.jcl.aero.has_key('method_caero'):
-                    subgrid = build_aero.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file], method_caero = self.jcl.aero['method_caero'], i_file=i_file) 
+                    subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file], method_caero = self.jcl.aero['method_caero'], i_file=i_file) 
                 else: # use default method defined in function
-                    subgrid = build_aero.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file]) 
+                    subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file]) 
                 if i_file == 0:
                     self.aerogrid =  subgrid
                 else:
@@ -192,7 +207,7 @@ class model:
                 self.camber_twist = {'ID':self.aerogrid['ID'], 'cam_rad':np.zeros(self.aerogrid['ID'].shape)}
             
             # build mac grid from geometry, except other values are given in general section of jcl
-            self.macgrid = build_aero.build_macgrid(self.aerogrid, self.jcl.general['b_ref'])
+            self.macgrid = build_aero_functions.build_macgrid(self.aerogrid, self.jcl.general['b_ref'])
             if self.jcl.general.has_key('A_ref'):
                 self.macgrid['A_ref'] = self.jcl.general['A_ref']
             if self.jcl.general.has_key('c_ref'):
@@ -209,10 +224,9 @@ class model:
             rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
             self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord, sparse_output=False)
             self.Djx1 = self.Djk.dot(self.Dkx1)
-            #self.Dlx1 = np.dot(self.Dlk, self.Dkx1)
             
             # control surfaces
-            self.x2grid, self.coord = build_aero.build_x2grid(self.jcl.aero, self.aerogrid, self.coord)            
+            self.x2grid, self.coord = build_aero_functions.build_x2grid(self.jcl.aero, self.aerogrid, self.coord)            
             self.Djx2 = []
             for i_surf in range(len(self.x2grid['ID_surf'])):
                 
@@ -251,7 +265,8 @@ class model:
             logging.error( 'Unknown aero method: ' + str(self.jcl.aero['method']))
             
         logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(self.aerogrid['n'], len(self.x2grid['ID']) ))
-
+    
+    def build_AICs(self):
         # -----------    
         # --- AIC ---
         # -----------
@@ -319,7 +334,7 @@ class model:
             self.aero['ABCD'] = []
             self.aero['RMSE'] = []
             for i_aero in range(len(self.jcl.aero['key'])):
-                ABCD, n_poles, betas, RMSE = build_aero.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], k = self.jcl.aero['k_red'], n_poles = self.jcl.aero['n_poles'], filename=self.path_output+'rfa_{}.png'.format(self.jcl.aero['key'][i_aero]))
+                ABCD, n_poles, betas, RMSE = build_aero_functions.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], k = self.jcl.aero['k_red'], n_poles = self.jcl.aero['n_poles'], filename=self.path_output+'rfa_{}.png'.format(self.jcl.aero['key'][i_aero]))
                 self.aero['ABCD'].append(ABCD)
                 self.aero['RMSE'].append(RMSE)
             self.aero['n_poles'] = n_poles
@@ -327,13 +342,16 @@ class model:
             self.aero.pop('Qjj_unsteady') # remove unsteady AICs to save memory
         else:
             self.aero['n_poles'] = 0
+    
+    def build_aerodb(self):
         # ----------------
         # ---- Aero DB ---
         # ----------------    
         if self.jcl.aero['method'] == 'hybrid':   
             logging.info( 'Building aero db...')
-            self.aerodb = build_aerodb.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
-        
+            self.aerodb = build_aerodb_functions.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
+    
+    def build_splines(self):
         # ----------------
         # ---- splines ---
         # ----------------  
@@ -343,7 +361,6 @@ class model:
                 # this optin is only valid if spline['method'] == 'rbf' or 'rb'
                 logging.info( 'Coupling aerogrid to strcgrid via splinegrid:')
                 self.splinegrid = build_splinegrid.build_splinegrid(self.strcgrid, self.jcl.spline['filename_splinegrid'])
-                # self.splinegrid = build_splinegrid.grid_thin_out_random(self.splinegrid, 0.05)
                 self.splinegrid = build_splinegrid.grid_thin_out_radius(self.splinegrid, 0.01)
             else:
                 logging.info( 'Coupling aerogrid directly. Doing cleanup/thin out of strcgrid to avoid singularities (safety first!)')
@@ -362,7 +379,8 @@ class model:
             self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
         else:
             logging.error( 'Unknown spline method.')
-        
+    
+    def build_cfdgrid(self):
         # -------------------
         # ---- mesh defo ---
         # -------------------  
@@ -383,13 +401,8 @@ class model:
             # The splinegrid from above is re-used.
             rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.cfdgrid, '') 
             self.PHIcfd_strc = spline_functions.spline_rb(self.splinegrid, '', self.cfdgrid, '', rules, self.coord, dimensions=[self.strcgrid['n']*6, self.cfdgrid['n']*6], sparse_output=True) 
-            
-            # pre-compute CFD meshdefo matrices 
-#             for grid_d in self.cfdgrids:
-#                 logging.debug('Working on marker {}'.format(grid_d['desc']))
-#                 grid_d['PHIstrc_d'] = spline_functions.spline_rbf(self.splinegrid, '', grid_d, '', rbf_type='tps', surface_spline=False, dimensions=[self.strcgrid['n']*6, grid_d['n']*6])
-#                 grid_d['PHIk_d'] = spline_functions.spline_rbf(self.aerogrid, '_k', grid_d, '', rbf_type='tps', surface_spline=True, dimensions=[self.aerogrid['n']*6, grid_d['n']*6])
-
+                
+    def build_mass(self):
         logging.info( 'Building mass model...')
         if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan']:
             self.mass = {'key': [],
@@ -416,7 +429,7 @@ class model:
                          'Dff': [],
                          'n_modes': []
                         }   
-            bm = build_mass.build_mass(self.jcl, self.strcgrid, self.coord )#, octave)
+            bm = build_mass_class.BuildMass(self.jcl, self.strcgrid, self.coord )
             
             if self.jcl.mass['method'] == 'modalanalysis': 
                 bm.init_modalanalysis()
@@ -439,15 +452,7 @@ class model:
                 elif self.jcl.mass['method'] == 'guyan': 
                     Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
                     MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
-                    Mff, Kff, Dff, PHIf_strc, Maa = bm.guyanreduction(i_mass, MFF, plot=False)              
-                    # Vergleich mit SOL103:
-                    #Mff2, Kff2, Dff2, PHIf_strc2, Mb2, cggrid2, cggrid_norm2 = bm.mass_from_SOL103(i_mass)
-                    #Mff2, Kff2, Dff2, PHIf_strc2 = bm.modalanalysis(i_mass, MFF)
-                    #MAC, plt = bm.calc_MAC( PHIf_strc.T, PHIf_strc2.T)
-                    #plt.title('MAC guyan vs. Vollmodell')
-                    #MAC, plt = bm.calc_MAC( PHIf_strc.T, PHIf_strc.T)
-                    #plt.title('Auto-MAC bm guyan')
-                    #plt.show()
+                    Mff, Kff, Dff, PHIf_strc, Maa = bm.guyanreduction(i_mass, MFF, plot=False)
 
                 rules = spline_rules.rules_point(cggrid, self.strcgrid)
                 PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
@@ -505,6 +510,3 @@ class model:
                 self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
         else:
             logging.error( 'Unknown mass method: ' + str(self.jcl.mass['method']))
-            
-            
-        #octave.exit() # closes and cleans up octave session

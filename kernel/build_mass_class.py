@@ -9,7 +9,7 @@ import sys, copy, logging
 import matplotlib.pyplot as plt
 
 
-class build_mass:
+class BuildMass:
     
     def __init__(self, jcl, strcgrid, coord, octave=None):
         self.jcl = jcl
@@ -29,7 +29,6 @@ class build_mass:
           eigenvalues, eigenvectors = read_geom.reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection)
           Mff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedMass']
           Kff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedStiffness']
-          #Dff = Kff * 0.0
           Dff = self.calc_damping(np.array(eigenvalues['Eigenvalue']).real)
           PHIf_strc = np.zeros((len(self.jcl.mass['modes'][i_mass]), len(self.strcgrid['ID'])*6))
           for i_mode in range(len(modes_selection)):
