@@ -159,124 +159,115 @@ class Model:
         logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(self.aerogrid['n'], len(self.x2grid['ID']) ))
             
     def build_aerogrid(self):
-            # grids
-            for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
-                if self.jcl.aero.has_key('method_caero'):
-                    subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file], method_caero = self.jcl.aero['method_caero'], i_file=i_file) 
-                else: # use default method defined in function
-                    subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file]) 
-                if i_file == 0:
-                    self.aerogrid =  subgrid
-                else:
-                    self.aerogrid['ID'] = np.hstack((self.aerogrid['ID'],subgrid['ID']))
-                    self.aerogrid['l'] = np.hstack((self.aerogrid['l'],subgrid['l']))
-                    self.aerogrid['A'] = np.hstack((self.aerogrid['A'],subgrid['A']))
-                    self.aerogrid['N'] = np.vstack((self.aerogrid['N'],subgrid['N']))
-                    self.aerogrid['offset_l'] = np.vstack((self.aerogrid['offset_l'],subgrid['offset_l']))
-                    self.aerogrid['offset_k'] = np.vstack((self.aerogrid['offset_k'],subgrid['offset_k']))
-                    self.aerogrid['offset_j'] = np.vstack((self.aerogrid['offset_j'],subgrid['offset_j']))
-                    self.aerogrid['offset_P1'] = np.vstack((self.aerogrid['offset_P1'],subgrid['offset_P1']))
-                    self.aerogrid['offset_P3'] = np.vstack((self.aerogrid['offset_P3'],subgrid['offset_P3']))
-                    self.aerogrid['set_l'] = np.vstack((self.aerogrid['set_l'],subgrid['set_l']+self.aerogrid['set_l'].max()+1))
-                    self.aerogrid['set_k'] = np.vstack((self.aerogrid['set_k'],subgrid['set_k']+self.aerogrid['set_k'].max()+1))
-                    self.aerogrid['set_j'] = np.vstack((self.aerogrid['set_j'],subgrid['set_j']+self.aerogrid['set_j'].max()+1))
-                    self.aerogrid['CD'] = np.hstack((self.aerogrid['CD'],subgrid['CD']))
-                    self.aerogrid['CP'] = np.hstack((self.aerogrid['CP'],subgrid['CP']))
-                    self.aerogrid['n'] += subgrid['n']
-                    self.aerogrid['cornerpoint_panels'] = np.vstack((self.aerogrid['cornerpoint_panels'],subgrid['cornerpoint_panels']))
-                    self.aerogrid['cornerpoint_grids'] = np.vstack((self.aerogrid['cornerpoint_grids'],subgrid['cornerpoint_grids']))
+        # grids
+        for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
+            if self.jcl.aero.has_key('method_caero'):
+                subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file], method_caero = self.jcl.aero['method_caero'], i_file=i_file) 
+            else: # use default method defined in function
+                subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file]) 
+            if i_file == 0:
+                self.aerogrid =  subgrid
+            else:
+                self.aerogrid['ID'] = np.hstack((self.aerogrid['ID'],subgrid['ID']))
+                self.aerogrid['l'] = np.hstack((self.aerogrid['l'],subgrid['l']))
+                self.aerogrid['A'] = np.hstack((self.aerogrid['A'],subgrid['A']))
+                self.aerogrid['N'] = np.vstack((self.aerogrid['N'],subgrid['N']))
+                self.aerogrid['offset_l'] = np.vstack((self.aerogrid['offset_l'],subgrid['offset_l']))
+                self.aerogrid['offset_k'] = np.vstack((self.aerogrid['offset_k'],subgrid['offset_k']))
+                self.aerogrid['offset_j'] = np.vstack((self.aerogrid['offset_j'],subgrid['offset_j']))
+                self.aerogrid['offset_P1'] = np.vstack((self.aerogrid['offset_P1'],subgrid['offset_P1']))
+                self.aerogrid['offset_P3'] = np.vstack((self.aerogrid['offset_P3'],subgrid['offset_P3']))
+                self.aerogrid['set_l'] = np.vstack((self.aerogrid['set_l'],subgrid['set_l']+self.aerogrid['set_l'].max()+1))
+                self.aerogrid['set_k'] = np.vstack((self.aerogrid['set_k'],subgrid['set_k']+self.aerogrid['set_k'].max()+1))
+                self.aerogrid['set_j'] = np.vstack((self.aerogrid['set_j'],subgrid['set_j']+self.aerogrid['set_j'].max()+1))
+                self.aerogrid['CD'] = np.hstack((self.aerogrid['CD'],subgrid['CD']))
+                self.aerogrid['CP'] = np.hstack((self.aerogrid['CP'],subgrid['CP']))
+                self.aerogrid['n'] += subgrid['n']
+                self.aerogrid['cornerpoint_panels'] = np.vstack((self.aerogrid['cornerpoint_panels'],subgrid['cornerpoint_panels']))
+                self.aerogrid['cornerpoint_grids'] = np.vstack((self.aerogrid['cornerpoint_grids'],subgrid['cornerpoint_grids']))
     
     def build_aero_matrices(self):
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
-            # cast normal vector of panels into a matrix of form (n, n*6)
-            #self.aerogrid['Nmat'] = np.zeros((self.aerogrid['n'], self.aerogrid['n']*6))
-            self.aerogrid['Nmat'] = sp.lil_matrix((self.aerogrid['n'], self.aerogrid['n']*6), dtype=float)
-            for x in range(self.aerogrid['n']):
-                self.aerogrid['Nmat'][x,self.aerogrid['set_k'][x,(0,1,2)]] = self.aerogrid['N'][x,(0,1,2)]
-            self.aerogrid['Nmat'] = self.aerogrid['Nmat'].tocsc()
-            # cast normal vector of panels into a matrix of form (n, n*6)
-            #self.aerogrid['Rmat'] = np.zeros((self.aerogrid['n']*6, self.aerogrid['n']*6))
-            self.aerogrid['Rmat'] = sp.lil_matrix((self.aerogrid['n']*6, self.aerogrid['n']*6), dtype=float)
-            for x in range(self.aerogrid['n']):
-                self.aerogrid['Rmat'][x*6+1,self.aerogrid['set_k'][x,5]] = -1.0 # Bug found by Roman. Onflow x r yields a negative downwash
-                self.aerogrid['Rmat'][x*6+2,self.aerogrid['set_k'][x,4]] =  1.0
-            self.aerogrid['Rmat'] = self.aerogrid['Rmat'].tocsc()
+        # cast normal vector of panels into a matrix of form (n, n*6)
+        #self.aerogrid['Nmat'] = np.zeros((self.aerogrid['n'], self.aerogrid['n']*6))
+        self.aerogrid['Nmat'] = sp.lil_matrix((self.aerogrid['n'], self.aerogrid['n']*6), dtype=float)
+        for x in range(self.aerogrid['n']):
+            self.aerogrid['Nmat'][x,self.aerogrid['set_k'][x,(0,1,2)]] = self.aerogrid['N'][x,(0,1,2)]
+        self.aerogrid['Nmat'] = self.aerogrid['Nmat'].tocsc()
+        # cast normal vector of panels into a matrix of form (n, n*6)
+        #self.aerogrid['Rmat'] = np.zeros((self.aerogrid['n']*6, self.aerogrid['n']*6))
+        self.aerogrid['Rmat'] = sp.lil_matrix((self.aerogrid['n']*6, self.aerogrid['n']*6), dtype=float)
+        for x in range(self.aerogrid['n']):
+            self.aerogrid['Rmat'][x*6+1,self.aerogrid['set_k'][x,5]] = -1.0 # Bug found by Roman. Onflow x r yields a negative downwash
+            self.aerogrid['Rmat'][x*6+2,self.aerogrid['set_k'][x,4]] =  1.0
+        self.aerogrid['Rmat'] = self.aerogrid['Rmat'].tocsc()
             
     def build_W2GJ(self):
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
-            # Correctionfor camber and twist, W2GJ
-            if self.jcl.aero['filename_deriv_4_W2GJ']:
-                # parsing of several files possible, must be in correct sequence
-                for i_file in range(len(self.jcl.aero['filename_deriv_4_W2GJ'])):
-                    subgrid = read_geom.Modgen_W2GJ(self.jcl.aero['filename_deriv_4_W2GJ'][i_file]) 
-                    if i_file == 0:
-                        self.camber_twist =  subgrid
-                    else:
-                        self.camber_twist['ID'] = np.hstack((self.camber_twist['ID'], subgrid['ID']))
-                        self.camber_twist['cam_rad'] = np.hstack((self.camber_twist['cam_rad'], subgrid['cam_rad']))
-            elif self.jcl.aero['filename_DMI_W2GJ']:
-                for i_file in range(len(self.jcl.aero['filename_DMI_W2GJ'])):
-                    DMI = read_geom.Nastran_DMI(self.jcl.aero['filename_DMI_W2GJ'][i_file]) 
-                    if i_file == 0:
-                        data = DMI['data'].toarray().squeeze()
-                    else:
-                        data = np.hstack((data, DMI['data'].toarray().squeeze()))
-                self.camber_twist = {'ID':self.aerogrid['ID'], 'cam_rad':data}
-            else:
-                logging.info( 'No W2GJ data (correction of camber and twist) given, setting to zero')
-                self.camber_twist = {'ID':self.aerogrid['ID'], 'cam_rad':np.zeros(self.aerogrid['ID'].shape)}
+        # Correctionfor camber and twist, W2GJ
+        if self.jcl.aero['filename_deriv_4_W2GJ']:
+            # parsing of several files possible, must be in correct sequence
+            for i_file in range(len(self.jcl.aero['filename_deriv_4_W2GJ'])):
+                subgrid = read_geom.Modgen_W2GJ(self.jcl.aero['filename_deriv_4_W2GJ'][i_file]) 
+                if i_file == 0:
+                    self.camber_twist =  subgrid
+                else:
+                    self.camber_twist['ID'] = np.hstack((self.camber_twist['ID'], subgrid['ID']))
+                    self.camber_twist['cam_rad'] = np.hstack((self.camber_twist['cam_rad'], subgrid['cam_rad']))
+        elif self.jcl.aero['filename_DMI_W2GJ']:
+            for i_file in range(len(self.jcl.aero['filename_DMI_W2GJ'])):
+                DMI = read_geom.Nastran_DMI(self.jcl.aero['filename_DMI_W2GJ'][i_file]) 
+                if i_file == 0:
+                    data = DMI['data'].toarray().squeeze()
+                else:
+                    data = np.hstack((data, DMI['data'].toarray().squeeze()))
+            self.camber_twist = {'ID':self.aerogrid['ID'], 'cam_rad':data}
+        else:
+            logging.info( 'No W2GJ data (correction of camber and twist) given, setting to zero')
+            self.camber_twist = {'ID':self.aerogrid['ID'], 'cam_rad':np.zeros(self.aerogrid['ID'].shape)}
     
     def build_macgrid(self):
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
-            # build mac grid from geometry, except other values are given in general section of jcl
-            self.macgrid = build_aero_functions.build_macgrid(self.aerogrid, self.jcl.general['b_ref'])
-            if self.jcl.general.has_key('A_ref'):
-                self.macgrid['A_ref'] = self.jcl.general['A_ref']
-            if self.jcl.general.has_key('c_ref'):
-                self.macgrid['c_ref'] = self.jcl.general['c_ref']
-            if self.jcl.general.has_key('b_ref'):
-                self.macgrid['b_ref'] = self.jcl.general['b_ref']
-            if self.jcl.general.has_key('MAC_ref'):
-                self.macgrid['offset'] = np.array([self.jcl.general['MAC_ref']])
-            
-            rules = spline_rules.rules_aeropanel(self.aerogrid)
-            self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord, sparse_output=True)
-            self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
-            
-            rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
-            self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord, sparse_output=False)
-            self.Djx1 = self.Djk.dot(self.Dkx1)
+        # build mac grid from geometry, except other values are given in general section of jcl
+        self.macgrid = build_aero_functions.build_macgrid(self.aerogrid, self.jcl.general['b_ref'])
+        if self.jcl.general.has_key('A_ref'):
+            self.macgrid['A_ref'] = self.jcl.general['A_ref']
+        if self.jcl.general.has_key('c_ref'):
+            self.macgrid['c_ref'] = self.jcl.general['c_ref']
+        if self.jcl.general.has_key('b_ref'):
+            self.macgrid['b_ref'] = self.jcl.general['b_ref']
+        if self.jcl.general.has_key('MAC_ref'):
+            self.macgrid['offset'] = np.array([self.jcl.general['MAC_ref']])
+        
+        rules = spline_rules.rules_aeropanel(self.aerogrid)
+        self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord, sparse_output=True)
+        self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
+        
+        rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
+        self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord, sparse_output=False)
+        self.Djx1 = self.Djk.dot(self.Dkx1)
     
     def build_cs(self):
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
-            # control surfaces
-            self.x2grid, self.coord = build_aero_functions.build_x2grid(self.jcl.aero, self.aerogrid, self.coord)            
-            self.Djx2 = []
-            for i_surf in range(len(self.x2grid['ID_surf'])):
-                
-                hingegrid = {'ID':np.array([self.x2grid['ID_surf'][i_surf]]),
-                             'offset':np.array([[0,0,0]]),
-                             'CD':np.array([self.x2grid['CID'][i_surf]]),
-                             'CP':np.array([self.x2grid['CID'][i_surf]]), 
-                             'set':np.array([[0,1,2,3,4,5]]),
-                            }
-                surfgrid = {'ID':self.x2grid['ID'][i_surf],
-                            'offset_j':np.array(self.x2grid['offset_j'][i_surf]),
-                            'CD':self.x2grid['CD'][i_surf],
-                            'CP':self.x2grid['CP'][i_surf], 
-                            'set_j':np.array(self.x2grid['set_j'][i_surf]), 
-                           }
-                dimensions = [6,6*len(self.aerogrid['ID'])]
-                rules = spline_rules.rules_point(hingegrid, surfgrid)
-                self.Djx2.append(spline_functions.spline_rb(hingegrid, '', surfgrid, '_j', rules, self.coord, dimensions))
+        # control surfaces
+        self.x2grid, self.coord = build_aero_functions.build_x2grid(self.jcl.aero, self.aerogrid, self.coord)            
+        self.Djx2 = []
+        for i_surf in range(len(self.x2grid['ID_surf'])):
+            
+            hingegrid = {'ID':np.array([self.x2grid['ID_surf'][i_surf]]),
+                         'offset':np.array([[0,0,0]]),
+                         'CD':np.array([self.x2grid['CID'][i_surf]]),
+                         'CP':np.array([self.x2grid['CID'][i_surf]]), 
+                         'set':np.array([[0,1,2,3,4,5]]),
+                        }
+            surfgrid = {'ID':self.x2grid['ID'][i_surf],
+                        'offset_j':np.array(self.x2grid['offset_j'][i_surf]),
+                        'CD':self.x2grid['CD'][i_surf],
+                        'CP':self.x2grid['CP'][i_surf], 
+                        'set_j':np.array(self.x2grid['set_j'][i_surf]), 
+                       }
+            dimensions = [6,6*len(self.aerogrid['ID'])]
+            rules = spline_rules.rules_point(hingegrid, surfgrid)
+            self.Djx2.append(spline_functions.spline_rb(hingegrid, '', surfgrid, '_j', rules, self.coord, dimensions))
     
     def build_AICs_steady(self):
-        # -----------    
-        # --- AIC ---
-        # -----------
         self.aero = {'key':[], 'Qjj':[],'interp_wj_corrfac_alpha': []}
-        
-        # steady
         if self.jcl.aero['method_AIC'] == 'nastran':
             for i_aero in range(len(self.jcl.aero['key'])):
                 Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)
@@ -302,25 +293,26 @@ class Model:
         
     def build_AICs_unsteady(self):
         if self.jcl.aero['method'] == 'mona_unsteady':
+            if 'xz_symmetry' in self.jcl.aero: 
+                logging.info( ' - XZ Symmetry: {}'.format( str(self.jcl.aero['xz_symmetry']) ) )
+                xz_symmetry=self.jcl.aero['xz_symmetry']
+            else:
+                xz_symmetry=False
+                    
             if self.jcl.aero['method_AIC'] == 'dlm':
                 logging.info( 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) ))
                 # Definitions for reduced frequencies:
                 # ae_getaic: k = omega/U 
                 # Nastran:   k = 0.5*cref*omega/U
                 t_start = time.time()
-                #Qjj, Bjj = octave.ae_getaic(self.aerogrid, self.jcl.aero['Ma'], np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
-                if 'xz_symmetry' in self.jcl.aero: 
-                    logging.info( ' - XZ Symmetry: {}'.format( str(self.jcl.aero['xz_symmetry']) ) )
-                    Qjj = DLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), 
-                                        Ma=self.jcl.aero['Ma'], 
-                                        k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']), 
-                                        xz_symmetry=self.jcl.aero['xz_symmetry'])
-                else:
-                    Qjj = DLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), 
-                                        Ma=self.jcl.aero['Ma'], 
-                                        k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']))
+                Qjj = DLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), 
+                                    Ma=self.jcl.aero['Ma'], 
+                                    k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']), 
+                                    xz_symmetry=xz_symmetry)
                 logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
                 self.aero['Qjj_unsteady'] = Qjj # dim: Ma,k,n,n
+                self.build_rfa()
+            
             elif self.jcl.aero['method_AIC'] == 'nastran':
                 self.aero['Qjj_unsteady'] = np.zeros((len(self.jcl.aero['key']), len(self.jcl.aero['k_red']), self.aerogrid['n'], self.aerogrid['n'] ), dtype=complex)
                 for i_aero in range(len(self.jcl.aero['key'])):
@@ -331,21 +323,25 @@ class Model:
                         else:
                             Qjj = np.linalg.inv(Ajj.T)
                         self.aero['Qjj_unsteady'][i_aero,i_k,:,:] = Qjj 
+                self.build_rfa()
+            
             else:
                 logging.error( 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
-            self.aero['k_red'] =  self.jcl.aero['k_red']
-            # rfa
-            self.aero['ABCD'] = []
-            self.aero['RMSE'] = []
-            for i_aero in range(len(self.jcl.aero['key'])):
-                ABCD, n_poles, betas, RMSE = build_aero_functions.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], k = self.jcl.aero['k_red'], n_poles = self.jcl.aero['n_poles'], filename=self.path_output+'rfa_{}.png'.format(self.jcl.aero['key'][i_aero]))
-                self.aero['ABCD'].append(ABCD)
-                self.aero['RMSE'].append(RMSE)
-            self.aero['n_poles'] = n_poles
-            self.aero['betas'] =  betas
-            self.aero.pop('Qjj_unsteady') # remove unsteady AICs to save memory
         else:
             self.aero['n_poles'] = 0
+            
+    def build_rfa(self):
+        self.aero['k_red'] =  self.jcl.aero['k_red']
+        # rfa
+        self.aero['ABCD'] = []
+        self.aero['RMSE'] = []
+        for i_aero in range(len(self.jcl.aero['key'])):
+            ABCD, n_poles, betas, RMSE = build_aero_functions.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], k = self.jcl.aero['k_red'], n_poles = self.jcl.aero['n_poles'], filename=self.path_output+'rfa_{}.png'.format(self.jcl.aero['key'][i_aero]))
+            self.aero['ABCD'].append(ABCD)
+            self.aero['RMSE'].append(RMSE)
+        self.aero['n_poles'] = n_poles
+        self.aero['betas'] =  betas
+        self.aero.pop('Qjj_unsteady') # remove unsteady AICs to save memory
     
     def build_aerodb(self):
         # ----------------
