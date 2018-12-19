@@ -24,8 +24,9 @@ from mpl_toolkits.mplot3d import Axes3D
 import cPickle, sys, time, logging, copy
 
 class Model:
-    def __init__(self, jcl):
+    def __init__(self, jcl, path_output):
         self.jcl = jcl
+        self.path_output = path_output
     
     def write_aux_data(self):
         # No input data should be written in the model set-up !
@@ -293,50 +294,56 @@ class Model:
         
     def build_AICs_unsteady(self):
         if self.jcl.aero['method'] == 'mona_unsteady':
-            if 'xz_symmetry' in self.jcl.aero: 
-                logging.info( ' - XZ Symmetry: {}'.format( str(self.jcl.aero['xz_symmetry']) ) )
-                xz_symmetry=self.jcl.aero['xz_symmetry']
-            else:
-                xz_symmetry=False
-                    
             if self.jcl.aero['method_AIC'] == 'dlm':
-                logging.info( 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) ))
-                # Definitions for reduced frequencies:
-                # ae_getaic: k = omega/U 
-                # Nastran:   k = 0.5*cref*omega/U
-                t_start = time.time()
-                Qjj = DLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), 
-                                    Ma=self.jcl.aero['Ma'], 
-                                    k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']), 
-                                    xz_symmetry=xz_symmetry)
-                logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
-                self.aero['Qjj_unsteady'] = Qjj # dim: Ma,k,n,n
+                self.build_AICs_DLM()
                 self.build_rfa()
-            
             elif self.jcl.aero['method_AIC'] == 'nastran':
-                self.aero['Qjj_unsteady'] = np.zeros((len(self.jcl.aero['key']), len(self.jcl.aero['k_red']), self.aerogrid['n'], self.aerogrid['n'] ), dtype=complex)
-                for i_aero in range(len(self.jcl.aero['key'])):
-                    for i_k in range(len(self.jcl.aero['k_red'])):
-                        Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC_unsteady'][i_aero][i_k], sparse_output=False, sparse_format=False)  
-                        if self.jcl.aero.has_key('given_AIC_is_transposed') and self.jcl.aero['given_AIC_is_transposed']:
-                            Qjj = np.linalg.inv(Ajj)
-                        else:
-                            Qjj = np.linalg.inv(Ajj.T)
-                        self.aero['Qjj_unsteady'][i_aero,i_k,:,:] = Qjj 
+                self.build_AICs_Nastran()
                 self.build_rfa()
-            
             else:
                 logging.error( 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
         else:
             self.aero['n_poles'] = 0
-            
+    
+    def build_AICs_DLM(self):
+        logging.info( 'Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) for {} Mach number(s)...'.format( self.aerogrid['n'], self.jcl.aero['k_red'], len(self.jcl.aero['key']) ))
+        if 'xz_symmetry' in self.jcl.aero: 
+            logging.info( ' - XZ Symmetry: {}'.format( str(self.jcl.aero['xz_symmetry']) ) )
+            xz_symmetry=self.jcl.aero['xz_symmetry']
+        else:
+            xz_symmetry=False
+        # Definitions for reduced frequencies:
+        # ae_getaic: k = omega/U 
+        # Nastran:   k = 0.5*cref*omega/U
+        t_start = time.time()
+        Qjj = DLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), 
+                            Ma=self.jcl.aero['Ma'], 
+                            k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']), 
+                            xz_symmetry=xz_symmetry)
+        logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
+        self.aero['Qjj_unsteady'] = Qjj # dim: Ma,k,n,n
+        
+    def build_AICs_Nastran(self):
+        self.aero['Qjj_unsteady'] = np.zeros((len(self.jcl.aero['key']), len(self.jcl.aero['k_red']), self.aerogrid['n'], self.aerogrid['n'] ), dtype=complex)
+        for i_aero in range(len(self.jcl.aero['key'])):
+            for i_k in range(len(self.jcl.aero['k_red'])):
+                Ajj = read_geom.Nastran_OP4(self.jcl.aero['filename_AIC_unsteady'][i_aero][i_k], sparse_output=False, sparse_format=False)  
+                if self.jcl.aero.has_key('given_AIC_is_transposed') and self.jcl.aero['given_AIC_is_transposed']:
+                    Qjj = np.linalg.inv(Ajj)
+                else:
+                    Qjj = np.linalg.inv(Ajj.T)
+                self.aero['Qjj_unsteady'][i_aero,i_k,:,:] = Qjj 
+      
     def build_rfa(self):
         self.aero['k_red'] =  self.jcl.aero['k_red']
         # rfa
         self.aero['ABCD'] = []
         self.aero['RMSE'] = []
         for i_aero in range(len(self.jcl.aero['key'])):
-            ABCD, n_poles, betas, RMSE = build_aero_functions.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], k = self.jcl.aero['k_red'], n_poles = self.jcl.aero['n_poles'], filename=self.path_output+'rfa_{}.png'.format(self.jcl.aero['key'][i_aero]))
+            ABCD, n_poles, betas, RMSE = build_aero_functions.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], 
+                                                                  k = self.jcl.aero['k_red'], 
+                                                                  n_poles = self.jcl.aero['n_poles'], 
+                                                                  filename=self.path_output+'rfa_{}.png'.format(self.jcl.aero['key'][i_aero]))
             self.aero['ABCD'].append(ABCD)
             self.aero['RMSE'].append(RMSE)
         self.aero['n_poles'] = n_poles
