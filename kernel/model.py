@@ -409,7 +409,7 @@ class Model:
             rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.cfdgrid, '') 
             self.PHIcfd_strc = spline_functions.spline_rb(self.splinegrid, '', self.cfdgrid, '', rules, self.coord, dimensions=[self.strcgrid['n']*6, self.cfdgrid['n']*6], sparse_output=True) 
                 
-    def build_mass(self):
+    def mass_specific_part(self):
         logging.info( 'Building mass model...')
         if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan']:
             self.mass = {'key': [],
@@ -435,7 +435,7 @@ class Model:
                          'Kff': [],
                          'Dff': [],
                          'n_modes': []
-                        }   
+                        }
             bm = build_mass_class.BuildMass(self.jcl, self.strcgrid, self.coord )
             
             if self.jcl.mass['method'] == 'modalanalysis': 
@@ -446,74 +446,82 @@ class Model:
             
             # loop over mass configurations
             for i_mass in range(len(self.jcl.mass['key'])):
-                logging.info( 'Mass configuration {} of {}: {} '.format(i_mass+1, len(self.jcl.mass['key']), self.jcl.mass['key'][i_mass]))
-                MGG = read_geom.Nastran_OP4(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
-                
-                if self.jcl.mass['method'] == 'mona': 
-                    Mff, Kff, Dff, PHIf_strc, Mb, cggrid, cggrid_norm = bm.mass_from_SOL103(i_mass)
-                elif self.jcl.mass['method'] == 'modalanalysis': 
-                    Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
-                    # a-set is equal to f-set, no further reduction
-                    MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
-                    Mff, Kff, Dff, PHIf_strc = bm.modalanalysis(i_mass, MFF, plot=False)
-                elif self.jcl.mass['method'] == 'guyan': 
-                    Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
-                    MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
-                    Mff, Kff, Dff, PHIf_strc, Maa = bm.guyanreduction(i_mass, MFF, plot=False)
-
-                rules = spline_rules.rules_point(cggrid, self.strcgrid)
-                PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
-                if self.jcl.aero['method'] == 'cfd_steady':
-                    rules = spline_rules.rules_point(cggrid, self.cfdgrid)
-                    PHIcfd_cg = spline_functions.spline_rb(cggrid, '', self.cfdgrid, '', rules, self.coord)
-                    # some pre-multiplications to speed-up main processing
-                    PHIcfd_f = self.PHIcfd_strc.dot(PHIf_strc.T)
-                    self.mass['PHIcfd_cg'].append(PHIcfd_cg)
-                    self.mass['PHIcfd_f'].append(PHIcfd_f)
-                    
-                if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
-                    rules = spline_rules.rules_point(cggrid, self.lggrid)
-                    PHIlg_cg = spline_functions.spline_rb(cggrid, '', self.lggrid, '', rules, self.coord)
-                    PHIf_lg = PHIf_strc[:,self.lggrid['set_strcgrid'].reshape(1,-1)[0]]
-                    self.mass['PHIlg_cg'].append(PHIlg_cg)
-                    self.mass['PHIf_lg'].append(PHIf_lg) 
-
-                rules = spline_rules.rules_point(cggrid, self.macgrid)
-                PHImac_cg = spline_functions.spline_rb(cggrid, '', self.macgrid, '', rules, self.coord)    
-                rules = spline_rules.rules_point(self.macgrid, cggrid)
-                PHIcg_mac = spline_functions.spline_rb( self.macgrid, '', cggrid, '', rules, self.coord)      
-                
-                rules = spline_rules.rules_point(cggrid, cggrid_norm)
-                PHInorm_cg = spline_functions.spline_rb(cggrid, '', cggrid_norm, '', rules, self.coord)   
-                rules = spline_rules.rules_point(cggrid_norm, cggrid)
-                PHIcg_norm = spline_functions.spline_rb(cggrid_norm, '', cggrid, '', rules, self.coord) 
-                
-                # some pre-multiplications to speed-up main processing
-                PHIjf = self.Djk.dot(self.PHIk_strc.dot(PHIf_strc.T))
-                PHIlf = self.Dlk.dot(self.PHIk_strc.dot(PHIf_strc.T))
-                PHIkf = self.PHIk_strc.dot(PHIf_strc.T)
-
-                Mfcg=PHIf_strc.dot(-MGG.dot(PHIstrc_cg))
-
-                # save all matrices to data structure
                 self.mass['key'].append(self.jcl.mass['key'][i_mass])
-                self.mass['Mb'].append(Mb)
-                self.mass['MGG'].append(MGG)
-                self.mass['Mfcg'].append(Mfcg)
-                self.mass['cggrid'].append(cggrid)
-                self.mass['cggrid_norm'].append(cggrid_norm)
-                self.mass['PHIstrc_cg'].append(PHIstrc_cg)
-                self.mass['PHImac_cg'].append(PHImac_cg)
-                self.mass['PHIcg_mac'].append(PHIcg_mac)
-                self.mass['PHIcg_norm'].append(PHIcg_norm)
-                self.mass['PHInorm_cg'].append(PHInorm_cg)
-                self.mass['PHIf_strc'].append(PHIf_strc) 
-                self.mass['PHIjf'].append(PHIjf)
-                self.mass['PHIlf'].append(PHIlf)
-                self.mass['PHIkf'].append(PHIkf)
-                self.mass['Mff'].append(Mff) 
-                self.mass['Kff'].append(Kff) 
-                self.mass['Dff'].append(Dff) 
-                self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
+                self.build_mass()
+                self.build_translation_matrices()
+                
+    def build_mass(self, bm, i_mass):
+        logging.info( 'Mass configuration {} of {}: {} '.format(i_mass+1, len(self.jcl.mass['key']), self.jcl.mass['key'][i_mass]))
+        MGG = read_geom.Nastran_OP4(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
+        
+        if self.jcl.mass['method'] == 'mona': 
+            Mff, Kff, Dff, PHIf_strc, Mb, cggrid, cggrid_norm = bm.mass_from_SOL103(i_mass)
+        elif self.jcl.mass['method'] == 'modalanalysis': 
+            Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
+            # a-set is equal to f-set, no further reduction
+            MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
+            Mff, Kff, Dff, PHIf_strc = bm.modalanalysis(i_mass, MFF, plot=False)
+        elif self.jcl.mass['method'] == 'guyan': 
+            Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
+            MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
+            Mff, Kff, Dff, PHIf_strc, Maa = bm.guyanreduction(i_mass, MFF, plot=False)
         else:
             logging.error( 'Unknown mass method: ' + str(self.jcl.mass['method']))
+        
+        self.mass['Mb'].append(Mb)
+        self.mass['MGG'].append(MGG)
+        self.mass['cggrid'].append(cggrid)
+        self.mass['cggrid_norm'].append(cggrid_norm)
+        self.mass['PHIstrc_cg'].append(PHIstrc_cg)
+        self.mass['Mff'].append(Mff) 
+        self.mass['Kff'].append(Kff) 
+        self.mass['Dff'].append(Dff) 
+        self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
+                
+    def build_translation_matrices(self):
+        rules = spline_rules.rules_point(cggrid, self.strcgrid)
+        PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
+        
+        if self.jcl.aero['method'] == 'cfd_steady':
+            rules = spline_rules.rules_point(cggrid, self.cfdgrid)
+            PHIcfd_cg = spline_functions.spline_rb(cggrid, '', self.cfdgrid, '', rules, self.coord)
+            # some pre-multiplications to speed-up main processing
+            PHIcfd_f = self.PHIcfd_strc.dot(PHIf_strc.T)
+            self.mass['PHIcfd_cg'].append(PHIcfd_cg)
+            self.mass['PHIcfd_f'].append(PHIcfd_f)
+            
+        if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
+            rules = spline_rules.rules_point(cggrid, self.lggrid)
+            PHIlg_cg = spline_functions.spline_rb(cggrid, '', self.lggrid, '', rules, self.coord)
+            PHIf_lg = PHIf_strc[:,self.lggrid['set_strcgrid'].reshape(1,-1)[0]]
+            self.mass['PHIlg_cg'].append(PHIlg_cg)
+            self.mass['PHIf_lg'].append(PHIf_lg) 
+
+        rules = spline_rules.rules_point(cggrid, self.macgrid)
+        PHImac_cg = spline_functions.spline_rb(cggrid, '', self.macgrid, '', rules, self.coord)    
+        rules = spline_rules.rules_point(self.macgrid, cggrid)
+        PHIcg_mac = spline_functions.spline_rb( self.macgrid, '', cggrid, '', rules, self.coord)      
+        
+        rules = spline_rules.rules_point(cggrid, cggrid_norm)
+        PHInorm_cg = spline_functions.spline_rb(cggrid, '', cggrid_norm, '', rules, self.coord)   
+        rules = spline_rules.rules_point(cggrid_norm, cggrid)
+        PHIcg_norm = spline_functions.spline_rb(cggrid_norm, '', cggrid, '', rules, self.coord) 
+        
+        # some pre-multiplications to speed-up main processing
+        PHIjf = self.Djk.dot(self.PHIk_strc.dot(PHIf_strc.T))
+        PHIlf = self.Dlk.dot(self.PHIk_strc.dot(PHIf_strc.T))
+        PHIkf = self.PHIk_strc.dot(PHIf_strc.T)
+
+        Mfcg=PHIf_strc.dot(-MGG.dot(PHIstrc_cg))
+
+        # save all matrices to data structure
+        self.mass['Mfcg'].append(Mfcg)
+        self.mass['PHImac_cg'].append(PHImac_cg)
+        self.mass['PHIcg_mac'].append(PHIcg_mac)
+        self.mass['PHIcg_norm'].append(PHIcg_norm)
+        self.mass['PHInorm_cg'].append(PHInorm_cg)
+        self.mass['PHIf_strc'].append(PHIf_strc) 
+        self.mass['PHIjf'].append(PHIjf)
+        self.mass['PHIlf'].append(PHIlf)
+        self.mass['PHIkf'].append(PHIkf)
+
