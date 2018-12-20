@@ -81,7 +81,9 @@ class Model:
             # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
             grid_trafo(self.strcgrid, self.coord, 0)
             logging.info('The structural model consists of {} grid points and {} coordinate systems.'.format(self.strcgrid['n'], len(self.coord['ID']) ))
-            #self.Kgg = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
+            if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
+                self.KGG = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
+                self.GM  = read_geom.Nastran_OP4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True) 
     
     def build_strcshell(self):
             if self.jcl.geom.has_key('filename_shell') and not self.jcl.geom['filename_shell'] == []:
@@ -436,12 +438,14 @@ class Model:
                          'Dff': [],
                          'n_modes': []
                         }
-            bm = build_mass_class.BuildMass(self.jcl, self.strcgrid, self.coord )
+            bm = build_mass_class.BuildMass(self.jcl, self.strcgrid, self.coord, self.KGG, self.GM )
             
             if self.jcl.mass['method'] == 'modalanalysis': 
                 bm.init_modalanalysis()
+                bm.prepare_stiffness_matrices()
             elif self.jcl.mass['method'] == 'guyan':
                 bm.init_modalanalysis()
+                bm.prepare_stiffness_matrices()
                 bm.init_guyanreduction()
             
             # loop over mass configurations
@@ -457,14 +461,13 @@ class Model:
         if self.jcl.mass['method'] == 'mona': 
             Mff, Kff, Dff, PHIf_strc, Mb, cggrid, cggrid_norm = bm.mass_from_SOL103(i_mass)
         elif self.jcl.mass['method'] == 'modalanalysis': 
-            Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
-            # a-set is equal to f-set, no further reduction
-            MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
-            Mff, Kff, Dff, PHIf_strc = bm.modalanalysis(i_mass, MFF, plot=False)
+            bm.prepare_mass_matrices(MGG)
+            Mb, cggrid, cggrid_norm     = bm.calc_cg(i_mass)
+            Mff, Kff, Dff, PHIf_strc    = bm.modalanalysis(i_mass)
         elif self.jcl.mass['method'] == 'guyan': 
-            Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass, MGG)
-            MFF = read_geom.Nastran_OP4(self.jcl.mass['filename_MFF'][i_mass], sparse_output=True, sparse_format=True) 
-            Mff, Kff, Dff, PHIf_strc, Maa = bm.guyanreduction(i_mass, MFF, plot=False)
+            bm.prepare_mass_matrices(MGG)
+            Mb, cggrid, cggrid_norm     = bm.calc_cg(i_mass)
+            Mff, Kff, Dff, PHIf_strc    = bm.guyanreduction(i_mass)
         else:
             logging.error( 'Unknown mass method: ' + str(self.jcl.mass['method']))
         

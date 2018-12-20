@@ -11,11 +11,12 @@ import matplotlib.pyplot as plt
 
 class BuildMass:
     
-    def __init__(self, jcl, strcgrid, coord, octave=None):
+    def __init__(self, jcl, strcgrid, coord, KGG, GM):
         self.jcl = jcl
         self.strcgrid = strcgrid
         self.coord = coord
-        self.octave = octave
+        self.KGG = KGG
+        self.GM = GM
         plt.rcParams['svg.fonttype'] = 'none'
         plt.rcParams.update({'font.size': 16})
         
@@ -95,7 +96,7 @@ class BuildMass:
         self.Goa = self.Goa.toarray() # Sparse format is no longer required as Goa is dense anyway!
         self.Kaa = K['A'].toarray() + K['B'].dot(self.Goa) # make sure the output is an ndarray
         
-    def guyanreduction(self, i_mass, MFF, plot=False):
+    def guyanreduction(self, i_mass):
         # First, Guyan's equations are solved for the current mass matrix.
         # In a second step, the eigenvalue-eigenvector problem is solved. According to Guyan, the solution is closely  but not exactly preserved.
         # Next, the eigenvector for the g-set/strcgrid is reconstructed.
@@ -104,10 +105,10 @@ class BuildMass:
         logging.info( "Guyan reduction of mass matrix Mff --> Maa ...")
         logging.info( ' - partitioning')
         M = {}
-        M['A']       = MFF[self.pos_f2a,:][:,self.pos_f2a]
-        M['B']       = MFF[self.pos_f2a,:][:,self.pos_f2o]
-        M['B_trans'] = MFF[self.pos_f2o,:][:,self.pos_f2a]
-        M['C']       = MFF[self.pos_f2o,:][:,self.pos_f2o]
+        M['A']       = self.MFF[self.pos_f2a,:][:,self.pos_f2a]
+        M['B']       = self.MFF[self.pos_f2a,:][:,self.pos_f2o]
+        M['B_trans'] = self.MFF[self.pos_f2o,:][:,self.pos_f2a]
+        M['C']       = self.MFF[self.pos_f2o,:][:,self.pos_f2o]
         logging.info( " - solving")
         # a) original formulation according to R. Guyan
         # Maa = M['A'] - M['B'].dot(self.Goa) - self.Goa.T.dot( M['B_trans'] - M['C'].dot(self.Goa) )
@@ -149,22 +150,12 @@ class BuildMass:
             # store vector in modal matrix
             PHIf_strc[:,i] = Ug.squeeze()
             i += 1
-            if plot:
-                from mayavi import mlab
-                Ugx = self.strcgrid['offset'][:,0] + Ug[self.strcgrid['set'][:,0]].T * 10.0
-                Ugy = self.strcgrid['offset'][:,1] + Ug[self.strcgrid['set'][:,1]].T * 10.0
-                Ugz = self.strcgrid['offset'][:,2] + Ug[self.strcgrid['set'][:,2]].T * 10.0
-                mlab.figure(101+i_mode)
-                mlab.points3d(self.strcgrid['offset'][:,0], self.strcgrid['offset'][:,1], self.strcgrid['offset'][:,2], scale_factor=0.05)
-                mlab.points3d(Ugx, Ugy, Ugz, scale_factor=0.05, color=(0,1,0))
-        if plot:
-            mlab.show()
+
         # calc modal mass and stiffness
         Mff = np.dot( eigenvector[:,modes_selection - 1].real.T,      Maa.dot(eigenvector[:,modes_selection - 1].real) )
         Kff = np.dot( eigenvector[:,modes_selection - 1].real.T, self.Kaa.dot(eigenvector[:,modes_selection - 1].real) )
-        #Dff = Kff * 0.0
         Dff = self.calc_damping(eigenvalue[modes_selection - 1].real)
-        return Mff, Kff, Dff, PHIf_strc.T, Maa
+        return Mff, Kff, Dff, PHIf_strc.T
         
     def get_bitposes(self, x_dec):
         bitposes = []
@@ -175,13 +166,9 @@ class BuildMass:
 
     def init_modalanalysis(self):
         # Prepare some data required for modal analysis which is not mass case dependent. 
-        # KFF, GM and uset are actually geometry dependent and should go into the geometry section.
-        # However, the they are only required for modal analysis...
-        self.KFF = read_geom.Nastran_OP4(self.jcl.geom['filename_KFF'], sparse_output=True, sparse_format=True)
-        self.GM  = read_geom.Nastran_OP4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True) 
+        # The uset is actually geometry dependent and should go into the geometry section.
+        # However, it is only required for modal analysis...
         logging.info( 'Read USET from OP2-file {} ...'.format( self.jcl.geom['filename_uset'] ))
-        #self.uset = self.octave.get_uset(self.jcl.geom['filename_uset'])
-        #bitposes = self.uset['bitpos'] #.reshape((-1,6))
         op2_data = read_op2.read_post_op2(self.jcl.geom['filename_uset'], verbose=True)
         if op2_data['uset'] is None:
             logging.error( 'No USET found in OP2-file {} !'.format( self.jcl.geom['filename_uset'] ))
@@ -190,8 +177,9 @@ class BuildMass:
         # Reference:
         # National Aeronautics and Space Administration, The Nastran Programmer's Manual, NASA SP-223(01). Washington, D.C.: COSMIC, 1972.
         # Section 2.3.13.3 USET (TABLE), page 2.3-61
-        # Annahme: es gibt (nur) das a-, s- & m-set
-
+        # Annahme: es gibt (nur) das f-, s- & m-set
+        
+        # The DoFs of f-, s- and m-set are indexed with respect to g-set
         i = 0
         self.pos_f = []
         self.pos_s = []
@@ -206,14 +194,34 @@ class BuildMass:
             else:
                 logging.error( 'Unknown set of grid point {}'.format(bitpos))
             i += 1
+        # The n-set is the sum of s-set and f-set
         self.pos_n = self.pos_s + self.pos_f
         self.pos_n.sort()
         
-    def modalanalysis(self, i_mass, MFF, plot=False):
+        # Free DoFs (f-set) indexed with respect to n-set
+        self.pos_fn = [self.pos_n.index(i) for i in self.pos_f]
+    
+    def prepare_stiffness_matrices(self):
+        # K_Gnn = K_G(n,n) +  K_G(n,m)*Gm + Gm.'* K_G(n,m).' + Gm.'* K_G(m,m)*Gm;
+        Knn = self.KGG[self.pos_n, :][:,self.pos_n] \
+                + self.KGG[self.pos_n, :][:,self.pos_m].dot(self.GM.T) \
+                + self.GM.dot(self.KGG[self.pos_m, :][:,self.pos_n]) \
+                + self.GM.dot(self.KGG[self.pos_m, :][:,self.pos_m].dot(self.GM.T))
+        self.KFF = Knn[self.pos_fn, :][:,self.pos_fn]
+    
+    def prepare_mass_matrices(self, MGG):
+        self.MGG = MGG
+        Mnn = self.MGG[self.pos_n, :][:,self.pos_n] \
+                + self.MGG[self.pos_n, :][:,self.pos_m].dot(self.GM.T) \
+                + self.GM.dot(self.MGG[self.pos_m, :][:,self.pos_n]) \
+                + self.GM.dot(self.MGG[self.pos_m, :][:,self.pos_m].dot(self.GM.T))
+        self.MFF = Mnn[self.pos_fn, :][:,self.pos_fn]
+        
+    def modalanalysis(self, i_mass):
         modes_selection = copy.deepcopy(self.jcl.mass['modes'][i_mass])
         if self.jcl.mass['omit_rb_modes']: 
               modes_selection += 6
-        eigenvalue, eigenvector = self.calc_modes(self.KFF, MFF, modes_selection.max())
+        eigenvalue, eigenvector = self.calc_modes(self.KFF, self.MFF, modes_selection.max())
         logging.info( 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection))
         # reconstruct modal matrix for g-set / strcgrid
         PHIf_strc = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
@@ -238,20 +246,10 @@ class BuildMass:
             # store vector in modal matrix
             PHIf_strc[:,i] = Ug.squeeze()
             i += 1
-            if plot:
-                from mayavi import mlab
-                Ugx = self.strcgrid['offset'][:,0] + Ug[self.strcgrid['set'][:,0]].T * 10.0
-                Ugy = self.strcgrid['offset'][:,1] + Ug[self.strcgrid['set'][:,1]].T * 10.0
-                Ugz = self.strcgrid['offset'][:,2] + Ug[self.strcgrid['set'][:,2]].T * 10.0
-                mlab.figure(1+i_mode)
-                mlab.points3d(self.strcgrid['offset'][:,0], self.strcgrid['offset'][:,1], self.strcgrid['offset'][:,2], scale_factor=0.05)
-                mlab.points3d(Ugx, Ugy, Ugz, scale_factor=0.05, color=(0,0,1))
-        if plot:
-            mlab.show()
+
         # calc modal mass and stiffness
-        Mff = np.dot( eigenvector[:,modes_selection - 1].real.T,      MFF.dot(eigenvector[:,modes_selection - 1].real) )
+        Mff = np.dot( eigenvector[:,modes_selection - 1].real.T, self.MFF.dot(eigenvector[:,modes_selection - 1].real) )
         Kff = np.dot( eigenvector.real[:,modes_selection - 1].T, self.KFF.dot(eigenvector[:,modes_selection - 1].real) )
-        #Dff = Kff * 0.0
         Dff = self.calc_damping(eigenvalue[modes_selection - 1].real)
         return Mff, Kff, Dff, PHIf_strc.T
     
@@ -283,7 +281,7 @@ class BuildMass:
             logging.info( 'Damping: assuming zero damping.' )
         return Dff
         
-    def calc_cg(self, i_mass, Mgg):
+    def calc_cg(self, i_mass):
         logging.info( 'Calculate center of gravity, mass and inertia (GRDPNT)...')
         # First step: calculate M0
         m0grid = {"ID": np.array([999999]),
@@ -294,7 +292,7 @@ class BuildMass:
                  }
         rules = spline_rules.rules_point(m0grid, self.strcgrid)
         PHIstrc_m0 = spline_functions.spline_rb(m0grid, '', self.strcgrid, '', rules, self.coord)                    
-        m0 = PHIstrc_m0.T.dot(Mgg.dot(PHIstrc_m0))
+        m0 = PHIstrc_m0.T.dot(self.MGG.dot(PHIstrc_m0))
         m = m0[0,0]
         # Second step: calculate CG location with the help of the inertia moments 
         offset_cg = [m0[1,5],m0[2,3],m0[0,4]]/m
@@ -316,7 +314,7 @@ class BuildMass:
         # Third step: calculate Mb
         rules = spline_rules.rules_point(cggrid, self.strcgrid)
         PHIstrc_mb = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)                    
-        mb = PHIstrc_mb.T.dot(Mgg.dot(PHIstrc_mb))
+        mb = PHIstrc_mb.T.dot(self.MGG.dot(PHIstrc_mb))
         # switch signs for coupling terms of I to suite EoMs
         Mb = np.zeros((6,6))
         Mb[0,0] = m
@@ -349,29 +347,5 @@ class BuildMass:
             return MAC, plt
         else:   
             return MAC
-    
-    def plot_masses(self, MGG, Mb, cggrid, filename):
-        try:
-            from mayavi import mlab
-        except:
-            logging.warning('Could not import mayavi. Abort plotting of mass configurations.')
-            return
-        # get nodal masses
-        m_cg = Mb[0,0]
-        m = MGG.diagonal()[0::6]
-        
-        radius_mass_cg = ((m_cg*3.)/(4.*2700.0*np.pi))**(1./3.) 
-        radius_masses = ((m*3.)/(4.*2700.0*np.pi))**(1./3.) #/ radius_mass_cg
-        #radius_masses = radius_masses/radius_masses.max()
-       
-        mlab.options.offscreen = True
-        mlab.figure(bgcolor=(1,1,1))
-        mlab.points3d(self.strcgrid['offset'][:,0], self.strcgrid['offset'][:,1], self.strcgrid['offset'][:,2], radius_masses, scale_mode='scalar', scale_factor = 1.0, color=(1,0.7,0), resolution=32)
-        mlab.points3d(cggrid['offset'][0,0],        cggrid['offset'][0,1],        cggrid['offset'][0,2],       radius_mass_cg, scale_mode='scalar', scale_factor = 1.0, color=(1,1,0), opacity=0.3, resolution=64)
-        mlab.orientation_axes()
-        mlab.savefig(filename, size=(1920,1080))
-        mlab.close()
-        logging.info('Saving plot of nodal masses to: {}'.format(filename))
-        
-    
+ 
     
