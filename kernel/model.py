@@ -19,6 +19,7 @@ import VLM, DLM
 
 import numpy as np
 import scipy.sparse as sp
+import scipy.io
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import cPickle, sys, time, logging, copy
@@ -83,23 +84,37 @@ class Model:
             logging.info('The structural model consists of {} grid points and {} coordinate systems.'.format(self.strcgrid['n'], len(self.coord['ID']) ))
             if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
                 self.KGG = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
-                self.GM  = read_geom.Nastran_OP4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True) 
+                self.GM  = read_geom.Nastran_OP4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True)
+        
+        elif self.jcl.geom['method'] == 'CoFE':
+            with open(self.jcl.geom['filename_CoFE']) as fid: CoFE_data = scipy.io.loadmat(fid)
+            n = CoFE_data['gnum'].squeeze().__len__()
+            self.strcgrid = {'ID': CoFE_data['gnum'].squeeze(),
+                             'CD': np.zeros(n), # is this correct?
+                             'CP': np.zeros(n), # is this correct?
+                             'n':  n,
+                             'set': CoFE_data['gnum2gdof'].T-1, # convert indexing from Matlab to Python
+                             'offset': CoFE_data['gcoord'].T,
+                             }
+            if self.jcl.mass['method'] in ['CoFE']:
+                self.KGG = CoFE_data['KGG']
+                self.GM  = CoFE_data['GM'].T # convert from CoFE to Nastran
     
     def build_strcshell(self):
-            if self.jcl.geom.has_key('filename_shell') and not self.jcl.geom['filename_shell'] == []:
-                for i_file in range(len(self.jcl.geom['filename_shell'])):
-                    panels = read_geom.Modgen_CQUAD4(self.jcl.geom['filename_shell'][i_file]) 
-                    if i_file == 0:
-                        self.strcshell = panels
-                    else:
-                        self.strcshell['ID'] = np.hstack((self.strcshell['ID'],panels['ID']))
-                        self.strcshell['CD'] = np.hstack((self.strcshell['CD'],panels['CD']))
-                        self.strcshell['CP'] = np.hstack((self.strcshell['CP'],panels['CP']))
-                        self.strcshell['cornerpoints'] += panels['cornerpoints']
-                        self.strcshell['n'] += panels['n']
+        if self.jcl.geom.has_key('filename_shell') and not self.jcl.geom['filename_shell'] == []:
+            for i_file in range(len(self.jcl.geom['filename_shell'])):
+                panels = read_geom.Modgen_CQUAD4(self.jcl.geom['filename_shell'][i_file]) 
+                if i_file == 0:
+                    self.strcshell = panels
+                else:
+                    self.strcshell['ID'] = np.hstack((self.strcshell['ID'],panels['ID']))
+                    self.strcshell['CD'] = np.hstack((self.strcshell['CD'],panels['CD']))
+                    self.strcshell['CP'] = np.hstack((self.strcshell['CP'],panels['CP']))
+                    self.strcshell['cornerpoints'] += panels['cornerpoints']
+                    self.strcshell['n'] += panels['n']
     
     def build_mongrid(self):
-        if self.jcl.geom['method'] == 'mona':
+        if self.jcl.geom['method'] in ['mona', 'CoFE']:
             if not self.jcl.geom['filename_mongrid'] == '':
                 logging.info( 'Building Monitoring Stations from GRID data...')
                 self.mongrid = read_geom.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
@@ -413,7 +428,7 @@ class Model:
                 
     def mass_specific_part(self):
         logging.info( 'Building mass model...')
-        if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan']:
+        if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan', 'CoFE']:
             self.mass = {'key': [],
                          'Mb': [],
                          'MGG': [],
@@ -447,6 +462,9 @@ class Model:
                 bm.init_modalanalysis()
                 bm.prepare_stiffness_matrices()
                 bm.init_guyanreduction()
+            elif self.jcl.mass['method'] == 'CoFE':
+                bm.init_CoFE()
+                bm.prepare_stiffness_matrices()
             
             # loop over mass configurations
             for i_mass in range(len(self.jcl.mass['key'])):
@@ -456,11 +474,15 @@ class Model:
                 
     def build_mass(self, bm, i_mass):
         logging.info( 'Mass configuration {} of {}: {} '.format(i_mass+1, len(self.jcl.mass['key']), self.jcl.mass['key'][i_mass]))
-        MGG = read_geom.Nastran_OP4(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
+        if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
+            MGG = read_geom.Nastran_OP4(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
+        elif self.jcl.mass['method'] == 'CoFE':
+            with open(self.jcl.geom['filename_CoFE']) as fid: CoFE_data = scipy.io.loadmat(fid)
+            MGG = CoFE_data['MGG']
         
         if self.jcl.mass['method'] == 'mona': 
             Mff, Kff, Dff, PHIf_strc, Mb, cggrid, cggrid_norm = bm.mass_from_SOL103(i_mass)
-        elif self.jcl.mass['method'] == 'modalanalysis': 
+        elif self.jcl.mass['method'] in ['modalanalysis', 'CoFE']: 
             bm.prepare_mass_matrices(MGG)
             Mb, cggrid, cggrid_norm     = bm.calc_cg(i_mass)
             Mff, Kff, Dff, PHIf_strc    = bm.modalanalysis(i_mass)

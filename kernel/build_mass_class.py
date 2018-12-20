@@ -201,6 +201,20 @@ class BuildMass:
         # Free DoFs (f-set) indexed with respect to n-set
         self.pos_fn = [self.pos_n.index(i) for i in self.pos_f]
     
+    def init_CoFE(self):
+        # Prepare some data required for modal analysis which is not mass case dependent. 
+        with open(self.jcl.geom['filename_CoFE']) as fid: CoFE_data = scipy.io.loadmat(fid)
+                
+        # The DoFs of f-, s- and m-set are indexed with respect to g-set
+        # Convert indexing from Matlab to Python
+        self.pos_f = CoFE_data['nf_g'].squeeze()-1
+        self.pos_s = CoFE_data['s'].squeeze()-1
+        self.pos_m = CoFE_data['m'].squeeze()-1
+        self.pos_n = CoFE_data['n'].squeeze()-1
+       
+        # Free DoFs (f-set) indexed with respect to n-set
+        self.pos_fn = CoFE_data['nf_n'].squeeze()-1
+    
     def prepare_stiffness_matrices(self):
         # K_Gnn = K_G(n,n) +  K_G(n,m)*Gm + Gm.'* K_G(n,m).' + Gm.'* K_G(m,m)*Gm;
         Knn = self.KGG[self.pos_n, :][:,self.pos_n] \
