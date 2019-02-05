@@ -85,6 +85,9 @@ class Model:
             if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
                 self.KGG = read_geom.Nastran_OP4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
                 self.GM  = read_geom.Nastran_OP4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True)
+            else:
+                self.KGG = None
+                self.GM  = None
         
         elif self.jcl.geom['method'] == 'CoFE':
             with open(self.jcl.geom['filename_CoFE']) as fid: CoFE_data = scipy.io.loadmat(fid)
@@ -474,7 +477,7 @@ class Model:
                 
     def build_mass(self, bm, i_mass):
         logging.info( 'Mass configuration {} of {}: {} '.format(i_mass+1, len(self.jcl.mass['key']), self.jcl.mass['key'][i_mass]))
-        if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
+        if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'mona']: 
             MGG = read_geom.Nastran_OP4(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
         elif self.jcl.mass['method'] == 'CoFE':
             with open(self.jcl.geom['filename_CoFE']) as fid: CoFE_data = scipy.io.loadmat(fid)
