@@ -37,7 +37,7 @@ class Model:
     def build_model(self):
         self.build_coord()
         self.build_strc()
-        self.build_strcshell
+        self.build_strcshell()
         self.build_mongrid()
         self.build_lggrid()
         self.build_atmo()
