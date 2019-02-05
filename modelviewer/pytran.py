@@ -61,10 +61,10 @@ class NastranSOL101:
             components = ['PID', 'MID1', 'MID2', 'MID3', 'T']
             self.pshell = self.read_bin(bin_stream, components)
             
-            # RESULTs for Shells
-            bin_stream = self.file.root.NASTRAN.RESULT.ELEMENTAL.STRESS.QUAD4
-            components = ["EID", "X1", "Y1", "XY1", "X2", "Y2", "XY2", "DOMAIN_ID"]
-            self.stress_quad4 = self.read_bin(bin_stream, components)
+#             # RESULTs for Shells
+#             bin_stream = self.file.root.NASTRAN.RESULT.ELEMENTAL.STRESS.QUAD4
+#             components = ["EID", "X1", "Y1", "XY1", "X2", "Y2", "XY2", "DOMAIN_ID"]
+#             self.stress_quad4 = self.read_bin(bin_stream, components)
             
         
         if self.file.root.NASTRAN.INPUT.PROPERTY._v_children.has_key('PCOMP'): 
@@ -77,27 +77,27 @@ class NastranSOL101:
             plies = self.read_bin(bin_stream, components)
             self.pcomp['plies'] = plies
         
-            # RESULTs for Composite
-            bin_stream = self.file.root.NASTRAN.RESULT.ELEMENTAL.STRESS.QUAD4_COMP
-            components = ["EID", "PLY", "X1", "Y1", "T1", "DOMAIN_ID"]
-            self.stress_quad4_comp = self.read_bin(bin_stream, components)
-             
-            bin_stream = self.file.root.NASTRAN.RESULT.ELEMENTAL.STRESS.TRIA3_COMP
-            components = ["EID", "PLY", "X1", "Y1", "T1", "DOMAIN_ID"]
-            self.stress_tria3_comp = self.read_bin(bin_stream, components)
+#             # RESULTs for Composite
+#             bin_stream = self.file.root.NASTRAN.RESULT.ELEMENTAL.STRESS.QUAD4_COMP
+#             components = ["EID", "PLY", "X1", "Y1", "T1", "DOMAIN_ID"]
+#             self.stress_quad4_comp = self.read_bin(bin_stream, components)
+#              
+#             bin_stream = self.file.root.NASTRAN.RESULT.ELEMENTAL.STRESS.TRIA3_COMP
+#             components = ["EID", "PLY", "X1", "Y1", "T1", "DOMAIN_ID"]
+#             self.stress_tria3_comp = self.read_bin(bin_stream, components)
+#             
+#             bin_stream = self.file.root.NASTRAN.RESULT.ELEMENTAL.STRAIN.QUAD4_COMP
+#             components = ["EID", "PLY", "X1", "Y1", "T1", "DOMAIN_ID"]
+#             self.strain_quad4_comp = self.read_bin(bin_stream, components)
+#              
+#             bin_stream = self.file.root.NASTRAN.RESULT.ELEMENTAL.STRAIN.TRIA3_COMP
+#             components = ["EID", "PLY", "X1", "Y1", "T1", "DOMAIN_ID"]
+#             self.strain_tria3_comp = self.read_bin(bin_stream, components)
             
-            bin_stream = self.file.root.NASTRAN.RESULT.ELEMENTAL.STRAIN.QUAD4_COMP
-            components = ["EID", "PLY", "X1", "Y1", "T1", "DOMAIN_ID"]
-            self.strain_quad4_comp = self.read_bin(bin_stream, components)
-             
-            bin_stream = self.file.root.NASTRAN.RESULT.ELEMENTAL.STRAIN.TRIA3_COMP
-            components = ["EID", "PLY", "X1", "Y1", "T1", "DOMAIN_ID"]
-            self.strain_tria3_comp = self.read_bin(bin_stream, components)
-            
-        bin_stream = self.file.root.NASTRAN.RESULT.DOMAINS
-        components = ["ID", 'SUBCASE']
-        self.domains = self.read_bin(bin_stream, components)
-        self.domains['n'] = self.domains['ID'].__len__()
+#         bin_stream = self.file.root.NASTRAN.RESULT.DOMAINS
+#         components = ["ID", 'SUBCASE']
+#         self.domains = self.read_bin(bin_stream, components)
+#         self.domains['n'] = self.domains['ID'].__len__()
             
         print 'done'
     
