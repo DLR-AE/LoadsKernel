@@ -89,7 +89,6 @@ class DetailedPlots(plotting_standard.StandardPlots):
     def plot_time_data(self):
         for i_simcase in range(len(self.jcl.simcase)):
             trimcase    = self.jcl.trimcase[i_simcase]
-            i_mass      = self.model.mass['key'].index(trimcase['mass'])
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
             Pb_gust = []
             Pb_unsteady = []

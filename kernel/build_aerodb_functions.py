@@ -13,7 +13,6 @@ import logging
 
 import spline_rules
 import spline_functions
-from build_aero import plot_aerogrid
 
 def process_matrix(model, matrix, plot=False):
 

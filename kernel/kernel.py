@@ -367,23 +367,11 @@ class Kernel():
             dyn2stat_data = io.load_pickle(f)
 
         logging.info('--> Drawing some standard plots.')
-        plt = plotting_standard.Standard_plots(self.jcl, model)
+        plt = plotting_standard.StandardPlots(self.jcl, model)
         plt.add_monstations(monstations)
+        plt.plot_monstations(self.path_output + 'monstations_' + self.job_name + '.pdf')
         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-            # nur sim
-            plt.plot_monstations_time(self.path_output + 'monstations_time_' + self.job_name + '.pdf')
-            plt.plot_monstations(self.path_output + 'monstations_' + self.job_name + '.pdf', dyn2stat=True)
-        else:
-            # nur trim
-            plt.plot_monstations(self.path_output + 'monstations_' + self.job_name + '.pdf') 
-
-
-#         logging.info( '--> statespace analysis.')
-#         import statespace_analysis
-#         statespace_analysis = statespace.analysis(jcl, model, responses)
-#         #statespace_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
-#         #statespace_analysis.plot_state_space_matrices()
-#         statespace_analysis.analyse_eigenvalues(path_output + 'analyse_of_eigenvalues_' + job_name + '.pdf')
+            plt.plot_monstations_time(self.path_output + 'monstations_time_' + self.job_name + '.pdf') # nur sim
 
         logging.info('--> Saving auxiliary output data.')
         aux_out = auxiliary_output.auxiliary_output(self.jcl, model, self.jcl.trimcase)
@@ -403,19 +391,31 @@ class Kernel():
             # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
-        # responses = io.load_responses(self.job_name, self.path_output)
-        # print '--> Drawing some more detailed plots.'  
-        # plt = plotting_extra.Detailed_plots(self.jcl, model)
-        # plt.add_responses(responses)
-        # if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-        #    # nur sim
-        #    plt.plot_time_data()
-        #    #plt.make_animation()
-        #    #plt.make_movie(path_output, speedup_factor=1.0)
-        # else:
-        #    # nur trim
-        #    plt.plot_pressure_distribution()
-        #    plt.plot_forces_deformation_interactive()
+#         responses = io.load_responses(self.job_name, self.path_output)
+#         print '--> Drawing some more detailed plots.'  
+#         plt = plotting_extra.DetailedPlots(self.jcl, model)
+#         plt.add_responses(responses)
+#         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+#            # nur sim
+#            plt.plot_time_data()
+#         else:
+#            # nur trim
+#            plt.plot_pressure_distribution()
+#            plt.plot_forces_deformation_interactive()
+        
+#         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+#             plt = plotting_extra.Animations(self.jcl, model)
+#             plt.add_responses(responses)
+#             plt.make_animation()
+#             #plt.make_movie(self.path_output, speedup_factor=1.0)
+
+#         logging.info( '--> statespace analysis.')
+#         import statespace_analysis
+#         statespace_analysis = statespace.analysis(jcl, model, responses)
+#         #statespace_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
+#         #statespace_analysis.plot_state_space_matrices()
+#         statespace_analysis.analyse_eigenvalues(path_output + 'analyse_of_eigenvalues_' + job_name + '.pdf')
+           
         return
 
     def run_test(self):
