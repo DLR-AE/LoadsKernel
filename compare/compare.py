@@ -13,7 +13,7 @@ import matplotlib as mpl
 mpl.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 from matplotlib.backend_bases import key_press_handler # implement the default mpl key bindings
-from plotting import Plotting
+import plotting
 
 import numpy as np
 import cPickle, os, copy
@@ -145,7 +145,7 @@ class App:
         # init Matplotlib Plot
         fig1 = mpl.figure.Figure()
         # hand over subplot to plotting class
-        self.plotting = Plotting(fig1)
+        self.plotting = plotting.Plotting(fig1)
         # embed figure
         self.canvas = FigureCanvasTkAgg(fig1, master=frame_right)
         self.canvas.show()

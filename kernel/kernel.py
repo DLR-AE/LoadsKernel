@@ -10,7 +10,7 @@ import trim
 import post_processing
 import monstations as monstations_module
 import auxiliary_output
-import plotting
+import plotting_standard, plotting_extra
 
 
 class Kernel():
@@ -366,16 +366,16 @@ class Kernel():
         with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'r') as f:
             dyn2stat_data = io.load_pickle(f)
 
-        logging.info('--> Drawing some plots.')
-        plt = plotting.plotting(self.jcl, model)
+        logging.info('--> Drawing some standard plots.')
+        plt = plotting_standard.Standard_plots(self.jcl, model)
+        plt.add_monstations(monstations)
         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
             # nur sim
-            plt.plot_monstations_time(monstations, self.path_output + 'monstations_time_' + self.job_name + '.pdf')
-            plt.plot_monstations(monstations, self.path_output + 'monstations_' + self.job_name + '.pdf', dyn2stat=True)
-            # plt.plot_cs_signal() # Discus2c spezifisch
+            plt.plot_monstations_time(self.path_output + 'monstations_time_' + self.job_name + '.pdf')
+            plt.plot_monstations(self.path_output + 'monstations_' + self.job_name + '.pdf', dyn2stat=True)
         else:
             # nur trim
-            plt.plot_monstations(monstations, self.path_output + 'monstations_' + self.job_name + '.pdf') 
+            plt.plot_monstations(self.path_output + 'monstations_' + self.job_name + '.pdf') 
 
 
 #         logging.info( '--> statespace analysis.')
@@ -404,8 +404,9 @@ class Kernel():
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
         # responses = io.load_responses(self.job_name, self.path_output)
-        # print '--> Drawing more plots.'  
-        # plt = plotting.plotting(self.jcl, model, responses)
+        # print '--> Drawing some more detailed plots.'  
+        # plt = plotting_extra.Detailed_plots(self.jcl, model)
+        # plt.add_responses(responses)
         # if 't_final' and 'dt' in self.jcl.simcase[0].keys():
         #    # nur sim
         #    plt.plot_time_data()
