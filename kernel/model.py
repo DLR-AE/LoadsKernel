@@ -20,9 +20,7 @@ import VLM, DLM
 import numpy as np
 import scipy.sparse as sp
 import scipy.io
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import cPickle, sys, time, logging, copy
+import time, logging, copy
 
 class Model:
     def __init__(self, jcl, path_output):
@@ -401,7 +399,6 @@ class Model:
         elif self.jcl.spline['method'] == 'nearest_neighbour':
             self.coupling_rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.aerogrid, '_k') 
             self.PHIk_strc = spline_functions.spline_rb(self.splinegrid, '', self.aerogrid, '_k', self.coupling_rules, self.coord, dimensions=[len(self.strcgrid['ID'])*6, len(self.aerogrid['ID'])*6], sparse_output=True)
-            #spline_functions.plot_splinerules(self.splinegrid, '', self.aerogrid, '_k', rules, self.coord, self.path_output + 'spline_rules.png')    
         elif self.jcl.spline['method'] == 'nastran': 
             self.PHIk_strc = spline_functions.spline_nastran(self.jcl.spline['filename_f06'], self.strcgrid, self.aerogrid)  
         else:
