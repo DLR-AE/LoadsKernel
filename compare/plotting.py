@@ -10,19 +10,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull
 import imp
-plotting_module_from_LK = imp.load_source('Standard_plots', '../kernel/plotting_standard.py')
+plotting_module_from_LK = imp.load_source('StandardPlots', '../kernel/plotting_standard.py')
 
-class Plotting(plotting_module_from_LK.Standard_plots):
+class Plotting(plotting_module_from_LK.StandardPlots):
     def __init__(self, fig):
         plt.rcParams.update({'font.size': 16,
                              'svg.fonttype':'none'})
         self.subplot = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
-        pass
-    
-    def plot_sin(self):
-        x = np.arange(0,10,0.01)
-        self.subplot.cla()
-        self.subplot.plot(x,np.sin(x))
         
     def plot_nothing(self):
         self.subplot.cla()
