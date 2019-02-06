@@ -119,7 +119,10 @@ class common():
         if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'halfgeneralized':
             self.PHI_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat']).dot(self.model.mass['PHIjf'][self.i_mass])
             self.PHI_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjf'][self.i_mass])
-        
+    
+    def ode_arg_sorter(self, t, X):
+        return self.eval_equations(X, t, 'sim')
+    
     def calc_Pk_nonlin(self, dUmac_dt, wj):
         Ujx1 = np.dot(self.Djx1,dUmac_dt)
         q = Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]]
@@ -457,25 +460,6 @@ class common():
 
         Pk_unsteady = Pk_unsteady_D + Pk_unsteady_B 
         return Pk_unsteady, Pk_unsteady_B, Pk_unsteady_D, dlag_states_dt
-        
-    def cfd(self, alpha, X, Ux2, q_dyn):
-        Pk_cfd = np.zeros(6*self.model.aerogrid['n'])
-        if self.correct_alpha:
-            # jetzt den Anstellwinkel durch die CFD-loesung addieren
-            Pk_cfd += self.aerodb_alpha_interpolation_function(alpha) / self.aerodb_alpha['q_dyn'] * q_dyn
-        
-        # Hier gibt es zwei Wege und es wird je Steuerflaeche unterschieden:
-        # a) es liegen Daten in der AeroDB vor -> Kraefte werden interpoliert, dann zu Pk addiert, downwash vector bleibt unveraendert
-        # b) der downwash der Steuerflaeche wird berechnet, zum downwash vector addiert 
-        for i_x2 in range(len(self.efcs.keys)):
-            if self.efcs.keys[i_x2] in self.correct_x2:
-                # a) use CFD solution
-                pos = self.correct_x2.index(self.efcs.keys[i_x2])
-                x2_interpolation_function = self.aerodb_x2_interpolation_function[pos]
-                # Null-Loesung abziehen!
-                # Extrapolation sollte durch passend eingestellte Grenzen im EFCS verhindert werden. 
-                Pk_cfd += (x2_interpolation_function(Ux2[i_x2]) - x2_interpolation_function(0.0) ) / self.aerodb_x2[pos]['q_dyn'] * q_dyn
-        return Pk_cfd
     
     def correctioon_coefficients(self, alpha, beta, q_dyn):
         Pb_corr = np.zeros(6)
@@ -664,7 +648,6 @@ class common():
         logging.info("Tau finished normally.")
         os.chdir(old_dir)
         
-        
     def tau_last_solution(self):
         # get filename of surface solution from para file
         Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))
@@ -705,25 +688,6 @@ class common():
         Pcfd[self.model.cfdgrid['set'][:,2]] = ncfile_pval.variables['z-force'][:][pos].copy()
         return Pcfd
     
-#         Pk_cfd = self.model.PHIk_cfd.T.dot(Pcfd)
-#         Pg_cfd = self.PHIcfd_strc.T.dot(Pcfd)
-#         from mayavi import mlab
-#         x = self.model.strcgrid['offset'][:,0]
-#         y = self.model.strcgrid['offset'][:,1]
-#         z = self.model.strcgrid['offset'][:,2]
-#         mlab.figure()   
-#         mlab.points3d(x, y, z)
-#         mlab.quiver3d(x, y, z, Pg_cfd[self.model.strcgrid['set'][:,0]], Pg_cfd[self.model.strcgrid['set'][:,1]], Pg_cfd[self.model.strcgrid['set'][:,2]], color=(0,0,1))
-#         mlab.title('Pg_cfd', size=0.2, height=0.95)
-# 
-#         x = meshdefo.cfdgrids[0]['offset'][:,0]
-#         y = meshdefo.cfdgrids[0]['offset'][:,1]
-#         z = meshdefo.cfdgrids[0]['offset'][:,2]
-#         mlab.figure()   
-#         mlab.points3d(x, y, z)
-#         mlab.quiver3d(x, y, z, Pcfd[meshdefo.cfdgrids[0]['set'][:,0]], Pcfd[meshdefo.cfdgrids[0]['set'][:,1]], Pcfd[meshdefo.cfdgrids[0]['set'][:,2]], color=(0,0,1))
-#         mlab.title('Pg_cfd', size=0.2, height=0.95)
-    
     def tau_prepare_initial_solution(self, args_solve):   
         Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))  
         # general parameters
@@ -742,554 +706,84 @@ class common():
             if returncode != 0:
                 raise TauError('Subprocess returned an error from Tau solver, please see solver.stdout !')
 
+    def geo2body(self, X):
+        Tgeo2body = np.zeros((6,6))
+        Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
+        Tgeo2body[3:6,3:6] = calc_drehmatrix_angular(X[3], X[4], X[5])
+        Tbody2geo = np.zeros((6,6))
+        Tbody2geo[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5]).T
+        Tbody2geo[3:6,3:6] = calc_drehmatrix_angular_inv(X[3], X[4], X[5])
+        return Tgeo2body, Tbody2geo
     
+    def recover_states(self, X):
+        dUcg_dt = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
+        Uf = np.array(X[12:12+self.n_modes])
+        dUf_dt = np.array(X[12+self.n_modes:12+self.n_modes*2])
+        return dUcg_dt, Uf, dUf_dt
+    
+    def recover_Vtas(self, X):
+        # aktuelle Vtas und q_dyn berechnen
+        dxyz = X[6:9]
+        Vtas = sum(dxyz**2)**0.5
+        rho = self.model.atmo['rho'][self.i_atmo]
+        q_dyn = rho/2.0*Vtas**2
+        return Vtas, q_dyn
+    
+    def recover_onflow(self, X):
+        onflow  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
+        alpha = np.arctan(onflow[2]/onflow[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
+        beta  = np.arctan(onflow[1]/onflow[0]) #X[5] - np.arctan(X[7]/X[6])
+        my    = 0.0
+        return onflow, alpha, beta, my
+    
+    def get_Ux2(self, X):
+        # Steuerflaechenausschlaege vom efcs holen
+        Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
+        return Ux2
+    
+    def rigid_EoM(self, dUcg_dt, Pb, g_cg):
+        d2Ucg_dt2 = np.zeros(dUcg_dt.shape)
+        if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
+            # # non-linear EoM, bodyfixed / Waszak
+            d2Ucg_dt2[0:3] = np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) + np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
+            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb[3:6,3:6]) , Pb[3:6] - np.cross(dUcg_dt[3:6], np.dot(self.Mb[3:6,3:6], dUcg_dt[3:6])) )
+            Nxyz = (d2Ucg_dt2[0:3] - g_cg - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
+        else:
+            # linear EoM, bodyfixed / Nastran
+            d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
+            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb)[3:6,3:6], Pb[3:6] )
+            Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
+        return d2Ucg_dt2, Nxyz
+    
+    def flexible_EoM(self, dUf_dt, Uf, Pf):
+        d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
+        return d2Uf_dt2
+    
+    def get_command_derivatives(self, t, dUcg_dt, X):
+        if self.simcase and self.simcase['cs_signal']:
+            dcommand = self.efcs.cs_signal(t)
+        elif self.simcase and self.simcase['controller']:
+            dcommand = self.efcs.controller(t=t, feedback_q=dUcg_dt[4], feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])
+        else:
+            dcommand = np.zeros(3)
+        return dcommand
+            
 class TauError(Exception):
     '''Raise when subprocess yields a returncode != 0 from Tau'''
+
 class ConvergenceError(Exception):
     '''Raise when structural deformation does not converge after xx loops'''
   
-class cfd_steady(common):
-
-    def equations(self, X, t, type):
-        self.counter += 1
-        # recover states
-        Tgeo2body = np.zeros((6,6))
-        Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
-        Tgeo2body[3:6,3:6] = calc_drehmatrix_angular(X[3], X[4], X[5])
-        Tbody2geo = np.zeros((6,6))
-        Tbody2geo[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5]).T
-        Tbody2geo[3:6,3:6] = calc_drehmatrix_angular_inv(X[3], X[4], X[5])
-        dUcg_dt  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
-        Uf = np.array(X[12:12+self.n_modes])
-        dUf_dt = np.array(X[12+self.n_modes:12+self.n_modes*2])
-               
-        # aktuelle Vtas und q_dyn berechnen
-        dxyz = X[6:9]
-        Vtas = sum(dxyz**2)**0.5
-        rho = self.model.atmo['rho'][self.i_atmo]
-        q_dyn = rho/2.0*Vtas**2
-        onflow  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
-        alpha = np.arctan(onflow[2]/onflow[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
-        beta  = np.arctan(onflow[1]/onflow[0]) #X[5] - np.arctan(X[7]/X[6])
-        my    = 0.0
-        
-        # Steuerflaechenausschlaege vom efcs holen
-        Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
-        
-        # --------------------   
-        # --- aerodynamics ---   
-        # --------------------
-        self.tau_update_para(X[6:12])
-        self.tau_prepare_meshdefo(Uf, Ux2)
-        self.tau_run()
-        Pcfd = self.tau_last_solution()
-        
-        Pk_rbm      = np.zeros(6*self.model.aerogrid['n'])
-        Pk_cam      = Pk_rbm*0.0
-        Pk_cs       = Pk_rbm*0.0
-        Pk_f        = Pk_rbm*0.0
-        Pk_gust     = Pk_rbm*0.0
-        Pk_idrag    = Pk_rbm*0.0
-        Pk_unsteady = Pk_rbm*0.0 
-        Pk_cfd      = Pk_rbm*0.0
-
-        # -------------------------------  
-        # --- correction coefficients ---   
-        # -------------------------------
-        Pb_corr = self.correctioon_coefficients(alpha, beta, q_dyn)
-        
-        # ---------------------------   
-        # --- summation of forces ---   
-        # ---------------------------
-        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_cfd + Pk_unsteady
-        Pmac = np.dot(self.Dkx1.T, Pk_aero)
-        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + np.dot(self.PHIcfd_cg.T, Pcfd)
-        
-        g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
-        g_cg = np.dot(self.PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
-               
-        # -----------   
-        # --- EoM ---   
-        # -----------
-        d2Ucg_dt2 = np.zeros(dUcg_dt.shape)
-        if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
-            # # non-linear EoM, bodyfixed / Waszak
-            d2Ucg_dt2[0:3] = np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) + np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
-            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb[3:6,3:6]) , Pb[3:6] - np.cross(dUcg_dt[3:6], np.dot(self.Mb[3:6,3:6], dUcg_dt[3:6])) )
-            Nxyz = (d2Ucg_dt2[0:3] - g_cg - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
-        else:
-            # linear EoM, bodyfixed / Nastran
-            d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
-            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb)[3:6,3:6], Pb[3:6] )
-            Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
-        
-        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) + np.dot(self.PHIcfd_f.T, Pcfd)
-        # flexible EoM
-        d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
-        
-        # ----------------------
-        # --- CS derivatives ---
-        # ----------------------
-        if self.simcase and self.simcase['cs_signal']:
-            dcommand = self.efcs.cs_signal(t)
-        elif self.simcase and self.simcase['controller']:
-            #dcommand = self.efcs.controller(d2Ucg_dt2[3:6])
-            #dcommand = self.efcs.controller(dUcg_dt[3:6])
-            dcommand = self.efcs.controller(t=t, feedback_q=dUcg_dt[4], feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])
-        else:
-            dcommand = np.zeros(3)
-
-        # --------------   
-        # --- output ---   
-        # --------------
-        Y = np.hstack((np.dot(Tbody2geo,X[6:12]), 
-                       np.dot(self.PHIcg_norm,  d2Ucg_dt2), 
-                       dUf_dt, 
-                       d2Uf_dt2, 
-                       dcommand, 
-                       Nxyz[2],
-                       Vtas, 
-                     )) 
-        
-        if type in ['trim', 'sim']:
-            return Y
-        elif type in ['trim_full_output', 'sim_full_output']:
-            # calculate translations, velocities and accelerations of some additional points
-            # (might also be used for sensors in a closed-loop system
-            if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
-                PHIlg_cg = self.model.mass['PHIlg_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
-                PHIf_lg = self.model.mass['PHIf_lg'][self.model.mass['key'].index(self.trimcase['mass'])]
-                p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])) + PHIf_lg.T.dot(X[12:12+self.n_modes])                 )[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
-                dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12])) + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
-                ddp1 = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, Y[6:12])) + PHIf_lg.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
-                Plg  = np.zeros(self.model.lggrid['n']*6)
-                F1   = np.zeros(self.model.lggrid['n']) 
-                F2   = np.zeros(self.model.lggrid['n']) 
-            else:
-                p1 = ''
-                dp1 = ''
-                ddp1 = ''
-                Plg = ''
-                F1 = ''
-                F2 = ''
-            response = {'X': X, 
-                        'Y': Y,
-                        't': np.array([t]),
-                        'Pk_rbm': Pk_rbm,
-                        'Pk_cam': Pk_cam,
-                        'Pk_aero': Pk_aero,
-                        'Pk_cs': Pk_cs,
-                        'Pk_f': Pk_f,
-                        'Pk_cfd': Pk_cfd,
-                        'Pk_gust': Pk_gust,
-                        'Pk_unsteady': Pk_unsteady,
-                        'Pk_idrag': Pk_idrag,
-                        'q_dyn': np.array([q_dyn]),
-                        'Pb': Pb,
-                        'Pmac': Pmac,
-                        'Pf': Pf,
-                        'alpha': np.array([alpha]),
-                        'beta': np.array([beta]),
-                        #'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
-                        'Ux2': Ux2,
-                        'dUcg_dt': dUcg_dt,
-                        'd2Ucg_dt2': d2Ucg_dt2,
-                        'Uf': Uf,
-                        'dUf_dt': dUf_dt,
-                        'd2Uf_dt2': d2Uf_dt2,
-                        'Nxyz': Nxyz,
-                        'g_cg': g_cg,
-                        'Plg': Plg,
-                        'p1': p1,
-                        'dp1': dp1,
-                        'ddp1': ddp1,
-                        'F1': F1,
-                        'F2': F2,
-                        'Pcfd': Pcfd,
-                       }
-            return response        
-        
-    def eval_equations_iteratively(self, X_free, time, type='trim_full_output'):
-        # this is a wrapper for the model equations 'eqn_basic'
-        i_mass = self.model.mass['key'].index(self.trimcase['mass'])
-        n_modes = self.model.mass['n_modes'][i_mass]
-        
-        # get inputs from trimcond and apply inputs from fsolve 
-        X = np.array(self.trimcond_X[:,2], dtype='float')
-        X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
-        logging.info('X_free: {}'.format(X_free))
-        converged = False
-        inner_loops = 0
-        while not converged:
-            inner_loops += 1
-            response = self.equations(X, time, 'trim_full_output')
-            logging.info('Inner iteration {:>3d}, calculate structural deformations...'.format(self.counter))
-            Uf_new = linalg.solve(self.Kff, response['Pf'])
-            #Pf = np.dot(self.PHIkf.T, response['Pk_aero'])
-            #d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
-
-            # recover Uf_old from last step and blend with Uf_now
-            f_relax = 0.8
-            Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(n_modes)]
-            Uf_old = np.array(Uf_old, dtype='float')
-            Uf_new = Uf_new*f_relax + Uf_old*(1.0-f_relax)
-
-            # set new values for Uf in trimcond for next loop and store in response
-            for i_mode in range(n_modes):
-                self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] = '{:g}'.format(Uf_new[i_mode])
-                response['X'][12+i_mode] = Uf_new[i_mode]
-            
-            # convergence parameter for iterative evaluation  
-            Ug_f_body = np.dot(self.PHIf_strc.T, Uf_new.T).T
-            defo_new = Ug_f_body[self.model.strcgrid['set'][:,(0,1,2)]].max() # Groesste Verformung, meistens Fluegelspitze
-            #defo_new = Ug_f_body.sum() # Summe ueber alle Verformungen
-            ddefo = defo_new - self.defo_old
-            self.defo_old = np.copy(defo_new)
-            if np.abs(ddefo) < self.jcl.general['b_ref']*1.0e-5:
-                converged = True
-                logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}, converged.'.format(self.counter, defo_new, ddefo))
-            else:
-                logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}'.format(self.counter, defo_new, ddefo))
-            if inner_loops > 20:
-                raise ConvergenceError('No convergence of structural deformation achieved after {} inner loops. Check convergence of Tau solution and/or convergence criterion "ddefo".'.format(inner_loops))
-        # get the current values from Y and substract tamlab.figure()
-        # fsolve only finds the roots; Y = 0
-        Y_target_ist = response['Y'][np.where((self.trimcond_Y[:,1] == 'target'))[0]]
-        Y_target_soll = np.array(self.trimcond_Y[:,2], dtype='float')[np.where((self.trimcond_Y[:,1] == 'target'))[0]]
-        out = Y_target_ist - Y_target_soll
-        
-        if type in ['trim']:
-            return out
-        elif type=='trim_full_output':
-            #response = self.equations(X, time, 'trim_full_output')
-            # do something with this output, e.g. plotting, animations, saving, etc.            
-            logging.info('')        
-            logging.info('X: ')
-            logging.info('--------------------')
-            for i_X in range(len(response['X'])):
-                logging.info(self.trimcond_X[:,0][i_X] + ': %.4f' % float(response['X'][i_X]))
-            logging.info('Y: ')
-            logging.info('--------------------')
-            for i_Y in range(len(response['Y'])):
-                logging.info(self.trimcond_Y[:,0][i_Y] + ': %.4f' % float(response['Y'][i_Y]))
-
-            A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
-            AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
-            Pmac_c = response['Pmac']/response['q_dyn']/A
-            # um alpha drehen, um Cl und Cd zu erhalten
-            Cl = Pmac_c[2]*np.cos(response['alpha'])+Pmac_c[0]*np.sin(response['alpha'])
-            Cd = Pmac_c[2]*np.sin(response['alpha'])+Pmac_c[0]*np.cos(response['alpha'])
-            Cd_ind_theo = Cl**2.0/np.pi/AR
-            logging.info('')
-            logging.info('--------------------')
-            logging.info('q_dyn: %.4f [Pa]' % float(response['q_dyn']))
-            logging.info('--------------------')
-            logging.info('aero derivatives:')
-            logging.info('--------------')
-            logging.info('Cx: %.4f' % float(Pmac_c[0]))
-            logging.info('Cy: %.4f' % float(Pmac_c[1]))
-            logging.info('Cz: %.4f' % float(Pmac_c[2]))
-            logging.info('Cmx: %.6f' % float(Pmac_c[3]/self.model.macgrid['b_ref']))
-            logging.info('Cmy: %.6f' % float(Pmac_c[4]/self.model.macgrid['c_ref']))
-            logging.info('Cmz: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']))
-            #logging.info('dCmz_dbeta: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']/response['beta'])
-            logging.info('alpha: %.4f [deg]' % float(response['alpha']/np.pi*180))
-            logging.info('beta: %.4f [deg]' % float(response['beta']/np.pi*180))
-            logging.info('Cd: %.4f' % float(Cd))
-            logging.info('Cl: %.4f' % float(Cl))
-            logging.info('E: %.4f' % float(Cl/Cd))
-            logging.info('command_xi: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])/np.pi*180.0 ))
-            logging.info('command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 ))
-            logging.info('command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 ))
-            logging.info('CS deflections [deg]: ' + str(response['Ux2']/np.pi*180))
-            logging.info('--------------------')
-            
-            return response
-
-class nonlin_steady(common):
-
-    def equations(self, X, t, type):
-        self.counter += 1
-        # recover states
-        Tgeo2body = np.zeros((6,6))
-        Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
-        Tgeo2body[3:6,3:6] = calc_drehmatrix_angular(X[3], X[4], X[5])
-        Tbody2geo = np.zeros((6,6))
-        Tbody2geo[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5]).T
-        Tbody2geo[3:6,3:6] = calc_drehmatrix_angular_inv(X[3], X[4], X[5])
-        dUcg_dt  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
-        Uf = np.array(X[12:12+self.n_modes])
-        dUf_dt = np.array(X[12+self.n_modes:12+self.n_modes*2])
-               
-        # aktuelle Vtas und q_dyn berechnen
-        dxyz = X[6:9]
-        Vtas = sum(dxyz**2)**0.5
-        rho = self.model.atmo['rho'][self.i_atmo]
-        q_dyn = rho/2.0*Vtas**2
-        onflow  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
-        alpha = np.arctan(onflow[2]/onflow[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
-        beta  = np.arctan(onflow[1]/onflow[0]) #X[5] - np.arctan(X[7]/X[6])
-        my    = 0.0
-        
-        # Steuerflaechenausschlaege vom efcs holen
-        Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
-        
-        # --------------------   
-        # --- aerodynamics ---   
-        # --------------------
-        Pk_rbm,  wj_rbm  = self.rbm_nonlin(onflow, alpha, Vtas)
-        Pk_cs,   wj_cs   = self.cs_nonlin(onflow, X, Ux2, Vtas)
-        Pk_f,    wj_f    = self.flexible_nonlin(onflow, Uf, dUf_dt, Vtas)
-#         Pk_rbm,  wj_rbm  = self.rbm(onflow, alpha, q_dyn, Vtas)
-#         Pk_cs,   wj_cs   = self.cs(X, Ux2, q_dyn)
-#         Pk_f,    wj_f    = self.flexible(Uf, dUf_dt, onflow, q_dyn, Vtas)
-        
-        wj = (wj_rbm + wj_cs + wj_f)/Vtas
-        Pk_idrag         = self.idrag(wj, q_dyn)
-        
-        Pk_cam      = Pk_rbm*0.0
-        Pk_gust     = Pk_rbm*0.0
-        Pk_cfd      = Pk_rbm*0.0
-        Pk_unsteady = Pk_rbm*0.0
-        
-        # -------------------------------  
-        # --- correction coefficients ---   
-        # -------------------------------
-        Pb_corr = self.correctioon_coefficients(alpha, beta, q_dyn)
-        Pmac_vdrag = self.vdrag(alpha, q_dyn)
-        
-        # ---------------------------   
-        # --- summation of forces ---   
-        # ---------------------------
-        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_cfd + Pk_unsteady
-        Pmac = np.dot(self.Dkx1.T, Pk_aero) + Pmac_vdrag
-        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr
-        
-        g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
-        g_cg = np.dot(self.PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
-               
-        # -----------   
-        # --- EoM ---   
-        # -----------
-        d2Ucg_dt2 = np.zeros(dUcg_dt.shape)
-        if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
-            # # non-linear EoM, bodyfixed / Waszak
-            d2Ucg_dt2[0:3] = np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) + np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
-            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb[3:6,3:6]) , Pb[3:6] - np.cross(dUcg_dt[3:6], np.dot(self.Mb[3:6,3:6], dUcg_dt[3:6])) )
-            Nxyz = (d2Ucg_dt2[0:3] - g_cg - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
-        else:
-            # linear EoM, bodyfixed / Nastran
-            d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
-            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb)[3:6,3:6], Pb[3:6] )
-            Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
-        
-        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
-        # flexible EoM
-        d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
-        
-        # ----------------------
-        # --- CS derivatives ---
-        # ----------------------
-        if self.simcase and self.simcase['cs_signal']:
-            dcommand = self.efcs.cs_signal(t)
-        elif self.simcase and self.simcase['controller']:
-            #dcommand = self.efcs.controller(d2Ucg_dt2[3:6])
-            #dcommand = self.efcs.controller(dUcg_dt[3:6])
-            dcommand = self.efcs.controller(t=t, feedback_q=dUcg_dt[4], feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])
-        else:
-            dcommand = np.zeros(3)
-
-        # --------------   
-        # --- output ---   
-        # --------------
-        Y = np.hstack((np.dot(Tbody2geo,X[6:12]), 
-                       np.dot(self.PHIcg_norm,  d2Ucg_dt2), 
-                       dUf_dt, 
-                       d2Uf_dt2, 
-                       dcommand, 
-                       Nxyz[2],
-                       Vtas, 
-                     ))
-            
-        if type in ['trim', 'sim']:
-            return Y
-        elif type in ['trim_full_output', 'sim_full_output']:
-            # calculate translations, velocities and accelerations of some additional points
-            # (might also be used for sensors in a closed-loop system
-            if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
-                PHIlg_cg = self.model.mass['PHIlg_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
-                PHIf_lg = self.model.mass['PHIf_lg'][self.model.mass['key'].index(self.trimcase['mass'])]
-                p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])) + PHIf_lg.T.dot(X[12:12+self.n_modes])                 )[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
-                dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12])) + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
-                ddp1 = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, Y[6:12])) + PHIf_lg.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
-                Plg  = np.zeros(self.model.lggrid['n']*6)
-                F1   = np.zeros(self.model.lggrid['n']) 
-                F2   = np.zeros(self.model.lggrid['n']) 
-            else:
-                p1 = ''
-                dp1 = ''
-                ddp1 = ''
-                Plg = ''
-                F1 = ''
-                F2 = ''
-            response = {'X': X, 
-                        'Y': Y,
-                        't': np.array([t]),
-                        'Pk_rbm': Pk_rbm,
-                        'Pk_cam': Pk_cam,
-                        'Pk_aero': Pk_aero,
-                        'Pk_cs': Pk_cs,
-                        'Pk_f': Pk_f,
-                        'Pk_cfd': Pk_cfd,
-                        'Pk_gust': Pk_gust,
-                        'Pk_unsteady': Pk_unsteady,
-                        'Pk_idrag': Pk_idrag,
-                        'Pmac_vdrag': Pmac_vdrag,
-                        'q_dyn': np.array([q_dyn]),
-                        'Pb': Pb,
-                        'Pmac': Pmac,
-                        'Pf': Pf,
-                        'alpha': np.array([alpha]),
-                        'beta': np.array([beta]),
-                        #'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
-                        'Ux2': Ux2,
-                        'dUcg_dt': dUcg_dt,
-                        'd2Ucg_dt2': d2Ucg_dt2,
-                        'Uf': Uf,
-                        'dUf_dt': dUf_dt,
-                        'd2Uf_dt2': d2Uf_dt2,
-                        'Nxyz': Nxyz,
-                        'g_cg': g_cg,
-                        'Plg': Plg,
-                        'p1': p1,
-                        'dp1': dp1,
-                        'ddp1': ddp1,
-                        'F1': F1,
-                        'F2': F2,
-                       }
-            return response        
-    def ode_arg_sorter(self, t, X):
-        return self.eval_equations(X, t, 'sim')
-            
-    def eval_equations(self, X_free, time, type='trim_full_output'):
-        # this is a wrapper for the model equations 'eqn_basic'
-        if type in ['trim', 'trim_full_output']:
-            # get inputs from trimcond and apply inputs from fsolve 
-            X = np.array(self.trimcond_X[:,2], dtype='float')
-            X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
-        elif type in[ 'sim', 'sim_full_output']:
-            X = X_free
-        
-        # evaluate model equations
-        if type=='trim':
-            Y = self.equations(X, time, 'trim')
-            # get the current values from Y and substract tamlab.figure()
-            # fsolve only finds the roots; Y = 0
-            Y_target_ist = Y[np.where((self.trimcond_Y[:,1] == 'target'))[0]]
-            Y_target_soll = np.array(self.trimcond_Y[:,2], dtype='float')[np.where((self.trimcond_Y[:,1] == 'target'))[0]]
-            out = Y_target_ist - Y_target_soll
-            return out
-        
-        elif type=='sim':
-            Y = self.equations(X, time, 'sim')
-            return Y[self.trim.idx_state_derivatives+self.trim.idx_input_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
-            
-        elif type=='sim_full_output':
-            response = self.equations(X, time, 'sim_full_output')
-            return response
-            
-        elif type=='trim_full_output':
-            response = self.equations(X, time, 'trim_full_output')
-            # do something with this output, e.g. plotting, animations, saving, etc.            
-            logging.info('')        
-            logging.info('X: ')
-            logging.info('--------------------')
-            for i_X in range(len(response['X'])):
-                logging.info(self.trimcond_X[:,0][i_X] + ': %.4f' % float(response['X'][i_X]))
-            logging.info('Y: ')
-            logging.info('--------------------')
-            for i_Y in range(len(response['Y'])):
-                logging.info(self.trimcond_Y[:,0][i_Y] + ': %.4f' % float(response['Y'][i_Y]))
-
-            Pmac_rbm  = np.dot(self.model.Dkx1.T, response['Pk_rbm'])
-            Pmac_cam  = np.dot(self.model.Dkx1.T, response['Pk_cam'])
-            Pmac_cs   = np.dot(self.model.Dkx1.T, response['Pk_cs'])
-            Pmac_f    = np.dot(self.model.Dkx1.T, response['Pk_f'])
-            Pmac_idrag = np.dot(self.model.Dkx1.T, response['Pk_idrag'])
-            
-            A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
-            AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
-            Pmac_c = response['Pmac']/response['q_dyn']/A
-            # um alpha drehen, um Cl und Cd zu erhalten
-            Cl = Pmac_c[2]*np.cos(response['alpha'])+Pmac_c[0]*np.sin(response['alpha'])
-            Cd = Pmac_c[2]*np.sin(response['alpha'])+Pmac_c[0]*np.cos(response['alpha'])
-            Cd_ind_theo = Cl**2.0/np.pi/AR
-            logging.info('')
-            logging.info('--------------------')
-            logging.info('q_dyn: %.4f [Pa]' % float(response['q_dyn']))
-            logging.info('--------------------')
-            logging.info('aero derivatives:')
-            logging.info('--------------------')
-            logging.info('Cz_rbm: %.4f' % float(Pmac_rbm[2]/response['q_dyn']/A))
-            logging.info('Cz_cam: %.4f' % float(Pmac_cam[2]/response['q_dyn']/A))
-            logging.info('Cz_cs: %.4f' % float(Pmac_cs[2]/response['q_dyn']/A))
-            logging.info('Cz_f: %.4f' % float(Pmac_f[2]/response['q_dyn']/A))
-            logging.info('--------------')
-            logging.info('Cx: %.4f' % float(Pmac_c[0]))
-            logging.info('Cy: %.4f' % float(Pmac_c[1]))
-            logging.info('Cz: %.4f' % float(Pmac_c[2]))
-            logging.info('Cmx: %.6f' % float(Pmac_c[3]/self.model.macgrid['b_ref']))
-            logging.info('Cmy: %.6f' % float(Pmac_c[4]/self.model.macgrid['c_ref']))
-            logging.info('Cmz: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']))
-            #logging.info('dCmz_dbeta: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']/response['beta'])
-            logging.info('alpha: %.4f [deg]' % float(response['alpha']/np.pi*180))
-            logging.info('beta: %.4f [deg]' % float(response['beta']/np.pi*180))
-            logging.info('Cd: %.4f' % float(Cd))
-            logging.info('Cl: %.4f' % float(Cl))
-            logging.info('E: %.4f' % float(Cl/Cd))
-            logging.info('Cd_vis: %.6f' % float(response['Pmac_vdrag'][0]/response['q_dyn']/A))
-            logging.info('Cd_ind: %.6f' % float(Pmac_idrag[0]/response['q_dyn']/A))
-            logging.info('Cmz_ind: %.6f' % float(Pmac_idrag[5]/response['q_dyn']/A/self.model.macgrid['b_ref']))
-            logging.info('e: %.4f' % float(Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn']/A)))
-            logging.info('command_xi: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])/np.pi*180.0 ))
-            logging.info('command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 ))
-            logging.info('command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 ))
-            logging.info('CS deflections [deg]: ' + str(response['Ux2']/np.pi*180))
-            #logging.info('dCz_da: %.4f' % float(Pmac_c[2]/response['alpha']))
-            #logging.info('dCmy_da: %.4f' % float(Pmac_c[4]/self.model.macgrid['c_ref']/response['alpha']))
-            #logging.info('dCmz_db: %.4f' % float(Pmac_c[4]/self.model.macgrid['b_ref']/response['beta']))
-            logging.info('--------------------')
-            
-            return response
-    
 class steady(common):
 
     def equations(self, X, t, type):
         self.counter += 1
         # recover states
-        Tgeo2body = np.zeros((6,6))
-        Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
-        Tgeo2body[3:6,3:6] = calc_drehmatrix_angular(X[3], X[4], X[5])
-        Tbody2geo = np.zeros((6,6))
-        Tbody2geo[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5]).T
-        Tbody2geo[3:6,3:6] = calc_drehmatrix_angular_inv(X[3], X[4], X[5])
-        dUcg_dt  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
-        Uf = np.array(X[12:12+self.n_modes])
-        dUf_dt = np.array(X[12+self.n_modes:12+self.n_modes*2])
-               
-        # aktuelle Vtas und q_dyn berechnen
-        dxyz = X[6:9]
-        Vtas = sum(dxyz**2)**0.5
-        rho = self.model.atmo['rho'][self.i_atmo]
-        q_dyn = rho/2.0*Vtas**2
-        onflow  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
-        alpha = np.arctan(onflow[2]/onflow[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
-        beta  = np.arctan(onflow[1]/onflow[0]) #X[5] - np.arctan(X[7]/X[6])
-        my    = 0.0
-        
-        # Steuerflaechenausschlaege vom efcs holen
-        Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
-        
+        Tgeo2body, Tbody2geo    = self.geo2body(X)
+        dUcg_dt, Uf, dUf_dt     = self.recover_states(X)
+        Vtas, q_dyn             = self.recover_Vtas(X)
+        onflow, alpha, beta, my = self.recover_onflow(X)
+        Ux2 = self.get_Ux2(X)        
         # --------------------   
         # --- aerodynamics ---   
         # --------------------
@@ -1301,7 +795,6 @@ class steady(common):
         
         wj = wj_rbm + wj_cam + wj_cs + wj_f + wj_gust
         Pk_idrag         = self.idrag(wj, q_dyn)
-        Pk_cfd           = self.cfd( alpha, X, Ux2, q_dyn)
         
         Pk_unsteady = Pk_rbm*0.0
         
@@ -1313,44 +806,23 @@ class steady(common):
         # ---------------------------   
         # --- summation of forces ---   
         # ---------------------------
-        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_cfd + Pk_unsteady
+        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero)
         Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr
         
-        g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
-        g_cg = np.dot(self.PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
+        g_cg = gravitation_on_earth(self.PHInorm_cg, Tgeo2body)
                
         # -----------   
         # --- EoM ---   
         # -----------
-        d2Ucg_dt2 = np.zeros(dUcg_dt.shape)
-        if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
-            # # non-linear EoM, bodyfixed / Waszak
-            d2Ucg_dt2[0:3] = np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) + np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
-            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb[3:6,3:6]) , Pb[3:6] - np.cross(dUcg_dt[3:6], np.dot(self.Mb[3:6,3:6], dUcg_dt[3:6])) )
-            self.apply_support_condition(type, d2Ucg_dt2)
-            Nxyz = (d2Ucg_dt2[0:3] - g_cg - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
-        else:
-            # linear EoM, bodyfixed / Nastran
-            d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
-            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb)[3:6,3:6], Pb[3:6] )
-            Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
-        
+        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg)
         Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
-        # flexible EoM
-        d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
+        d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
         
         # ----------------------
         # --- CS derivatives ---
         # ----------------------
-        if self.simcase and self.simcase['cs_signal']:
-            dcommand = self.efcs.cs_signal(t)
-        elif self.simcase and self.simcase['controller']:
-            #dcommand = self.efcs.controller(d2Ucg_dt2[3:6])
-            #dcommand = self.efcs.controller(dUcg_dt[3:6])
-            dcommand = self.efcs.controller(t=t, feedback_q=dUcg_dt[4], feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])
-        else:
-            dcommand = np.zeros(3)
+        dcommand = self.get_command_derivatives(t, dUcg_dt, X)
 
         # --------------   
         # --- output ---   
@@ -1393,7 +865,6 @@ class steady(common):
                         'Pk_aero': Pk_aero,
                         'Pk_cs': Pk_cs,
                         'Pk_f': Pk_f,
-                        'Pk_cfd': Pk_cfd,
                         'Pk_gust': Pk_gust,
                         'Pk_unsteady': Pk_unsteady,
                         'Pk_idrag': Pk_idrag,
@@ -1420,9 +891,7 @@ class steady(common):
                         'F2': F2,
                        }
             return response        
-    def ode_arg_sorter(self, t, X):
-        return self.eval_equations(X, t, 'sim')
-            
+    
     def eval_equations(self, X_free, time, type='trim_full_output'):
         # this is a wrapper for the model equations 'eqn_basic'
         if type in ['trim', 'trim_full_output']:
@@ -1498,6 +967,7 @@ class steady(common):
             logging.info('beta: %.4f [deg]' % float(response['beta']/np.pi*180))
             logging.info('Cd: %.4f' % float(Cd))
             logging.info('Cl: %.4f' % float(Cl))
+            logging.info('E: %.4f' % float(Cl/Cd))
             logging.info('Cd_ind: %.6f' % float(Pmac_idrag[0]/response['q_dyn']/A))
             logging.info('Cmz_ind: %.6f' % float(Pmac_idrag[5]/response['q_dyn']/A/self.model.macgrid['b_ref']))
             #logging.info('e: %.4f' % float(Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn']/A)))
@@ -1513,7 +983,7 @@ class steady(common):
             return response
         
     def eval_equations_iteratively(self, X_free, time, type='trim_full_output'):
-        # this is a wrapper for the model equations 'eqn_basic'
+        # this is a wrapper for the model equations
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
         n_modes = self.model.mass['n_modes'][i_mass]
         
@@ -1522,14 +992,15 @@ class steady(common):
         X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
         logging.info('X_free: {}'.format(X_free))
         converged = False
+        inner_loops = 0
         while not converged:
+            inner_loops += 1
             response = self.equations(X, time, 'trim_full_output')
+            logging.info('Inner iteration {:>3d}, calculate structural deformations...'.format(self.counter))
             Uf_new = linalg.solve(self.Kff, response['Pf'])
-            #Pf = np.dot(self.PHIkf.T, response['Pk_aero'])
-            #d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
 
             # recover Uf_old from last step and blend with Uf_now
-            f_relax = 0.9
+            f_relax = 0.8
             Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(n_modes)]
             Uf_old = np.array(Uf_old, dtype='float')
             Uf_new = Uf_new*f_relax + Uf_old*(1.0-f_relax)
@@ -1542,7 +1013,6 @@ class steady(common):
             # convergence parameter for iterative evaluation  
             Ug_f_body = np.dot(self.PHIf_strc.T, Uf_new.T).T
             defo_new = Ug_f_body[self.model.strcgrid['set'][:,(0,1,2)]].max() # Groesste Verformung, meistens Fluegelspitze
-            #defo_new = Ug_f_body.sum() # Summe ueber alle Verformungen
             ddefo = defo_new - self.defo_old
             self.defo_old = np.copy(defo_new)
             if np.abs(ddefo) < self.jcl.general['b_ref']*1.0e-5:
@@ -1550,7 +1020,8 @@ class steady(common):
                 logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}, converged.'.format(self.counter, defo_new, ddefo))
             else:
                 logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}'.format(self.counter, defo_new, ddefo))
-                
+            if inner_loops > 20:
+                raise ConvergenceError('No convergence of structural deformation achieved after {} inner loops. Check convergence of Tau solution and/or convergence criterion "ddefo".'.format(inner_loops))
         # get the current values from Y and substract tamlab.figure()
         # fsolve only finds the roots; Y = 0
         Y_target_ist = response['Y'][np.where((self.trimcond_Y[:,1] == 'target'))[0]]
@@ -1601,7 +1072,6 @@ class steady(common):
             logging.info('Cmx: %.6f' % float(Pmac_c[3]/self.model.macgrid['b_ref']))
             logging.info('Cmy: %.6f' % float(Pmac_c[4]/self.model.macgrid['c_ref']))
             logging.info('Cmz: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']))
-            #logging.info('dCmz_dbeta: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']/response['beta'])
             logging.info('alpha: %.4f [deg]' % float(response['alpha']/np.pi*180))
             logging.info('beta: %.4f [deg]' % float(response['beta']/np.pi*180))
             logging.info('Cd: %.4f' % float(Cd))
@@ -1613,41 +1083,265 @@ class steady(common):
             logging.info('command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 ))
             logging.info('command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 ))
             logging.info('CS deflections [deg]: ' + str(response['Ux2']/np.pi*180))
-            #logging.info('dCz_da: %.4f' % float(Pmac_c[2]/response['alpha']))
-            #logging.info('dCmy_da: %.4f' % float(Pmac_c[4]/self.model.macgrid['c_ref']/response['alpha']))
-            #logging.info('dCmz_db: %.4f' % float(Pmac_c[4]/self.model.macgrid['b_ref']/response['beta']))
             logging.info('--------------------')
             
             return response
+
+class cfd_steady(steady):
+
+    def equations(self, X, t, type):
+        self.counter += 1
+        # recover states
+        Tgeo2body, Tbody2geo    = self.geo2body(X)
+        dUcg_dt, Uf, dUf_dt     = self.recover_states(X)
+        Vtas, q_dyn             = self.recover_Vtas(X)
+        onflow, alpha, beta, my = self.recover_onflow(X)
+        Ux2 = self.get_Ux2(X)   
+             
+        # --------------------   
+        # --- aerodynamics ---   
+        # --------------------
+        self.tau_update_para(X[6:12])
+        self.tau_prepare_meshdefo(Uf, Ux2)
+        self.tau_run()
+        Pcfd = self.tau_last_solution()
         
+        Pk_rbm      = np.zeros(6*self.model.aerogrid['n'])
+        Pk_cam      = Pk_rbm*0.0
+        Pk_cs       = Pk_rbm*0.0
+        Pk_f        = Pk_rbm*0.0
+        Pk_gust     = Pk_rbm*0.0
+        Pk_idrag    = Pk_rbm*0.0
+        Pk_unsteady = Pk_rbm*0.0 
+        
+        # -------------------------------  
+        # --- correction coefficients ---   
+        # -------------------------------
+        Pb_corr = self.correctioon_coefficients(alpha, beta, q_dyn)
+        
+        # ---------------------------   
+        # --- summation of forces ---   
+        # ---------------------------
+        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_unsteady
+        Pmac = np.dot(self.Dkx1.T, Pk_aero)
+        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + np.dot(self.PHIcfd_cg.T, Pcfd)
+        
+        g_cg = gravitation_on_earth(self.PHInorm_cg, Tgeo2body)
+               
+        # -----------   
+        # --- EoM ---   
+        # -----------
+        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg)
+        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) + np.dot(self.PHIcfd_f.T, Pcfd)
+        d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
+        
+        # ----------------------
+        # --- CS derivatives ---
+        # ----------------------
+        dcommand = self.get_command_derivatives(t, dUcg_dt, X)
+
+        # --------------   
+        # --- output ---   
+        # --------------
+        Y = np.hstack((np.dot(Tbody2geo,X[6:12]), 
+                       np.dot(self.PHIcg_norm,  d2Ucg_dt2), 
+                       dUf_dt, 
+                       d2Uf_dt2, 
+                       dcommand, 
+                       Nxyz[2],
+                       Vtas, 
+                     )) 
+        
+        if type in ['trim', 'sim']:
+            return Y
+        elif type in ['trim_full_output', 'sim_full_output']:
+            # calculate translations, velocities and accelerations of some additional points
+            # (might also be used for sensors in a closed-loop system
+            if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
+                PHIlg_cg = self.model.mass['PHIlg_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
+                PHIf_lg = self.model.mass['PHIf_lg'][self.model.mass['key'].index(self.trimcase['mass'])]
+                p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])) + PHIf_lg.T.dot(X[12:12+self.n_modes])                 )[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
+                dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12])) + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
+                ddp1 = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, Y[6:12])) + PHIf_lg.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
+                Plg  = np.zeros(self.model.lggrid['n']*6)
+                F1   = np.zeros(self.model.lggrid['n']) 
+                F2   = np.zeros(self.model.lggrid['n']) 
+            else:
+                p1 = ''
+                dp1 = ''
+                ddp1 = ''
+                Plg = ''
+                F1 = ''
+                F2 = ''
+            response = {'X': X, 
+                        'Y': Y,
+                        't': np.array([t]),
+                        'Pk_rbm': Pk_rbm,
+                        'Pk_cam': Pk_cam,
+                        'Pk_aero': Pk_aero,
+                        'Pk_cs': Pk_cs,
+                        'Pk_f': Pk_f,
+                        'Pk_gust': Pk_gust,
+                        'Pk_unsteady': Pk_unsteady,
+                        'Pk_idrag': Pk_idrag,
+                        'q_dyn': np.array([q_dyn]),
+                        'Pb': Pb,
+                        'Pmac': Pmac,
+                        'Pf': Pf,
+                        'alpha': np.array([alpha]),
+                        'beta': np.array([beta]),
+                        #'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
+                        'Ux2': Ux2,
+                        'dUcg_dt': dUcg_dt,
+                        'd2Ucg_dt2': d2Ucg_dt2,
+                        'Uf': Uf,
+                        'dUf_dt': dUf_dt,
+                        'd2Uf_dt2': d2Uf_dt2,
+                        'Nxyz': Nxyz,
+                        'g_cg': g_cg,
+                        'Plg': Plg,
+                        'p1': p1,
+                        'dp1': dp1,
+                        'ddp1': ddp1,
+                        'F1': F1,
+                        'F2': F2,
+                        'Pcfd': Pcfd,
+                       }
+            return response        
+        
+class nonlin_steady(steady):
+
+    def equations(self, X, t, type):
+        self.counter += 1
+        # recover states
+        Tgeo2body, Tbody2geo    = self.geo2body(X)
+        dUcg_dt, Uf, dUf_dt     = self.recover_states(X)
+        Vtas, q_dyn             = self.recover_Vtas(X)
+        onflow, alpha, beta, my = self.recover_onflow(X)
+        Ux2 = self.get_Ux2(X)        
+        # --------------------   
+        # --- aerodynamics ---   
+        # --------------------
+        Pk_rbm,  wj_rbm  = self.rbm_nonlin(onflow, alpha, Vtas)
+        Pk_cs,   wj_cs   = self.cs_nonlin(onflow, X, Ux2, Vtas)
+        Pk_f,    wj_f    = self.flexible_nonlin(onflow, Uf, dUf_dt, Vtas)
+#         Pk_rbm,  wj_rbm  = self.rbm(onflow, alpha, q_dyn, Vtas)
+#         Pk_cs,   wj_cs   = self.cs(X, Ux2, q_dyn)
+#         Pk_f,    wj_f    = self.flexible(Uf, dUf_dt, onflow, q_dyn, Vtas)
+        
+        wj = (wj_rbm + wj_cs + wj_f)/Vtas
+        Pk_idrag         = self.idrag(wj, q_dyn)
+        
+        Pk_cam      = Pk_rbm*0.0
+        Pk_gust     = Pk_rbm*0.0
+        Pk_unsteady = Pk_rbm*0.0
+        
+        # -------------------------------  
+        # --- correction coefficients ---   
+        # -------------------------------
+        Pb_corr = self.correctioon_coefficients(alpha, beta, q_dyn)
+        Pmac_vdrag = self.vdrag(alpha, q_dyn)
+        
+        # ---------------------------   
+        # --- summation of forces ---   
+        # ---------------------------
+        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_unsteady
+        Pmac = np.dot(self.Dkx1.T, Pk_aero) + Pmac_vdrag
+        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr
+        
+        g_cg = gravitation_on_earth(self.PHInorm_cg, Tgeo2body)
+               
+        # -----------   
+        # --- EoM ---   
+        # -----------
+        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg)
+        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
+        d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
+        
+        # ----------------------
+        # --- CS derivatives ---
+        # ----------------------
+        dcommand = self.get_command_derivatives(t, dUcg_dt, X)
+
+        # --------------   
+        # --- output ---   
+        # --------------
+        Y = np.hstack((np.dot(Tbody2geo,X[6:12]), 
+                       np.dot(self.PHIcg_norm,  d2Ucg_dt2), 
+                       dUf_dt, 
+                       d2Uf_dt2, 
+                       dcommand, 
+                       Nxyz[2],
+                       Vtas, 
+                     ))
+            
+        if type in ['trim', 'sim']:
+            return Y
+        elif type in ['trim_full_output', 'sim_full_output']:
+            # calculate translations, velocities and accelerations of some additional points
+            # (might also be used for sensors in a closed-loop system
+            if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
+                PHIlg_cg = self.model.mass['PHIlg_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
+                PHIf_lg = self.model.mass['PHIf_lg'][self.model.mass['key'].index(self.trimcase['mass'])]
+                p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])) + PHIf_lg.T.dot(X[12:12+self.n_modes])                 )[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
+                dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[6:12])) + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
+                ddp1 = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, Y[6:12])) + PHIf_lg.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
+                Plg  = np.zeros(self.model.lggrid['n']*6)
+                F1   = np.zeros(self.model.lggrid['n']) 
+                F2   = np.zeros(self.model.lggrid['n']) 
+            else:
+                p1 = ''
+                dp1 = ''
+                ddp1 = ''
+                Plg = ''
+                F1 = ''
+                F2 = ''
+            response = {'X': X, 
+                        'Y': Y,
+                        't': np.array([t]),
+                        'Pk_rbm': Pk_rbm,
+                        'Pk_cam': Pk_cam,
+                        'Pk_aero': Pk_aero,
+                        'Pk_cs': Pk_cs,
+                        'Pk_f': Pk_f,
+                        'Pk_gust': Pk_gust,
+                        'Pk_unsteady': Pk_unsteady,
+                        'Pk_idrag': Pk_idrag,
+                        'Pmac_vdrag': Pmac_vdrag,
+                        'q_dyn': np.array([q_dyn]),
+                        'Pb': Pb,
+                        'Pmac': Pmac,
+                        'Pf': Pf,
+                        'alpha': np.array([alpha]),
+                        'beta': np.array([beta]),
+                        #'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
+                        'Ux2': Ux2,
+                        'dUcg_dt': dUcg_dt,
+                        'd2Ucg_dt2': d2Ucg_dt2,
+                        'Uf': Uf,
+                        'dUf_dt': dUf_dt,
+                        'd2Uf_dt2': d2Uf_dt2,
+                        'Nxyz': Nxyz,
+                        'g_cg': g_cg,
+                        'Plg': Plg,
+                        'p1': p1,
+                        'dp1': dp1,
+                        'ddp1': ddp1,
+                        'F1': F1,
+                        'F2': F2,
+                       }
+            return response        
+                   
 class unsteady(common):
 
     def equations(self, X, t, type):
         self.counter += 1
         # recover states
-        Tgeo2body = np.zeros((6,6))
-        Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
-        Tgeo2body[3:6,3:6] = calc_drehmatrix_angular(X[3], X[4], X[5])
-        Tbody2geo = np.zeros((6,6))
-        Tbody2geo[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5]).T
-        Tbody2geo[3:6,3:6] = calc_drehmatrix_angular_inv(X[3], X[4], X[5])
-        dUcg_dt  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
-        Uf = np.array(X[12:12+self.n_modes])
-        dUf_dt = np.array(X[12+self.n_modes:12+self.n_modes*2])
-               
-        # aktuelle Vtas und q_dyn berechnen
-        dxyz = X[6:9]
-        Vtas = sum(dxyz**2)**0.5
-        rho = self.model.atmo['rho'][self.i_atmo]
-        q_dyn = rho/2.0*Vtas**2
-        onflow  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
-        alpha = np.arctan(onflow[2]/onflow[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
-        beta  = np.arctan(onflow[1]/onflow[0]) #X[5] - np.arctan(X[7]/X[6])
-        my    = 0.0
-        
-        # Steuerflaechenausschlaege vom efcs holen
-        Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
-        
+        Tgeo2body, Tbody2geo    = self.geo2body(X)
+        dUcg_dt, Uf, dUf_dt     = self.recover_states(X)
+        Vtas, q_dyn             = self.recover_Vtas(X)
+        onflow, alpha, beta, my = self.recover_onflow(X)
+        Ux2 = self.get_Ux2(X)        
         # --------------------   
         # --- aerodynamics ---   
         # --------------------
@@ -1660,9 +1354,7 @@ class unsteady(common):
         wj = wj_rbm + wj_cam + wj_cs + wj_f + wj_gust
         Pk_idrag         = self.idrag(wj, q_dyn)
         Pk_unsteady, dlag_states_dt = self.unsteady(X, t, wj, Uf, dUf_dt, onflow, q_dyn, Vtas)
-        
-        Pk_cfd = Pk_rbm*0.0
-        
+                
         # -------------------------------  
         # --- correction coefficients ---   
         # -------------------------------
@@ -1671,43 +1363,23 @@ class unsteady(common):
         # ---------------------------   
         # --- summation of forces ---   
         # ---------------------------
-        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_cfd + Pk_unsteady
+        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero)
         Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr
         
-        g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
-        g_cg = np.dot(self.PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
+        g_cg = gravitation_on_earth(self.PHInorm_cg, Tgeo2body)
                
         # -----------   
         # --- EoM ---   
         # -----------
-        d2Ucg_dt2 = np.zeros(dUcg_dt.shape)
-        if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
-            # # non-linear EoM, bodyfixed / Waszak
-            d2Ucg_dt2[0:3] = np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) + np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
-            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb[3:6,3:6]) , Pb[3:6] - np.cross(dUcg_dt[3:6], np.dot(self.Mb[3:6,3:6], dUcg_dt[3:6])) )
-            self.apply_support_condition(type, d2Ucg_dt2)
-            Nxyz = (d2Ucg_dt2[0:3] - g_cg - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
-        else:
-            # linear EoM, bodyfixed / Nastran
-            d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
-            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb)[3:6,3:6], Pb[3:6] )
-            Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
-        
+        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg)
         Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
-        # flexible EoM
-        d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
+        d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
         
         # ----------------------
         # --- CS derivatives ---
         # ----------------------
-        if self.simcase and self.simcase['cs_signal']:
-            dcommand = self.efcs.cs_signal(t)
-        elif self.simcase and self.simcase['controller']:
-            #dcommand = self.efcs.controller(angular_acc=d2Ucg_dt2[3:6])
-            dcommand = self.efcs.controller(t=t, feedback_q=dUcg_dt[4], feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])
-        else:
-            dcommand= np.zeros(3)
+        dcommand = self.get_command_derivatives(t, dUcg_dt, X)
 
         # --------------   
         # --- output ---   
@@ -1751,7 +1423,6 @@ class unsteady(common):
                         'Pk_aero': Pk_aero,
                         'Pk_cs': Pk_cs,
                         'Pk_f': Pk_f,
-                        'Pk_cfd': Pk_cfd,
                         'Pk_gust': Pk_gust,
                         'Pk_unsteady': Pk_unsteady,
                         'Pk_idrag': Pk_idrag,
@@ -1779,9 +1450,6 @@ class unsteady(common):
                        }
             return response        
     
-    def ode_arg_sorter(self, t, X):
-        return self.eval_equations(X, t, 'sim')
-            
     def eval_equations(self, X_free, time, type='trim_full_output'):
         if type in[ 'sim', 'sim_full_output']:
             X = X_free
@@ -1799,33 +1467,12 @@ class landing(common):
 
     def equations(self, X, t, type):
         self.counter += 1
-        # get additional tranlation matricies
-        PHIlg_cg = self.model.mass['PHIlg_cg'][self.i_mass]
-        PHIf_lg = self.model.mass['PHIf_lg'][self.i_mass]
         # recover states
-        Tgeo2body = np.zeros((6,6))
-        Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
-        Tgeo2body[3:6,3:6] = calc_drehmatrix_angular(X[3], X[4], X[5])
-        Tbody2geo = np.zeros((6,6))
-        Tbody2geo[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5]).T
-        Tbody2geo[3:6,3:6] = calc_drehmatrix_angular_inv(X[3], X[4], X[5])
-        dUcg_dt  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
-        Uf = np.array(X[12:12+self.n_modes])
-        dUf_dt = np.array(X[12+self.n_modes:12+self.n_modes*2])
-               
-        # aktuelle Vtas und q_dyn berechnen
-        dxyz = X[6:9]
-        Vtas = sum(dxyz**2)**0.5
-        rho = self.model.atmo['rho'][self.i_atmo]
-        q_dyn = rho/2.0*Vtas**2
-        onflow  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
-        alpha = np.arctan(onflow[2]/onflow[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
-        beta  = np.arctan(onflow[1]/onflow[0]) #X[5] - np.arctan(X[7]/X[6])
-        my    = 0.0
-        
-        # Steuerflaechenausschlaege vom efcs holen
-        Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
-        
+        Tgeo2body, Tbody2geo    = self.geo2body(X)
+        dUcg_dt, Uf, dUf_dt     = self.recover_states(X)
+        Vtas, q_dyn             = self.recover_Vtas(X)
+        onflow, alpha, beta, my = self.recover_onflow(X)
+        Ux2 = self.get_Ux2(X)        
         # --------------------   
         # --- aerodynamics ---   
         # --------------------
@@ -1837,7 +1484,6 @@ class landing(common):
         
         wj = wj_rbm + wj_cam + wj_cs + wj_f + wj_gust
         Pk_idrag         = self.idrag(wj, q_dyn)
-        Pk_cfd           = self.cfd( alpha, X, Ux2, q_dyn)
         
         Pk_unsteady = Pk_rbm*0.0
         
@@ -1854,41 +1500,23 @@ class landing(common):
         # ---------------------------   
         # --- summation of forces ---   
         # ---------------------------
-        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_cfd + Pk_unsteady
+        Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero)
         Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + np.dot(PHIlg_cg.T, Plg)
         
-        g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
-        g_cg = np.dot(self.PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
+        g_cg = gravitation_on_earth(self.PHInorm_cg, Tgeo2body)
                
         # -----------   
         # --- EoM ---   
         # -----------
-        d2Ucg_dt2 = np.zeros(dUcg_dt.shape)
-        if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
-            # # non-linear EoM, bodyfixed / Waszak
-            d2Ucg_dt2[0:3] = np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) + np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
-            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb[3:6,3:6]) , Pb[3:6] - np.cross(dUcg_dt[3:6], np.dot(self.Mb[3:6,3:6], dUcg_dt[3:6])) )
-            Nxyz = (d2Ucg_dt2[0:3] - g_cg - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
-        else:
-            # linear EoM, bodyfixed / Nastran
-            d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
-            d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb)[3:6,3:6], Pb[3:6] )
-            Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
-        
+        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg)
         Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) + np.dot(PHIf_lg, Plg) # viel schneller!
-        # flexible EoM
-        d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
+        d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
         
         # ----------------------
         # --- CS derivatives ---
         # ----------------------
-        if self.simcase and self.simcase['cs_signal']:
-            dcommand = self.efcs.cs_signal(t)
-        elif self.simcase and self.simcase['controller']:
-            dcommand = self.efcs.controller(angular_acc=d2Ucg_dt2[3:6])
-        else:
-            dcommand= np.zeros(3)
+        dcommand = self.get_command_derivatives(t, dUcg_dt, X)
 
         # --------------   
         # --- output ---   
@@ -1920,7 +1548,6 @@ class landing(common):
                         'Pk_aero': Pk_aero,
                         'Pk_cs': Pk_cs,
                         'Pk_f': Pk_f,
-                        'Pk_cfd': Pk_cfd,
                         'Pk_gust': Pk_gust,
                         'Pk_unsteady': Pk_unsteady,
                         'Pk_idrag': Pk_idrag,
@@ -1947,9 +1574,6 @@ class landing(common):
                         'F2': F2,
                         }
             return response        
-    
-    def ode_arg_sorter(self, t, X):
-        return self.eval_equations(X, t, 'sim')  
         
     def eval_equations(self, X_free, time, type='trim_full_output'):
         if type in[ 'sim', 'sim_full_output']:

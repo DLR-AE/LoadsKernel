@@ -26,7 +26,12 @@ def calc_drehmatrix( phi=0.0, theta=0.0, psi=0.0 ):
     drehematrix_psi = np.array(([np.cos(psi), np.sin(psi), 0], [-np.sin(psi), np.cos(psi), 0],[0, 0, 1]))
     drehmatrix = np.dot(np.dot(drehmatrix_phi, drehmatrix_theta),drehematrix_psi)
     return drehmatrix
-    
+
+def gravitation_on_earth(PHInorm_cg, Tgeo2body):
+    g = np.array([0.0, 0.0, 9.8066]) # erdfest, geodetic
+    g_cg = np.dot(PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
+    return g_cg
+
 def DesignGust_CS_25_341(gust_gradient, Alt, rho, V, Z_mo, V_D, MLW, MTOW, MZFW):
     # Gust Calculation from CS 25.341
     # adapted from matlab-script by Vega Handojo, DLR-AE-LAE, 2015
