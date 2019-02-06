@@ -90,7 +90,6 @@ class DetailedPlots(plotting_standard.StandardPlots):
         for i_simcase in range(len(self.jcl.simcase)):
             trimcase    = self.jcl.trimcase[i_simcase]
             i_mass      = self.model.mass['key'].index(trimcase['mass'])
-            n_modes     = self.model.mass['n_modes'][i_mass] 
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
             Pb_gust = []
             Pb_unsteady = []
@@ -147,8 +146,6 @@ class DetailedPlots(plotting_standard.StandardPlots):
             plt.subplot(2,1,2)
             plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['Nxyz'][:,2], 'b-')
             plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['alpha']/np.pi*180.0, 'r-')
-            #plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,4]/np.pi*180.0, 'g-') # 'alpha/pitch'
-            #plt.plot(self.responses[i_simcase]['t'], np.arctan(self.responses[i_simcase]['X'][:,8]/self.responses[i_simcase]['X'][:,6])/np.pi*180.0, 'k-') # 'alpha/heave'
             plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['beta']/np.pi*180.0, 'c-')
             plt.xlabel('t [sec]')
             plt.legend(['Nz', 'alpha', 'beta']) 
@@ -214,7 +211,7 @@ class DetailedPlots(plotting_standard.StandardPlots):
         # show time plots
         plt.show()
 
-class Animations():   
+class Animations(plotting_standard.StandardPlots):   
                     
     def make_movie(self, path_output, speedup_factor=1.0):
         for i_simcase in range(len(self.jcl.simcase)):
@@ -232,45 +229,34 @@ class Animations():
         trimcase   = self.jcl.trimcase[i_trimcase]
         simcase    = self.jcl.simcase[i_trimcase] 
         
+        def update_timestep(self, i):
+            self.fig.scene.disable_render = True
+            points_i = np.array([self.x[i], self.y[i], self.z[i]]).T
+            scalars_i = self.color_scalar[i,:]
+            update_strc_display(self, points_i, scalars_i)
+            #update_aerogrid_display(self, scalars_i)
+            update_text_display(self, response['t'][i][0])
+            for src_vector, src_cone, data in zip(self.src_vectors, self.src_cones, self.vector_data):
+                vector_data_i = np.vstack((data['u'][i,:], data['v'][i,:], data['w'][i,:])).T
+                update_vector_display(self, src_vector, src_cone, points_i, vector_data_i)
+            # get current view and set new focal point
+            v = mlab.view()
+            r = mlab.roll()
+            mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=points_i.mean(axis=0)) # view from right and above
+            self.fig.scene.disable_render = False
+        
         @mlab.animate(delay=int(simcase['dt']*1000.0/speedup_factor), ui=True)
         def anim(self):
             # internal function that actually updates the animation
             while True:
                 for i in range(len(response['t'])):
-                    self.fig.scene.disable_render = True
-                    points_i = np.array([self.x[i], self.y[i], self.z[i]]).T
-                    scalars_i = self.color_scalar[i,:]
-                    update_strc_display(self, points_i, scalars_i)
-                    #update_aerogrid_display(self, scalars_i)
-                    update_text_display(self, response['t'][i][0])
-                    for src_vector, src_cone, data in zip(self.src_vectors, self.src_cones, self.vector_data):
-                        vector_data_i = np.vstack((data['u'][i,:], data['v'][i,:], data['w'][i,:])).T
-                        update_vector_display(self, src_vector, src_cone, points_i, vector_data_i)
-                    
-                    # get current view and set new focal point
-                    v = mlab.view()
-                    r = mlab.roll()
-                    mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=points_i.mean(axis=0)) # view from right and above
-                    self.fig.scene.disable_render = False
+                    update_timestep(self, i)
                     yield
                 
         def movie(self):
             # internal function that actually updates the animation
-            self.fig.scene.disable_render = True
             for i in range(len(response['t'])):
-                self.fig.scene.disable_render = True
-                points_i = np.array([self.x[i], self.y[i], self.z[i]]).T
-                scalars_i = self.color_scalar[i,:]
-                update_strc_display(self, points_i, scalars_i)
-                #update_aerogrid_display(self, scalars_i)
-                update_text_display(self, response['t'][i][0])
-                for src_vector, src_cone, data in zip(self.src_vectors, self.src_cones, self.vector_data):
-                    vector_data_i = np.vstack((data['u'][i,:], data['v'][i,:], data['w'][i,:])).T
-                    update_vector_display(self, src_vector, src_cone, points_i, vector_data_i)
-                # get current view and set new focal point
-                v = mlab.view()
-                r = mlab.roll()
-                mlab.view(azimuth=v[0], elevation=v[1], roll=r, distance=v[2], focalpoint=points_i.mean(axis=0)) # view from right and above
+                update_timestep(self, i)
                 self.fig.scene.render()
                 self.fig.scene.save_png('{}anim/subcase_{}_frame_{:06d}.png'.format(path_output, trimcase['subcase'], i))
 
@@ -336,8 +322,8 @@ class Animations():
                 shell_type = tvtk.Polygon().cell_type
                 ug.set_cells(shell_type, shells)
                 self.src_points = mlab.pipeline.add_dataset(ug)
-                points  = mlab.pipeline.glyph(self.src_points, colormap='viridis', scale_factor=self.p_scale) #color=color
-                surface = mlab.pipeline.surface(self.src_points, colormap='viridis') #color=color)
+                points  = mlab.pipeline.glyph(self.src_points, colormap='viridis', scale_factor=self.p_scale)
+                surface = mlab.pipeline.surface(self.src_points, colormap='viridis')
             else: 
                 # plot points as glyphs
                 self.src_points = mlab.pipeline.add_dataset(ug)
@@ -392,15 +378,12 @@ class Animations():
         set = ''
         
         # get deformations
-        self.x = grid['offset'+set][:,0] + response['Ug'][:,grid['set'+set][:,0]]# - response['X'][:,0].repeat(grid['n']).reshape(-1,grid['n'])
+        self.x = grid['offset'+set][:,0] + response['Ug'][:,grid['set'+set][:,0]]
         self.y = grid['offset'+set][:,1] + response['Ug'][:,grid['set'+set][:,1]]
-        self.z = grid['offset'+set][:,2] + response['Ug'][:,grid['set'+set][:,2]]# - response['X'][:,2].repeat(grid['n']).reshape(-1,grid['n'])
+        self.z = grid['offset'+set][:,2] + response['Ug'][:,grid['set'+set][:,2]]
         self.color_scalar = np.linalg.norm(response['Ug_f'][:,grid['set'+set][:,(0,1,2)]], axis=2)
         #self.color_scalar = -np.sum(response['Ug_f'][:,grid['set'+set][:,(0,1,2)]], axis=2)
-#         self.x = np.tile(grid['offset'+set][:,0],(len(response['t']),1))
-#         self.y = np.tile(grid['offset'+set][:,1],(len(response['t']),1))
-#         self.z = np.tile(grid['offset'+set][:,2],(len(response['t']),1))
-#         self.color_scalar = response['Pk_aero'][:,grid['set'+set][:,2]]
+
         
         # get forces
         names = ['Pg_aero_global', 'Pg_iner_global', 'Pg_ext_global']# 'Pg_idrag_global', 'Pg_cs_global']
@@ -416,11 +399,9 @@ class Animations():
         else: 
             logging.info('interactive plotting of forces and deformations for simulation {:s}'.format(trimcase['desc']))
             self.fig = mlab.figure(bgcolor=(1,1,1))
-            #self.fig = mlab.figure()
         
         # plot initial position
         #setup_aerogrid_display(self, color=(0.9,0.9,0.9))
-        #if hasattr(self.model, 'strcshell'): del self.model.strcshell 
         setup_strc_display(self, color=(0.9,0.9,0.9)) # light grey
         setup_text_display(self)
         

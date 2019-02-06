@@ -12,7 +12,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
 import logging
 
-class Standard_plots():
+class StandardPlots():
     def __init__(self, jcl, model):
         self.jcl = jcl
         self.model = model
@@ -21,63 +21,63 @@ class Standard_plots():
                 
         # Allegra
         if self.jcl.general['aircraft'] == 'ALLEGRA':
-            self.potatos_Fz_Mx = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
-            self.potatos_Mx_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
-            self.potatos_Fz_My = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01', 'ZFCUT27', 'ZFCUT28']
+            self.potatos_fz_mx = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
+            self.potatos_mx_my = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
+            self.potatos_fz_my = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01', 'ZFCUT27', 'ZFCUT28']
             self.cuttingforces_wing = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', ]
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.4 # points
         # DLR-F19
         elif self.jcl.general['aircraft'] == 'DLR F-19-S':
-            self.potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
-            self.potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
-            self.potatos_Fz_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON4', 'MON5']
+            self.potatos_fz_mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
+            self.potatos_mx_my = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
+            self.potatos_fz_my = ['MON1', 'MON2', 'MON3', 'MON33', 'MON4', 'MON5']
             self.cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.04 # points
         # MULDICON
         elif self.jcl.general['aircraft'] == 'MULDICON':
-            self.potatos_Fz_Mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
-            self.potatos_Mx_My = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
-            self.potatos_Fz_My = ['MON4', 'MON5', 'MON81', 'MON82', 'MON83']
+            self.potatos_fz_mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
+            self.potatos_mx_my = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
+            self.potatos_fz_my = ['MON4', 'MON5', 'MON81', 'MON82', 'MON83']
             self.cuttingforces_wing = ['MON10', 'MON1', 'MON2', 'MON3', 'MON33', 'MON8']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.03 # points
         # Discus2c
         elif self.jcl.general['aircraft'] == 'Discus2c':
-            self.potatos_Fz_Mx = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
-            self.potatos_Mx_My = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
-            self.potatos_Fz_My = ['MON102']
+            self.potatos_fz_mx = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
+            self.potatos_mx_my = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
+            self.potatos_fz_my = ['MON102']
             self.cuttingforces_wing = ['MON646', 'MON644', 'MON641', 'MON541', 'MON544', 'MON546']
             self.f_scale = 0.1 # vectors
             self.p_scale = 0.05 # points
         # FLEXOP
         elif self.jcl.general['aircraft'] in ['FLEXOP', 'fs35']:
-            self.potatos_Fz_Mx = ['MON1']
-            self.potatos_Mx_My = ['MON1']
-            self.potatos_Fz_My = ['MON1']
+            self.potatos_fz_mx = ['MON1']
+            self.potatos_mx_my = ['MON1']
+            self.potatos_fz_my = ['MON1']
             self.cuttingforces_wing = ['MON1']
             self.f_scale = 0.1 # vectors
             self.p_scale = 0.05 # points
         # HALO
         elif self.jcl.general['aircraft'] == 'HALO':
-            self.potatos_Fz_Mx = ['PMS_L', 'PMS_R']
-            self.potatos_Mx_My = ['PMS_L', 'PMS_R']
-            self.potatos_Fz_My = ['PMS_L', 'PMS_R']
+            self.potatos_fz_mx = ['PMS_L', 'PMS_R']
+            self.potatos_mx_my = ['PMS_L', 'PMS_R']
+            self.potatos_fz_my = ['PMS_L', 'PMS_R']
             self.cuttingforces_wing = ['PMS_L', 'PMS_R']
             self.f_scale = 0.02 # vectors
             self.p_scale = 0.4 # points
         elif self.jcl.general['aircraft'] in ['ACFA']:
-            self.potatos_Fz_Mx = ['MON1']
-            self.potatos_Mx_My = ['MON1']
-            self.potatos_Fz_My = ['MON1']
+            self.potatos_fz_mx = ['MON1']
+            self.potatos_mx_my = ['MON1']
+            self.potatos_fz_my = ['MON1']
             self.cuttingforces_wing = ['MON1']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.4 # points
         elif self.jcl.general['aircraft'] in ['XRF1']:
-            self.potatos_Fz_Mx = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
-            self.potatos_Mx_My = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
-            self.potatos_Fz_My = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
+            self.potatos_fz_mx = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
+            self.potatos_mx_my = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
+            self.potatos_fz_my = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
             self.cuttingforces_wing = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.4 # points
@@ -90,7 +90,21 @@ class Standard_plots():
     
     def add_monstations(self, monstations):
         self.monstations = monstations
-    
+        
+    def get_loads_strings(self, station):
+        if np.size(self.monstations[station]['t'][0]) == 1:
+            # Scenario 1: There are only static loads.
+            loads_string = 'loads'
+            subcase_string = 'subcase'
+        elif (np.size(self.monstations[station]['t'][0]) > 1) and ('loads_dyn2stat' in self.monstations[station].keys()) and (self.monstations[station]['loads_dyn2stat'] != []):
+            # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
+            loads_string = 'loads_dyn2stat'
+            subcase_string = 'subcases_dyn2stat'
+        else:
+            # Scenario 3: There are only dynamic loads. 
+            logging.error('Dynamic loads need to be converted to static loads (dyn2stat).')
+        return loads_string, subcase_string
+        
     def plot_forces_deformation_interactive(self):
         from mayavi import mlab
                 
@@ -179,29 +193,17 @@ class Standard_plots():
             
             mlab.show()
 
-    def plot_monstations(self, filename_pdf, dyn2stat=False):
+    def plot_monstations(self, filename_pdf):
 
         # launch plotting
-        pp = PdfPages(filename_pdf)
-        self.potato_plots(pp, dyn2stat)
-        self.cuttingforces_along_wing_plots(pp, dyn2stat)
-        pp.close()
+        self.pp = PdfPages(filename_pdf)
+        self.potato_plots()
+        self.cuttingforces_along_wing_plots()
+        self.pp.close()
         logging.info('plots saved as ' + filename_pdf)
     
     def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull, show_labels):
-        
-        if np.size(self.monstations[station]['t'][0]) == 1:
-            # Scenario 1: There are only static loads.
-            loads_string = 'loads'
-            subcase_string = 'subcase'
-        elif (np.size(self.monstations[station]['t'][0]) > 1) and ('loads_dyn2stat' in self.monstations[station].keys()) and (self.monstations[station]['loads_dyn2stat'] != []):
-            # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
-            loads_string = 'loads_dyn2stat'
-            subcase_string = 'subcases_dyn2stat'
-        else:
-            # Scenario 3: There are only dynamic loads. 
-            return
-
+        loads_string, subcase_string = self.get_loads_strings(station)
         loads   = np.array(self.monstations[station][loads_string])
         points = np.vstack((loads[:,dof_xaxis], loads[:,dof_yaxis])).T
         crit_trimcases = []
@@ -222,7 +224,7 @@ class Standard_plots():
             crit_trimcases = self.monstations[station][subcase_string][:]
         self.crit_trimcases += crit_trimcases
     
-    def potato_plot_nicely(self, station, pp, desc, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis):
+    def potato_plot_nicely(self, station, desc, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis):
             self.subplot.cla()
             self.potato_plot(station, 
                              desc=station, 
@@ -240,50 +242,45 @@ class Standard_plots():
             yax.set_label_coords(x=-0.18, y=0.5)
             self.subplot.set_xlabel(var_xaxis)
             self.subplot.set_ylabel(var_yaxis)
-            pp.savefig()
+            self.pp.savefig()
             
-    def potato_plots(self, pp, dyn2stat=False):
+    def potato_plots(self):
         logging.info('start potato-plotting...')
         fig = plt.figure()
         self.subplot = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
         
-        potato = np.unique(self.potatos_Fz_Mx + self.potatos_Mx_My + self.potatos_Fz_My)
+        potato = np.unique(self.potatos_fz_mx + self.potatos_mx_my + self.potatos_fz_my)
         self.crit_trimcases = []
         for station in potato:            
-            if station in self.potatos_Fz_Mx:
+            if station in self.potatos_fz_mx:
                 var_xaxis='Fz [N]'
                 var_yaxis='Mx [Nm]'
                 dof_xaxis=2
                 dof_yaxis=3
-                self.potato_plot_nicely(station, pp, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
-            if station in self.potatos_Mx_My:
+                self.potato_plot_nicely(station, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
+            if station in self.potatos_mx_my:
                 var_xaxis='Mx [N]'
                 var_yaxis='My [Nm]'
                 dof_xaxis=3
                 dof_yaxis=4
-                self.potato_plot_nicely(station, pp, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
-            if station in self.potatos_Fz_My:
+                self.potato_plot_nicely(station, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
+            if station in self.potatos_fz_my:
                 var_xaxis='Fz [N]'
                 var_yaxis='My [Nm]'
                 dof_xaxis=2
                 dof_yaxis=4
-                self.potato_plot_nicely(station, pp, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
+                self.potato_plot_nicely(station, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
         plt.close(fig)
           
-    def cuttingforces_along_wing_plots(self, pp, dyn2stat=False):
+    def cuttingforces_along_wing_plots(self):
         logging.info('start plotting cutting forces along wing...')
         fig = plt.figure()
         self.subplot = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
         cuttingforces = ['Fx [N]', 'Fy [N]', 'Fz [N]', 'Mx [Nm]', 'My [Nm]', 'Mz [Nm]']
-        if dyn2stat:
-            loads_string = 'loads_dyn2stat'
-            subcase_string = 'subcases_dyn2stat'
-        else:
-            loads_string = 'loads'
-            subcase_string = 'subcase'
         loads = []
         offsets = []
         for station in self.cuttingforces_wing:
+            loads_string, subcase_string = self.get_loads_strings(station)
             loads.append(self.monstations[station][loads_string])
             offsets.append(self.monstations[station]['offset'])
         loads = np.array(loads)
@@ -304,15 +301,13 @@ class Standard_plots():
                 plt.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(self.monstations[self.monstations.keys()[0]][subcase_string][i_min[i_station]]), fontsize=8, verticalalignment='top' )
 
             self.subplot.set_title('Wing')        
-            #self.subplot.legend(loc='best')
-            #self.subplot.ticklabel_format(style='sci', axis='x', scilimits=(-2,2))
             self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
             self.subplot.grid('on')
             yax = self.subplot.get_yaxis()
             yax.set_label_coords(x=-0.18, y=0.5)
             self.subplot.set_xlabel('y [m]')
             self.subplot.set_ylabel(cuttingforces[i_cuttingforce])
-            pp.savefig()
+            self.pp.savefig()
         plt.close(fig)
               
     def plot_monstations_time(self, filename_pdf):
