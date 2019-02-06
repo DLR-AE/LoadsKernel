@@ -52,7 +52,6 @@ class App:
             
         # define file options
         self.file_opt = {}
-        #self.file_opt['defaultextension'] = '.txt'
         self.file_opt['filetypes']  = [('Loads Kernel files', 'monstation*.pickle'), ('all pickle files', '.pickle'), ('all files', '.*')]
         self.file_opt['initialdir'] = os.getcwd()
         self.file_opt['title']      = 'This is a title'
@@ -152,10 +151,7 @@ class App:
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         toolbar = NavigationToolbar2TkAgg(self.canvas, frame_right)
         toolbar.update()
-        self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)    
-        
-        # button that will update the plot
-        button_update_plot  = ttk.Button(frame_center, text='>', width=2,  command=self.update_plot).grid(row=0, column=2)            
+        self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)     
     
     def show_choice(self, *args):
         # called on change in listbox, combobox, etc
@@ -207,6 +203,25 @@ class App:
             self.plotting.plot_nothing()
         self.canvas.draw()
     
+    def get_loads_string(self, x, station):
+        # Check for dynamic loads.
+        if np.size(self.datasets['dataset'][x][station]['t'][0]) == 1:
+            # Scenario 1: There are only static loads.
+            print '- {}: found static loads'.format(station)
+            loads_string   = 'loads'
+            subcase_string = 'subcase'
+            t_string = 't'
+        elif (np.size(self.datasets['dataset'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['dataset'][x][station].keys()) and (self.datasets['dataset'][x][station]['loads_dyn2stat'] != []):
+            # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
+            print '- {}: found dyn2stat loads -> discarding dynamic loads'.format(station)
+            loads_string   = 'loads_dyn2stat'
+            subcase_string = 'subcases_dyn2stat'
+            t_string = 't_dyn2stat'
+        else:
+            # Scenario 3: There are only dynamic loads. 
+            print '- {}: found dynamic loads -> please convert to static first (dyn2stat)'.format(station)
+        return loads_string, subcase_string, t_string
+
     def merge_monstation(self):
         if len(self.lb_dataset.curselection()) > 1:
             # Init new dataset.
@@ -223,22 +238,7 @@ class App:
                                                 'loads':[],
                                                 't':[],
                                                 }
-                    # Check for dynamic loads.
-                    if np.size(self.datasets['dataset'][x][station]['t'][0]) == 1:
-                        # Scenario 1: There are only static loads.
-                        print '- {}: found static loads'.format(station)
-                        loads_string   = 'loads'
-                        subcase_string = 'subcase'
-                        t_string = 't'
-                    elif (np.size(self.datasets['dataset'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['dataset'][x][station].keys()) and (self.datasets['dataset'][x][station]['loads_dyn2stat'] != []):
-                        # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
-                        print '- {}: found dyn2stat loads -> discarding dynamic loads'.format(station)
-                        loads_string   = 'loads_dyn2stat'
-                        subcase_string = 'subcases_dyn2stat'
-                        t_string = 't_dyn2stat'
-                    else:
-                        # Scenario 3: There are only dynamic loads. 
-                        return
+                    loads_string, subcase_string, t_string = self.get_loads_string(x, station)
                     # Merge.   
                     new_dataset[station]['loads']           += self.datasets['dataset'][x][station][loads_string]
                     new_dataset[station]['subcase']         += self.datasets['dataset'][x][station][subcase_string]
@@ -259,22 +259,7 @@ class App:
             for x in self.lb_dataset.curselection():
                 print 'Working on {} ...'.format(self.datasets['desc'][x])
                 for station in self.common_monstations:
-                    # Check for dynamic loads.
-                    if np.size(self.datasets['dataset'][x][station]['t'][0]) == 1:
-                        # Scenario 1: There are only static loads.
-                        print '- {}: found static loads'.format(station)
-                        loads_string   = 'loads'
-                        subcase_string = 'subcase'
-                        t_string = 't'
-                    elif (np.size(self.datasets['dataset'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['dataset'][x][station].keys()) and (self.datasets['dataset'][x][station]['loads_dyn2stat'] != []):
-                        # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
-                        print '- {}: found dyn2stat loads -> discarding dynamic loads'.format(station)
-                        loads_string   = 'loads_dyn2stat'
-                        subcase_string = 'subcases_dyn2stat'
-                        t_string = 't_dyn2stat'
-                    else:
-                        # Scenario 3: There are only dynamic loads. 
-                        return
+                    loads_string, subcase_string, t_string = self.get_loads_string(x, station)
                     
                     n = len(self.datasets['dataset'][x][station][t_string])
                     if station not in new_dataset.keys():
@@ -293,9 +278,7 @@ class App:
                             pos = new_dataset[station]['subcase'].index(subcase)
                             new_dataset[station][loads_string][pos] = new_dataset[station][loads_string][pos] + self.datasets['dataset'][x][station][loads_string][i_case]
                         else:
-                            print '- {}: found no match for subcases {}. Superposition not possible'.format(station, subcase )
-                            pass
-                            
+                            print '- {}: found no match for subcases {}. Superposition not possible'.format(station, subcase )                            
                     
             # Save into data structure.
             self.datasets['ID'].append(self.datasets['n'])  
