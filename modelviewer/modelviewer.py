@@ -456,7 +456,6 @@ class Modelviewer():
             key = self.list_monstations.currentItem().data(0)
             self.plotting.plot_monstations(monstation=key)
            
-    
     def toggle_w2gj(self):
         if self.cb_w2gj.isChecked():
             if self.plotting.show_aero:
@@ -549,7 +548,6 @@ class Modelviewer():
         for key in self.model.mongrid['ID']:
             self.list_monstations.addItem(QtGui.QListWidgetItem(str(key)))
         
-            
     def load_nastran_results(self):
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.hdf5_opt['title'], self.hdf5_opt['initialdir'], self.hdf5_opt['filters'])[0]
         if filename != '':

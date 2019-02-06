@@ -5,9 +5,12 @@ import logging, h5py
 class read_cfdgrids:
     def  __init__(self, jcl):
         self.jcl = jcl
-        if not jcl.meshdefo.has_key('surface'):
+        if jcl.meshdefo.has_key('surface'):
+            self.filename_grid = self.jcl.meshdefo['surface']['filename_grid']
+            self.markers = self.jcl.meshdefo['surface']['markers']
+        else:
             logging.error('jcl.meshdefo has no key "surface"')
-            
+
     def read_surface(self, merge_domains=False):
         if self.jcl.meshdefo['surface'].has_key('fileformat') and self.jcl.meshdefo['surface']['fileformat']=='cgns':
             self.read_cfdmesh_cgns(merge_domains)
@@ -18,9 +21,8 @@ class read_cfdgrids:
             return
         
     def read_cfdmesh_cgns(self, merge_domains=False):
-        filename_grid = self.jcl.meshdefo['surface']['filename_grid']
-        logging.info( 'Extracting all points from grid {}'.format(filename_grid))
-        f = h5py.File(filename_grid, 'r')
+        logging.info( 'Extracting all points from grid {}'.format(self.filename_grid))
+        f = h5py.File(self.filename_grid, 'r')
         f_scale = 1.0/1000.0 # convert to SI units: 0.001 if mesh is given in [mm], 1.0 if given in [m]
         keys = f['Base'].keys()
         keys.sort()
@@ -76,11 +78,10 @@ class read_cfdgrids:
         f.close()
         
     def read_cfdmesh_netcdf(self, merge_domains=False):
-        filename_grid = self.jcl.meshdefo['surface']['filename_grid']
-        markers = self.jcl.meshdefo['surface']['markers']
-        logging.info( 'Extracting points belonging to marker(s) {} from grid {}'.format(str(markers), filename_grid))
+        markers = self.markers
+        logging.info( 'Extracting points belonging to marker(s) {} from grid {}'.format(str(markers), self.filename_grid))
         # --- get all points on surfaces ---
-        ncfile_grid = netcdf.NetCDFFile(filename_grid, 'r')
+        ncfile_grid = netcdf.NetCDFFile(self.filename_grid, 'r')
         boundarymarker_surfaces = ncfile_grid.variables['boundarymarker_of_surfaces'][:]
         points_of_surface = []
         # merge triangles with quadrilaterals
