@@ -124,8 +124,6 @@ def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4', i_file=0):
     set_l = np.arange(n*6).reshape((n,6))
     set_k = np.arange(n*6).reshape((n,6))
     set_j = np.arange(n*6).reshape((n,6))
-    #set_j = np.zeros((n,6))
-    #set_j[:,(2,4)] = np.arange(n*2).reshape((n,2))
     aerogrid = {'ID': np.array(ID),
                 'l': np.array(l),
                 'A': np.array(A),
@@ -146,17 +144,6 @@ def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4', i_file=0):
                 'cornerpoint_panels': caero_panels['cornerpoints'],
                 'cornerpoint_grids': np.hstack((caero_grid['ID'][:,None],caero_grid['offset']))
                }   
-    #import matplotlib.pyplot as plt
-    #fig = plt.figure()
-    #ax = fig.add_subplot(111, projection='3d')
-    #ax.scatter(caero_grid['offset'][:,0], caero_grid['offset'][:,1], caero_grid['offset'][:,2], color='b', marker='.', label='caero_grid')
-    #ax.scatter(aerogrid['offset_k'][:,0], aerogrid['offset_k'][:,1], aerogrid['offset_k'][:,2], color='r', marker='.', label='k')
-    #ax.scatter(aerogrid['offset_j'][:,0], aerogrid['offset_j'][:,1], aerogrid['offset_j'][:,2], color='g', marker='.', label='j')
-    #plt.scatter( aerogrid['offset_k'][:,0], aerogrid['offset_k'][:,1], color='r', marker='.', label='k')
-    #plt.scatter( aerogrid['offset_j'][:,0], aerogrid['offset_j'][:,1], color='g', marker='.', label='j')
-    #plt.grid('on')
-    #plt.legend()
-    #plt.show()    
     return aerogrid
 
 def build_macgrid(aerogrid, b_ref):
@@ -182,13 +169,13 @@ def build_macgrid(aerogrid, b_ref):
 
 def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
     # B = A*x
-    # B ist die gegebene AIC, A die roger-Aproxination, x sind die zu findenden Koeffizienten B0,B1,...B7
+    # B ist die gegebene AIC, A die Roger-Approximation, x sind die zu findenden Koeffizienten B0,B1,...B7
     logging.info( 'Performing rational function approximation (RFA) on AIC matrices with {} poles...'.format(n_poles))
     k = np.array(k)
     n_k = len(k)
     ik = k * 1j
     betas = np.max(k)/np.arange(1,n_poles+1) # Roger
-#     betas = 1.7*np.max(k)*(np.arange(1,n_poles+1)/(n_poles+1.0))**2.0 # Karpel / ZAERO
+    # Alternative proposed by Karpel / ZAERO would be: betas = 1.7*np.max(k)*(np.arange(1,n_poles+1)/(n_poles+1.0))**2.0
     option = 2
     if option == 1: # voll
         Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), -k**2]) 
@@ -223,7 +210,7 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
         logging.info( '  k = {:<6}, RMSE_real = {:<20}, RMSE_imag = {:<20}'.format(k[k_i], RMSE_real, RMSE_imag))
     
     
-    # Vergrößerung des Frequenzbereichs
+    # Vergroesserung des Frequenzbereichs
     k = np.arange(0.0,(k.max()*2.0), 0.01)
     n_k = len(k)
     
@@ -253,8 +240,6 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
             plt.plot(np.real(qjj_aprox), np.imag(qjj_aprox), 'r-')
             plt.xlabel('real')
             plt.ylabel('imag')
-            #plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-            #plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
       
     plt.savefig(filename)
     #plt.show()
