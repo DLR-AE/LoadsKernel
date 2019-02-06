@@ -40,7 +40,6 @@ class Model:
         self.build_lggrid()
         self.build_atmo()
         self.build_aero()
-        self.build_aerodb()
         self.build_splines()
         self.build_cfdgrid()
         self.mass_specific_part()
@@ -367,14 +366,6 @@ class Model:
         self.aero['n_poles'] = n_poles
         self.aero['betas'] =  betas
         self.aero.pop('Qjj_unsteady') # remove unsteady AICs to save memory
-    
-    def build_aerodb(self):
-        # ----------------
-        # ---- Aero DB ---
-        # ----------------    
-        if self.jcl.aero['method'] == 'hybrid':   
-            logging.info( 'Building aero db...')
-            self.aerodb = build_aerodb_functions.process_matrix(self, self.jcl.matrix_aerodb, plot=False)  
     
     def build_splines(self):
         # ----------------
