@@ -114,14 +114,14 @@ class Model:
     
     def build_mongrid(self):
         if self.jcl.geom['method'] in ['mona', 'CoFE']:
-            if not self.jcl.geom['filename_mongrid'] == '':
+            if self.jcl.geom.has_key('filename_mongrid') and not self.jcl.geom['filename_mongrid'] == '':
                 logging.info( 'Building Monitoring Stations from GRID data...')
                 self.mongrid = read_geom.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_moncoord'], self.coord)
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
                 self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
                 self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
-            elif not self.jcl.geom['filename_monpnt'] == '':
+            elif self.jcl.geom.has_key('filename_monpnt') and not self.jcl.geom['filename_monpnt'] == '':
                 logging.info( 'Reading Monitoring Stations from MONPNTs...')
                 self.mongrid = read_geom.Nastran_MONPNT1(self.jcl.geom['filename_monpnt']) 
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_monpnt'], self.coord)
@@ -194,6 +194,7 @@ class Model:
                 self.aerogrid['offset_j'] = np.vstack((self.aerogrid['offset_j'],subgrid['offset_j']))
                 self.aerogrid['offset_P1'] = np.vstack((self.aerogrid['offset_P1'],subgrid['offset_P1']))
                 self.aerogrid['offset_P3'] = np.vstack((self.aerogrid['offset_P3'],subgrid['offset_P3']))
+                self.aerogrid['r'] = np.vstack((self.aerogrid['r'],subgrid['r']))
                 self.aerogrid['set_l'] = np.vstack((self.aerogrid['set_l'],subgrid['set_l']+self.aerogrid['set_l'].max()+1))
                 self.aerogrid['set_k'] = np.vstack((self.aerogrid['set_k'],subgrid['set_k']+self.aerogrid['set_k'].max()+1))
                 self.aerogrid['set_j'] = np.vstack((self.aerogrid['set_j'],subgrid['set_j']+self.aerogrid['set_j'].max()+1))
@@ -220,7 +221,7 @@ class Model:
             
     def build_W2GJ(self):
         # Correctionfor camber and twist, W2GJ
-        if self.jcl.aero['filename_deriv_4_W2GJ']:
+        if self.jcl.aero.has_key('filename_deriv_4_W2GJ') and self.jcl.aero['filename_deriv_4_W2GJ']:
             # parsing of several files possible, must be in correct sequence
             for i_file in range(len(self.jcl.aero['filename_deriv_4_W2GJ'])):
                 subgrid = read_geom.Modgen_W2GJ(self.jcl.aero['filename_deriv_4_W2GJ'][i_file]) 
@@ -229,7 +230,7 @@ class Model:
                 else:
                     self.camber_twist['ID'] = np.hstack((self.camber_twist['ID'], subgrid['ID']))
                     self.camber_twist['cam_rad'] = np.hstack((self.camber_twist['cam_rad'], subgrid['cam_rad']))
-        elif self.jcl.aero['filename_DMI_W2GJ']:
+        elif self.jcl.aero.has_key('filename_DMI_W2GJ') and self.jcl.aero['filename_DMI_W2GJ']:
             for i_file in range(len(self.jcl.aero['filename_DMI_W2GJ'])):
                 DMI = read_geom.Nastran_DMI(self.jcl.aero['filename_DMI_W2GJ'][i_file]) 
                 if i_file == 0:
