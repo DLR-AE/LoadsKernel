@@ -6,7 +6,6 @@ Created on Fri Nov 28 10:53:48 2014
 """
 import build_mass_class
 import build_aero_functions
-import build_aerodb_functions
 import spline_rules
 import spline_functions
 import build_splinegrid

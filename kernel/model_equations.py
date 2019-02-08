@@ -1,11 +1,10 @@
 import numpy as np
 import importlib, logging, os, subprocess, shlex
-#import time
 from trim_tools import * 
 
 from scipy import interpolate, linalg
 import scipy.io.netcdf as netcdf
-import meshdefo
+import meshdefo, efcs
 
 import PyTauModuleInit, PyPara, PyDeform, PyPrep, PySolv
 from tau_python import *
@@ -57,8 +56,7 @@ class common():
             self.hingeline = 'y'
  
         # import aircraft-specific class from efcs.py dynamically 
-        module = importlib.import_module('efcs')
-        efcs_class = getattr(module, self.jcl.efcs['version'])
+        efcs_class = getattr(efcs, self.jcl.efcs['version'])
         # init efcs
         self.efcs =  efcs_class() 
         

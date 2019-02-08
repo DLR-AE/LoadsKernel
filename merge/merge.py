@@ -181,9 +181,8 @@ class Merge:
 if __name__ == "__main__":
 #     print "Please use the launch-script 'launch.py' from your input directory."
 #     sys.exit()
-    jobs_to_merge = ['jcl_MULDICON_maneuver_loadsloop0', 
-                     'jcl_MULDICON_gust_loadsloop0',
-                     'jcl_MULDICON_lg_loadsloop0']
-    m = Merge(path_input='/scratch/MULDICON_workingcopy_fullfe/jcl', path_output='/scratch/MULDICON_LoadsKernel_fullfe')
-    m.run_merge('jcl_MULDICON_merged_loadsloop0', jobs_to_merge)
+    jobs_to_merge = ['jcl_XRF1_cfd_all', 
+                     'jcl_XRF1_cfd_upwind']
+    m = Merge(path_input='/scratch/XRF1_LoadsKernel/JCLs', path_output='/scratch/XRF1_LoadsKernel')
+    m.run_merge('jcl_XRF1_cfd_merged_ll0', jobs_to_merge)
     

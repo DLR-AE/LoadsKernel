@@ -9,10 +9,9 @@ Created on Fri Feb 10 09:24:10 2017
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull
-import imp
-plotting_module_from_LK = imp.load_source('StandardPlots', '../kernel/plotting_standard.py')
+from kernel import kernel
 
-class Plotting(plotting_module_from_LK.StandardPlots):
+class Plotting(kernel.plotting_standard.StandardPlots):
     def __init__(self, fig):
         plt.rcParams.update({'font.size': 16,
                              'svg.fonttype':'none'})

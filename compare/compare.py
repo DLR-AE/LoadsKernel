@@ -10,7 +10,6 @@ import Tkinter as tk
 import ttk
 import tkFileDialog
 import matplotlib as mpl
-mpl.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 from matplotlib.backend_bases import key_press_handler # implement the default mpl key bindings
 import plotting
@@ -339,12 +338,24 @@ class App:
         self.root.quit()
         self.root.destroy()
 
-
-root = tk.Tk()
-root.title("Loads Compare")
-root.resizable(True, True)
-        
-style = ttk.Style()
-style.theme_use('clam')
-app = App(root)
-root.mainloop()
+class Compare():
+    def __init__(self):
+        pass
+    
+    def run(self):
+        root = tk.Tk()
+        root.title("Loads Compare")
+        root.resizable(True, True)
+                
+        style = ttk.Style()
+        style.theme_use('clam')
+        app = App(root)
+        root.mainloop()
+    
+    
+if __name__ == "__main__":
+    c = Compare()
+    c.run()
+    
+    
+    

@@ -1,34 +1,25 @@
 # Launch script for the Loads Kernel
 
-import sys, os
-cwd = os.getcwd()
-sys.path.append(cwd)
-# Here you add the location of the Loads Kernel 
-sys.path.append("../kernel")
+import sys
+
+from kernel import kernel
+from compare import compare
+from modelviewer import modelviewer
+
+# Here you add the location of the Loads Kernel
+sys.path.append("/scratch/loads-kernel")
 sys.path.append("/opt/tau/bin/py_el")
-import kernel
-
-
 
 # Here you launch the Loads Kernel with your job
-#kernel.run_kernel('jcl_MULDICON_maneuver_loadsloop0', pre=False, main=False, post=True, path_input='/scratch/MULDICON_workingcopy/jcl', path_output='/scratch/MULDICON_LoadsKernel', parallel=True)
-# kernel.run_kernel('jcl_MULDICON_gust_loadsloop0', pre=False, main=False, post=True, path_input='/scratch/MULDICON_workingcopy/jcl', path_output='/scratch/MULDICON_LoadsKernel', parallel=True)
-# kernel.run_kernel('jcl_MULDICON_lg_loadsloop0', pre=False, main=False, post=True, path_input='/scratch/MULDICON_workingcopy/jcl', path_output='/scratch/MULDICON_LoadsKernel', parallel=True)
-
-# kernel.run_kernel('jcl_MULDICON_maneuver_loadsloop1', pre=False, main=False, post=True, path_input='/scratch/MULDICON_workingcopy/jcl', path_output='/scratch/MULDICON_LoadsKernel', parallel=True)
-# kernel.run_kernel('jcl_MULDICON_gust_loadsloop1', pre=False, main=False, post=True, path_input='/scratch/MULDICON_workingcopy/jcl', path_output='/scratch/MULDICON_LoadsKernel', parallel=True)
-# kernel.run_kernel('jcl_MULDICON_lg_loadsloop1', pre=False, main=False, post=True, path_input='/scratch/MULDICON_workingcopy/jcl', path_output='/scratch/MULDICON_LoadsKernel', parallel=True)
-
-# kernel.run_kernel('jcl_MULDICON_maneuver_loadsloop2', pre=False, main=True, post=True, path_input='/scratch/MULDICON_workingcopy/jcl', path_output='/scratch/MULDICON_LoadsKernel', parallel=6)
-# kernel.run_kernel('jcl_MULDICON_gust_loadsloop2', pre=False, main=False, post=True, path_input='/scratch/MULDICON_workingcopy/jcl', path_output='/scratch/MULDICON_LoadsKernel', parallel=True)
-# kernel.run_kernel('jcl_MULDICON_lg_loadsloop2', pre=False, main=False, post=True, path_input='/scratch/MULDICON_workingcopy/jcl', path_output='/scratch/MULDICON_LoadsKernel', parallel=4)
-
-
-# kernel.run_kernel('jcl_MULDICON_ll3_gust', pre=False, main=False, post=True, path_output='/scratch/MULDICON_stability', parallel=4)
-k = kernel.Kernel('jcl_MULDICON_ll3_cfd', pre=False, main=True, post=False, path_output='/scratch/test', parallel=False, machinefile='/scratch/test/machinefile')
-
-
-# kernel.run_kernel('jcl_MULDICON_gust_loadsloop0', pre=False, main=True, post=True, path_input='/scratch/test', path_output='/scratch/test', parallel=True)
-# kernel.run_kernel('jcl_MULDICON_maneuver_loadsloop0', pre=False, main=False, post=True, path_input='/scratch/test', path_output='/scratch/test', parallel=True)
-
+k = kernel.Kernel('jcl_Discus2c_CoFE', pre=True, main=True, post=True, test=False, parallel=False,
+                  path_input='/scratch/Discus2c/JCLs',
+                  path_output='/scratch/test')
 k.run()
+
+# Loads Compare
+c = compare.Compare()
+c.run()
+
+# Model Viewer
+m = modelviewer.Modelviewer()
+m.run()
