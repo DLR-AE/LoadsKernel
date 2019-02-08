@@ -1,7 +1,7 @@
 # JCL - Job Control File documentation
 
 import numpy as np
-from units import *
+from kernel.units import *
 
 class jcl:
     def __init__(self):
@@ -21,13 +21,12 @@ class jcl:
                      'filename_moncoord':'monstations_coords.bdf',  # additional CORDs for monitoring stations
                      'filename_monstations': ['monstation_MON1.bdf', 'monstation_MON2.bdf'], # bdf file with GRID-cards, 1st file -> 1st monstation
                      # The following matrices are required for some mass methods. However, they are geometry dependent...
-                     'filename_KGG':'KGG.dat',      # unused
-                     'filename_KFF':'KFF.dat',      # stiffness matrix KFF via DMAP Alter und OP4 - required for mass method = 'modalanalysis' or 'guyan'
+                     'filename_KGG':'KGG.dat',      # KGG via DMAP Alter und OP4                  - required for mass method = 'modalanalysis' or 'guyan'
                      'filename_uset': 'uset.op2',   # USET via DMAP Alter und OP4                 - required for mass method = 'modalanalysis' or 'guyan'
                      'filename_GM': 'GM.dat',       # matrix GM via DMAP Alter und OP4            - required for mass method = 'modalanalysis' or 'guyan'
                      'filename_aset': 'aset.bdf',   # bdf file(s) with ASET1-card                 - required for mass method = 'guyan'
                     }
-        self.aero = {'method': 'mona_steady', # 'mona_steady', 'mona_unsteady', 'steady_nonlin' or 'hybrid'
+        self.aero = {'method': 'mona_steady', # 'mona_steady', 'mona_unsteady', 'steady_nonlin' or 'cfd_steady'
                      'flex': True, # True or False, aerodynamic feedback of elastic structure
                      'method_caero': 'CAERO1',                               # aerogrid is given by CAERO1, CAERO7 or by CQUAD4 cards
                      'filename_caero_bdf': ['CAERO1_bdf'],                   # bdf file(s) with CAERO1 or CQUAD4-cards for aerogrid. IDs in ascending order.
@@ -49,29 +48,30 @@ class jcl:
                      'Cd_0': [0.005],
                      'Cd_alpha^2': [0.018*6.28**2.0], 
                      'induced_drag':True,                                    # True or False, calculates local induced drag e.g. for roll-yaw-coupling
+                     # Additional parameters for CFD
+                     'para_path':'/scratch/tau/',
+                     'para_file':'para',
+                     'tau_solver': 'el',
+                     'tau_cores': 16,
                     }
-        self.matrix_aerodb = {} # if aero method = 'hybrid'
-        self.matrix_aerodb['alpha'] = {} # build aerodynamic database for 'alpha' or control surface deflections 'AIL-S1/2/3/4'
-        self.matrix_aerodb['alpha']['VC'] = {   'markers': 'all',               # boundary markers, 'all' or list of markers [1, 2, ...]
-                                                'filename_grid': 'tau.grid',    # only if special markers are requested
-                                                'q_dyn': 0.5*1.225*265.03**2,   # dynamic pressure of CFD simulation
-                                                'values': [-5.0, 0.0, 5.0,],    # list of sampling points
-                                                'filenames_surface_pval': ['sol_xy.surface.pval.4032',
-                                                                           'sol_xy.surface.pval.2499',
-                                                                           'sol_xy.surface.pval.4550',
-                                                                           ],   # pval-files for each sampling point with Fxyz
-                                            }
+        self.meshdefo = {'surface':                              # general surface mesh information
+                                    {'fileformat': 'netcdf',     # 'cgns', 'netcdf'
+                                     'markers': [1,3],           # list of markers [1, 2, ...] of surfaces to be included in deformation
+                                     'filename_grid':'tau.grid', # Tau volume or surface mesh or CGNSS surface mesh
+                                    },
+                         'volume':{},                            # general volume mesh information, unused
+                        } 
         self.spline = {'method': 'nearest_neighbour',           # 'nearest_neighbour', 'rbf' or 'nastran'
                        'filename_f06': 'filename.f06',          # spline matrix is written to .f06-file with PARAM    OPGTKG   1
                        # Possibility to use only a subset of the structural grid for splining. Not valid and ignored when spline method = 'nastran'
                        'splinegrid': True,                      # True or False
                        'filename_splinegrid': ['splinegrid.bdf']  # bdf file(s) with GRIDs
                       }
-        self.mass =    {'method': 'mona', # 'mona', 'modalanalysis' or 'guyan'
+        self.mass =    {'method': 'mona', # 'mona', 'CoFE', 'modalanalysis' or 'guyan'
                         'key': ['M1', 'M2'],
                         'filename_MGG':['MGG_M1.dat', 'MGG_M2.dat'],         # MGG via DMAP Alter und OP4 - always required
-                        'filename_MFF':['MFF_M1.dat', 'MFF_M2.dat'],         # MFF via DMAP Alter und OP4 - required for 'modalanalysis' and 'guyan'
                         'filename_S103':['SOL103_M1.f06', 'SOL103_M1.f06'],  # eigenvalues and eigenvectors from .f06-file - required for 'mona'
+                        'filename_CoFE':['M1.mat', 'M2.mat'],  # eigenvalues and eigenvectors from .f06-file - required for 'mona'
                         'omit_rb_modes': False, # True or False, omits first six modes
                         'modes':[np.arange(1,13), np.arange(1,16)], # list(s) of modes to use 
                        }
@@ -83,18 +83,6 @@ class jcl:
                      'h': ft2m([0, 5500, 7500, 20000, 30000, 45000]), # altitude in meters
                     }
         self.eom = {'version': 'linear'} # 'linear, 'waszak'
-        self.meshdefo = {'surface':                              # general surface mesh information
-                                    {'fileformat': 'netcdf',     # 'cgns', 'netcdf'
-                                     'markers': [1,3],           # list of markers [1, 2, ...] of surfaces to be included in deformation
-                                     'filename_grid':'tau.grid', # Tau volume or surface mesh or CGNSS surface mesh
-                                    },
-                         'volume':{},                            # general volume mesh information, unused
-                         'AIL-S1':                               # for every control surface, name as in AESURF
-                                   {'values': [-20.0, -15.0, -10.0, -5.0, 0.0, 5.0, 10.0, 15.0, 20.0], # deflections in [deg]
-                                   },
-                         'AIL-S2': {'values': [-20.0, -15.0, -10.0, -5.0, 0.0, 5.0, 10.0, 15.0, 20.0],
-                                   },
-                        } 
         # parameters for generic landing gear, see PhD Thesis of Wolf Krueger and Sunpeth Cumnuantip
         para_LG = {'stroke_length':  0.3,   # m
                     'fitting_length': 0.72, # m
