@@ -81,6 +81,13 @@ class StandardPlots():
             self.cuttingforces_wing = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.4 # points
+        elif self.jcl.general['aircraft'] in ['HAP-C0']:
+            self.potatos_fz_mx = ['ZWCUT01']
+            self.potatos_mx_my = ['ZWCUT01']
+            self.potatos_fz_my = ['ZWCUT01']
+            self.cuttingforces_wing = ['ZWCUT01', 'ZWCUT04', 'ZWCUT07', 'ZWCUT10', 'ZWCUT13', 'ZWCUT16', 'ZWCUT19', 'ZWCUT22', 'ZWCUT25', 'ZWCUT28', 'ZWCUT31', 'ZWCUT34',]
+            self.f_scale = 0.1 # vectors
+            self.p_scale = 0.05 # points
         else:
             logging.error('Unknown aircraft: ' + str(self.jcl.general['aircraft']))
             return
@@ -139,11 +146,6 @@ class StandardPlots():
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
             mlab.quiver3d(x, y, z, response['Pk_f'][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=self.f_scale)
             mlab.title('Pk_flex', size=0.2, height=0.95)
-            
-            mlab.figure()   
-            mlab.points3d(x, y, z, scale_factor=self.p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_cfd'][self.model.aerogrid['set_k'][:,0]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,1]], response['Pk_cfd'][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=self.f_scale)
-            mlab.title('Pk_cfd', size=0.2, height=0.95)
             
             mlab.figure()
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
