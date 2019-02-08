@@ -319,7 +319,7 @@ def nastran_number_converter(string_in, type, default=0):
         except:
             
             string_in = string_in.replace(' ', '') # remove leading spaces
-            string_in = string_in.replace('\n', '') # remove end of line
+            for c in ['\n', '\r']: string_in = string_in.strip(c) # remove end of line
             if '-' in string_in[1:]:
                 if string_in[0] in ['-', '+']:
                     sign = string_in[0]
@@ -620,10 +620,11 @@ def Nastran_SET1(filename, keyword='SET1', type='int'):
             elif np.all(next_line and read_string[:1] == '+') or np.all(string.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
                 if np.all(string.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
                     # this is the first AND the last line, no more IDs to come
-                    row = string.strip(read_string[8:], '\n')
+                    row = read_string[8:]
                 else:
                     # this is the last line, no more IDs to come
-                    row += string.strip(read_string[8:], '\n')
+                    row += read_string[8:]
+                for c in ['\n', '\r']: row = row.strip(c)
                 next_line = False
                 # start conversion from string to list containing ID values
                 sets['ID'].append(nastran_number_converter(row[:8], 'int'))
@@ -632,7 +633,7 @@ def Nastran_SET1(filename, keyword='SET1', type='int'):
                 values = []
                 while len(row)>0:
                     if string.replace(row[:8], ' ', '') == 'THRU':
-                        startvalue = values[-1]
+                        startvalue = values[-1]+1
                         stoppvalue = nastran_number_converter(row[8:16], type)
                         values += range(startvalue, stoppvalue+1) 
                         row = row[16:]
