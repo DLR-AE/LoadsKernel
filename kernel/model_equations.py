@@ -244,7 +244,7 @@ class common():
             Pk = self.calc_Pk_nonlin(dUmac_dt, wj)
         else:
             Pk = np.zeros(self.model.aerogrid['n']*6)
-            q = np.zeros(self.model.aerogrid['n'])
+            wj = np.zeros(self.model.aerogrid['n'])
         return Pk, wj
         
     def flexible(self, Uf, dUf_dt, dUcg_dt, q_dyn, Vtas):
@@ -968,7 +968,7 @@ class steady(common):
             logging.info('E: %.4f' % float(Cl/Cd))
             logging.info('Cd_ind: %.6f' % float(Pmac_idrag[0]/response['q_dyn']/A))
             logging.info('Cmz_ind: %.6f' % float(Pmac_idrag[5]/response['q_dyn']/A/self.model.macgrid['b_ref']))
-            #logging.info('e: %.4f' % float(Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn']/A)))
+            logging.info('e: %.4f' % float(Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn']/A)))
             logging.info('command_xi: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])/np.pi*180.0 ))
             logging.info('command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 ))
             logging.info('command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 ))
