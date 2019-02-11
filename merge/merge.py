@@ -5,10 +5,9 @@ Created on Thu Nov 27 14:00:31 2014
 @author: voss_ar
 """
 import getpass, platform, logging, sys, copy
-sys.path.append("../kernel")
-import io_functions
-import auxiliary_output
-import plotting
+from  kernel import io_functions
+from  kernel import auxiliary_output
+from  kernel import plotting_standard
 import numpy as np
 
 class Merge:
@@ -143,9 +142,10 @@ class Merge:
         logging.info( '--> Drawing some plots.' ) 
         jcl           = self.datasets['jcl'][self.new_dataset_id]
         monstations   = self.datasets['monstations'][self.new_dataset_id]
-        plt = plotting.plotting(jcl, model=None)
+        plt = plotting_standard.StandardPlots(jcl, model=None)
         # determine crit trimcases graphically
-        plt.plot_monstations(monstations, self.path_output + 'monstations_' + job_name + '.pdf')
+        plt.add_monstations(monstations)
+        plt.plot_monstations(self.path_output + 'monstations_' + job_name + '.pdf')
         # store crit trimcases
         self.crit_trimcases = plt.crit_trimcases
         
