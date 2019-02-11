@@ -168,7 +168,17 @@ class common():
         
         Pk_rbm = self.model.Dlk.T.dot(Plx1)
         return Pk_rbm, wjx1
-        
+    
+    def camber_twist_nonlin(self, dUcg_dt):
+        if self.correct_alpha:
+            Pk = np.zeros(self.model.aerogrid['n']*6)
+            wj = np.zeros(self.model.aerogrid['n'])
+        else:
+            wj = np.sin(self.model.camber_twist['cam_rad'] ) * -1.0 
+            dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt) # auch bodyfixed
+            Pk = self.calc_Pk_nonlin(dUmac_dt, wj)
+        return Pk, wj
+    
     def camber_twist(self, q_dyn):
         if self.correct_alpha:
             Pk_cam = np.zeros(self.model.aerogrid['n']*6)
@@ -1223,14 +1233,11 @@ class nonlin_steady(steady):
         Pk_rbm,  wj_rbm  = self.rbm_nonlin(onflow, alpha, Vtas)
         Pk_cs,   wj_cs   = self.cs_nonlin(onflow, X, Ux2, Vtas)
         Pk_f,    wj_f    = self.flexible_nonlin(onflow, Uf, dUf_dt, Vtas)
-#         Pk_rbm,  wj_rbm  = self.rbm(onflow, alpha, q_dyn, Vtas)
-#         Pk_cs,   wj_cs   = self.cs(X, Ux2, q_dyn)
-#         Pk_f,    wj_f    = self.flexible(Uf, dUf_dt, onflow, q_dyn, Vtas)
+        Pk_cam,  wj_cam  = self.camber_twist_nonlin(onflow)
         
-        wj = (wj_rbm + wj_cs + wj_f)/Vtas
+        wj = (wj_rbm + wj_cs + wj_f + wj_cam)/Vtas
         Pk_idrag         = self.idrag(wj, q_dyn)
         
-        Pk_cam      = Pk_rbm*0.0
         Pk_gust     = Pk_rbm*0.0
         Pk_unsteady = Pk_rbm*0.0
         
