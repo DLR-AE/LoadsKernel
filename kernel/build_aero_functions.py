@@ -10,6 +10,7 @@ import spline_rules
 import spline_functions
 import numpy as np
 import logging
+from matplotlib import pyplot as plt
 
 def build_x2grid(jcl_aero, aerogrid, coord):
     
