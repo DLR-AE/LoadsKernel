@@ -404,7 +404,7 @@ class Modelviewer():
             if tmp is not None:
                 old_mode = tmp.data(0)
             self.list_modes_number.clear()
-            for mode in range(self.model.mass['n_modes'][i_mass]):
+            for mode in range(1,self.model.mass['n_modes'][i_mass]+1):
                 item = QtGui.QListWidgetItem(str(mode))
                 self.list_modes_number.addItem(item)
                 if tmp is not None and int(old_mode) == mode:
@@ -417,7 +417,7 @@ class Modelviewer():
         if self.list_modes_mass.currentItem() is not None and self.list_modes_number.currentItem() is not None:
             key = self.list_modes_mass.currentItem().data(0)
             i_mass = self.model.mass['key'].index(key)
-            i_mode = int(self.list_modes_number.currentItem().data(0))
+            i_mode = int(self.list_modes_number.currentItem().data(0))-1
             uf = np.zeros((self.model.mass['n_modes'][i_mass],1))
             uf[i_mode] = uf_i
             ug = self.model.mass['PHIf_strc'][i_mass].T.dot(uf)
