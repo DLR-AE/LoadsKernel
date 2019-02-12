@@ -190,6 +190,7 @@ class Plotting:
     
     def hide_aero(self):
         self.src_aerogrid.remove()
+        self.src_MAC.remove()
         self.show_aero=False
         mlab.draw(self.fig)
         
@@ -208,9 +209,11 @@ class Plotting:
         if scalars != None:
             ug.cell_data.scalars = scalars
         self.src_aerogrid = mlab.pipeline.add_dataset(ug)
-        
-        points = mlab.pipeline.glyph(self.src_aerogrid, color=(0,0,0), scale_factor=self.pscale)
-        points.glyph.glyph.scale_mode = 'data_scaling_off'
+
+        ug2 = tvtk.UnstructuredGrid(points=np.array([self.MAC]))
+        self.src_MAC = mlab.pipeline.add_dataset(ug2)
+        points = mlab.pipeline.glyph(self.src_MAC, scale_mode='scalar', scale_factor = 0.5, color=(1,0,0), opacity=0.4, resolution=64)
+        points.glyph.glyph.clamping = False
         
         if scalars != None:
             surface = mlab.pipeline.surface(self.src_aerogrid, colormap='coolwarm', vmin=vminmax[0], vmax=vminmax[1])

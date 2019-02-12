@@ -238,6 +238,8 @@ class Modelviewer():
         self.cb_w2gj.stateChanged.connect(self.toggle_w2gj)
         bt_aero_hide = QtGui.QPushButton('Hide')
         bt_aero_hide.clicked.connect(self.plotting.hide_aero)
+        self.lb_MAC = QtGui.QLabel('MAC: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(0.0, 0.0, 0.0))
+        lb_MAC = QtGui.QLabel('(25% of projected area)')
 
         self.list_markers = QtGui.QListWidget()
         self.list_markers.setSelectionMode(QtGui.QAbstractItemView.SelectionMode.ExtendedSelection) # allow multiple selections
@@ -247,6 +249,8 @@ class Modelviewer():
 
         layout_aero = QtGui.QVBoxLayout(tab_aero)
         layout_aero.addWidget(bt_aero_show)
+        layout_aero.addWidget(self.lb_MAC)
+        layout_aero.addWidget(lb_MAC)
         layout_aero.addWidget(self.cb_w2gj)
         layout_aero.addWidget(bt_aero_hide)
         layout_aero.addWidget(self.list_markers)
@@ -436,7 +440,7 @@ class Modelviewer():
                                                                                 self.model.mass['cggrid'][i_mass]['offset'][0,2]))
             # cg_mac = (x_cg - x_mac)*c_ref * 100 [%]
             # negativ bedeutet Vorlage --> stabil
-            cg_mac = (self.model.mass['cggrid'][i_mass]['offset'][0,0]-self.model.macgrid['offset'][0,0])/self.model.macgrid['c_ref']*100.0
+            cg_mac = (self.model.mass['cggrid'][i_mass]['offset'][0,0]-self.MAC[0])/self.model.macgrid['c_ref']*100.0
             if cg_mac == 0.0:
                 rating = 'indifferent'
             elif cg_mac < 0.0:
@@ -453,8 +457,14 @@ class Modelviewer():
         if self.list_monstations.currentItem() is not None:
             key = self.list_monstations.currentItem().data(0)
             self.plotting.plot_monstations(monstation=key)
-
+    
+    def calc_MAC(self):
+        A_projiziert = self.model.aerogrid['A']*self.model.aerogrid['N'][:,2]
+        self.MAC = np.sum(A_projiziert/A_projiziert.sum()*self.model.aerogrid['offset_j'].T, axis=1)
+        self.plotting.MAC = self.MAC
+    
     def toggle_w2gj(self):
+        self.lb_MAC.setText('MAC: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(self.MAC[0], self.MAC[1], self.MAC[2]))
         if self.cb_w2gj.isChecked():
             if self.plotting.show_aero:
                 self.plotting.hide_aero()
@@ -524,6 +534,7 @@ class Modelviewer():
             self.model = io.load_model(job_name, path_output)
             # update fields
             self.update_fields()
+            self.calc_MAC()
             self.plotting.add_model(self.model)
             self.plotting.plot_nothing()
             self.file_opt['initialdir'] = os.path.split(filename)[0]
