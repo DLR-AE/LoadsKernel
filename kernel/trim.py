@@ -8,6 +8,8 @@ import numpy as np
 import scipy.optimize as so
 import logging, sys, copy
 import io_functions
+from scipy.integrate import ode
+from integrate import RungeKutta4
 
 class trim:
     def __init__(self, model, jcl, trimcase, simcase):
@@ -459,10 +461,8 @@ class trim:
         dt = self.simcase['dt']
         t_final = self.simcase['t_final']
         logging.info('running time simulation for ' + str(t_final) + ' sec...')
-        #print 'Progress:'
-        from scipy.integrate import ode
-        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-6, atol=1e-6, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
-        #integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
+#         integrator = RungeKutta4(equations.ode_arg_sorter).set_integrator(stepwidth=1e-4)
+        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-4, atol=1e-4, max_step=5e-3) # non-stiff: 'adams', stiff: 'bdf'
 #         integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=1e-4)
         integrator.set_initial_value(X0, 0.0)
         X_t = []
