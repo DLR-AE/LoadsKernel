@@ -640,7 +640,7 @@ def Nastran_SET1(filename, keyword='SET1', type='int'):
                     else:
                         values.append(nastran_number_converter(row[:8], type))
                         row = row[8:]
-                sets['values'].append( np.array(values) )
+                sets['values'].append( np.array([x for x in values if x != 0]) )
             if read_string == '':
                 break
         return sets
