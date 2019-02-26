@@ -300,7 +300,7 @@ class trim:
 #         self.response['Y'] = Y
         self.response = {}
         self.response['X0'] = X0 # Linearisierungspunkt
-        self.response['Y0'] = equations.equations(X0, t=0.0, type='trim')
+        self.response['Y0'] = equations.equations(X0, t=0.0, modus='trim')
         self.response['jac'] = jac
         self.response['states'] = self.states[:,0]
         self.response['state_derivativess'] = self.state_derivatives[:,0]
@@ -389,7 +389,7 @@ class trim:
         
         if self.trimcase['manoeuver'] == 'bypass':
             logging.info('running bypass...')
-            self.response = equations.eval_equations(X_free_0, time=0.0, type='trim_full_output')
+            self.response = equations.eval_equations(X_free_0, time=0.0, modus='trim_full_output')
         else:
             logging.info('running trim for ' + str(len(X_free_0)) + ' variables...')
             X_free, info, status, msg= so.fsolve(equations.eval_equations, X_free_0, args=(0.0, 'trim'), full_output=True)
@@ -399,7 +399,7 @@ class trim:
             # no errors, check trim status for success
             if status == 1:
                 # if trim was successful, then do one last evaluation with the final parameters.
-                self.response = equations.eval_equations(X_free, time=0.0, type='trim_full_output')
+                self.response = equations.eval_equations(X_free, time=0.0, modus='trim_full_output')
                 self.successful = True
             else:
                 self.response = {}
@@ -477,9 +477,9 @@ class trim:
             logging.info('Simulation finished.')
             logging.info('running (again) with full outputs at selected time steps...')
             #equations = model_equations.unsteady(self, X0=self.response['X'], simcase=self.simcase)
-            equations.eval_equations(self.response['X'], 0.0, type='sim_full_output')
+            equations.eval_equations(self.response['X'], 0.0, modus='sim_full_output')
             for i_step in np.arange(0,len(t)):
-                response_step = equations.eval_equations(X_t[i_step], t[i_step], type='sim_full_output')
+                response_step = equations.eval_equations(X_t[i_step], t[i_step], modus='sim_full_output')
                 for key in self.response.keys():
                     self.response[key] = np.vstack((self.response[key],response_step[key]))
 
@@ -516,7 +516,7 @@ class trim:
         
         if self.trimcase['manoeuver'] == 'bypass':
             logging.info('running bypass...')
-            self.response = equations.eval_equations(X_free_0, time=0.0, type='trim_full_output')
+            self.response = equations.eval_equations(X_free_0, time=0.0, modus='trim_full_output')
         else:
             logging.info('running trim for ' + str(len(X_free_0)) + ' variables...')
             try:
@@ -538,7 +538,7 @@ class trim:
                 # no errors, check trim status for success
                 if status == 1:
                     # if trim was successful, then do one last evaluation with the final parameters.
-                    self.response = equations.eval_equations_iteratively(X_free, time=0.0, type='trim_full_output')
+                    self.response = equations.eval_equations_iteratively(X_free, time=0.0, modus='trim_full_output')
                     self.successful = True
                 else:
                     self.response = {}

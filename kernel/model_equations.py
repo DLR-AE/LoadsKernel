@@ -546,14 +546,14 @@ class common():
             
         return Plg, p2, dp2, np.array(ddp2), np.array(F1), np.array(F2)
     
-    def apply_support_condition(self, type, d2Ucg_dt2):
+    def apply_support_condition(self, modus, d2Ucg_dt2):
         # With the support option, the acceleration of the selected DoFs (0,1,2,3,4,5) is set to zero.
         # Trimcase and simcase can have different support conditions.
         
         # get support conditions from trimcase or simcase
-        if type in ['trim', 'trim_full_output'] and self.trimcase.has_key('support'):
+        if modus in ['trim', 'trim_full_output'] and self.trimcase.has_key('support'):
             support = self.trimcase['support']
-        elif type in ['sim', 'sim_full_output'] and self.simcase.has_key('support'):
+        elif modus in ['sim', 'sim_full_output'] and self.simcase.has_key('support'):
             support = self.simcase['support']
         else:
             support = []
@@ -749,19 +749,19 @@ class common():
         Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
         return Ux2
     
-    def rigid_EoM(self, dUcg_dt, Pb, g_cg):
+    def rigid_EoM(self, dUcg_dt, Pb, g_cg, modus):
         d2Ucg_dt2 = np.zeros(dUcg_dt.shape)
         if hasattr(self.jcl,'eom') and self.jcl.eom['version'] == 'waszak':
             # # non-linear EoM, bodyfixed / Waszak
             d2Ucg_dt2[0:3] = np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) + np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
             d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb[3:6,3:6]) , Pb[3:6] - np.cross(dUcg_dt[3:6], np.dot(self.Mb[3:6,3:6], dUcg_dt[3:6])) )
-            self.apply_support_condition(type, d2Ucg_dt2)
+            self.apply_support_condition(modus, d2Ucg_dt2)
             Nxyz = (d2Ucg_dt2[0:3] - g_cg - np.cross(dUcg_dt[0:3], dUcg_dt[3:6]) )/9.8066  
         else:
             # linear EoM, bodyfixed / Nastran
             d2Ucg_dt2[0:3] = np.dot(np.linalg.inv(self.Mb)[0:3,0:3], Pb[0:3]) + g_cg 
             d2Ucg_dt2[3:6] = np.dot(np.linalg.inv(self.Mb)[3:6,3:6], Pb[3:6] )
-            self.apply_support_condition(type, d2Ucg_dt2)
+            self.apply_support_condition(modus, d2Ucg_dt2)
             Nxyz = (d2Ucg_dt2[0:3] - g_cg) /9.8066 
         return d2Ucg_dt2, Nxyz
     
@@ -786,7 +786,7 @@ class ConvergenceError(Exception):
   
 class steady(common):
 
-    def equations(self, X, t, type):
+    def equations(self, X, t, modus):
         self.counter += 1
         # recover states
         Tgeo2body, Tbody2geo    = self.geo2body(X)
@@ -825,7 +825,7 @@ class steady(common):
         # -----------   
         # --- EoM ---   
         # -----------
-        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg)
+        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg, modus)
         Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
         d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
         
@@ -846,9 +846,9 @@ class steady(common):
                        Vtas, 
                      )) 
         
-        if type in ['trim', 'sim']:
+        if modus in ['trim', 'sim']:
             return Y
-        elif type in ['trim_full_output', 'sim_full_output']:
+        elif modus in ['trim_full_output', 'sim_full_output']:
             # calculate translations, velocities and accelerations of some additional points
             # (might also be used for sensors in a closed-loop system
             if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
@@ -902,17 +902,17 @@ class steady(common):
                        }
             return response        
     
-    def eval_equations(self, X_free, time, type='trim_full_output'):
+    def eval_equations(self, X_free, time, modus='trim_full_output'):
         # this is a wrapper for the model equations 'eqn_basic'
-        if type in ['trim', 'trim_full_output']:
+        if modus in ['trim', 'trim_full_output']:
             # get inputs from trimcond and apply inputs from fsolve 
             X = np.array(self.trimcond_X[:,2], dtype='float')
             X[np.where((self.trimcond_X[:,1] == 'free'))[0]] = X_free
-        elif type in[ 'sim', 'sim_full_output']:
+        elif modus in[ 'sim', 'sim_full_output']:
             X = X_free
         
         # evaluate model equations
-        if type=='trim':
+        if modus=='trim':
             Y = self.equations(X, time, 'trim')
             # get the current values from Y and substract tamlab.figure()
             # fsolve only finds the roots; Y = 0
@@ -921,15 +921,15 @@ class steady(common):
             out = Y_target_ist - Y_target_soll
             return out
         
-        elif type=='sim':
+        elif modus=='sim':
             Y = self.equations(X, time, 'sim')
             return Y[self.trim.idx_state_derivatives+self.trim.idx_input_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
             
-        elif type=='sim_full_output':
+        elif modus=='sim_full_output':
             response = self.equations(X, time, 'sim_full_output')
             return response
             
-        elif type=='trim_full_output':
+        elif modus=='trim_full_output':
             response = self.equations(X, time, 'trim_full_output')
             # do something with this output, e.g. plotting, animations, saving, etc.            
             logging.info('')        
@@ -992,7 +992,7 @@ class steady(common):
             
             return response
         
-    def eval_equations_iteratively(self, X_free, time, type='trim_full_output'):
+    def eval_equations_iteratively(self, X_free, time, modus='trim_full_output'):
         # this is a wrapper for the model equations
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
         n_modes = self.model.mass['n_modes'][i_mass]
@@ -1038,9 +1038,9 @@ class steady(common):
         Y_target_soll = np.array(self.trimcond_Y[:,2], dtype='float')[np.where((self.trimcond_Y[:,1] == 'target'))[0]]
         out = Y_target_ist - Y_target_soll
         
-        if type in ['trim']:
+        if modus in ['trim']:
             return out
-        elif type=='trim_full_output':
+        elif modus=='trim_full_output':
             # do something with this output, e.g. plotting, animations, saving, etc.            
             logging.info('')        
             logging.info('X: ')
@@ -1099,7 +1099,7 @@ class steady(common):
 
 class cfd_steady(steady):
 
-    def equations(self, X, t, type):
+    def equations(self, X, t, modus):
         self.counter += 1
         # recover states
         Tgeo2body, Tbody2geo    = self.geo2body(X)
@@ -1141,7 +1141,7 @@ class cfd_steady(steady):
         # -----------   
         # --- EoM ---   
         # -----------
-        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg)
+        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg, modus)
         Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) + np.dot(self.PHIcfd_f.T, Pcfd)
         d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
         
@@ -1162,9 +1162,9 @@ class cfd_steady(steady):
                        Vtas, 
                      )) 
         
-        if type in ['trim', 'sim']:
+        if modus in ['trim', 'sim']:
             return Y
-        elif type in ['trim_full_output', 'sim_full_output']:
+        elif modus in ['trim_full_output', 'sim_full_output']:
             # calculate translations, velocities and accelerations of some additional points
             # (might also be used for sensors in a closed-loop system
             if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
@@ -1221,7 +1221,7 @@ class cfd_steady(steady):
         
 class nonlin_steady(steady):
 
-    def equations(self, X, t, type):
+    def equations(self, X, t, modus):
         self.counter += 1
         # recover states
         Tgeo2body, Tbody2geo    = self.geo2body(X)
@@ -1261,7 +1261,7 @@ class nonlin_steady(steady):
         # -----------   
         # --- EoM ---   
         # -----------
-        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg)
+        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg, modus)
         Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
         d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
         
@@ -1282,9 +1282,9 @@ class nonlin_steady(steady):
                        Vtas, 
                      ))
             
-        if type in ['trim', 'sim']:
+        if modus in ['trim', 'sim']:
             return Y
-        elif type in ['trim_full_output', 'sim_full_output']:
+        elif modus in ['trim_full_output', 'sim_full_output']:
             # calculate translations, velocities and accelerations of some additional points
             # (might also be used for sensors in a closed-loop system
             if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
@@ -1341,7 +1341,7 @@ class nonlin_steady(steady):
                    
 class unsteady(common):
 
-    def equations(self, X, t, type):
+    def equations(self, X, t, modus):
         self.counter += 1
         # recover states
         Tgeo2body, Tbody2geo    = self.geo2body(X)
@@ -1379,7 +1379,7 @@ class unsteady(common):
         # -----------   
         # --- EoM ---   
         # -----------
-        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg)
+        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg, modus)
         Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
         d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
         
@@ -1401,9 +1401,9 @@ class unsteady(common):
                        Vtas, 
                      ))
              
-        if type in ['trim', 'sim']:
+        if modus in ['trim', 'sim']:
             return Y
-        elif type in ['trim_full_output', 'sim_full_output']:
+        elif modus in ['trim_full_output', 'sim_full_output']:
             # calculate translations, velocities and accelerations of some additional points
             # (might also be used for sensors in a closed-loop system
             if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
@@ -1457,22 +1457,22 @@ class unsteady(common):
                        }
             return response        
     
-    def eval_equations(self, X_free, time, type='trim_full_output'):
-        if type in[ 'sim', 'sim_full_output']:
+    def eval_equations(self, X_free, time, modus='trim_full_output'):
+        if modus in[ 'sim', 'sim_full_output']:
             X = X_free
         
         # evaluate model equations
-        if type=='sim':
+        if modus=='sim':
             Y = self.equations(X, time, 'sim')
             return Y[self.trim.idx_state_derivatives+self.trim.idx_input_derivatives+self.trim.idx_lag_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
             
-        elif type=='sim_full_output':
+        elif modus=='sim_full_output':
             response = self.equations(X, time, 'sim_full_output')
             return response
       
 class landing(common):
 
-    def equations(self, X, t, type):
+    def equations(self, X, t, modus):
         self.counter += 1
         # recover states
         Tgeo2body, Tbody2geo    = self.geo2body(X)
@@ -1516,7 +1516,7 @@ class landing(common):
         # -----------   
         # --- EoM ---   
         # -----------
-        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg)
+        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg, modus)
         Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) + np.dot(PHIf_lg, Plg) # viel schneller!
         d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
         
@@ -1538,9 +1538,9 @@ class landing(common):
                        Vtas, 
                      ))
              
-        if type in ['trim', 'sim']:
+        if modus in ['trim', 'sim']:
             return Y
-        elif type in ['trim_full_output', 'sim_full_output']:
+        elif modus in ['trim_full_output', 'sim_full_output']:
             # calculate translations, velocities and accelerations of some additional points
             # (might also be used for sensors in a closed-loop system
             p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])))[self.model.lggrid['set'][:,2]] #+ PHIf_lg.T.dot(X[12:12+self.n_modes]))[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
@@ -1582,15 +1582,15 @@ class landing(common):
                         }
             return response        
         
-    def eval_equations(self, X_free, time, type='trim_full_output'):
-        if type in[ 'sim', 'sim_full_output']:
+    def eval_equations(self, X_free, time, modus='trim_full_output'):
+        if modus in[ 'sim', 'sim_full_output']:
             X = X_free
         
         # evaluate model equations
-        if type=='sim':
+        if modus=='sim':
             Y = self.equations(X, time, 'sim')
             return Y[self.trim.idx_state_derivatives+self.trim.idx_input_derivatives+self.trim.idx_lg_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
             
-        elif type=='sim_full_output':
+        elif modus=='sim_full_output':
             response = self.equations(X, time, 'sim_full_output')
             return response
