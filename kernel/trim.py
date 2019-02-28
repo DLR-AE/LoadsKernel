@@ -390,6 +390,7 @@ class trim:
         if self.trimcase['manoeuver'] == 'bypass':
             logging.info('running bypass...')
             self.response = equations.eval_equations(X_free_0, time=0.0, modus='trim_full_output')
+            self.successful = True
         else:
             logging.info('running trim for ' + str(len(X_free_0)) + ' variables...')
             X_free, info, status, msg= so.fsolve(equations.eval_equations, X_free_0, args=(0.0, 'trim'), full_output=True)
