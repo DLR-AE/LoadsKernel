@@ -101,7 +101,7 @@ def calc_induced_velocities(aerogrid, Ma):
     D2_v = sinGamma*D2_base
     D2_w = cosGamma*D2_base
     
-    ind =  np.where(r1<epsilon)[0]
+    ind =  np.where((r1<epsilon) + (d2<epsilon))[0]
     D2_u[ind] = 0.0
     D2_v[ind] = 0.0
     D2_w[ind] = 0.0
@@ -120,7 +120,7 @@ def calc_induced_velocities(aerogrid, Ma):
     D3_v = sinGamma*D3_base
     D3_w = cosGamma*D3_base
     
-    ind =  np.where(r2<epsilon)[0]
+    ind =  np.where((r2<epsilon) + (d3<epsilon))[0]
     D3_u[ind] = 0.0
     D3_v[ind] = 0.0
     D3_w[ind] = 0.0
