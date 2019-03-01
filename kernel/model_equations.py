@@ -9,7 +9,7 @@ import meshdefo, efcs
 import PyTauModuleInit, PyPara, PyDeform, PyPrep, PySolv
 from tau_python import *
 
-class common():
+class Common():
     def __init__(self, trim, X0='', simcase=''):
         logging.info('Init model equations.')
         self.model      = trim.model
@@ -48,9 +48,7 @@ class common():
         self.Dkx1        = self.model.Dkx1
         
         # set hingeline for cs deflections       
-        if self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'y':
-            self.hingeline = 'y'
-        elif self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'z':
+        if self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'z':
             self.hingeline = 'z'
         else: # default
             self.hingeline = 'y'
@@ -83,34 +81,13 @@ class common():
         
         # init controller
         if self.simcase and self.simcase['controller']:
-            #self.efcs.controller_init(np.array((0.0,0.0,0.0)), 'angular accelerations')
-            #self.efcs.controller_init(np.dot(self.PHIcg_norm[3:6,3:6],np.dot(calc_drehmatrix_angular(float(self.trimcond_X[3,2]), float(self.trimcond_X[4,2]), float(self.trimcond_X[5,2])), np.array(self.trimcond_X[9:12,2], dtype='float'))), 'angular velocities')
+            """
+            The controller might be set-up in different ways, e.g. to maintain a certain angular acceleration of velocity.
+            Example: self.efcs.controller_init(np.array((0.0,0.0,0.0)), 'angular accelerations')
+            Example: self.efcs.controller_init(np.dot(self.PHIcg_norm[3:6,3:6],np.dot(calc_drehmatrix_angular(float(self.trimcond_X[3,2]), float(self.trimcond_X[4,2]), float(self.trimcond_X[5,2])), np.array(self.trimcond_X[9:12,2], dtype='float'))), 'angular velocities')
+            """
             self.efcs.controller_init(command_0=X0[12+self.n_modes*2:12+self.n_modes*2+3], setpoint_q=float(self.trimcond_X[np.where(self.trimcond_X[:,0]=='q')[0][0], 2]) )
-                
-        # init aero db for hybrid aero: alpha
-        if self.jcl.aero['method'] == 'hybrid' and self.model.aerodb.has_key('alpha') and self.trimcase['aero'] in self.model.aerodb['alpha']:
-            self.correct_alpha = True
-            self.aerodb_alpha = self.model.aerodb['alpha'][self.trimcase['aero']]
-            # interp1d:  x has to be an array of monotonically increasing values
-            self.aerodb_alpha_interpolation_function = interpolate.interp1d(np.array(self.aerodb_alpha['values'])/180.0*np.pi, np.array(self.aerodb_alpha['Pk']), axis=0, bounds_error = True )
-            logging.info('Hybrid aero is used for alpha.')
-            #print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], self.aerodb_alpha['q_dyn'], self.q_dyn)        
-        else:
-            self.correct_alpha = False      
-        
-        # init aero db for hybrid aero: control surfaces x2
-        # because there are several control surfaces, lists are used
-        self.correct_x2 = []
-        self.aerodb_x2 = []
-        self.aerodb_x2_interpolation_function = []
-        for x2_key in self.efcs.keys:        
-            if self.jcl.aero['method'] == 'hybrid' and self.model.aerodb.has_key(x2_key) and self.trimcase['aero'] in self.model.aerodb[x2_key]:
-                self.correct_x2.append(x2_key)
-                self.aerodb_x2.append(self.model.aerodb[x2_key][self.trimcase['aero']])
-                self.aerodb_x2_interpolation_function.append(interpolate.interp1d(np.array(self.aerodb_x2[-1]['values'])/180.0*np.pi, np.array(self.aerodb_x2[-1]['Pk']), axis=0, bounds_error = True ))
-                logging.info('Hybrid aero is used for {}.'.format(x2_key))
-                #print 'Forces from aero db ({}) will be scaled from q_dyn = {:.2f} to current q_dyn = {:.2f}.'.format(self.trimcase['aero'], self.aerodb_x2[-1]['q_dyn'], self.q_dyn)       
-        
+                        
         # convergence parameter for iterative evaluation
         self.defo_old = 0.0    
         
@@ -144,14 +121,6 @@ class common():
         return Pk, wj
     
     def rbm(self, dUcg_dt, alpha, q_dyn, Vtas):
-        if self.correct_alpha:
-            # Anstellwinkel alpha von der DLM-Loesung abziehen
-            alpha = self.efcs.alpha_protetcion(alpha)
-            drehmatrix = np.zeros((6,6))
-            drehmatrix[0:3,0:3] = calc_drehmatrix(0.0, -alpha, 0.0) 
-            drehmatrix[3:6,3:6] = calc_drehmatrix(0.0, -alpha, 0.0) 
-            dUcg_dt = np.dot(drehmatrix, dUcg_dt)
-            
         dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt) # auch bodyfixed
         Ujx1 = np.dot(self.Djx1,dUmac_dt)
         # der downwash wj ist nur die Komponente von Uj, welche senkrecht zum Panel steht! 
@@ -170,28 +139,20 @@ class common():
         return Pk_rbm, wjx1
     
     def camber_twist_nonlin(self, dUcg_dt):
-        if self.correct_alpha:
-            Pk = np.zeros(self.model.aerogrid['n']*6)
-            wj = np.zeros(self.model.aerogrid['n'])
-        else:
-            wj = np.sin(self.model.camber_twist['cam_rad'] ) * -1.0 
-            dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt) # auch bodyfixed
-            Pk = self.calc_Pk_nonlin(dUmac_dt, wj)
+        wj = np.sin(self.model.camber_twist['cam_rad'] ) * -1.0 
+        dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt) # auch bodyfixed
+        Pk = self.calc_Pk_nonlin(dUmac_dt, wj)
         return Pk, wj
     
     def camber_twist(self, q_dyn):
-        if self.correct_alpha:
-            Pk_cam = np.zeros(self.model.aerogrid['n']*6)
-            wj_cam = np.zeros(self.model.aerogrid['n'])
-        else:
-            wj_cam = np.sin(self.model.camber_twist['cam_rad'] )
-            flcam = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(self.Qjj, wj_cam)
-            Plcam = np.zeros(self.model.aerogrid['n']*6)
-            Plcam[self.model.aerogrid['set_l'][:,0]] = flcam[0,:]
-            Plcam[self.model.aerogrid['set_l'][:,1]] = flcam[1,:]
-            Plcam[self.model.aerogrid['set_l'][:,2]] = flcam[2,:]
-            
-            Pk_cam = self.model.Dlk.T.dot(Plcam) 
+        wj_cam = np.sin(self.model.camber_twist['cam_rad'] )
+        flcam = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(self.Qjj, wj_cam)
+        Plcam = np.zeros(self.model.aerogrid['n']*6)
+        Plcam[self.model.aerogrid['set_l'][:,0]] = flcam[0,:]
+        Plcam[self.model.aerogrid['set_l'][:,1]] = flcam[1,:]
+        Plcam[self.model.aerogrid['set_l'][:,2]] = flcam[2,:]
+        
+        Pk_cam = self.model.Dlk.T.dot(Plcam) 
         return Pk_cam, wj_cam
     
     def cs_nonlin(self, dUcg_dt, X, Ux2, Vtas):
@@ -200,16 +161,15 @@ class common():
         # a) es liegen Daten in der AeroDB vor -> Kraefte werden interpoliert, dann zu Pk addiert, downwash vector bleibt unveraendert
         # b) der downwash der Steuerflaeche wird berechnet, zum downwash vector addiert 
         for i_x2 in range(len(self.efcs.keys)):
-            if self.efcs.keys[i_x2] not in self.correct_x2:
-                # b) use DLM solution
-                if self.hingeline == 'y':
-                    Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
-                elif self.hingeline == 'z':
-                    Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
-                # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
-                # Mit der Norm von wj geht das Vorzeichen verloren - dies ist aber fuer den Steuerflaechenausschlag wichtig.
-                wj += self.model.x2grid['eff'][i_x2] * np.sign(Ux2[i_x2]) * np.sqrt(np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])**2.0 + \
-                                                                                    np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])**2.0) * -Vtas
+            # b) use DLM solution
+            if self.hingeline == 'y':
+                Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
+            elif self.hingeline == 'z':
+                Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
+            # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
+            # Mit der Norm von wj geht das Vorzeichen verloren - dies ist aber fuer den Steuerflaechenausschlag wichtig.
+            wj += self.model.x2grid['eff'][i_x2] * np.sign(Ux2[i_x2]) * np.sqrt(np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])**2.0 + \
+                                                                                np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])**2.0) * -Vtas
         dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt) # auch bodyfixed
         Pk = self.calc_Pk_nonlin(dUmac_dt, wj)
         return Pk, wj
@@ -220,16 +180,15 @@ class common():
         # a) es liegen Daten in der AeroDB vor -> Kraefte werden interpoliert, dann zu Pk addiert, downwash vector bleibt unveraendert
         # b) der downwash der Steuerflaeche wird berechnet, zum downwash vector addiert 
         for i_x2 in range(len(self.efcs.keys)):
-            if self.efcs.keys[i_x2] not in self.correct_x2:
-                # b) use DLM solution
-                if self.hingeline == 'y':
-                    Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
-                elif self.hingeline == 'z':
-                    Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
-                # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
-                # Mit der Norm von wj geht das Vorzeichen verloren - dies ist aber fuer den Steuerflaechenausschlag wichtig.
-                wjx2 += self.model.x2grid['eff'][i_x2] * np.sign(Ux2[i_x2]) * np.sqrt(np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])**2.0 + \
-                                                                                      np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])**2.0)  #* Vtas/Vtas
+            # b) use DLM solution
+            if self.hingeline == 'y':
+                Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
+            elif self.hingeline == 'z':
+                Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
+            # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
+            # Mit der Norm von wj geht das Vorzeichen verloren - dies ist aber fuer den Steuerflaechenausschlag wichtig.
+            wjx2 += self.model.x2grid['eff'][i_x2] * np.sign(Ux2[i_x2]) * np.sqrt(np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])**2.0 + \
+                                                                                  np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])**2.0)  #* Vtas/Vtas
         flx2 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(self.Qjj, wjx2)
         Plx2 = np.zeros(self.model.aerogrid['n']*6)
         Plx2[self.model.aerogrid['set_l'][:,0]] = flx2[0,:]
@@ -500,9 +459,8 @@ class common():
             PHIlg_cg = self.model.mass['PHIlg_cg'][self.i_mass]
             PHIf_lg = self.model.mass['PHIf_lg'][self.i_mass]
             PHIlg_cg = self.model.mass['PHIlg_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
-            p1   = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])))[self.model.lggrid['set'][:,2]] #+ PHIf_lg.T.dot(X[12:12+self.n_modes]))[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
-            dp1  = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12]))))[self.model.lggrid['set'][:,2]] # + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
-            #ddp1 = (PHIlg_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, Y[6:12]))))[self.model.lggrid['set'][:,2]] # + PHIf_lg.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.lggrid['set'][:,2]] # acceleration LG attachment point 
+            p1   = PHIlg_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.lggrid['set'][:,2]] + PHIf_lg.T.dot(X[12:12+self.n_modes])[self.model.lggrid['set'][:,2]] # position LG attachment point over ground
+            dp1  = PHIlg_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12])))[self.model.lggrid['set'][:,2]]  + PHIf_lg.T.dot(X[12+self.n_modes:12+self.n_modes*2])[self.model.lggrid['set'][:,2]] # velocity LG attachment point 
             p2  = X[12+self.n_modes*2+3:12+self.n_modes*2+3+self.model.lggrid['n']]  # position Tire center over ground
             dp2 = X[12+self.n_modes*2+3+self.model.lggrid['n']:12+self.n_modes*2+3+self.model.lggrid['n']*2] # velocity Tire center
             # loop over every landing gear
@@ -633,12 +591,10 @@ class common():
         old_dir = os.getcwd()
         os.chdir(self.jcl.aero['para_path'])
 
-        args_subgrids = shlex.split('ptau3d.subgrids para_subcase_{}'.format(self.trimcase['subcase']))
         args_deform   = shlex.split('mpiexec -np {} --host {} deformation para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'],  mpi_hosts, self.trimcase['subcase'], self.trimcase['subcase']))
         args_pre      = shlex.split('mpiexec -np {} --host {} ptau3d.preprocessing para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'], mpi_hosts, self.trimcase['subcase'], self.trimcase['subcase']))
         args_solve    = shlex.split('mpiexec -np {} --host {} ptau3d.{} para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'], mpi_hosts, self.jcl.aero['tau_solver'], self.trimcase['subcase'], self.trimcase['subcase']))
         
-        #subprocess.call(args_subgrids)
         returncode = subprocess.call(args_deform)
         if returncode != 0: 
             raise TauError('Subprocess returned an error from Tau deformation, please see deformation.stdout !')          
@@ -784,7 +740,7 @@ class TauError(Exception):
 class ConvergenceError(Exception):
     '''Raise when structural deformation does not converge after xx loops'''
   
-class steady(common):
+class Steady(Common):
 
     def equations(self, X, t, modus):
         self.counter += 1
@@ -972,7 +928,6 @@ class steady(common):
             logging.info('Cmx: %.6f' % float(Pmac_c[3]/self.model.macgrid['b_ref']))
             logging.info('Cmy: %.6f' % float(Pmac_c[4]/self.model.macgrid['c_ref']))
             logging.info('Cmz: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']))
-            #logging.info('dCmz_dbeta: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']/response['beta'])
             logging.info('alpha: %.4f [deg]' % float(response['alpha']/np.pi*180))
             logging.info('beta: %.4f [deg]' % float(response['beta']/np.pi*180))
             logging.info('Cd: %.4f' % float(Cd))
@@ -985,9 +940,6 @@ class steady(common):
             logging.info('command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 ))
             logging.info('command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 ))
             logging.info('CS deflections [deg]: ' + str(response['Ux2']/np.pi*180))
-            #logging.info('dCz_da: %.4f' % float(Pmac_c[2]/response['alpha']))
-            #logging.info('dCmy_da: %.4f' % float(Pmac_c[4]/self.model.macgrid['c_ref']/response['alpha']))
-            #logging.info('dCmz_db: %.4f' % float(Pmac_c[4]/self.model.macgrid['b_ref']/response['beta']))
             logging.info('--------------------')
             
             return response
@@ -1064,7 +1016,6 @@ class steady(common):
             # um alpha drehen, um Cl und Cd zu erhalten
             Cl = Pmac_c[2]*np.cos(response['alpha'])+Pmac_c[0]*np.sin(response['alpha'])
             Cd = Pmac_c[2]*np.sin(response['alpha'])+Pmac_c[0]*np.cos(response['alpha'])
-            Cd_ind_theo = Cl**2.0/np.pi/AR
             logging.info('')
             logging.info('--------------------')
             logging.info('q_dyn: %.4f [Pa]' % float(response['q_dyn']))
@@ -1088,7 +1039,6 @@ class steady(common):
             logging.info('Cl: %.4f' % float(Cl))
             logging.info('Cd_ind: %.6f' % float(Pmac_idrag[0]/response['q_dyn']/A))
             logging.info('Cmz_ind: %.6f' % float(Pmac_idrag[5]/response['q_dyn']/A/self.model.macgrid['b_ref']))
-            #logging.info('e: %.4f' % float(Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn']/A)))
             logging.info('command_xi: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])/np.pi*180.0 ))
             logging.info('command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 ))
             logging.info('command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 ))
@@ -1097,7 +1047,7 @@ class steady(common):
             
             return response
 
-class cfd_steady(steady):
+class CfdSteady(Steady):
 
     def equations(self, X, t, modus):
         self.counter += 1
@@ -1219,7 +1169,7 @@ class cfd_steady(steady):
                        }
             return response        
         
-class nonlin_steady(steady):
+class NonlinSteady(Steady):
 
     def equations(self, X, t, modus):
         self.counter += 1
@@ -1339,7 +1289,7 @@ class nonlin_steady(steady):
                        }
             return response        
                    
-class unsteady(common):
+class Unsteady(Common):
 
     def equations(self, X, t, modus):
         self.counter += 1
@@ -1470,7 +1420,7 @@ class unsteady(common):
             response = self.equations(X, time, 'sim_full_output')
             return response
       
-class landing(common):
+class Landing(Common):
 
     def equations(self, X, t, modus):
         self.counter += 1
