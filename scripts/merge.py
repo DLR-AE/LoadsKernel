@@ -181,8 +181,8 @@ class Merge:
 if __name__ == "__main__":
 #     print "Please use the launch-script 'launch.py' from your input directory."
 #     sys.exit()
-    jobs_to_merge = ['jcl_XRF1_cfd_all', 
-                     'jcl_XRF1_cfd_upwind']
+    jobs_to_merge = ['jcl_XRF1_cfd_ll2_all', 
+                     'jcl_XRF1_cfd_ll2_upwind']
     m = Merge(path_input='/scratch/XRF1_LoadsKernel/JCLs', path_output='/scratch/XRF1_LoadsKernel')
-    m.run_merge('jcl_XRF1_cfd_merged_ll0', jobs_to_merge)
+    m.run_merge('jcl_XRF1_cfd_merged_ll2', jobs_to_merge)
     

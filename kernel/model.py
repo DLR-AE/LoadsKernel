@@ -13,7 +13,7 @@ import read_geom
 import read_cfdgrids
 import io_functions
 from grid_trafo import grid_trafo
-from  atmo_isa import atmo_isa
+from atmosphere import isa as atmo_isa
 import VLM, DLM
 
 import numpy as np
