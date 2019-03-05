@@ -5,7 +5,7 @@ Created on Thu Nov 27 17:44:58 2014
 @author: voss_ar
 """
 import numpy as np
-from  atmo_isa import atmo_isa
+from atmosphere import isa as atmo_isa
 
 def calc_drehmatrix_angular( phi=0.0, theta=0.0, psi=0.0 ):
     # Alle Winkel in [rad] !

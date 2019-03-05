@@ -235,10 +235,10 @@ class trim:
     
     def calc_jacobian(self):
         import model_equations # Warum muss der import hier stehen??
-#         equations = model_equations.steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
+#         equations = model_equations.Steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
 #         X0 = np.array(self.trimcond_X[:,2], dtype='float')
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
-            equations = model_equations.steady(self)
+            equations = model_equations.Steady(self)
 #             X0 = np.array(self.trimcond_X[:,2], dtype='float')
             X0 = self.response['X']
             n_poles     = 0
@@ -267,7 +267,7 @@ class trim:
             self.idx_lag_derivatives    = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states)
             self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states+self.n_outputs)
 
-            equations = model_equations.unsteady(self)
+            equations = model_equations.Unsteady(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
             
@@ -300,7 +300,7 @@ class trim:
 #         self.response['Y'] = Y
         self.response = {}
         self.response['X0'] = X0 # Linearisierungspunkt
-        self.response['Y0'] = equations.equations(X0, t=0.0, type='trim')
+        self.response['Y0'] = equations.equations(X0, t=0.0, modus='trim')
         self.response['jac'] = jac
         self.response['states'] = self.states[:,0]
         self.response['state_derivativess'] = self.state_derivatives[:,0]
@@ -330,9 +330,9 @@ class trim:
         import model_equations # Warum muss der import hier stehen??
         
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
-            equations = model_equations.steady(self)
+            equations = model_equations.Steady(self)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
-            equations = model_equations.nonlin_steady(self)
+            equations = model_equations.NonlinSteady(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -379,9 +379,9 @@ class trim:
         import model_equations # Warum muss der import hier stehen??
         
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
-            equations = model_equations.steady(self)
+            equations = model_equations.Steady(self)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
-            equations = model_equations.nonlin_steady(self)
+            equations = model_equations.NonlinSteady(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -389,7 +389,8 @@ class trim:
         
         if self.trimcase['manoeuver'] == 'bypass':
             logging.info('running bypass...')
-            self.response = equations.eval_equations(X_free_0, time=0.0, type='trim_full_output')
+            self.response = equations.eval_equations(X_free_0, time=0.0, modus='trim_full_output')
+            self.successful = True
         else:
             logging.info('running trim for ' + str(len(X_free_0)) + ' variables...')
             X_free, info, status, msg= so.fsolve(equations.eval_equations, X_free_0, args=(0.0, 'trim'), full_output=True)
@@ -399,7 +400,7 @@ class trim:
             # no errors, check trim status for success
             if status == 1:
                 # if trim was successful, then do one last evaluation with the final parameters.
-                self.response = equations.eval_equations(X_free, time=0.0, type='trim_full_output')
+                self.response = equations.eval_equations(X_free, time=0.0, modus='trim_full_output')
                 self.successful = True
             else:
                 self.response = {}
@@ -410,9 +411,9 @@ class trim:
     def exec_sim(self):
         import model_equations 
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not self.simcase['landinggear']:
-            equations = model_equations.steady(self, X0=self.response['X'], simcase=self.simcase)
+            equations = model_equations.Steady(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
-            equations = model_equations.nonlin_steady(self, X0=self.response['X'], simcase=self.simcase)
+            equations = model_equations.NonlinSteady(self, X0=self.response['X'], simcase=self.simcase)
         elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
             logging.info('adding 2 x {} states for landing gear'.format(self.model.lggrid['n']))
             lg_states = []
@@ -430,7 +431,7 @@ class trim:
             self.idx_lg_states         = range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lg_states)
             self.idx_lg_derivatives    = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states)
             self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states+self.n_outputs)
-            equations = model_equations.landing(self, X0=self.response['X'], simcase=self.simcase)
+            equations = model_equations.Landing(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             if 'disturbance' in self.simcase.keys():
                 logging.info('adding disturbance of {} to state(s) '.format(self.simcase['disturbance']))
@@ -453,7 +454,7 @@ class trim:
             self.idx_lag_states         = range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lag_states)
             self.idx_lag_derivatives    = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states)
             self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states+self.n_outputs)
-            equations = model_equations.unsteady(self, X0=self.response['X'], simcase=self.simcase)
+            equations = model_equations.Unsteady(self, X0=self.response['X'], simcase=self.simcase)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
 
@@ -476,10 +477,10 @@ class trim:
         if integrator.successful():
             logging.info('Simulation finished.')
             logging.info('running (again) with full outputs at selected time steps...')
-            #equations = model_equations.unsteady(self, X0=self.response['X'], simcase=self.simcase)
-            equations.eval_equations(self.response['X'], 0.0, type='sim_full_output')
+            #equations = model_equations.Unsteady(self, X0=self.response['X'], simcase=self.simcase)
+            equations.eval_equations(self.response['X'], 0.0, modus='sim_full_output')
             for i_step in np.arange(0,len(t)):
-                response_step = equations.eval_equations(X_t[i_step], t[i_step], type='sim_full_output')
+                response_step = equations.eval_equations(X_t[i_step], t[i_step], modus='sim_full_output')
                 for key in self.response.keys():
                     self.response[key] = np.vstack((self.response[key],response_step[key]))
 
@@ -492,9 +493,9 @@ class trim:
     def iterative_trim(self):
         import model_equations # Warum muss der import hier stehen??
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
-            equations = model_equations.steady(self)
+            equations = model_equations.Steady(self)
         elif self.jcl.aero['method'] in [ 'cfd_steady']:
-            equations = model_equations.cfd_steady(self)
+            equations = model_equations.CfdSteady(self)
             io_functions.specific_functions.check_para_path(io_functions.specific_functions(), self.jcl)
             io_functions.specific_functions.copy_para_file(io_functions.specific_functions(), self.jcl, self.trimcase)
             io_functions.specific_functions.check_tau_folders(io_functions.specific_functions(), self.jcl)
@@ -516,7 +517,7 @@ class trim:
         
         if self.trimcase['manoeuver'] == 'bypass':
             logging.info('running bypass...')
-            self.response = equations.eval_equations(X_free_0, time=0.0, type='trim_full_output')
+            self.response = equations.eval_equations(X_free_0, time=0.0, modus='trim_full_output')
         else:
             logging.info('running trim for ' + str(len(X_free_0)) + ' variables...')
             try:
@@ -538,7 +539,7 @@ class trim:
                 # no errors, check trim status for success
                 if status == 1:
                     # if trim was successful, then do one last evaluation with the final parameters.
-                    self.response = equations.eval_equations_iteratively(X_free, time=0.0, type='trim_full_output')
+                    self.response = equations.eval_equations_iteratively(X_free, time=0.0, modus='trim_full_output')
                     self.successful = True
                 else:
                     self.response = {}

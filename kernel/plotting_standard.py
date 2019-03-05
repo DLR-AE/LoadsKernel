@@ -82,10 +82,17 @@ class StandardPlots():
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.4 # points
         elif self.jcl.general['aircraft'] in ['HAP-C0']:
-            self.potatos_fz_mx = ['ZWCUT01']
-            self.potatos_mx_my = ['ZWCUT01']
-            self.potatos_fz_my = ['ZWCUT01']
-            self.cuttingforces_wing = ['ZWCUT01', 'ZWCUT04', 'ZWCUT07', 'ZWCUT10', 'ZWCUT13', 'ZWCUT16', 'ZWCUT19', 'ZWCUT22', 'ZWCUT25', 'ZWCUT28', 'ZWCUT31', 'ZWCUT34',]
+            self.potatos_fz_mx = ['64001']
+            self.potatos_mx_my = ['64001']
+            self.potatos_fz_my = ['64001']
+            self.cuttingforces_wing = ['54033', '54032', '54031', '54030', '54029', '54028', '54027', '54026', '54025', '54024', 
+                                       '54023', '54022', '54021', '54020', '54019', '54018', '54017', '54016', '54015', '54014', 
+                                       '54013', '54012', '54011', '54010', '54009', '54008', '54007', '54006', '54005', '54004', 
+                                       '54003', '54002', '54001',
+                                       '64001', '64002', '64003', '64004', '64005', '64006', '64007', '64008', '64009', '64010', 
+                                       '64011', '64012', '64013', '64014', '64015', '64016', '64017', '64018', '64019', '64020', 
+                                       '64021', '64022', '64023', '64024', '64025', '64026', '64027', '64028', '64029', '64030', 
+                                       '64032', '64023', '64033',]
             self.f_scale = 0.1 # vectors
             self.p_scale = 0.05 # points
         else:

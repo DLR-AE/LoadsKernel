@@ -6,7 +6,7 @@ Created on Wed Oct 15 09:23:59 2014
 """
 import math, logging
 
-def atmo_isa(h):
+def isa(h):
     # p, rho, T, a = atmo_isa(h)
     # Calculation of various atmospheric parameters according to the International Standard Atmosphere (ISA)
     # This function is in the style of Thiemo Kiers atmo_isa.m, 

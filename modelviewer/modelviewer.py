@@ -554,8 +554,9 @@ class Modelviewer():
             self.list_cs.addItem(QtGui.QListWidgetItem(key))
 
         self.list_monstations.clear()
-        for key in self.model.mongrid['ID']:
-            self.list_monstations.addItem(QtGui.QListWidgetItem(str(key)))
+        if hasattr(self.model, 'mongrid'):
+            for key in self.model.mongrid['ID']:
+                self.list_monstations.addItem(QtGui.QListWidgetItem(str(key)))
 
     def load_nastran_results(self):
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.hdf5_opt['title'], self.hdf5_opt['initialdir'], self.hdf5_opt['filters'])[0]

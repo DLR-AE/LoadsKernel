@@ -5,7 +5,7 @@ Created on Tue Oct 21 16:42:14 2014
 @author: voss_ar
 """
 import numpy as np
-from atmo_isa import atmo_isa
+from atmosphere import isa as atmo_isa
 
 def ft2m(length_ft):
     # exactly
