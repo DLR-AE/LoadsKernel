@@ -275,7 +275,7 @@ class BuildMass:
         logging.info( 'Found {} modes with the following frequencies [Hz]:'.format(len(eigenvalue)))
         logging.info( frequencies )
         n_rbm_estimate = np.sum(np.isnan(frequencies) + np.less(frequencies, 0.1))
-        if any([n_rbm_estimate < 6, self.jcl.mass['omit_rb_modes']]):
+        if all([n_rbm_estimate < 6, self.jcl.mass['omit_rb_modes']]):
             logging.warning('There are only {} modes < 0.1 Hz! Is the number of rigid body modes correct ??'.format(n_rbm_estimate))
         return eigenvalue, eigenvector
     
