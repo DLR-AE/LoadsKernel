@@ -49,3 +49,7 @@ def cas2Ma(cas,h):
 def tas2Ma(tas, h):
     p, rho, T, a = atmo_isa(h)
     return tas/a
+
+def eas2Ma(eas,h):
+    tas = eas2tas(eas, h)
+    return tas2Ma(tas, h)
