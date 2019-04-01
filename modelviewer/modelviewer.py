@@ -8,7 +8,7 @@ Created on Thu Feb  9 17:45:02 2017
 
 import os
 
-from kernel import io_functions
+from loadskernel import io_functions
 from plotting import Plotting
 from pytran import NastranSOL101
 from cfdgrid import TauGrid

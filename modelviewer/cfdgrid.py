@@ -3,7 +3,7 @@
 import scipy.io.netcdf as netcdf
 import numpy as np
 import h5py, shutil, imp
-read_module_from_LK = imp.load_source('read_cfdgrids', '../kernel/read_cfdgrids.py')
+read_module_from_LK = imp.load_source('read_cfdgrids', '../loadskernel/read_cfdgrids.py')
 
 class TauGrid(read_module_from_LK.read_cfdgrids):
     def  __init__(self):

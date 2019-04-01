@@ -1,7 +1,7 @@
 # JCL - Job Control File documentation
 
 import numpy as np
-from kernel.units import *
+from loadskernel.units import *
 
 class jcl:
     def __init__(self):

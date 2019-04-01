@@ -5,9 +5,9 @@ Created on Thu Nov 27 14:00:31 2014
 @author: voss_ar
 """
 import getpass, platform, logging, sys, copy
-from  kernel import io_functions
-from  kernel import auxiliary_output
-from  kernel import plotting_standard
+from  loadskernel import io_functions
+from  loadskernel import auxiliary_output
+from  loadskernel import plotting_standard
 import numpy as np
 
 class Merge:

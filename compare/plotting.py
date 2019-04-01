@@ -9,7 +9,7 @@ Created on Fri Feb 10 09:24:10 2017
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull
-from kernel import kernel
+from loadskernel import kernel
 
 class Plotting(kernel.plotting_standard.StandardPlots):
     def __init__(self, fig):
