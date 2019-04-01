@@ -112,6 +112,16 @@ class trim:
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
             # outputs
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
+            
+        # -----------------------------------
+        # --- pitch and yaw only, no roll --- 
+        # -----------------------------------
+        elif self.trimcase['manoeuver'] == 'pitch&yaw':
+            logging.info('setting trim conditions to "pitch&yaw"')
+            # inputs
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            # outputs
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
         
         # ---------------------
         # --- level landing --- 

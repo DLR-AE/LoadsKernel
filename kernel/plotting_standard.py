@@ -81,7 +81,7 @@ class StandardPlots():
             self.cuttingforces_wing = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.4 # points
-        elif self.jcl.general['aircraft'] in ['HAP-C0']:
+        elif self.jcl.general['aircraft'] in ['HAP-C1']:
             self.potatos_fz_mx = ['64001']
             self.potatos_mx_my = ['64001']
             self.potatos_fz_my = ['64001']

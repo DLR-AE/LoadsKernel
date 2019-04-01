@@ -422,10 +422,12 @@ class Kernel():
         io = io_functions.specific_functions()
         model = io.load_model(self.job_name, self.path_output)
         # place code to test here
-#        responses = io.load_responses(job_name, path_output)
+#        responses = io.load_responses(self.job_name, self.path_output)
 #        with open(path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
 #            monstations = io.load_pickle(f)
-
+#         from scripts import cps_for_MULDICON
+#         cps = cps_for_MULDICON.CPs(self.jcl, model, responses)
+#         cps.plot()
 #        import plots_for_Muldicon
 #        plots = plots_for_Muldicon.Plots(jcl, model, responses)
 #        plots.plot_aero_spanwise()
@@ -435,9 +437,9 @@ class Kernel():
 #         plots = plots_for_Discus2c.Plots(jcl, model, responses=responses, monstations=monstations)
 #         plots.plot_ft()
 #         plots.plot_contributions()
-#         import plot_felxdefo
-#         plots = plot_felxdefo.Flexdefo(jcl, model, responses)
-#         plot.flexdefos()
+#        from scripts import plot_flexdefo
+#        plot = plot_flexdefo.Flexdefo(self.jcl, model, responses)
+#        plot.plot_flexdefos_trim()
 #         import plots_for_HALO
 #         plots = plots_for_HALO.Plots(path_output, jcl, model, responses=responses, monstations=monstations)
 #         plots.plot_ft()
