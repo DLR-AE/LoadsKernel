@@ -423,7 +423,7 @@ class Kernel():
         model = io.load_model(self.job_name, self.path_output)
         # place code to test here
 #        responses = io.load_responses(self.job_name, self.path_output)
-#        with open(path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
+#        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'r') as f:
 #            monstations = io.load_pickle(f)
 #         from scripts import cps_for_MULDICON
 #         cps = cps_for_MULDICON.CPs(self.jcl, model, responses)
@@ -504,7 +504,7 @@ class Kernel():
         formatter = logging.Formatter(fmt='%(levelname)s: %(message)s')  # set a format which is simpler for console use
         console.setFormatter(formatter)  # tell the handler to use this format
         # define a Handler which writes INFO messages or higher to a log file
-        logfile = logging.FileHandler(filename=self.path_output + 'log_' + self.job_name + ".txt", mode='w')
+        logfile = logging.FileHandler(filename=self.path_output + 'log_' + self.job_name + ".txt", mode='a')
         logfile.setLevel(logging.INFO)
         formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
         logfile.setFormatter(formatter)
