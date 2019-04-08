@@ -215,22 +215,25 @@ class StandardPlots():
         loads_string, subcase_string = self.get_loads_strings(station)
         loads   = np.array(self.monstations[station][loads_string])
         points = np.vstack((loads[:,dof_xaxis], loads[:,dof_yaxis])).T
-        crit_trimcases = []
         self.subplot.scatter(points[:,0], points[:,1], color=color, label=desc) # plot points
         
         if show_hull and points.shape[0] >= 3:
             try:
                 hull = ConvexHull(points) # calculated convex hull from scattered points
-                for simplex in hull.simplices:                   # plot convex hull
+                for simplex in hull.simplices: # plot convex hull
                     self.subplot.plot(points[simplex,0], points[simplex,1], color=color, linewidth=2.0, linestyle='--')
-                for i_case in range(hull.nsimplex):
-                    crit_trimcases.append(self.monstations[station][subcase_string][hull.vertices[i_case]])
-                    if show_labels:                    
+                crit_trimcases = [self.monstations[station][subcase_string][i] for i in hull.vertices]
+                if show_labels: 
+                    for i_case in range(crit_trimcases.__len__()): 
                         self.subplot.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(self.monstations[station][subcase_string][hull.vertices[i_case]]), fontsize=8)
             except:
-                pass
+                crit_trimcases = []
         else:
             crit_trimcases = self.monstations[station][subcase_string][:]
+            if show_labels: 
+                for i_case in range(crit_trimcases.__len__()):               
+                    self.subplot.text(points[i_case,0], points[i_case,1], str(self.monstations[station][subcase_string][i_case]), fontsize=8)
+                        
         self.crit_trimcases += crit_trimcases
     
     def potato_plot_nicely(self, station, desc, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis):
