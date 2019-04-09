@@ -6,29 +6,33 @@ Created on Thu Nov 27 15:35:22 2014
 """
 import numpy as np
 import scipy.optimize as so
-import logging, sys, copy
-import io_functions
+import logging, copy
 from scipy.integrate import ode
-from integrate import RungeKutta4
+from loadskernel.integrate import RungeKutta4
+import loadskernel.io_functions.specific_functions as specific_io
 
-class trim:
+class Trim:
     def __init__(self, model, jcl, trimcase, simcase):
         self.model = model
         self.jcl = jcl
         self.trimcase = trimcase
-        self.simcase = simcase     
+        self.simcase = simcase    
+         
+        self.states = np.array([])
+        self.state_derivatives = np.array([])
+        self.input_derivatives = np.array([])
+        self.outputs = np.array([])
         
     def set_trimcond(self):
         # init
         i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
         n_modes = self.model.mass['n_modes'][i_mass]
-        Vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
-        Theta = 1.0/180.0*np.pi # starting with a small angle of attack increases the performance and convergence of the CFD solution
-        u = Vtas*np.cos(Theta)
-        w = Vtas*np.sin(Theta)
+        vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
+        theta = 1.0/180.0*np.pi # starting with a small angle of attack increases the performance and convergence of the CFD solution
+        u = vtas*np.cos(theta)
+        w = vtas*np.sin(theta)
         z = -self.model.atmo['h'][i_atmo]
-        #q = (self.trimcase['Nz'] - 1.0)*9.81/u
         
         # ---------------
         # --- default --- 
@@ -40,7 +44,7 @@ class trim:
             ['y',        'fix',    0.0,],
             ['z',        'fix',    z  ,],
             ['phi',      'fix',    0.0,],
-            ['theta',    'free',   Theta,], # dependent on u and w if dz = 0
+            ['theta',    'free',   theta,], # dependent on u and w if dz = 0
             ['psi',      'fix',    0.0,],
             ['u',        'free',   u,  ],
             ['v',        'fix',    0.0,],
@@ -62,7 +66,7 @@ class trim:
         
         # outputs
         self.state_derivatives = np.array([ 
-            ['dx',       'target',   Vtas,], # dx = Vtas if dz = 0
+            ['dx',       'target',   vtas,], # dx = vtas if dz = 0
             ['dy',       'free',   0.0,],
             ['dz',       'target', 0.0,],
             ['dphi',     'free',   0.0,],
@@ -88,7 +92,7 @@ class trim:
             ])
         self.outputs = np.array([
             ['Nz',       'target',    self.trimcase['Nz']],
-            ['Vtas',     'free',  Vtas,],
+            ['Vtas',     'free',  vtas,],
             ])
         
         # ------------------
@@ -157,7 +161,7 @@ class trim:
         # --- segelflug --- 
         # -----------------
         # Sinken (w) wird erlaubt, damit die Geschwindigkeit konstant bleibt (du = 0.0)
-        # Eigentlich muesste Vtas konstant sein, ist aber momentan nicht als trimcond vorgesehen... Das wird auch schwierig, da die Machzahl vorgegeben ist.
+        # Eigentlich muesste vtas konstant sein, ist aber momentan nicht als trimcond vorgesehen... Das wird auch schwierig, da die Machzahl vorgegeben ist.
         elif self.trimcase['manoeuver'] == 'segelflug':
             logging.info('setting trim conditions to "segelflug"')
             # inputs 
@@ -223,7 +227,7 @@ class trim:
             self.states[np.where((self.states[:,0] == 'p'))[0][0],1] = 'free'   
             self.states[np.where((self.states[:,0] == 'q'))[0][0],1] = 'free'        
             self.states[np.where((self.states[:,0] == 'r'))[0][0],1] = 'free'
-            
+        
         # --------------
         # --- bypass --- 
         # --------------
@@ -268,8 +272,6 @@ class trim:
         self.idx_input_derivatives  = range(self.n_state_derivatives, self.n_state_derivatives+self.n_input_derivatives)
         self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_outputs)
         
-        
-    
     def calc_jacobian(self):
         import model_equations # Warum muss der import hier stehen??
 #         equations = model_equations.Steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
@@ -278,8 +280,6 @@ class trim:
             equations = model_equations.Steady(self)
 #             X0 = np.array(self.trimcond_X[:,2], dtype='float')
             X0 = self.response['X']
-            n_poles     = 0
-            n_j         = self.model.aerogrid['n']
             self.idx_lag_states = []
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             # initialize lag states with zero and extend steady response vectors X and Y
@@ -533,9 +533,9 @@ class trim:
             equations = model_equations.Steady(self)
         elif self.jcl.aero['method'] in [ 'cfd_steady']:
             equations = model_equations.CfdSteady(self)
-            io_functions.specific_functions.check_para_path(self.jcl)
-            io_functions.specific_functions.copy_para_file(self.jcl, self.trimcase)
-            io_functions.specific_functions.check_tau_folders(self.jcl)
+            specific_io.check_para_path(self.jcl)
+            specific_io.copy_para_file(self.jcl, self.trimcase)
+            specific_io.check_tau_folders(self.jcl)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -548,8 +548,6 @@ class trim:
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'd2Uf_d2t'+str(i_mode)))[0][0],1] = 'fix'
-        #X0 = np.copy(self.response['X'])
-        #X_free_0 = X0[np.where((self.trimcond_X[:,1] == 'free'))[0]] # start trim with solution from normal trim
         X_free_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]] # start trim from scratch
         
         if self.trimcase['manoeuver'] == 'bypass':
