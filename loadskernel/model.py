@@ -400,7 +400,7 @@ class Model:
         # ---- mesh defo ---
         # -------------------  
         if self.jcl.aero['method'] == 'cfd_steady':
-            cfdgrids = read_cfdgrids.read_cfdgrids(self.jcl)
+            cfdgrids = read_cfdgrids.ReadCfdgrids(self.jcl)
             cfdgrids.read_surface(merge_domains=True)
             cfdgrids.read_surface(merge_domains=False)
             self.cfdgrid  = cfdgrids.cfdgrid

@@ -2,7 +2,7 @@ import scipy.io.netcdf as netcdf
 import numpy as np
 import logging, h5py
 
-class read_cfdgrids:
+class ReadCfdgrids:
     def  __init__(self, jcl):
         self.jcl = jcl
         if jcl.meshdefo.has_key('surface'):

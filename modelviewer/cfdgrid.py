@@ -1,11 +1,9 @@
 
 
 import scipy.io.netcdf as netcdf
-import numpy as np
-import h5py, shutil, imp
-read_module_from_LK = imp.load_source('read_cfdgrids', '../loadskernel/read_cfdgrids.py')
+import loadskernel.read_cfdgrids
 
-class TauGrid(read_module_from_LK.read_cfdgrids):
+class TauGrid(loadskernel.read_cfdgrids.ReadCfdgrids):
     def  __init__(self):
         pass
 
