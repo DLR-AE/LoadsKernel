@@ -373,7 +373,7 @@ class Kernel():
         else:
             # nur trim
             aux_out.responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output, sorted=True)
-            aux_out.write_trimresults(self.path_output + 'trimparameters' + self.job_name + '.csv')
+            aux_out.write_trimresults(self.path_output + 'trim_results_' + self.job_name + '.csv')
             aux_out.write_successful_trimcases(self.path_output + 'successful_trimcases_' + self.job_name + '.csv') 
             aux_out.write_failed_trimcases(self.path_output + 'failed_trimcases_' + self.job_name + '.csv') 
             aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + self.job_name + '.csv', dyn2stat=False) 

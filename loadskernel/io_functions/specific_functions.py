@@ -6,7 +6,7 @@ Created on Apr 9, 2019
 import cPickle, time, imp, sys, os, psutil, logging, shutil, re, csv
 import numpy as np
   
-def write_dictionary(dictionary, filename_csv):
+def write_list_of_dictionaries(dictionary, filename_csv):
     with open(filename_csv, 'wb') as fid:
         if dictionary.__len__() > 0:
             w = csv.DictWriter(fid, dictionary[0].keys())
@@ -133,7 +133,7 @@ def check_path(path):
     if os.path.isdir(path) and os.access(os.path.dirname(path), os.W_OK):
         return os.path.join(path, '') # sicherstellen, dass der Pfad mit / endet
     else:
-        logging.CRITICAL( 'Path ' + str(path)  + ' not valid. Exit.')
+        logging.critical( 'Path ' + str(path)  + ' not valid. Exit.')
         sys.exit()
 
 class NewModel():

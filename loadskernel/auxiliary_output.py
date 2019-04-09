@@ -4,6 +4,7 @@ import io_functions.nastran_functions
 import numpy as np
 import copy, getpass, platform, time, logging, csv
 from grid_trafo import *
+from collections import OrderedDict
 
 class AuxiliaryOutput:
     #===========================================================================
@@ -14,6 +15,7 @@ class AuxiliaryOutput:
         self.model = model
         self.trimcase = trimcase
         self.responses = []
+        self.crit_trimcases = []
  
     def save_nodaldefo(self, filename):
         # deformations are given in 9300 coord
@@ -37,18 +39,20 @@ class AuxiliaryOutput:
             for i_trimcase in range(len(self.jcl.trimcase)):
                 io_functions.nastran_functions.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
     
-    def write_trimresults(self, filename):
+    def write_trimresults(self, filename_csv):
         trimresults = []
         for i_case in range(len(self.jcl.trimcase)):
             trimresult = self.assemble_trimresult(i_case)
             if trimresult != False:
                 trimresults.append(trimresult)
+        logging.info('writing trim results to: ' + filename_csv)
+        io_functions.specific_functions.write_list_of_dictionaries(trimresults, filename_csv)
             
     def assemble_trimresult(self, i_case):
         response = self.responses[i_case]
         if response['successful']:
-            trimresult = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
-                          'desc':     self.jcl.trimcase[i_case]['desc'],}
+            trimresult = OrderedDict({'subcase':  self.jcl.trimcase[i_case]['subcase'],
+                          'desc':     self.jcl.trimcase[i_case]['desc'],})
             i_mass  = self.model.mass['key'].index(self.jcl.trimcase[i_case]['mass'])
             n_modes = self.model.mass['n_modes'][i_mass]
 
@@ -70,9 +74,9 @@ class AuxiliaryOutput:
             trimresult['command_zeta [deg]'] = response['X'][14+2*n_modes]/np.pi*180.0
             trimresult['Nz'] = response['Y'][12+2*n_modes+3]
             trimresult['Vtas'] = response['Y'][12+2*n_modes+4]
-            trimresult['q_dyn'] = response['q_dyn']
-            trimresult['alpha [deg]'] = response['alpha']/np.pi*180.0
-            trimresult['beta [deg]'] = response['beta']/np.pi*180.0
+            trimresult['q_dyn'] = response['q_dyn'][0]
+            trimresult['alpha [deg]'] = response['alpha'][0]/np.pi*180.0
+            trimresult['beta [deg]'] = response['beta'][0]/np.pi*180.0
             
             # calculate additional aero coefficients
             Pmac_rbm  = np.dot(self.model.Dkx1.T, response['Pk_rbm'])
@@ -84,14 +88,14 @@ class AuxiliaryOutput:
             AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
             Pmac_c = response['Pmac']/response['q_dyn']/A
             # um alpha drehen, um Cl und Cd zu erhalten
-            Cl = Pmac_c[2]*np.cos(response['alpha'])+Pmac_c[0]*np.sin(response['alpha'])
-            Cd = Pmac_c[2]*np.sin(response['alpha'])+Pmac_c[0]*np.cos(response['alpha'])
+            Cl = Pmac_c[2]*np.cos(response['alpha'][0])+Pmac_c[0]*np.sin(response['alpha'][0])
+            Cd = Pmac_c[2]*np.sin(response['alpha'][0])+Pmac_c[0]*np.cos(response['alpha'][0])
             Cd_ind_theo = Cl**2.0/np.pi/AR
             
-            trimresult['Cz_rbm'] = Pmac_rbm[2]/response['q_dyn']/A
-            trimresult['Cz_cam'] = Pmac_cam[2]/response['q_dyn']/A
-            trimresult['Cz_cs'] = Pmac_cs[2]/response['q_dyn']/A
-            trimresult['Cz_f'] = Pmac_f[2]/response['q_dyn']/A
+            trimresult['Cz_rbm'] = Pmac_rbm[2]/response['q_dyn'][0]/A
+            trimresult['Cz_cam'] = Pmac_cam[2]/response['q_dyn'][0]/A
+            trimresult['Cz_cs'] = Pmac_cs[2]/response['q_dyn'][0]/A
+            trimresult['Cz_f'] = Pmac_f[2]/response['q_dyn'][0]/A
             trimresult['Cx'] = Pmac_c[0]
             trimresult['Cy'] = Pmac_c[1]
             trimresult['Cz'] = Pmac_c[2]
@@ -101,9 +105,9 @@ class AuxiliaryOutput:
             trimresult['Cl'] = Cl
             trimresult['Cd'] = Cd
             trimresult['E'] = Cl/Cd
-            trimresult['Cd_ind'] = Pmac_idrag[0]/response['q_dyn']/A
-            trimresult['Cmz_ind'] = Pmac_idrag[5]/response['q_dyn']/A/self.model.macgrid['b_ref']
-            trimresult['e'] = Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn']/A)
+            trimresult['Cd_ind'] = Pmac_idrag[0]/response['q_dyn'][0]/A
+            trimresult['Cmz_ind'] = Pmac_idrag[5]/response['q_dyn'][0]/A/self.model.macgrid['b_ref']
+            trimresult['e'] = Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn'][0]/A)
         else:
             trimresult = False
         return trimresult   
@@ -116,7 +120,7 @@ class AuxiliaryOutput:
             if self.responses[i_case]['successful']:
                 sucessfull_trimcases_info.append(trimcase)
         logging.info('writing successful trimcases cases to: ' + filename_csv)
-        io_functions.specific_functions.write_dictionary(sucessfull_trimcases_info, filename_csv)
+        io_functions.specific_functions.write_list_of_dictionaries(sucessfull_trimcases_info, filename_csv)
         
     def write_failed_trimcases(self, filename_csv):
         failed_trimcases_info = []
@@ -126,7 +130,7 @@ class AuxiliaryOutput:
             if not self.responses[i_case]['successful']:
                 failed_trimcases_info.append(trimcase)
         logging.info('writing failed trimcases cases to: ' + filename_csv)
-        io_functions.specific_functions.write_dictionary(failed_trimcases_info, filename_csv)
+        io_functions.specific_functions.write_list_of_dictionaries(failed_trimcases_info, filename_csv)
     
     def write_critical_trimcases(self, filename_csv, dyn2stat=False):
         # eigentlich gehoert diese Funtion eher zum post-processing als zum
@@ -147,21 +151,21 @@ class AuxiliaryOutput:
                 crit_trimcases_info.append(trimcase)
                 
         logging.info('writing critical trimcases cases to: ' + filename_csv)
-        io_functions.specific_functions.write_dictionary(crit_trimcases_info, filename_csv)
+        io_functions.specific_functions.write_list_of_dictionaries(crit_trimcases_info, filename_csv)
     
     def write_critical_nodalloads(self, filename, dyn2stat=False): 
         logging.info( 'saving critical nodal loads as Nastarn cards...')
         if dyn2stat:
             # This is quite a complicated sorting because the subcases from dyn2stat may contain non-numeric characters. 
             # A "normal" sorting returns an undesired sequence, leading IDs in a non-ascending sequence. This a not allowed by Nastran. 
-            subcases_IDs = [self.dyn2stat_data['subcases_ID'][self.dyn2stat_data['subcases'].index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases) ]
-            subcases_IDs = np.sort(subcases_IDs)
+            subcases_ids = [self.dyn2stat_data['subcases_ID'][self.dyn2stat_data['subcases'].index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases) ]
+            subcases_ids = np.sort(subcases_ids)
             with open(filename+'_Pg', 'w') as fid: 
-                for subcase_ID in subcases_IDs:
+                for subcase_ID in subcases_ids:
                     idx = self.dyn2stat_data['subcases_ID'].index(subcase_ID)
                     io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx], self.dyn2stat_data['subcases_ID'][idx])
             with open(filename+'_subcases', 'w') as fid:  
-                for subcase_ID in subcases_IDs:
+                for subcase_ID in subcases_ids:
                     idx = self.dyn2stat_data['subcases_ID'].index(subcase_ID)
                     io_functions.nastran_functions.write_subcases(fid, self.dyn2stat_data['subcases_ID'][idx], self.dyn2stat_data['subcases'][idx])
         else:
