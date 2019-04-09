@@ -98,7 +98,7 @@ class Trim:
         # ------------------
         # --- pitch only --- 
         # ------------------
-        if self.trimcase['manoeuver'] == 'pitch':
+        if self.trimcase['maneuver'] == 'pitch':
             logging.info('setting trim conditions to "pitch"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
@@ -110,7 +110,7 @@ class Trim:
         # -----------------------------------
         # --- pitch and roll only, no yaw --- 
         # -----------------------------------
-        elif self.trimcase['manoeuver'] == 'pitch&roll':
+        elif self.trimcase['maneuver'] == 'pitch&roll':
             logging.info('setting trim conditions to "pitch&roll"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
@@ -120,7 +120,7 @@ class Trim:
         # -----------------------------------
         # --- pitch and yaw only, no roll --- 
         # -----------------------------------
-        elif self.trimcase['manoeuver'] == 'pitch&yaw':
+        elif self.trimcase['maneuver'] == 'pitch&yaw':
             logging.info('setting trim conditions to "pitch&yaw"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
@@ -130,7 +130,7 @@ class Trim:
         # ---------------------
         # --- level landing --- 
         # ---------------------
-        elif self.trimcase['manoeuver'] in ['L1wheel', 'L2wheel']:
+        elif self.trimcase['maneuver'] in ['L1wheel', 'L2wheel']:
             logging.info('setting trim conditions to "level landing"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
@@ -144,7 +144,7 @@ class Trim:
         # -----------------------
         # --- 3 wheel landing --- 
         # -----------------------
-        elif self.trimcase['manoeuver'] in ['L3wheel']:
+        elif self.trimcase['maneuver'] in ['L3wheel']:
             logging.info('setting trim conditions to "3 wheel landing"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
@@ -162,7 +162,7 @@ class Trim:
         # -----------------
         # Sinken (w) wird erlaubt, damit die Geschwindigkeit konstant bleibt (du = 0.0)
         # Eigentlich muesste vtas konstant sein, ist aber momentan nicht als trimcond vorgesehen... Das wird auch schwierig, da die Machzahl vorgegeben ist.
-        elif self.trimcase['manoeuver'] == 'segelflug':
+        elif self.trimcase['maneuver'] == 'segelflug':
             logging.info('setting trim conditions to "segelflug"')
             # inputs 
             # without changes
@@ -178,7 +178,7 @@ class Trim:
         # -------------------------
         # --- pratt, alpha only --- 
         # -------------------------
-        elif self.trimcase['manoeuver'] == 'pratt':
+        elif self.trimcase['maneuver'] == 'pratt':
             logging.info('setting trim conditions to "pratt"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
@@ -192,7 +192,7 @@ class Trim:
         # ----------------
         # --- CS fixed --- 
         # ----------------
-        elif self.trimcase['manoeuver'] == 'Xi&Zeta-fixed':
+        elif self.trimcase['maneuver'] == 'Xi&Zeta-fixed':
             logging.info('setting trim conditions to "Xi&Zeta-fixed"')
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
@@ -204,7 +204,7 @@ class Trim:
         # ----------------
         # --- CS fixed --- 
         # ----------------
-        elif self.trimcase['manoeuver'] == 'CS-fixed':
+        elif self.trimcase['maneuver'] == 'CS-fixed':
             logging.info('setting trim conditions to "CS-fixed"')
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],1] = 'fix'
@@ -216,7 +216,7 @@ class Trim:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dq'))[0][0],1] = 'free'        
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
             
-        elif self.trimcase['manoeuver'] == 'CS&Acc-fixed':
+        elif self.trimcase['maneuver'] == 'CS&Acc-fixed':
             logging.info('setting trim conditions to "CS&Acc-fixed"')
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],1] = 'fix'
@@ -232,7 +232,7 @@ class Trim:
         # --- bypass --- 
         # --------------
         # Die Steuerkommandos xi, eta und zeta werden vorgegeben und die resultierenden Beschleunigungen sind frei. 
-        elif self.trimcase['manoeuver'] == 'bypass':
+        elif self.trimcase['maneuver'] == 'bypass':
             logging.info('setting trim conditions to "bypass"')
             # inputs
             self.states[np.where((self.states[:,0] == 'phi'))[0][0],1] = 'fix'
@@ -424,7 +424,7 @@ class Trim:
         
         X_free_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]]
         
-        if self.trimcase['manoeuver'] == 'bypass':
+        if self.trimcase['maneuver'] == 'bypass':
             logging.info('running bypass...')
             self.response = equations.eval_equations(X_free_0, time=0.0, modus='trim_full_output')
             self.successful = True
@@ -550,7 +550,7 @@ class Trim:
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'd2Uf_d2t'+str(i_mode)))[0][0],1] = 'fix'
         X_free_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]] # start trim from scratch
         
-        if self.trimcase['manoeuver'] == 'bypass':
+        if self.trimcase['maneuver'] == 'bypass':
             logging.info('running bypass...')
             self.response = equations.eval_equations(X_free_0, time=0.0, modus='trim_full_output')
         else:

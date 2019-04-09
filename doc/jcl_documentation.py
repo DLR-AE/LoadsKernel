@@ -101,7 +101,7 @@ class jcl:
                            'para': [para_LG, para_LG, para_LG],         # parameters for generic landing gear module, see above
                           }
         self.trimcase = [{'desc': 'CC.BFDM.OVCFL000.Vergleichsfall53', # description of maneuver case, e.g. according to G. Pinho Chiozzotto, "Kriterien fuer die Erstellung eines Lastenkatalogs," Institute of Aeroelasticity, iLOADs MS1.2, Feb. 2014.
-                          'manoeuver': '',      # unused
+                          'maneuver': '',      # unused
                           'subcase': 53,        # ID number
                           'Ma': 0.8,            # Mach number
                           'aero': 'VC',         # aero key
