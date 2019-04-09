@@ -1,6 +1,7 @@
 
 import csv, logging
-
+from collections import OrderedDict
+from numpy import array
 
 def csv2listofdicts(filename_csv):
     logging.info('Reading list of dicts from: ' + filename_csv)
@@ -16,9 +17,7 @@ def csv2listofdicts(filename_csv):
     logging.info('Generated list of {} dicts with the following field names: {}'.format(len(listofdicts), reader.fieldnames)) 
     return listofdicts
             
-            
 def repr2listofdicts(filename):
-    from numpy import array
     with open(filename, 'r') as fid:
         trimcase_str = fid.read()
     trimcase = eval(trimcase_str)
@@ -26,6 +25,6 @@ def repr2listofdicts(filename):
     return trimcase
 
 def generate_empty_listofdicts(trimcase):
-    empty_listofdicts = [{} for i in trimcase]
+    empty_listofdicts = [{}]*trimcase.__len__()
     logging.info('Generated list of {} empty dicts.'.format(len(empty_listofdicts)) )
     return empty_listofdicts
