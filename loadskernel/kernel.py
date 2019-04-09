@@ -475,7 +475,6 @@ class Kernel():
         return mpi_hosts
 
     def setup_logger_cluster(self, i):
-        io = io_functions.specific_functions()
         path_log = io_functions.specific_functions.check_path(self.path_output+'log/')
         # define a Handler which writes INFO messages or higher to a log file
         logfile = logging.FileHandler(filename=path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + ".txt", mode='w')
