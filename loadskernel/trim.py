@@ -196,6 +196,33 @@ class trim:
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],2] = self.trimcase['command_zeta']
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'          
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
+        
+        # ----------------
+        # --- CS fixed --- 
+        # ----------------
+        elif self.trimcase['manoeuver'] == 'CS-fixed':
+            logging.info('setting trim conditions to "CS-fixed"')
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],2] = self.trimcase['command_xi']
+            self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],2] = self.trimcase['command_eta']
+            self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],2] = self.trimcase['command_zeta']
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'   
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dq'))[0][0],1] = 'free'        
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
+            
+        elif self.trimcase['manoeuver'] == 'CS&Acc-fixed':
+            logging.info('setting trim conditions to "CS&Acc-fixed"')
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],2] = self.trimcase['command_xi']
+            self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],2] = self.trimcase['command_eta']
+            self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],2] = self.trimcase['command_zeta']
+            self.states[np.where((self.states[:,0] == 'p'))[0][0],1] = 'free'   
+            self.states[np.where((self.states[:,0] == 'q'))[0][0],1] = 'free'        
+            self.states[np.where((self.states[:,0] == 'r'))[0][0],1] = 'free'
             
         # --------------
         # --- bypass --- 
@@ -506,9 +533,9 @@ class trim:
             equations = model_equations.Steady(self)
         elif self.jcl.aero['method'] in [ 'cfd_steady']:
             equations = model_equations.CfdSteady(self)
-            io_functions.specific_functions.check_para_path(io_functions.specific_functions(), self.jcl)
-            io_functions.specific_functions.copy_para_file(io_functions.specific_functions(), self.jcl, self.trimcase)
-            io_functions.specific_functions.check_tau_folders(io_functions.specific_functions(), self.jcl)
+            io_functions.specific_functions.check_para_path(self.jcl)
+            io_functions.specific_functions.copy_para_file(self.jcl, self.trimcase)
+            io_functions.specific_functions.check_tau_folders(self.jcl)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         

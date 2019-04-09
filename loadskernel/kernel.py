@@ -5,7 +5,9 @@ Created on Thu Nov 27 14:00:31 2014
 @author: voss_ar
 """
 import time, multiprocessing, getpass, platform, logging, sys, copy
-import io_functions
+import io_functions.specific_functions
+import io_functions.matlab_functions
+
 import trim
 import post_processing
 import monstations as monstations_module
@@ -46,9 +48,8 @@ class Kernel():
         self.setup()
         
     def setup(self):
-        io = io_functions.specific_functions()
-        self.path_input = io.check_path(self.path_input)
-        self.path_output = io.check_path(self.path_output)
+        self.path_input = io_functions.specific_functions.check_path(self.path_input)
+        self.path_output = io_functions.specific_functions.check_path(self.path_output)
         
     def run(self):
         self.setup_logger()
@@ -58,8 +59,7 @@ class Kernel():
         logging.info('main: ' + str(self.main))
         logging.info('post: ' + str(self.post))
         logging.info('test: ' + str(self.test))
-        io = io_functions.specific_functions()
-        self.jcl = io.load_jcl(self.job_name, self.path_input, self.jcl)
+        self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
 
         if self.pre:
             self.run_pre()
@@ -80,8 +80,7 @@ class Kernel():
     def run_cluster(self, i):
         i = int(i)
         self.setup_logger_cluster(i=i)
-        io = io_functions.specific_functions()
-        self.jcl = io.load_jcl(self.job_name, self.path_input, self.jcl)
+        self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
         logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
         logging.info('cluster array mode')
@@ -97,10 +96,9 @@ class Kernel():
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
         logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
         logging.info('cluster gather mode')
-        io = io_functions.specific_functions()
-        self.jcl = io.load_jcl(self.job_name, self.path_input, self.jcl)
-        model = io.load_model(self.job_name, self.path_output)
-        responses = io.gather_responses(self.job_name, io.check_path(self.path_output+'responses'))
+        self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
+        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        responses = io_functions.specific_functions.gather_responses(self.job_name, io_functions.specific_functions.check_path(self.path_output+'responses'))
         mon = monstations_module.monstations(self.jcl, model)
         f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'w')  # open response
         for i in range(len(self.jcl.trimcase)):
@@ -113,16 +111,16 @@ class Kernel():
                     mon.gather_dyn2stat(-1, response, mode='stat2stat')
 
             logging.info('--> Saving response(s).')
-            io.dump_pickle(response, f)
+            io_functions.specific_functions.dump_pickle(response, f)
         f.close()  # close response
 
         logging.info('--> Saving monstation(s).')
         with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'w') as f:
-            io.dump_pickle(mon.monstations, f)
+            io_functions.specific_functions.dump_pickle(mon.monstations, f)
 
         logging.info('--> Saving dyn2stat.')
         with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'w') as f:
-            io.dump_pickle(mon.dyn2stat, f)
+            io_functions.specific_functions.dump_pickle(mon.dyn2stat, f)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
         
         logging.info('Loads Kernel finished.')
@@ -138,9 +136,8 @@ class Kernel():
 
         logging.info('--> Saving model data.')
         del model.jcl
-        io = io_functions.specific_functions()
         with open(self.path_output + 'model_' + self.job_name + '.pickle', 'w') as f:
-            io.dump_pickle(model.__dict__, f)
+            io_functions.specific_functions.dump_pickle(model.__dict__, f)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def main_common(self, model, i_jcl, i):
@@ -172,12 +169,11 @@ class Kernel():
     def run_main_sequential(self):
         logging.info('--> Starting Main in sequential mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
-        io = io_functions.specific_functions()
-        model = io.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         mon = monstations_module.monstations(self.jcl, model)
         if self.restart:
             logging.info('Restart option: loading existing responses.')
-            responses = io.load_responses(self.job_name, self.path_output, remove_failed=True)
+            responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output, remove_failed=True)
         f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'w')  # open response
         for i in range(len(self.jcl.trimcase)):
             if self.restart and i in [response['i'] for response in responses]:
@@ -196,21 +192,20 @@ class Kernel():
                     mon.gather_dyn2stat(-1, response, mode='stat2stat')
 
             logging.info('--> Saving response(s).')
-            io.dump_pickle(response, f)
-            # io_matlab = io_functions.matlab_functions()
-            # with open(path_output + 'response_' + job_name + '_subcase_' + str(jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
-            #    io_matlab.save_mat(f2, response)
+            io_functions.specific_functions.dump_pickle(response, f)
+            #with open(self.path_output + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
+            #   io_functions.matlab_functions.save_mat(f2, response)
         f.close()  # close response
 
         logging.info('--> Saving monstation(s).')
         with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'w') as f:
-            io.dump_pickle(mon.monstations, f)
-        # with open(self.path_output + 'monstations_' + self.job_name + '.mat', 'w') as f:
-        #    io_matlab.save_mat(f, mon.monstations)
+            io_functions.specific_functions.dump_pickle(mon.monstations, f)
+        #with open(self.path_output + 'monstations_' + self.job_name + '.mat', 'w') as f:
+        #   io_functions.matlab_functions.save_mat(f, mon.monstations)
 
         logging.info('--> Saving dyn2stat.')
         with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'w') as f:
-            io.dump_pickle(mon.dyn2stat, f)
+            io_functions.specific_functions.dump_pickle(mon.dyn2stat, f)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def run_main_parallel(self):
@@ -259,8 +254,7 @@ class Kernel():
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def main_worker(self, q_input, q_output, i_jcl):
-        io = io_functions.specific_functions()
-        model = io.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         while True:
             i = q_input.get()
             if i == 'finish':
@@ -274,8 +268,7 @@ class Kernel():
         return
 
     def main_listener(self, q_output):
-        io = io_functions.specific_functions()
-        model = io.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         mon = monstations_module.monstations(self.jcl, model)
         f_response = open(self.path_output + 'response_' + self.job_name + '.pickle', 'w')  # open response
         logging.info('--> Listener ready.')
@@ -285,12 +278,12 @@ class Kernel():
                 f_response.close()  # close response
                 logging.info('--> Saving monstation(s).')
                 with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'w') as f:
-                    io.dump_pickle(mon.monstations, f)
+                    io_functions.specific_functions.dump_pickle(mon.monstations, f)
                 # with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
                 #    io_matlab.save_mat(f, mon.monstations)
                 logging.info('--> Saving dyn2stat.')
                 with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'w') as f:
-                    io.dump_pickle(mon.dyn2stat, f)
+                    io_functions.specific_functions.dump_pickle(mon.dyn2stat, f)
                 q_output.task_done()
                 logging.info('--> Listener quit.')
                 break
@@ -305,15 +298,14 @@ class Kernel():
                 # trim failed, no post processing, save 'None'
                 logging.info("--> Received response ('failed') from worker.")
             logging.info('--> Saving response(s).')
-            io.dump_pickle(m, f_response)
+            io_functions.specific_functions.dump_pickle(m, f_response)
             q_output.task_done()
         return  
 
     def run_main_single(self, i):
         logging.info('--> Starting Main in single mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
-        io = io_functions.specific_functions()
-        model = io.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         
         i_jcl = copy.deepcopy(self.jcl)
         if self.jcl.aero['method'] in ['cfd_steady']:
@@ -322,14 +314,13 @@ class Kernel():
         response = self.main_common(model, i_jcl, i)
         
         logging.info('--> Saving response(s).')
-        path_responses = io.check_path(self.path_output+'responses/')
+        path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
         with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'w')  as f:
-            io.dump_pickle(response, f)
+            io_functions.specific_functions.dump_pickle(response, f)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def run_statespace(self):
-        io = io_functions.specific_functions()
-        model = io.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
 
         logging.info('--> Starting State Space Matrix generation for %d trimcase(s).' % len(self.jcl.trimcase))
         t_start = time.time()
@@ -348,23 +339,22 @@ class Kernel():
             trim_i.calc_jacobian()
             trim_i.response['i'] = i
             logging.info('--> Saving response(s).')
-            io.dump_pickle(trim_i.response, f)
+            io_functions.specific_functions.dump_pickle(trim_i.response, f)
 
             del trim_i
         f.close()  # close response
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def run_post(self):
-        io = io_functions.specific_functions()
-        model = io.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
 
         logging.info('--> Loading monstations(s).') 
         with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'r') as f:
-            monstations = io.load_pickle(f)
+            monstations = io_functions.specific_functions.load_pickle(f)
 
         logging.info('--> Loading dyn2stat.')
         with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'r') as f:
-            dyn2stat_data = io.load_pickle(f)
+            dyn2stat_data = io_functions.specific_functions.load_pickle(f)
 
         logging.info('--> Drawing some standard plots.')
         plt = plotting_standard.StandardPlots(self.jcl, model)
@@ -374,7 +364,7 @@ class Kernel():
             plt.plot_monstations_time(self.path_output + 'monstations_time_' + self.job_name + '.pdf') # nur sim
 
         logging.info('--> Saving auxiliary output data.')
-        aux_out = auxiliary_output.auxiliary_output(self.jcl, model, self.jcl.trimcase)
+        aux_out = auxiliary_output.AuxiliaryOutput(self.jcl, model, self.jcl.trimcase)
         aux_out.crit_trimcases = plt.crit_trimcases
         if ('t_final' and 'dt' in self.jcl.simcase[0].keys()): 
             aux_out.dyn2stat_data = dyn2stat_data
@@ -382,7 +372,8 @@ class Kernel():
             aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf', dyn2stat=True) 
         else:
             # nur trim
-            aux_out.response = io.load_responses(self.job_name, self.path_output, sorted=True)
+            aux_out.responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output, sorted=True)
+            aux_out.write_trimresults(self.path_output + 'trimparameters' + self.job_name + '.csv')
             aux_out.write_successful_trimcases(self.path_output + 'successful_trimcases_' + self.job_name + '.csv') 
             aux_out.write_failed_trimcases(self.path_output + 'failed_trimcases_' + self.job_name + '.csv') 
             aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + self.job_name + '.csv', dyn2stat=False) 
@@ -391,7 +382,7 @@ class Kernel():
             # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
-#         responses = io.load_responses(self.job_name, self.path_output)
+#         responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
 #         print '--> Drawing some more detailed plots.'  
 #         plt = plotting_extra.DetailedPlots(self.jcl, model)
 #         plt.add_responses(responses)
@@ -419,12 +410,11 @@ class Kernel():
         return
 
     def run_test(self):
-        io = io_functions.specific_functions()
-        model = io.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         # place code to test here
-#        responses = io.load_responses(self.job_name, self.path_output)
+#        responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
 #        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'r') as f:
-#            monstations = io.load_pickle(f)
+#            monstations = io_functions.specific_functions.load_pickle(f)
 #         from scripts import cps_for_MULDICON
 #         cps = cps_for_MULDICON.CPs(self.jcl, model, responses)
 #         cps.plot()
@@ -486,7 +476,7 @@ class Kernel():
 
     def setup_logger_cluster(self, i):
         io = io_functions.specific_functions()
-        path_log = io.check_path(self.path_output+'log/')
+        path_log = io_functions.specific_functions.check_path(self.path_output+'log/')
         # define a Handler which writes INFO messages or higher to a log file
         logfile = logging.FileHandler(filename=path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + ".txt", mode='w')
         logfile.setLevel(logging.INFO)

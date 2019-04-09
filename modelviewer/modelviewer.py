@@ -8,7 +8,7 @@ Created on Thu Feb  9 17:45:02 2017
 
 import os
 
-from loadskernel import io_functions
+import loadskernel.io_functions.specific_functions as  specific_io
 from plotting import Plotting
 from pytran import NastranSOL101
 from cfdgrid import TauGrid
@@ -523,15 +523,14 @@ class Modelviewer():
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'], self.file_opt['filters'])[0]
         if filename != '':
             # load model
-            io = io_functions.specific_functions()
             path_output = os.path.split(filename)[0]
             job_name = os.path.split(filename)[1]
             if job_name.endswith('.pickle'):
                 job_name = job_name[:-7]
             if job_name.startswith('model_'):
                 job_name = job_name[6:]
-            path_output = io.check_path(path_output)
-            self.model = io.load_model(job_name, path_output)
+            path_output = specific_io.check_path(path_output)
+            self.model = specific_io.load_model(job_name, path_output)
             # update fields
             self.update_fields()
             self.calc_MAC()

@@ -5,7 +5,7 @@ Created on Thu Nov 27 14:00:31 2014
 @author: voss_ar
 """
 import getpass, platform, logging, sys, copy
-from  loadskernel import io_functions
+import loadskernel.io_functions.specific_functions as specific_io
 from  loadskernel import auxiliary_output
 from  loadskernel import plotting_standard
 import numpy as np
@@ -23,16 +23,14 @@ class Merge:
                         }
         self.common_monstations = np.array([])
         
-        io = io_functions.specific_functions()
-        path_input = io.check_path(path_input) 
-        path_output = io.check_path(path_output) 
+        path_input = specific_io.check_path(path_input) 
+        path_output = specific_io.check_path(path_output) 
         self.path_input  = path_input
         self.path_output = path_output
     
     def load_job(self, job_name):
-        io = io_functions.specific_functions()
         # load jcl
-        jcl = io.load_jcl(job_name, self.path_input, jcl=None)
+        jcl = specific_io.load_jcl(job_name, self.path_input, jcl=None)
         
         logging.info( '--> Loading monstations(s).' )
         with open(self.path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
@@ -66,8 +64,7 @@ class Merge:
         self.setup_logger( job_name )
         logging.info( 'Starting Loads Merge')
         logging.info( 'user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() +')')
-        io = io_functions.specific_functions()
-        self.model = io.load_model(jobs_to_merge[0], self.path_output)
+        self.model = specific_io.load_model(jobs_to_merge[0], self.path_output)
         self.load_jobs(jobs_to_merge)
         self.build_new_dataset()
         self.plot_monstations(job_name)
@@ -154,7 +151,7 @@ class Merge:
         jcl           = self.datasets['jcl'][self.new_dataset_id]
         dyn2stat_data = self.datasets['dyn2stat'][self.new_dataset_id]
         
-        aux_out = auxiliary_output.auxiliary_output(jcl=jcl, model=self.model, trimcase=jcl.trimcase)
+        aux_out = auxiliary_output.AuxiliaryOutput(jcl=jcl, model=self.model, trimcase=jcl.trimcase)
         aux_out.crit_trimcases = self.crit_trimcases
         aux_out.dyn2stat_data = dyn2stat_data
         

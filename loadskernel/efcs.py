@@ -524,14 +524,14 @@ class HAP:
         
         Ux2 = np.array([delta_ELEV1, delta_ELEV2, delta_RUDD])
         
-        violation_lower = Ux2 < self.Ux2_lower
-        if np.any(violation_lower):
-            logging.warning( 'Commanded CS deflection not possible, violation of lower Ux2 bounds!')
-            Ux2[violation_lower] = self.Ux2_lower[violation_lower]
-            
-        violation_upper = Ux2 > self.Ux2_upper
-        if np.any(violation_upper):
-            logging.warning( 'Commanded CS deflection not possible, violation of upper Ux2 bounds!')
-            Ux2[violation_upper] = self.Ux2_upper[violation_upper]
+#         violation_lower = Ux2 < self.Ux2_lower
+#         if np.any(violation_lower):
+#             logging.warning( 'Commanded CS deflection not possible, violation of lower Ux2 bounds!')
+#             Ux2[violation_lower] = self.Ux2_lower[violation_lower]
+#             
+#         violation_upper = Ux2 > self.Ux2_upper
+#         if np.any(violation_upper):
+#             logging.warning( 'Commanded CS deflection not possible, violation of upper Ux2 bounds!')
+#             Ux2[violation_upper] = self.Ux2_upper[violation_upper]
             
         return Ux2
