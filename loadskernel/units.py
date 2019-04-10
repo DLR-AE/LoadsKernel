@@ -15,9 +15,12 @@ def m2ft(length_m):
     # exactly
     return np.array(length_m)/0.3048
     
-def kt2ms(speed_kt):
+def kn2ms(speed_kn):
     # reference: SI Brochure: The International System of Units (SI) [8th edition, 2006; updated in 2014]
-    return np.array(speed_kt)*1852./3600.  
+    return np.array(speed_kn)*1852./3600.
+
+def ms2kn(speed_ms):
+    return np.array(speed_ms)/1852.*3600.  
 
 def eas2tas(eas,h):
     p0, rho0, T0, a0 = atmo_isa(0)
