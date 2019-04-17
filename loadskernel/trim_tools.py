@@ -32,13 +32,13 @@ def gravitation_on_earth(PHInorm_cg, Tgeo2body):
     g_cg = np.dot(PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
     return g_cg
 
-def DesignGust_CS_25_341(gust_gradient, Alt, rho, V, Z_mo, V_D, MLW, MTOW, MZFW):
+def design_gust_cs_25_341(gust_gradient, altitude, rho, V, Z_mo, V_D, MLW, MTOW, MZFW):
     # Gust Calculation from CS 25.341
     # adapted from matlab-script by Vega Handojo, DLR-AE-LAE, 2015
     
     # convert (possible) integer to float
     gust_gradient = np.float(gust_gradient)
-    Alt = np.float(Alt)     # Altitude
+    altitude = np.float(altitude)     # Altitude
     rho = np.float(rho)     # Air density
     V = np.float(V)         # Speed
     Z_mo = np.float(Z_mo)   # Maximum operating altitude
@@ -48,37 +48,33 @@ def DesignGust_CS_25_341(gust_gradient, Alt, rho, V, Z_mo, V_D, MLW, MTOW, MZFW)
     MZFW = np.float(MZFW)   # Maximum Zero Fuel Weight
 
     p0, rho0, T0, a0 = atmo_isa(0.0)
-    #rho0 = 1.225    
-    R1 = MLW/MTOW;
-    R2 = MZFW/MTOW;
-    F_gm = (R2*np.tan(np.pi*R1/4))**0.5;
-    F_gz = 1-Z_mo/76200.0;
+    R1 = MLW/MTOW
+    R2 = MZFW/MTOW
+    f_gm = (R2*np.tan(np.pi*R1/4))**0.5
+    f_gz = 1-Z_mo/76200.0
     
     # flight profile alleviation factor
-    Fg_SL = 0.5*(F_gz+F_gm); # at sea level
-    if Alt == 0:
-        Fg = Fg_SL;
-    elif Alt == Z_mo:    # at maximum flight-level F_g = 1
-        Fg = 1.0;
+    fg_sl = 0.5*(f_gz+f_gm) # at sea level
+    if altitude == 0:
+        fg = fg_sl
+    elif altitude == Z_mo:    # at maximum flight-level F_g = 1
+        fg = 1.0
     else:                 # between SL and Z_mo increases linearily to 1
-        Fg = Fg_SL + (1-Fg_SL)*Alt/Z_mo;  
+        fg = fg_sl + (1-fg_sl)*altitude/Z_mo
         
     # reference gust velocity (EAS) [m/s]
-    if Alt <= 4572:
-      U_ref = 17.07-(17.07-13.41)*Alt/4572.0;
+    if altitude <= 4572:
+        u_ref = 17.07-(17.07-13.41)*altitude/4572.0
     else:
-      U_ref = 13.41-(13.41-6.36)*((Alt-4572.0)/(18288.0-4572.0));
+        u_ref = 13.41-(13.41-6.36)*((altitude-4572.0)/(18288.0-4572.0))
     if V == V_D:
-      U_ref = U_ref/2.0;
+        u_ref = u_ref/2.0
 
     # design gust velocity (EAS)
-    U_ds = U_ref * Fg * (gust_gradient/107.0)**(1.0/6.0);
-    V_gust = U_ds * (rho0/rho)**0.5; #in TAS
+    u_ds = u_ref * fg * (gust_gradient/107.0)**(1.0/6.0)
+    v_gust = u_ds * (rho0/rho)**0.5 #in TAS
    
     # parameters for Nastran cards
-    WG_TAS = V_gust/V; #TAS/TAS
-    #WG     = WG_TAS;   #EAS/EAS
-    #T2 = T1+2*gust_gradient/V;
-    #F2 = V/2./gust_gradient;
+    WG_TAS = v_gust/V #TAS/TAS
     
-    return WG_TAS, U_ds, V_gust
+    return WG_TAS, u_ds, v_gust
