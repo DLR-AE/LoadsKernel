@@ -72,7 +72,10 @@ class Common():
         
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD']
             self.x0 = self.simcase['gust_para']['T1'] * Vtas 
-            self.WG_TAS, U_ds, V_gust = design_gust_cs_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], self.model.atmo['rho'][self.i_atmo], Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
+            if 'WG_TAS' not in self.simcase.keys():
+                self.WG_TAS, U_ds, V_gust = design_gust_cs_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], self.model.atmo['rho'][self.i_atmo], Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
+            else:
+                self.WG_TAS = self.simcase['WG_TAS']
             logging.info('Gust set up with initial Vtas = {}, t1 = {}, WG_tas = {}'.format(Vtas, self.simcase['gust_para']['T1'], self.WG_TAS))
         
         # init cs_signal
@@ -110,7 +113,16 @@ class Common():
         Pl[self.model.aerogrid['set_l'][:,2]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,2]
         Pk = self.model.Dlk.T.dot(Pl)
         return Pk
-    
+
+    def calc_Pk(self, q_dyn, wj):
+        fl = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(self.Qjj, wj)
+        Pl = np.zeros(self.model.aerogrid['n']*6)
+        Pl[self.model.aerogrid['set_l'][:,0]] = fl[0,:]
+        Pl[self.model.aerogrid['set_l'][:,1]] = fl[1,:]
+        Pl[self.model.aerogrid['set_l'][:,2]] = fl[2,:]
+        Pk = self.model.Dlk.T.dot(Pl)
+        return Pk
+
     def rbm_nonlin(self, dUcg_dt, alpha, Vtas):
         dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt) # auch bodyfixed
         Ujx1 = np.dot(self.Djx1,dUmac_dt)
@@ -125,18 +137,9 @@ class Common():
         Ujx1 = np.dot(self.Djx1,dUmac_dt)
         # der downwash wj ist nur die Komponente von Uj, welche senkrecht zum Panel steht! 
         # --> mit N multiplizieren und danach die Norm bilden    
-        wjx1 = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1 
-        flx1 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(self.Qjj, wjx1)
-        # Bemerkung: greifen die Luftkraefte bei j,l oder k an?
-        # Dies wuerde das Cmy beeinflussen!
-        # Gewaehlt: l
-        Plx1 = np.zeros(self.model.aerogrid['n']*6)
-        Plx1[self.model.aerogrid['set_l'][:,0]] = flx1[0,:]
-        Plx1[self.model.aerogrid['set_l'][:,1]] = flx1[1,:]
-        Plx1[self.model.aerogrid['set_l'][:,2]] = flx1[2,:]
-        
-        Pk_rbm = self.model.Dlk.T.dot(Plx1)
-        return Pk_rbm, wjx1
+        wj = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1 
+        Pk = self.calc_Pk(q_dyn, wj)
+        return Pk, wj
     
     def camber_twist_nonlin(self, dUcg_dt):
         wj = np.sin(self.model.camber_twist['cam_rad'] ) * -1.0 
@@ -145,15 +148,9 @@ class Common():
         return Pk, wj
     
     def camber_twist(self, q_dyn):
-        wj_cam = np.sin(self.model.camber_twist['cam_rad'] )
-        flcam = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(self.Qjj, wj_cam)
-        Plcam = np.zeros(self.model.aerogrid['n']*6)
-        Plcam[self.model.aerogrid['set_l'][:,0]] = flcam[0,:]
-        Plcam[self.model.aerogrid['set_l'][:,1]] = flcam[1,:]
-        Plcam[self.model.aerogrid['set_l'][:,2]] = flcam[2,:]
-        
-        Pk_cam = self.model.Dlk.T.dot(Plcam) 
-        return Pk_cam, wj_cam
+        wj = np.sin(self.model.camber_twist['cam_rad'] )
+        Pk = self.calc_Pk(q_dyn, wj)
+        return Pk, wj
     
     def cs_nonlin(self, dUcg_dt, X, Ux2, Vtas):
         wj = np.zeros(self.model.aerogrid['n'])
@@ -175,7 +172,7 @@ class Common():
         return Pk, wj
     
     def cs(self, X, Ux2, q_dyn):
-        wjx2 = np.zeros(self.model.aerogrid['n'])
+        wj = np.zeros(self.model.aerogrid['n'])
         # Hier gibt es zwei Wege und es wird je Steuerflaeche unterschieden:
         # a) es liegen Daten in der AeroDB vor -> Kraefte werden interpoliert, dann zu Pk addiert, downwash vector bleibt unveraendert
         # b) der downwash der Steuerflaeche wird berechnet, zum downwash vector addiert 
@@ -187,16 +184,10 @@ class Common():
                 Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
             # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
             # Mit der Norm von wj geht das Vorzeichen verloren - dies ist aber fuer den Steuerflaechenausschlag wichtig.
-            wjx2 += self.model.x2grid['eff'][i_x2] * np.sign(Ux2[i_x2]) * np.sqrt(np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])**2.0 + \
+            wj += self.model.x2grid['eff'][i_x2] * np.sign(Ux2[i_x2]) * np.sqrt(np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])**2.0 + \
                                                                                   np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])**2.0)  #* Vtas/Vtas
-        flx2 = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(self.Qjj, wjx2)
-        Plx2 = np.zeros(self.model.aerogrid['n']*6)
-        Plx2[self.model.aerogrid['set_l'][:,0]] = flx2[0,:]
-        Plx2[self.model.aerogrid['set_l'][:,1]] = flx2[1,:]
-        Plx2[self.model.aerogrid['set_l'][:,2]] = flx2[2,:]
-    
-        Pk_cs = self.model.Dlk.T.dot(Plx2)
-        return Pk_cs, wjx2
+        Pk = self.calc_Pk(q_dyn, wj)
+        return Pk, wj
     
     def flexible_nonlin(self, dUcg_dt, Uf, dUf_dt, Vtas):
         if self.jcl.aero.has_key('flex') and self.jcl.aero['flex']:
@@ -217,6 +208,7 @@ class Common():
         return Pk, wj
         
     def flexible(self, Uf, dUf_dt, dUcg_dt, q_dyn, Vtas):
+        wj = np.zeros(self.model.aerogrid['n'])
         if self.jcl.aero.has_key('flex') and self.jcl.aero['flex']:
             dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt)
              # modale Verformung
@@ -226,20 +218,12 @@ class Common():
             # zu Ueberpruefen, da Trim bisher in statischer Ruhelage und somit  dUf_dt = 0
             dUjf_dt = np.dot(self.PHIjf, dUf_dt ) # viel schneller!
             wjf_2 = np.sum(self.model.aerogrid['N'][:] * dUjf_dt[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1) / Vtas * -1 
-            wjf = wjf_1 + wjf_2
-            flf = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(self.Qjj, wjf)        
-            Plf = np.zeros(self.model.aerogrid['n']*6)
-            Plf[self.model.aerogrid['set_l'][:,0]] = flf[0,:]
-            Plf[self.model.aerogrid['set_l'][:,1]] = flf[1,:]
-            Plf[self.model.aerogrid['set_l'][:,2]] = flf[2,:]
-            
-            Pk_f = self.model.Dlk.T.dot(Plf)
-        else:
-            Pk_f = np.zeros(self.model.aerogrid['n']*6)
-            wjf = np.zeros(self.model.aerogrid['n'])
-        return Pk_f, wjf
+            wj = wjf_1 + wjf_2
+        Pk = self.calc_Pk(q_dyn, wj)
+        return Pk, wj
     
     def gust(self, X, q_dyn):
+        wj = np.zeros(self.model.aerogrid['n'])
         if self.simcase and self.simcase['gust']:
             # Eintauchtiefe in die Boe berechnen
             s_gust = (X[0] - self.model.aerogrid['offset_j'][:,0] - self.x0)
@@ -249,18 +233,9 @@ class Common():
             wj_gust[np.where(s_gust > 2*self.simcase['gust_gradient'])] = 0.0
             # Ausrichtung der Boe fehlt noch
             gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
-            wj_gust = wj_gust *  gust_direction_vector
-            flgust = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(self.Qjj, wj_gust)
-            Plgust = np.zeros((6*self.model.aerogrid['n']))
-            Plgust[self.model.aerogrid['set_l'][:,0]] = flgust[0,:]
-            Plgust[self.model.aerogrid['set_l'][:,1]] = flgust[1,:]
-            Plgust[self.model.aerogrid['set_l'][:,2]] = flgust[2,:]
-            
-            Pk_gust = self.model.Dlk.T.dot(Plgust)
-        else:
-            Pk_gust = np.zeros(self.model.aerogrid['n']*6)
-            wj_gust = np.zeros(self.model.aerogrid['n'])
-        return Pk_gust, wj_gust
+            wj = wj_gust *  gust_direction_vector
+        Pk = self.calc_Pk(q_dyn, wj)
+        return Pk, wj
     
     def idrag(self, wj, q_dyn):
         if self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae'] and self.jcl.aero.has_key('induced_drag') and self.jcl.aero['induced_drag']:
