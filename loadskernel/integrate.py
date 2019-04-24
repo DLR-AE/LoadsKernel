@@ -51,3 +51,36 @@ class RungeKutta4():
         # Daten speichern fuer den naechsten Schritt
         self.t = t1
         self.y = y1.copy()
+
+class ExplicitEuler(RungeKutta4):
+    # Explizites Euler Verfahren fuer ein Anfangswertprobelm 1. Ordnung
+    # https://de.wikipedia.org/wiki/Explizites_Euler-Verfahren
+    def integrate(self, t_end):
+        self.success = False # uncheck success flag
+        # Integration mit fester Schrittweite bis t_end erreicht ist
+        while self.t < t_end :
+            self.EulerStep()
+
+        # check success flag
+        if np.isnan(self.y).any():
+            logging.warning('Encountered NaN during integration at t={}.'.format(self.t))
+        else:
+            self.success = True 
+
+    def EulerStep(self):
+        # Ausgangswerte bei y(t0) holen
+        h = self.stepwidth
+        t0 = self.t
+        y0 = self.y
+
+        # Berechnung der Koeffizienten
+        k1 = self.odefun(t0, y0)
+        
+        # Berechnung der Naeherungsloesung fuer y(t1)
+        t1 = t0 + h
+        y1 = y0 + h*k1
+
+        # Daten speichern fuer den naechsten Schritt
+        self.t = t1
+        self.y = y1.copy()
+    
