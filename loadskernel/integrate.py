@@ -7,6 +7,9 @@ class RungeKutta4():
     def __init__(self, odefun):
         self.odefun = odefun # Aufrufbare Funktion einer Differenziagleichung vom Typ dy = odefun(t, y)
         self.success = True
+        self.stepwidth = 1.0e-4
+        self.t = 0.0
+        self.y = None
 
     def successful(self):
         # Check status of success flag
@@ -24,7 +27,7 @@ class RungeKutta4():
         self.success = False # uncheck success flag
         # Integration mit fester Schrittweite bis t_end erreicht ist
         while self.t < t_end :
-            self.RungeKuttaStep()
+            self.runge_kutta_step()
 
         # check success flag
         if np.isnan(self.y).any():
@@ -32,7 +35,7 @@ class RungeKutta4():
         else:
             self.success = True 
 
-    def RungeKuttaStep(self):
+    def runge_kutta_step(self):
         # Ausgangswerte bei y(t0) holen
         h = self.stepwidth
         t0 = self.t
@@ -59,7 +62,7 @@ class ExplicitEuler(RungeKutta4):
         self.success = False # uncheck success flag
         # Integration mit fester Schrittweite bis t_end erreicht ist
         while self.t < t_end :
-            self.EulerStep()
+            self.euler_step()
 
         # check success flag
         if np.isnan(self.y).any():
@@ -67,7 +70,7 @@ class ExplicitEuler(RungeKutta4):
         else:
             self.success = True 
 
-    def EulerStep(self):
+    def euler_step(self):
         # Ausgangswerte bei y(t0) holen
         h = self.stepwidth
         t0 = self.t
