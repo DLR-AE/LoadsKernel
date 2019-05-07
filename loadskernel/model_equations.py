@@ -774,7 +774,8 @@ class Steady(Common):
                        d2Uf_dt2, 
                        dcommand, 
                        Nxyz[2],
-                       Vtas, 
+                       Vtas,
+                       beta,
                      )) 
         
         if modus in ['trim', 'sim']:
@@ -1084,7 +1085,8 @@ class CfdSteady(Steady):
                        d2Uf_dt2, 
                        dcommand, 
                        Nxyz[2],
-                       Vtas, 
+                       Vtas,
+                       beta,                       
                      )) 
         
         if modus in ['trim', 'sim']:
@@ -1205,6 +1207,7 @@ class NonlinSteady(Steady):
                        dcommand, 
                        Nxyz[2],
                        Vtas, 
+                       beta,
                      ))
             
         if modus in ['trim', 'sim']:
@@ -1324,6 +1327,7 @@ class Unsteady(Common):
                        dlag_states_dt,
                        Nxyz[2],
                        Vtas, 
+                       beta,
                      ))
              
         if modus in ['trim', 'sim']:
@@ -1461,6 +1465,7 @@ class Landing(Common):
                        np.hstack((dp2, ddp2)),
                        Nxyz[2],
                        Vtas, 
+                       beta,
                      ))
              
         if modus in ['trim', 'sim']:

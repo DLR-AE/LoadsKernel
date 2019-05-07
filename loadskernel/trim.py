@@ -17,11 +17,36 @@ class Trim:
         self.jcl = jcl
         self.trimcase = trimcase
         self.simcase = simcase    
+        
+        self.response = None
+        self.successful = None
          
-        self.states = np.array([])
-        self.state_derivatives = np.array([])
-        self.input_derivatives = np.array([])
-        self.outputs = np.array([])
+        self.states = None
+        self.inputs = None
+        self.state_derivatives = None
+        self.input_derivatives = None
+        self.outputs = None
+        
+        self.trimcond_X = None
+        self.trimcond_Y = None
+
+        self.n_states = None
+        self.n_inputs = None
+        self.n_state_derivatives = None
+        self.n_input_derivatives = None
+        self.n_outputs = None
+        self.n_lg_states = None
+        self.n_lag_states = None
+        
+        self.idx_states = None
+        self.idx_inputs = None
+        self.idx_state_derivatives = None
+        self.idx_input_derivatives = None
+        self.idx_outputs = None
+        self.idx_lg_states = None
+        self.idx_lg_derivatives = None
+        self.idx_lag_states = None
+        self.idx_lag_derivatives = None
         
     def set_trimcond(self):
         # init
@@ -91,8 +116,9 @@ class Trim:
             ['dcommand_zeta',  'fix',  0.0,],
             ])
         self.outputs = np.array([
-            ['Nz',       'target',    self.trimcase['Nz']],
-            ['Vtas',     'free',  vtas,],
+            ['Nz',       'target',  self.trimcase['Nz']],
+            ['Vtas',     'free',    vtas,],
+            ['beta',     'free',    0.0]
             ])
         
         # ------------------
@@ -161,12 +187,10 @@ class Trim:
         # --- segelflug --- 
         # -----------------
         # Sinken (w) wird erlaubt, damit die Geschwindigkeit konstant bleibt (du = 0.0)
-        # Eigentlich muesste vtas konstant sein, ist aber momentan nicht als trimcond vorgesehen... Das wird auch schwierig, da die Machzahl vorgegeben ist.
         elif self.trimcase['maneuver'] == 'segelflug':
             logging.info('setting trim conditions to "segelflug"')
             # inputs 
             # without changes
-
             # outputs
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dx'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dz'))[0][0],1] = 'free'
@@ -200,10 +224,7 @@ class Trim:
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],2] = self.trimcase['command_zeta']
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'          
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
-        
-        # ----------------
-        # --- CS fixed --- 
-        # ----------------
+
         elif self.trimcase['maneuver'] == 'CS-fixed':
             logging.info('setting trim conditions to "CS-fixed"')
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
@@ -228,19 +249,39 @@ class Trim:
             self.states[np.where((self.states[:,0] == 'q'))[0][0],1] = 'free'        
             self.states[np.where((self.states[:,0] == 'r'))[0][0],1] = 'free'
         
+        # ----------------
+        # --- sideslip --- 
+        # ----------------
+        elif self.trimcase['maneuver'] == 'sideslip':
+            logging.info('setting trim conditions to "sideslip"')
+            # fixed roll and yaw control
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            #self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
+            #self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
+            
+            # set sideslip condition
+            self.states[np.where((self.states[:,0] == 'psi'))[0][0],2] = self.trimcase['beta']
+            self.states[np.where((self.states[:,0] == 'v'))[0][0],1] = 'free'
+            self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],1] = 'target'
+            self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],2] = self.trimcase['beta']
+        
         # --------------
         # --- bypass --- 
         # --------------
         # Die Steuerkommandos xi, eta und zeta werden vorgegeben und die resultierenden Beschleunigungen sind frei. 
         elif self.trimcase['maneuver'] == 'bypass':
             logging.info('setting trim conditions to "bypass"')
+            theta = self.trimcase['theta']
+            u = vtas*np.cos(theta)
+            w = vtas*np.sin(theta)
             # inputs
             self.states[np.where((self.states[:,0] == 'phi'))[0][0],1] = 'fix'
             self.states[np.where((self.states[:,0] == 'phi'))[0][0],2] = self.trimcase['phi']
             self.states[np.where((self.states[:,0] == 'theta'))[0][0],1] = 'fix'
-            self.states[np.where((self.states[:,0] == 'theta'))[0][0],2] = self.trimcase['theta']
-            self.states[np.where((self.states[:,0] == 'psi'))[0][0],1] = 'fix'
-            self.states[np.where((self.states[:,0] == 'psi'))[0][0],2] = self.trimcase['psi']
+            self.states[np.where((self.states[:,0] == 'theta'))[0][0],2] = theta
+            self.states[np.where((self.states[:,0] == 'u'))[0][0],2] = u
+            self.states[np.where((self.states[:,0] == 'w'))[0][0],2] = w
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],2] = self.trimcase['command_xi']
             self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],1] = 'fix'
