@@ -256,9 +256,11 @@ class Trim:
             logging.info('setting trim conditions to "sideslip"')
             # fixed roll and yaw control
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
-            #self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],2] = self.trimcase['command_xi']
+            self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],2] = self.trimcase['command_zeta']
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
-            #self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
             
             # set sideslip condition
             self.states[np.where((self.states[:,0] == 'psi'))[0][0],2] = self.trimcase['beta']
