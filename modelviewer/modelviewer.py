@@ -199,7 +199,7 @@ class Modelviewer():
         self.lb_rho = QtGui.QLabel('Rho: 2700 kg/m^3')
         # slider for generalized coordinate magnification factor
         self.sl_rho = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.sl_rho.setMinimum(100)
+        self.sl_rho.setMinimum(10)
         self.sl_rho.setMaximum(3000)
         self.sl_rho.setSingleStep(100)
         self.sl_rho.setValue(2700)
