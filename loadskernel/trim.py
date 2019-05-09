@@ -77,7 +77,7 @@ class Trim:
             ['p',        'fix',    self.trimcase['p'],],
             ['q',        'fix',    self.trimcase['q'],],
             ['r',        'fix',    self.trimcase['r'],],
-            ])
+            ], dtype='|S16')
         for i_mode in range(n_modes):
             self.states = np.vstack((self.states ,  ['Uf'+str(i_mode), 'free', 0.0]))
         for i_mode in range(n_modes):
@@ -87,7 +87,7 @@ class Trim:
             ['command_xi',   'free', 0.0,],  
             ['command_eta',  'free',  0.0,], 
             ['command_zeta', 'free',  0.0,],
-            ])
+            ], dtype='|S16')
         
         # outputs
         self.state_derivatives = np.array([ 
@@ -103,7 +103,7 @@ class Trim:
             ['dp',       'target', self.trimcase['pdot'],],
             ['dq',       'target', self.trimcase['qdot'],],
             ['dr',       'target', self.trimcase['rdot'],],
-            ])
+            ], dtype='|S16')
             
         for i_mode in range(n_modes):
             self.state_derivatives = np.vstack((self.state_derivatives ,  ['dUf_dt'+str(i_mode), 'target', 0.0]))
@@ -114,12 +114,13 @@ class Trim:
             ['dcommand_xi',    'fix',  0.0,],
             ['dcommand_eta',   'fix',  0.0,],
             ['dcommand_zeta',  'fix',  0.0,],
-            ])
+            ], dtype='|S16')
+
         self.outputs = np.array([
             ['Nz',       'target',  self.trimcase['Nz']],
             ['Vtas',     'free',    vtas,],
             ['beta',     'free',    0.0]
-            ])
+            ], dtype='|S16')
         
         # ------------------
         # --- pitch only --- 
@@ -263,8 +264,9 @@ class Trim:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
             
             # set sideslip condition
-            self.states[np.where((self.states[:,0] == 'psi'))[0][0],2] = self.trimcase['beta']
+            self.states[np.where((self.states[:,0] == 'psi'))[0][0],1] = 'free'
             self.states[np.where((self.states[:,0] == 'v'))[0][0],1] = 'free'
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dy'))[0][0],1] = 'target'
             self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],1] = 'target'
             self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],2] = self.trimcase['beta']
         
