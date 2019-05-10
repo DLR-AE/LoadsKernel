@@ -239,6 +239,7 @@ class Modelviewer():
         bt_aero_hide = QtGui.QPushButton('Hide')
         bt_aero_hide.clicked.connect(self.plotting.hide_aero)
         self.lb_MAC = QtGui.QLabel('MAC: x={:0.4f}, y={:0.4f} m'.format(0.0, 0.0))
+        self.lb_MAC2 = QtGui.QLabel('')
 
         self.list_markers = QtGui.QListWidget()
         self.list_markers.setSelectionMode(QtGui.QAbstractItemView.SelectionMode.ExtendedSelection) # allow multiple selections
@@ -249,6 +250,7 @@ class Modelviewer():
         layout_aero = QtGui.QVBoxLayout(tab_aero)
         layout_aero.addWidget(bt_aero_show)
         layout_aero.addWidget(self.lb_MAC)
+        layout_aero.addWidget(self.lb_MAC2)
         layout_aero.addWidget(self.cb_w2gj)
         layout_aero.addWidget(bt_aero_hide)
         layout_aero.addWidget(self.list_markers)
@@ -477,6 +479,7 @@ class Modelviewer():
     
     def toggle_w2gj(self):
         self.lb_MAC.setText('MAC: x={:0.4f}, y={:0.4f} m'.format(self.MAC[0], self.MAC[1]))
+        self.lb_MAC2.setText('(based on AIC from "{}")'.format(self.model.aero['key'][0]))
         if self.cb_w2gj.isChecked():
             if self.plotting.show_aero:
                 self.plotting.hide_aero()
