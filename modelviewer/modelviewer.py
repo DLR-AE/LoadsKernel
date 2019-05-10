@@ -238,8 +238,7 @@ class Modelviewer():
         self.cb_w2gj.stateChanged.connect(self.toggle_w2gj)
         bt_aero_hide = QtGui.QPushButton('Hide')
         bt_aero_hide.clicked.connect(self.plotting.hide_aero)
-        self.lb_MAC = QtGui.QLabel('MAC: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(0.0, 0.0, 0.0))
-        lb_MAC = QtGui.QLabel('(25% of projected area)')
+        self.lb_MAC = QtGui.QLabel('MAC: x={:0.4f}, y={:0.4f} m'.format(0.0, 0.0))
 
         self.list_markers = QtGui.QListWidget()
         self.list_markers.setSelectionMode(QtGui.QAbstractItemView.SelectionMode.ExtendedSelection) # allow multiple selections
@@ -250,7 +249,6 @@ class Modelviewer():
         layout_aero = QtGui.QVBoxLayout(tab_aero)
         layout_aero.addWidget(bt_aero_show)
         layout_aero.addWidget(self.lb_MAC)
-        layout_aero.addWidget(lb_MAC)
         layout_aero.addWidget(self.cb_w2gj)
         layout_aero.addWidget(bt_aero_hide)
         layout_aero.addWidget(self.list_markers)
@@ -459,12 +457,26 @@ class Modelviewer():
             self.plotting.plot_monstations(monstation=key)
     
     def calc_MAC(self):
-        A_projiziert = self.model.aerogrid['A']*self.model.aerogrid['N'][:,2]
-        self.MAC = np.sum(A_projiziert/A_projiziert.sum()*self.model.aerogrid['offset_j'].T, axis=1)
+        # The mean aerodynamic center is calculated from the aerodynamics.
+        # This approach includes also the downwash from wing on HTP.
+        
+        Qjj = self.model.aero['Qjj'][0]
+        # assume unit downwash
+        Ujx1 = np.dot(self.model.Djx1,[0,0,1.0,0,0,0])
+        wj = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1)
+        fl = self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj)
+        Pl = np.zeros(self.model.aerogrid['n']*6)
+        Pl[self.model.aerogrid['set_l'][:,0]] = fl[0,:]
+        Pl[self.model.aerogrid['set_l'][:,1]] = fl[1,:]
+        Pl[self.model.aerogrid['set_l'][:,2]] = fl[2,:]
+        Pmac = self.model.Dkx1.T.dot(self.model.Dlk.T.dot(Pl))
+        self.MAC = np.zeros(3)
+        self.MAC[0] = self.model.macgrid['offset'][0,0] -  Pmac[4] / Pmac[2]
+        self.MAC[1] = self.model.macgrid['offset'][0,1] +  Pmac[3] / Pmac[2]        
         self.plotting.MAC = self.MAC
     
     def toggle_w2gj(self):
-        self.lb_MAC.setText('MAC: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(self.MAC[0], self.MAC[1], self.MAC[2]))
+        self.lb_MAC.setText('MAC: x={:0.4f}, y={:0.4f} m'.format(self.MAC[0], self.MAC[1]))
         if self.cb_w2gj.isChecked():
             if self.plotting.show_aero:
                 self.plotting.hide_aero()
