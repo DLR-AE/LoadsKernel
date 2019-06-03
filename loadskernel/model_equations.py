@@ -486,7 +486,7 @@ class Common():
         # get support conditions from trimcase or simcase
         if modus in ['trim', 'trim_full_output'] and self.trimcase.has_key('support'):
             support = self.trimcase['support']
-        elif modus in ['sim', 'sim_full_output'] and self.simcase.has_key('support'):
+        elif modus in ['sim', 'sim_full_output'] and self.simcase!= '' and self.simcase.has_key('support'):
             support = self.simcase['support']
         else:
             support = []
