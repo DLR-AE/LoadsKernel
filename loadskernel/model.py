@@ -377,7 +377,7 @@ class Model:
                 # this optin is only valid if spline['method'] == 'rbf' or 'rb'
                 logging.info( 'Coupling aerogrid to strcgrid via splinegrid:')
                 self.splinegrid = build_splinegrid.build_splinegrid(self.strcgrid, self.jcl.spline['filename_splinegrid'])
-                self.splinegrid = build_splinegrid.grid_thin_out_radius(self.splinegrid, 0.01)
+                #self.splinegrid = build_splinegrid.grid_thin_out_radius(self.splinegrid, 0.01)
             else:
                 logging.info( 'Coupling aerogrid directly. Doing cleanup/thin out of strcgrid to avoid singularities (safety first!)')
                 self.splinegrid = build_splinegrid.grid_thin_out_radius(self.strcgrid, 0.01)
