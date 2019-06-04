@@ -147,7 +147,7 @@ class Kernel():
         logging.info('subcase: ' + str(i_jcl.trimcase[i]['subcase']))
         logging.info('(case ' + str(i + 1) + ' of ' + str(len(i_jcl.trimcase)) + ')')
         logging.info('========================================')
-        trim_i = trim.trim(model, i_jcl, i_jcl.trimcase[i], i_jcl.simcase[i])
+        trim_i = trim.Trim(model, i_jcl, i_jcl.trimcase[i], i_jcl.simcase[i])
         trim_i.set_trimcond()
         # trim_i.calc_derivatives()
         trim_i.exec_trim()
@@ -333,7 +333,7 @@ class Kernel():
             logging.info('(case ' + str(i + 1) + ' of ' + str(len(self.jcl.trimcase)) + ')')
             logging.info('========================================')
             
-            trim_i = trim.trim(model, self.jcl, self.jcl.trimcase[i], self.jcl.simcase[i])
+            trim_i = trim.Trim(model, self.jcl, self.jcl.trimcase[i], self.jcl.simcase[i])
             trim_i.set_trimcond()
             trim_i.exec_trim()
             trim_i.calc_jacobian()
@@ -402,19 +402,24 @@ class Kernel():
 
 #         logging.info( '--> statespace analysis.')
 #         import statespace_analysis
-#         statespace_analysis = statespace.analysis(jcl, model, responses)
+#         statespace_analysis = statespace_analysis.analysis(self.jcl, model, responses)
 #         #statespace_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
 #         #statespace_analysis.plot_state_space_matrices()
-#         statespace_analysis.analyse_eigenvalues(path_output + 'analyse_of_eigenvalues_' + job_name + '.pdf')
+#         statespace_analysis.analyse_eigenvalues(self.path_output + 'analyse_of_eigenvalues_' + self.job_name + '.pdf')
            
         return
 
     def run_test(self):
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        import freq_dom
+        flutter = freq_dom.Flutter(fluttercase=self.jcl.trimcase[0], model=model, jcl=self.jcl)
+        flutter.k_method()
+        
+        
         # place code to test here
-#        responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
-#        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'r') as f:
-#            monstations = io_functions.specific_functions.load_pickle(f)
+#         responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
+#         with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'r') as f:
+#             monstations = io_functions.specific_functions.load_pickle(f)
 #         from scripts import cps_for_MULDICON
 #         cps = cps_for_MULDICON.CPs(self.jcl, model, responses)
 #         cps.plot()
