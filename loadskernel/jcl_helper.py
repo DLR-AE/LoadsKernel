@@ -2,6 +2,7 @@
 import csv, logging
 from collections import OrderedDict
 from numpy import array
+import numpy as np
 
 def csv2listofdicts(filename_csv):
     logging.info('Reading list of dicts from: ' + filename_csv)
@@ -28,3 +29,6 @@ def generate_empty_listofdicts(trimcase):
     empty_listofdicts = [{}]*trimcase.__len__()
     logging.info('Generated list of {} empty dicts.'.format(len(empty_listofdicts)) )
     return empty_listofdicts
+
+def k_red_sequence(n=8, kmax=2.0):
+    return np.sin(np.linspace(0.001/kmax, np.pi/2.0, n))*kmax
