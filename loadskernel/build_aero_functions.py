@@ -209,7 +209,22 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
         RMSE_imag = np.sqrt( ((Qjj_aprox[k_i+n_k,:].reshape(n_j, n_j) - np.imag(Qjj[k_i,:,:]))**2).sum(axis=None) / n_j**2 )
         RMSE.append([RMSE_real,RMSE_imag ])
         logging.info( '  k = {:<6}, RMSE_real = {:<20}, RMSE_imag = {:<20}'.format(k[k_i], RMSE_real, RMSE_imag))
+    # Vergroesserung des Frequenzbereichs
+    k = np.arange(0.0,(k.max()), 0.001)
+    n_k = len(k)
+    
+    if option == 1: # voll
+        Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), -k**2]) 
+        Ajj_imag = np.array([np.zeros(n_k), k, np.zeros(n_k)]) 
+    elif option == 2: # ohne Beschleunigungsterm
+        Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), np.zeros(n_k)]) 
+        Ajj_imag = np.array([np.zeros(n_k), k, np.zeros(n_k)]) 
+    elif option == 3: # ohne Beschleunigungsterm und D��mpfungsterm
+        Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), np.zeros(n_k)]) 
+        Ajj_imag = np.array([np.zeros(n_k), np.zeros(n_k), np.zeros(n_k)]) 
         
+    for beta in betas: Ajj_real = np.vstack(( Ajj_real, k**2/(k**2+beta**2)   ))
+    for beta in betas: Ajj_imag = np.vstack(( Ajj_imag, k*beta/(k**2+beta**2) ))    
     # Plots vom Real- und Imaginaerteil der ersten m_n*n_n Panels
     m_n = 3
     n_n = 3
@@ -225,5 +240,5 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
             plt.ylabel('imag')
       
     plt.savefig(filename)
-    
+    plt.show()
     return ABCD, n_poles, betas, RMSE
