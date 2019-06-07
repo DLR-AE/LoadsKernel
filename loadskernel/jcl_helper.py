@@ -31,4 +31,4 @@ def generate_empty_listofdicts(trimcase):
     return empty_listofdicts
 
 def k_red_sequence(n=8, kmax=2.0):
-    return np.sin(np.linspace(0.001/kmax, np.pi/2.0, n))*kmax
+    return (1.0 - np.cos(np.linspace(0.001, np.pi/2.0, n)))*kmax
