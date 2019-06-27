@@ -381,7 +381,8 @@ class Model:
             else:
                 logging.info( 'Coupling aerogrid directly. Doing cleanup/thin out of strcgrid to avoid singularities (safety first!)')
                 self.splinegrid = build_splinegrid.grid_thin_out_radius(self.strcgrid, 0.01)
-        
+        else:
+            self.splinegrid = self.strcgrid
         logging.info('The spline model consists of {} grid points.'.format(self.splinegrid['n']))
 
         if self.jcl.spline['method'] == 'rbf': 
