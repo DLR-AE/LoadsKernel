@@ -240,5 +240,5 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
             plt.ylabel('imag')
       
     plt.savefig(filename)
-    plt.show()
+    plt.close()
     return ABCD, n_poles, betas, RMSE
