@@ -191,10 +191,10 @@ class Kernel():
                 else:
                     mon.gather_dyn2stat(-1, response, mode='stat2stat')
 
-            logging.info('--> Saving response(s).')
-            io_functions.specific_functions.dump_pickle(response, f)
-            #with open(self.path_output + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
-            #   io_functions.matlab_functions.save_mat(f2, response)
+                logging.info('--> Saving response(s).')
+                io_functions.specific_functions.dump_pickle(response, f)
+                #with open(self.path_output + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
+                #   io_functions.matlab_functions.save_mat(f2, response)
         f.close()  # close response
 
         logging.info('--> Saving monstation(s).')
@@ -411,9 +411,9 @@ class Kernel():
 
     def run_test(self):
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        import freq_dom
-        flutter = freq_dom.Flutter(fluttercase=self.jcl.trimcase[0], model=model, jcl=self.jcl)
-        flutter.k_method()
+#         import freq_dom
+#         flutter = freq_dom.Flutter(fluttercase=self.jcl.trimcase[0], model=model, jcl=self.jcl)
+#         flutter.k_method()
         
         
         # place code to test here

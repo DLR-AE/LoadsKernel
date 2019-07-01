@@ -72,9 +72,9 @@ class DetailedPlots(plotting_standard.StandardPlots):
         return ax
 
     def plot_pressure_distribution(self):
-        for i_trimcase in range(len(self.jcl.trimcase)):
-            response   = self.responses[i_trimcase]
-            trimcase   = self.jcl.trimcase[i_trimcase]
+        for i_response in range(len(self.responses)):
+            response   = self.responses[i_response]
+            trimcase   = self.jcl.trimcase[response['i']]
             logging.info('interactive plotting of resulting pressure distributions for trim {:s}'.format(trimcase['desc']))
             Pk = response['Pk_aero'] #response['Pk_rbm'] + response['Pk_cam']
             i_atmo = self.model.atmo['key'].index(trimcase['altitude'])
@@ -87,25 +87,32 @@ class DetailedPlots(plotting_standard.StandardPlots):
             plt.show()
             
     def plot_time_data(self):
-        for i_simcase in range(len(self.jcl.simcase)):
-            trimcase    = self.jcl.trimcase[i_simcase]
+        for i_response in range(len(self.responses)):
+            response   = self.responses[i_response]
+            trimcase   = self.jcl.trimcase[response['i']]
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
             Pb_gust = []
             Pb_unsteady = []
             Pb_aero = []
-            for i_step in range(len(self.responses[i_simcase]['t'])):        
-                Pb_gust.append(np.dot(self.model.Dkx1.T, self.responses[i_simcase]['Pk_gust'][i_step,:]))
-                Pb_unsteady.append(np.dot(self.model.Dkx1.T, self.responses[i_simcase]['Pk_unsteady'][i_step,:]))
-                Pb_aero.append(np.dot(self.model.Dkx1.T, self.responses[i_simcase]['Pk_aero'][i_step,:]))
+            Pmac_c = []
+            A = self.jcl.general['A_ref']
+            AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
+            for i_step in range(len(response['t'])):        
+                Pb_gust.append(np.dot(self.model.Dkx1.T, response['Pk_gust'][i_step,:]))
+                Pb_unsteady.append(np.dot(self.model.Dkx1.T, response['Pk_unsteady'][i_step,:]))
+                Pb_aero.append(np.dot(self.model.Dkx1.T, response['Pk_aero'][i_step,:]))
+                Pmac_c.append(response['Pmac'][i_step,:]/response['q_dyn'][i_step,:]/A)
             Pb_gust = np.array(Pb_gust)
             Pb_unsteady = np.array(Pb_unsteady)
             Pb_aero = np.array(Pb_aero)
+            Pmac_c = np.array(Pmac_c)
+            
             plt.figure(1)
-            plt.plot(self.responses[i_simcase]['t'], Pb_gust[:,2], 'b-')
-            plt.plot(self.responses[i_simcase]['t'], Pb_unsteady[:,2], 'r-')
-            plt.plot(self.responses[i_simcase]['t'], Pb_gust[:,2] + Pb_unsteady[:,2], 'b--')
-            plt.plot(self.responses[i_simcase]['t'], Pb_aero[:,2], 'g-')
-            plt.plot(self.responses[i_simcase]['t'], Pb_aero[:,2] - Pb_unsteady[:,2], 'k--')
+            plt.plot(response['t'], Pb_gust[:,2], 'b-')
+            plt.plot(response['t'], Pb_unsteady[:,2], 'r-')
+            plt.plot(response['t'], Pb_gust[:,2] + Pb_unsteady[:,2], 'b--')
+            plt.plot(response['t'], Pb_aero[:,2], 'g-')
+            plt.plot(response['t'], Pb_aero[:,2] - Pb_unsteady[:,2], 'k--')
             plt.xlabel('t [sec]')
             plt.ylabel('Pb [N]')
             plt.grid('on')
@@ -113,23 +120,23 @@ class DetailedPlots(plotting_standard.StandardPlots):
             
 #             plt.figure(6)
 #             plt.subplot(3,1,1)
-#             plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['p1'])
-#             plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,12+n_modes*2+3:12+n_modes*2+3+self.model.lggrid['n']], '--')
+#             plt.plot(response['t'], response['p1'])
+#             plt.plot(response['t'], response['X'][:,12+n_modes*2+3:12+n_modes*2+3+self.model.lggrid['n']], '--')
 #             plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
 #             plt.xlabel('t [s]')
 #             plt.ylabel('p1,2 [m]')
 #             plt.grid('on')
 #             plt.subplot(3,1,2)
-#             plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['F1'])
-#             plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['F2'], '--')
+#             plt.plot(response['t'], response['F1'])
+#             plt.plot(response['t'], response['F2'], '--')
 #             plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
 #             plt.xlabel('t [s]')
 #             plt.ylabel('F1,2 [N]')
 #             plt.grid('on')
 #               
 #             plt.subplot(3,1,3)
-#             plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['dp1'])
-#             plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,12+n_modes*2+3+self.model.lggrid['n']:12+n_modes*2+3+self.model.lggrid['n']*2], '--')
+#             plt.plot(response['t'], response['dp1'])
+#             plt.plot(response['t'], response['X'][:,12+n_modes*2+3+self.model.lggrid['n']:12+n_modes*2+3+self.model.lggrid['n']*2], '--')
 #             plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
 #             plt.xlabel('t [s]')
 #             plt.ylabel('dp1,2 [m/s]')
@@ -137,15 +144,15 @@ class DetailedPlots(plotting_standard.StandardPlots):
         
             plt.figure(2)
             plt.subplot(2,1,1)
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['q_dyn'], 'k-')
+            plt.plot(response['t'], response['q_dyn'], 'k-')
             plt.xlabel('t [sec]')
             plt.ylabel('[Pa]')
             plt.grid('on')
             plt.legend(['q_dyn'])
             plt.subplot(2,1,2)
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['Nxyz'][:,2], 'b-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['alpha']/np.pi*180.0, 'r-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['beta']/np.pi*180.0, 'c-')
+            plt.plot(response['t'], response['Nxyz'][:,2], 'b-')
+            plt.plot(response['t'], response['alpha']/np.pi*180.0, 'r-')
+            plt.plot(response['t'], response['beta']/np.pi*180.0, 'c-')
             plt.xlabel('t [sec]')
             plt.legend(['Nz', 'alpha', 'beta']) 
             plt.grid('on')
@@ -154,17 +161,17 @@ class DetailedPlots(plotting_standard.StandardPlots):
             
             plt.figure(3)
             plt.subplot(2,1,1)
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,0], 'b-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,1], 'g-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,2], 'r-')
+            plt.plot(response['t'], response['X'][:,0], 'b-')
+            plt.plot(response['t'], response['X'][:,1], 'g-')
+            plt.plot(response['t'], response['X'][:,2], 'r-')
             plt.xlabel('t [sec]')
             plt.ylabel('[m]')
             plt.grid('on')
             plt.legend(['x', 'y', 'z'])
             plt.subplot(2,1,2)
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,3]/np.pi*180.0, 'b-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,4]/np.pi*180.0, 'g-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,5]/np.pi*180.0, 'r-')
+            plt.plot(response['t'], response['X'][:,3]/np.pi*180.0, 'b-')
+            plt.plot(response['t'], response['X'][:,4]/np.pi*180.0, 'g-')
+            plt.plot(response['t'], response['X'][:,5]/np.pi*180.0, 'r-')
             plt.xlabel('t [sec]')
             plt.ylabel('[deg]')
             plt.grid('on')
@@ -172,17 +179,17 @@ class DetailedPlots(plotting_standard.StandardPlots):
             
             plt.figure(4)
             plt.subplot(2,1,1)
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,6], 'b-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,7], 'g-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,8], 'r-')
+            plt.plot(response['t'], response['X'][:,6], 'b-')
+            plt.plot(response['t'], response['X'][:,7], 'g-')
+            plt.plot(response['t'], response['X'][:,8], 'r-')
             plt.xlabel('t [sec]')
             plt.ylabel('[m/s]')
             plt.grid('on')
             plt.legend(['u', 'v', 'w'])
             plt.subplot(2,1,2)
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,9]/np.pi*180.0, 'b-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,10]/np.pi*180.0, 'g-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['X'][:,11]/np.pi*180.0, 'r-')
+            plt.plot(response['t'], response['X'][:,9]/np.pi*180.0, 'b-')
+            plt.plot(response['t'], response['X'][:,10]/np.pi*180.0, 'g-')
+            plt.plot(response['t'], response['X'][:,11]/np.pi*180.0, 'r-')
             plt.xlabel('t [sec]')
             plt.ylabel('[deg/s]')
             plt.grid('on')
@@ -190,21 +197,28 @@ class DetailedPlots(plotting_standard.StandardPlots):
             
             plt.figure(5)
             plt.subplot(2,1,1)
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['Y'][:,6], 'b-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['Y'][:,7], 'g-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['Y'][:,8], 'r-')
+            plt.plot(response['t'], response['Y'][:,6], 'b-')
+            plt.plot(response['t'], response['Y'][:,7], 'g-')
+            plt.plot(response['t'], response['Y'][:,8], 'r-')
             plt.xlabel('t [sec]')
             plt.ylabel('[m/s^2]')
             plt.grid('on')
             plt.legend(['du', 'dv', 'dw'])
             plt.subplot(2,1,2)
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['Y'][:,9]/np.pi*180.0, 'b-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['Y'][:,10]/np.pi*180.0, 'g-')
-            plt.plot(self.responses[i_simcase]['t'], self.responses[i_simcase]['Y'][:,11]/np.pi*180.0, 'r-')
+            plt.plot(response['t'], response['Y'][:,9]/np.pi*180.0, 'b-')
+            plt.plot(response['t'], response['Y'][:,10]/np.pi*180.0, 'g-')
+            plt.plot(response['t'], response['Y'][:,11]/np.pi*180.0, 'r-')
             plt.xlabel('t [sec]')
             plt.ylabel('[deg/s^2]')
             plt.grid('on')
             plt.legend(['dp', 'dq', 'dr'])
+            
+            plt.figure(7)
+            plt.plot(response['t'], Pmac_c[:,2], 'b-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('Cz [-]')
+            plt.grid('on')
+            plt.legend(['Cz'])
             
             
         # show time plots
@@ -213,20 +227,20 @@ class DetailedPlots(plotting_standard.StandardPlots):
 class Animations(plotting_standard.StandardPlots):   
                     
     def make_movie(self, path_output, speedup_factor=1.0):
-        for i_simcase in range(len(self.jcl.simcase)):
-            self.plot_time_animation_3d(i_simcase, path_output, speedup_factor=speedup_factor, make_movie=True)
+        for i_response in range(len(self.responses)):
+            self.plot_time_animation_3d(i_response, path_output, speedup_factor=speedup_factor, make_movie=True)
     
     def make_animation(self, speedup_factor=1.0):
-        for i_simcase in range(len(self.jcl.simcase)):
-            self.plot_time_animation_3d(i_simcase, speedup_factor=speedup_factor)
+        for i_response in range(len(self.responses)):
+            self.plot_time_animation_3d(i_response, speedup_factor=speedup_factor)
                   
-    def plot_time_animation_3d(self, i_trimcase, path_output='./', speedup_factor=1.0, make_movie=False):
+    def plot_time_animation_3d(self, i_response, path_output='./', speedup_factor=1.0, make_movie=False):
         # To Do: show simulation time in animation
         from mayavi import mlab
         from tvtk.api import tvtk
-        response   = self.responses[i_trimcase]
-        trimcase   = self.jcl.trimcase[i_trimcase]
-        simcase    = self.jcl.simcase[i_trimcase] 
+        response   = self.responses[i_response]
+        trimcase   = self.jcl.trimcase[response['i']]
+        simcase    = self.jcl.simcase[response['i']] 
         
         def update_timestep(self, i):
             self.fig.scene.disable_render = True
@@ -385,7 +399,7 @@ class Animations(plotting_standard.StandardPlots):
 
         
         # get forces
-        names = ['Pg_aero_global', 'Pg_iner_global', 'Pg_ext_global']# 'Pg_idrag_global', 'Pg_cs_global']
+        names = ['Pg_aero_global', 'Pg_iner_global', ]# 'Pg_idrag_global', 'Pg_cs_global']
         colors = [(1,0,0), (0,1,1), (0,0,0), (0,0,1)] # red, cyan, black, blue
         for name in names:
             calc_vector_data(self, grid=grid, set=set, name=name)
@@ -415,12 +429,12 @@ class Animations(plotting_standard.StandardPlots):
         # get earth
 #         with open('harz.pickle', 'r') as f:  
 #             (x,y,elev) = cPickle.load(f)
-#         # plot earth, scale colormap
+        # plot earth, scale colormap
 #         surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
-        setup_runway(self, length=1000.0, width=15.0, elevation=0.0)
+#         setup_runway(self, length=1000.0, width=15.0, elevation=0.0)
         
         #mlab.view(azimuth=180.0, elevation=90.0, roll=-90.0, distance=70.0, focalpoint=np.array([self.x.mean(),self.y.mean(),self.z.mean()])) # back view
-        distance = 3.5*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5
+        distance = 2.5*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5
         #mlab.view(azimuth=135.0, elevation=100.0, roll=-100.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
         mlab.view(azimuth=-120.0, elevation=100.0, roll=-75.0,  distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from left and above
         #mlab.view(azimuth=-100.0, elevation=65.0, roll=25.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above

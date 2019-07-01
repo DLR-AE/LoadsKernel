@@ -8,7 +8,7 @@ import numpy as np
 import scipy.optimize as so
 import logging, copy
 from scipy.integrate import ode
-from loadskernel.integrate import RungeKutta4
+from loadskernel.integrate import RungeKutta4, ExplicitEuler
 import loadskernel.io_functions.specific_functions as specific_io
 
 class Trim:
@@ -565,9 +565,11 @@ class Trim:
                 response_step = equations.eval_equations(X_t[i_step], t[i_step], modus='sim_full_output')
                 for key in self.response.keys():
                     self.response[key] = np.vstack((self.response[key],response_step[key]))
+                self.successful = True
 
         else:
             self.response = {}
+            self.successful = False
             logging.warning('Integration failed!')
             return
             
