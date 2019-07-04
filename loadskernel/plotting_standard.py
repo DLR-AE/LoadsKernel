@@ -81,20 +81,20 @@ class StandardPlots():
             self.cuttingforces_wing = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.4 # points
-        elif self.jcl.general['aircraft'] in ['HAP-C1']:
+        elif self.jcl.general['aircraft'] in ['HAP-C1', 'HAP-C2', 'HAP']:
             self.potatos_fz_mx = ['64001']
             self.potatos_mx_my = ['64001']
             self.potatos_fz_my = ['64001']
-            self.cuttingforces_wing = ['54033', '54032', '54031', '54030', '54029', '54028', '54027', '54026', '54025', '54024', 
-                                       '54023', '54022', '54021', '54020', '54019', '54018', '54017', '54016', '54015', '54014', 
-                                       '54013', '54012', '54011', '54010', '54009', '54008', '54007', '54006', '54005', '54004', 
-                                       '54003', '54002', '54001',
+            self.cuttingforces_wing = ['54035', '54034', '54033', '54032', '54031', '54030', '54029', '54028', '54027', '54026', 
+                                       '54025', '54024', '54023', '54022', '54021', '54020', '54019', '54018', '54017', '54016', 
+                                       '54015', '54014', '54013', '54012', '54011', '54010', '54009', '54008', '54007', '54006', 
+                                       '54005', '54004', '54003', '54002', '54001',
                                        '64001', '64002', '64003', '64004', '64005', '64006', '64007', '64008', '64009', '64010', 
                                        '64011', '64012', '64013', '64014', '64015', '64016', '64017', '64018', '64019', '64020', 
                                        '64021', '64022', '64023', '64024', '64025', '64026', '64027', '64028', '64029', '64030', 
-                                       '64032', '64023', '64033',]
+                                       '64031', '64032', '64033', '64034', '64035',]
             self.f_scale = 0.1 # vectors
-            self.p_scale = 0.05 # points
+            self.p_scale = 0.3 # points
         else:
             logging.error('Unknown aircraft: ' + str(self.jcl.general['aircraft']))
             return
@@ -307,10 +307,10 @@ class StandardPlots():
                 # verticalalignment or va 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
                 # max
                 plt.scatter(offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], color='r')
-                plt.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(self.monstations[self.monstations.keys()[0]][subcase_string][i_max[i_station]]), fontsize=8, verticalalignment='bottom' )
+                plt.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(self.monstations[self.monstations.keys()[0]][subcase_string][i_max[i_station]]), fontsize=4, verticalalignment='bottom' )
                 # min
                 plt.scatter(offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], color='r')
-                plt.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(self.monstations[self.monstations.keys()[0]][subcase_string][i_min[i_station]]), fontsize=8, verticalalignment='top' )
+                plt.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(self.monstations[self.monstations.keys()[0]][subcase_string][i_min[i_station]]), fontsize=4, verticalalignment='top' )
 
             self.subplot.set_title('Wing')        
             self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
@@ -325,35 +325,34 @@ class StandardPlots():
     def plot_monstations_time(self, filename_pdf):
         logging.info('start plotting cutting forces over time ...')
         pp = PdfPages(filename_pdf)
-        for key in self.monstations.keys():
+        for key in set(self.potatos_fz_mx + self.potatos_mx_my + self.potatos_fz_my):
             monstation = self.monstations[key]
-            plt.figure()
+            fig, ax = plt.subplots(3, sharex=True )
             for i_simcase in range(len(self.jcl.simcase)):
                 loads = np.array(monstation['loads'][i_simcase])
                 t = monstation['t'][i_simcase]
-                
-                plt.subplot(3,1,1)
-                plt.title(key)
-                plt.plot(t, loads[:,2], 'b')
-                plt.xlabel('t [sec]')
-                plt.ylabel('Fz [N]')
-                plt.grid('on')
-                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-                plt.subplot(3,1,2)
-                plt.plot(t, loads[:,3], 'g')
-                plt.xlabel('t [sec]')
-                plt.ylabel('Mx [N]')
-                plt.grid('on')
-                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-                plt.subplot(3,1,3)
-                plt.plot(t, loads[:,4], 'r')
-                plt.xlabel('t [sec]')
-                plt.ylabel('My [N]')
-                plt.grid('on')
-                plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+                ax[0].plot(t, loads[:,2], 'b')
+                ax[1].plot(t, loads[:,3], 'g')
+                ax[2].plot(t, loads[:,4], 'r')
+            # make plots nice
+            ax[0].set_position([0.2, 0.65, 0.7, 0.2])
+            ax[0].title.set_text(key)
+            ax[0].set_ylabel('Fz [N]')
+            ax[0].get_yaxis().set_label_coords(x=-0.18, y=0.5)
+            ax[0].grid('on')
+            ax[0].ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            ax[1].set_position([0.2, 0.4, 0.7, 0.2])
+            ax[1].set_ylabel('Mx [N]')
+            ax[1].get_yaxis().set_label_coords(x=-0.18, y=0.5)
+            ax[1].grid('on')
+            ax[1].ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            ax[2].set_position([0.2, 0.15, 0.7, 0.2])
+            ax[2].set_xlabel('t [sec]')
+            ax[2].set_ylabel('My [N]')
+            ax[2].get_yaxis().set_label_coords(x=-0.18, y=0.5)
+            ax[2].grid('on')
+            #ax[2].ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+            ax[2].ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             
             pp.savefig()
             plt.close()
