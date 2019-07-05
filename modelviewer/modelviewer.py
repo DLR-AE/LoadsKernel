@@ -276,11 +276,13 @@ class Modelviewer():
         # Elements of monstations tab
         self.list_monstations = QtGui.QListWidget()      
         self.list_monstations.itemClicked.connect(self.get_monstation_for_plotting)
+        self.lb_monstation_name = QtGui.QLabel('Name:')
         bt_monstations_hide = QtGui.QPushButton('Hide')
         bt_monstations_hide.clicked.connect(self.plotting.hide_monstations)
 
         layout_monstations = QtGui.QVBoxLayout(tab_monstations)
         layout_monstations.addWidget(self.list_monstations)
+        layout_monstations.addWidget(self.lb_monstation_name)
         layout_monstations.addWidget(bt_monstations_hide)
 
     def initCSTab(self):
@@ -457,7 +459,9 @@ class Modelviewer():
         if self.list_monstations.currentItem() is not None:
             key = self.list_monstations.currentItem().data(0)
             self.plotting.plot_monstations(monstation=key)
-    
+            pos = np.where(self.model.mongrid['ID'] == int(key))[0][0]
+            self.lb_monstation_name.setText('Name: {}'.format(self.model.mongrid['name'][pos]))
+            
     def calc_MAC(self):
         # The mean aerodynamic center is calculated from the aerodynamics.
         # This approach includes also the downwash from wing on HTP.
