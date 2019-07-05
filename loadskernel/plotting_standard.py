@@ -7,7 +7,8 @@ Created on Tue Oct 27 11:26:27 2015
 import numpy as np
 from  matplotlib import pyplot as plt
 plt.rcParams.update({'font.size': 16,
-                     'svg.fonttype':'none'})
+                     'svg.fonttype':'none',
+                     'savefig.dpi': 300,})
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
 import logging
@@ -215,7 +216,7 @@ class StandardPlots():
         loads_string, subcase_string = self.get_loads_strings(station)
         loads   = np.array(self.monstations[station][loads_string])
         points = np.vstack((loads[:,dof_xaxis], loads[:,dof_yaxis])).T
-        self.subplot.scatter(points[:,0], points[:,1], color=color, label=desc) # plot points
+        self.subplot.scatter(points[:,0], points[:,1], color=color, label=desc, zorder=-2) # plot points
         
         if show_hull and points.shape[0] >= 3:
             try:
@@ -249,11 +250,13 @@ class StandardPlots():
             self.subplot.legend(loc='best')
             self.subplot.ticklabel_format(style='sci', axis='x', scilimits=(-2,2))
             self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
-            self.subplot.grid('on')
+            self.subplot.grid(b=True, which='major', axis='both')
+            self.subplot.minorticks_on()
             yax = self.subplot.get_yaxis()
             yax.set_label_coords(x=-0.18, y=0.5)
             self.subplot.set_xlabel(var_xaxis)
             self.subplot.set_ylabel(var_yaxis)
+            self.subplot.set_rasterization_zorder(-1)
             self.pp.savefig()
             
     def potato_plots(self):
@@ -302,7 +305,7 @@ class StandardPlots():
             i_max = np.argmax(loads[:,:,i_cuttingforce], 1)
             i_min = np.argmin(loads[:,:,i_cuttingforce], 1)
             self.subplot.cla()
-            self.subplot.plot(offsets[:,1],loads[:,:,i_cuttingforce], color='cornflowerblue', linestyle='-', marker='.')
+            self.subplot.plot(offsets[:,1],loads[:,:,i_cuttingforce], color='cornflowerblue', linestyle='-', marker='.', zorder=-2)
             for i_station in range(len(self.cuttingforces_wing)):
                 # verticalalignment or va 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
                 # max
@@ -314,11 +317,13 @@ class StandardPlots():
 
             self.subplot.set_title('Wing')        
             self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
-            self.subplot.grid('on')
+            self.subplot.grid(b=True, which='major', axis='both')
+            self.subplot.minorticks_on()
             yax = self.subplot.get_yaxis()
             yax.set_label_coords(x=-0.18, y=0.5)
             self.subplot.set_xlabel('y [m]')
             self.subplot.set_ylabel(cuttingforces[i_cuttingforce])
+            self.subplot.set_rasterization_zorder(-1)
             self.pp.savefig()
         plt.close(fig)
               
@@ -331,28 +336,35 @@ class StandardPlots():
             for i_simcase in range(len(self.jcl.simcase)):
                 loads = np.array(monstation['loads'][i_simcase])
                 t = monstation['t'][i_simcase]
-                ax[0].plot(t, loads[:,2], 'b')
-                ax[1].plot(t, loads[:,3], 'g')
-                ax[2].plot(t, loads[:,4], 'r')
+                ax[0].plot(t, loads[:,2], 'b', zorder=-2)
+                ax[1].plot(t, loads[:,3], 'g', zorder=-2)
+                ax[2].plot(t, loads[:,4], 'r', zorder=-2)
             # make plots nice
             ax[0].set_position([0.2, 0.65, 0.7, 0.2])
             ax[0].title.set_text(key)
             ax[0].set_ylabel('Fz [N]')
             ax[0].get_yaxis().set_label_coords(x=-0.18, y=0.5)
-            ax[0].grid('on')
+            ax[0].grid(b=True, which='major', axis='both')
+            ax[0].minorticks_on()
             ax[0].ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             ax[1].set_position([0.2, 0.4, 0.7, 0.2])
             ax[1].set_ylabel('Mx [N]')
             ax[1].get_yaxis().set_label_coords(x=-0.18, y=0.5)
-            ax[1].grid('on')
+            ax[1].grid(b=True, which='major', axis='both')
+            ax[2].minorticks_on()
             ax[1].ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             ax[2].set_position([0.2, 0.15, 0.7, 0.2])
             ax[2].set_xlabel('t [sec]')
             ax[2].set_ylabel('My [N]')
             ax[2].get_yaxis().set_label_coords(x=-0.18, y=0.5)
-            ax[2].grid('on')
+            ax[2].grid(b=True, which='major', axis='both')
+            ax[2].minorticks_on()
             #ax[2].ticklabel_format(style='sci', axis='x', scilimits=(0,0))
             ax[2].ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            
+            ax[0].set_rasterization_zorder(-1)
+            ax[1].set_rasterization_zorder(-1)
+            ax[2].set_rasterization_zorder(-1)
             
             pp.savefig()
             plt.close()
