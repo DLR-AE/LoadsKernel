@@ -595,6 +595,6 @@ class HAP:
             command_dzeta = -self.max_actuator_speed
             
         # commands for xi remains untouched
-        dcommand = np.array([0.0, command_deta, command_dzeta])
+        dcommand = np.array([0.0, command_deta, command_dzeta, 0.0])
         return dcommand
     
