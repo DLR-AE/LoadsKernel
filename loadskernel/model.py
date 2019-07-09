@@ -36,7 +36,7 @@ class Model:
         self.build_strc()
         self.build_strcshell()
         self.build_mongrid()
-        self.build_lggrid()
+        self.build_extragrid()
         self.build_atmo()
         self.build_aero()
         self.build_splines()
@@ -131,12 +131,17 @@ class Model:
             else: 
                 logging.warning( 'No Monitoring Stations are created!')
         
-    def build_lggrid(self):
-        if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
-            logging.info('Building lggrid from landing gear attachment points...')
-            self.lggrid = build_splinegrid.build_subgrid(self.strcgrid, self.jcl.landinggear['attachment_point'] )
-            self.lggrid['set_strcgrid'] = copy.deepcopy(self.lggrid['set'])
-            self.lggrid['set'] = np.arange(0,6*self.lggrid['n']).reshape(-1,6)
+    def build_extragrid(self):
+        if hasattr(self.jcl, 'landinggear'):
+            logging.info('Building extragrid from landing gear attachment points...')
+            self.extragrid = build_splinegrid.build_subgrid(self.strcgrid, self.jcl.landinggear['attachment_point'] )
+        elif hasattr(self.jcl, 'engine'):
+            logging.info('Building extragrid from engine attachment points...')
+            self.extragrid = build_splinegrid.build_subgrid(self.strcgrid, self.jcl.engine['attachment_point'] )
+        else:
+            return
+        self.extragrid['set_strcgrid'] = copy.deepcopy(self.extragrid['set'])
+        self.extragrid['set'] = np.arange(0,6*self.extragrid['n']).reshape(-1,6)
     
     def build_atmo(self):
         logging.info( 'Building atmo model...')
@@ -429,13 +434,13 @@ class Model:
                          'cggrid_norm': [],
                          'PHIstrc_cg': [],
                          'PHIcfd_cg': [],
-                         'PHIlg_cg': [],
+                         'PHIextra_cg': [],
                          'PHImac_cg': [],
                          'PHIcg_mac': [],
                          'PHInorm_cg': [],
                          'PHIcg_norm': [],
                          'PHIf_strc': [],
-                         'PHIf_lg': [],
+                         'PHIf_extra': [],
                          'PHIjf': [],
                          'PHIlf': [],
                          'PHIkf': [],
@@ -512,12 +517,12 @@ class Model:
             self.mass['PHIcfd_cg'].append(PHIcfd_cg)
             self.mass['PHIcfd_f'].append(PHIcfd_f)
             
-        if hasattr(self.jcl, 'landinggear') and self.jcl.landinggear['method'] == 'generic':
-            rules = spline_rules.rules_point(cggrid, self.lggrid)
-            PHIlg_cg = spline_functions.spline_rb(cggrid, '', self.lggrid, '', rules, self.coord)
-            PHIf_lg = PHIf_strc[:,self.lggrid['set_strcgrid'].reshape(1,-1)[0]]
-            self.mass['PHIlg_cg'].append(PHIlg_cg)
-            self.mass['PHIf_lg'].append(PHIf_lg) 
+        if hasattr(self, 'extragrid'):
+            rules = spline_rules.rules_point(cggrid, self.extragrid)
+            PHIextra_cg = spline_functions.spline_rb(cggrid, '', self.extragrid, '', rules, self.coord)
+            PHIf_extra = PHIf_strc[:,self.extragrid['set_strcgrid'].reshape(1,-1)[0]]
+            self.mass['PHIextra_cg'].append(PHIextra_cg)
+            self.mass['PHIf_extra'].append(PHIf_extra) 
 
         rules = spline_rules.rules_point(cggrid, self.macgrid)
         PHImac_cg = spline_functions.spline_rb(cggrid, '', self.macgrid, '', rules, self.coord)    

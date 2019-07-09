@@ -87,6 +87,7 @@ class Trim:
             ['command_xi',   'free', 0.0,],  
             ['command_eta',  'free',  0.0,], 
             ['command_zeta', 'free',  0.0,],
+            ['thrust',  'fix', 0.0]
             ], dtype='|S16')
         
         # outputs
@@ -114,6 +115,7 @@ class Trim:
             ['dcommand_xi',    'fix',  0.0,],
             ['dcommand_eta',   'fix',  0.0,],
             ['dcommand_zeta',  'fix',  0.0,],
+            ['dthrust',        'fix',  0.0,],
             ], dtype='|S16')
 
         self.outputs = np.array([
@@ -300,6 +302,14 @@ class Trim:
         
         else:
             logging.info('setting trim conditions to "default"')
+            
+        if hasattr(self.jcl, 'engine'):
+            logging.info('setting trim conditions to include thrust')
+            # inputs
+            self.inputs[np.where((self.inputs[:,0] == 'thrust'))[0][0],1] = 'free'
+            # outputs
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'du'))[0][0],1] = 'target'
+            
         
         # append inputs to X vector...
         self.trimcond_X = np.vstack((self.states , self.inputs))
@@ -460,10 +470,12 @@ class Trim:
                 
         import model_equations # Warum muss der import hier stehen??
         
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
             equations = model_equations.Steady(self)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
             equations = model_equations.NonlinSteady(self)
+        elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
+            equations = model_equations.Landing(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -497,13 +509,13 @@ class Trim:
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
             equations = model_equations.NonlinSteady(self, X0=self.response['X'], simcase=self.simcase)
         elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
-            logging.info('adding 2 x {} states for landing gear'.format(self.model.lggrid['n']))
+            logging.info('adding 2 x {} states for landing gear'.format(self.model.extragrid['n']))
             lg_states = []
             lg_derivatives = []
-            for i in range(self.model.lggrid['n']):
+            for i in range(self.model.extragrid['n']):
                 lg_states.append(self.response['p1'][i] - self.jcl.landinggear['para'][i]['stroke_length'] - self.jcl.landinggear['para'][i]['fitting_length'])
                 lg_derivatives.append(self.response['dp1'][i])
-            for i in range(self.model.lggrid['n']):
+            for i in range(self.model.extragrid['n']):
                 lg_states.append(self.response['dp1'][i])
                 lg_derivatives.append(self.response['ddp1'][i])
             # add lag states to system
@@ -545,7 +557,7 @@ class Trim:
         t_final = self.simcase['t_final']
         logging.info('running time simulation for ' + str(t_final) + ' sec...')
 #         integrator = RungeKutta4(equations.ode_arg_sorter).set_integrator(stepwidth=1e-4)
-        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-6, atol=1e-6, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
+        integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-4, atol=1e-4, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
 #         integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=1e-4)
         integrator.set_initial_value(X0, 0.0)
         X_t = []

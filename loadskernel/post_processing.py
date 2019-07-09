@@ -67,8 +67,8 @@ class post_processing:
                 #response['Pg_idrag'][i_step,:]= self.model.PHIk_strc.T.dot(response['Pk_idrag'][i_step,:])
                 if self.jcl.aero['method'] == 'cfd_steady':
                     response['Pg_cfd'][i_step,:] = self.model.PHIcfd_strc.T.dot(response['Pcfd'][i_step,:])
-                if hasattr(self.jcl, 'landinggear'):
-                    response['Pg_ext'][i_step,self.model.lggrid['set_strcgrid']] = response['Plg'][i_step,self.model.lggrid['set']]
+                if hasattr(self.jcl, 'landinggear') or hasattr(self.jcl, 'engine'):
+                    response['Pg_ext'][i_step,self.model.extragrid['set_strcgrid']] = response['Pextra'][i_step,self.model.extragrid['set']]
                 response['Pg'][i_step,:] = response['Pg_aero'][i_step,:] + response['Pg_iner'][i_step,:] + response['Pg_ext'][i_step,:] + response['Pg_cfd'][i_step,:]
                 response['d2Ug_dt2'][i_step,:] = d2Ug_dt2_r + d2Ug_dt2_f
         else:
