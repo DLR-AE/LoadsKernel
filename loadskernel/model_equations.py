@@ -89,7 +89,9 @@ class Common():
             Example: self.efcs.controller_init(np.array((0.0,0.0,0.0)), 'angular accelerations')
             Example: self.efcs.controller_init(np.dot(self.PHIcg_norm[3:6,3:6],np.dot(calc_drehmatrix_angular(float(self.trimcond_X[3,2]), float(self.trimcond_X[4,2]), float(self.trimcond_X[5,2])), np.array(self.trimcond_X[9:12,2], dtype='float'))), 'angular velocities')
             """
-            self.efcs.controller_init(command_0=X0[12+self.n_modes*2:12+self.n_modes*2+3], setpoint_q=float(self.trimcond_X[np.where(self.trimcond_X[:,0]=='q')[0][0], 2]) )
+            self.efcs.controller_init(command_0=X0[12+self.n_modes*2:12+self.n_modes*2+3], 
+                                      setpoint_q=float(self.trimcond_X[np.where(self.trimcond_X[:,0]=='q')[0][0], 2]),
+                                      setpoint_r=float(self.trimcond_X[np.where(self.trimcond_X[:,0]=='r')[0][0], 2]) )
                         
         # convergence parameter for iterative evaluation
         self.defo_old = 0.0    
@@ -704,7 +706,9 @@ class Common():
         if self.simcase and self.simcase['cs_signal']:
             dcommand = self.efcs.cs_signal(t)
         elif self.simcase and self.simcase['controller']:
-            dcommand = self.efcs.controller(t=t, feedback_q=dUcg_dt[4], feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])
+            dcommand = self.efcs.controller(t=t,
+                                            feedback_q=dUcg_dt[4], feedback_r=dUcg_dt[5],
+                                            feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], feedback_zeta=X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
         else:
             dcommand = np.zeros(3)
         return dcommand
