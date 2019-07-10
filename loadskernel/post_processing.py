@@ -89,6 +89,8 @@ class post_processing:
             response['Pg_cfd']  = np.zeros((6*self.model.strcgrid['n']))
             if self.jcl.aero['method'] == 'cfd_steady':
                 response['Pg_cfd'] = self.model.PHIcfd_strc.T.dot(response['Pcfd'])
+            if hasattr(self.jcl, 'landinggear') or hasattr(self.jcl, 'engine'):
+                response['Pg_ext'][self.model.extragrid['set_strcgrid']] = response['Pextra'][self.model.extragrid['set']]
             response['Pg'] = response['Pg_aero'] + response['Pg_iner'] + response['Pg_ext'] + response['Pg_cfd']
             response['d2Ug_dt2'] = d2Ug_dt2_r + d2Ug_dt2_f
             # das muss raus kommen:
