@@ -504,7 +504,7 @@ class Trim:
 
     def exec_sim(self):
         import model_equations 
-        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not self.simcase['landinggear']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
             equations = model_equations.Steady(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
             equations = model_equations.NonlinSteady(self, X0=self.response['X'], simcase=self.simcase)
