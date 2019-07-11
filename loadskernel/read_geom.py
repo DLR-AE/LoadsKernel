@@ -658,7 +658,12 @@ def Nastran_SET1(filename, keyword='SET1', type='int'):
                     else:
                         values.append(nastran_number_converter(row[:8], type))
                         row = row[8:]
-                sets['values'].append( np.array([x for x in values if x != 0]) )
+                if keyword in ['SET1', 'AELIST']:
+                    # SET cards give ranges of grid points with ID >= 1. 
+                    # Blank fields are interpreted as 0 and need to be sorted out.
+                    sets['values'].append( np.array([x for x in values if x != 0]) )
+                else:
+                    sets['values'].append(values)
             if read_string == '':
                 break
         return sets
