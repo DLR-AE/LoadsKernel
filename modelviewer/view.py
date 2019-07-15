@@ -4,15 +4,7 @@ Created on Thu Feb  9 17:45:02 2017
 
 @author: voss_ar
 """
-
-
 import os
-
-import loadskernel.io_functions.specific_functions as  specific_io
-from plotting import Plotting
-from pytran import NastranSOL101
-from cfdgrid import TauGrid
-
 # To be able to use PySide or PyQt4 and not run in conflicts with traits,
 # we need to import QtGui and QtCore from pyface.qt
 from pyface.qt import QtGui, QtCore
@@ -20,13 +12,17 @@ from pyface.qt import QtGui, QtCore
 # the following lines are executed before the import of PyQT:
 #   import sip
 #   sip.setapi('QString', 2)
-
 from traits.api import HasTraits, Instance, on_trait_change
 from traitsui.api import View, Item
 from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
         SceneEditor
 
 import numpy as np
+
+import loadskernel.io_functions.specific_functions as specific_io
+from modelviewer.plotting import Plotting
+from modelviewer.pytran import NastranSOL101
+from modelviewer.cfdgrid import TauGrid
 
 # First, and before importing any Enthought packages, set the ETS_TOOLKIT
 # environment variable to qt4, to tell Traits that we will use Qt.
@@ -242,7 +238,7 @@ class Modelviewer():
         self.lb_MAC2 = QtGui.QLabel('')
 
         self.list_markers = QtGui.QListWidget()
-        self.list_markers.setSelectionMode(QtGui.QAbstractItemView.SelectionMode.ExtendedSelection) # allow multiple selections
+        self.list_markers.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection) # allow multiple selections
         self.list_markers.itemSelectionChanged.connect(self.get_new_markers_for_plotting)
         bt_cfdgrid_hide = QtGui.QPushButton('Hide CFD Grids')
         bt_cfdgrid_hide.clicked.connect(self.plotting.hide_cfdgrids)

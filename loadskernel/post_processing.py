@@ -7,8 +7,8 @@ Created on Mon Mar 30 13:34:50 2015
 import numpy as np
 import copy, logging
 
-from trim_tools import *
-from grid_trafo import *
+from loadskernel.trim_tools import *
+from loadskernel.grid_trafo import *
 
 class post_processing:
     #===========================================================================

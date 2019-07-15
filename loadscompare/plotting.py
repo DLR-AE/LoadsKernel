@@ -9,6 +9,7 @@ Created on Fri Feb 10 09:24:10 2017
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull
+
 from loadskernel import plotting_standard
 
 class Plotting(plotting_standard.StandardPlots):
@@ -31,7 +32,7 @@ class Plotting(plotting_standard.StandardPlots):
         self.subplot.legend(loc='best')
         self.subplot.ticklabel_format(style='sci', axis='x', scilimits=(-2,2))
         self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
-        self.subplot.grid('on')
+        self.subplot.grid(True)
         yax = self.subplot.get_yaxis()
         yax.set_label_coords(x=-0.18, y=0.5)
         self.subplot.set_xlabel(var_xaxis)

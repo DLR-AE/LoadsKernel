@@ -1,12 +1,15 @@
 
-import read_geom, spline_rules, spline_functions, read_op2
-
 import scipy
-from scipy import sparse
-from scipy.sparse import linalg
+#from scipy import sparse
+#from scipy.sparse import linalg
 import numpy as np
 import sys, copy, logging
 import matplotlib.pyplot as plt
+
+import loadskernel.read_geom as read_geom
+import loadskernel.spline_rules as spline_rules
+import loadskernel.spline_functions as spline_functions
+import loadskernel.read_op2 as read_op2
 
 
 class BuildMass:
@@ -285,7 +288,7 @@ class BuildMass:
         # pantograph/catenary vibration", presented at the ISMA, 2010.
         n = len(eigenvalues)
         Dff = np.zeros((n,n))
-        if hasattr(self.jcl, 'damping') and self.jcl.damping.has_key('method') and self.jcl.damping['method'] == 'modal':
+        if hasattr(self.jcl, 'damping') and 'method' in self.jcl.damping and self.jcl.damping['method'] == 'modal':
             logging.info( 'Damping: modal damping of {}'.format( self.jcl.damping['damping'] ))
             d = eigenvalues**0.5 * 2.0 * self.jcl.damping['damping']
             np.fill_diagonal(Dff, d) # matrix Dff is modified in-place, no return value

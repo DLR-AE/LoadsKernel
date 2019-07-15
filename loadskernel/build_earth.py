@@ -5,7 +5,7 @@ from cookielib import CookieJar
 import urllib2
 import cartopy.crs as ccrs
 from cartopy.io.srtm import srtm_composite
-import cPickle
+import pickle
 # from mayavi import mlab
 
 def get_earth():
@@ -52,7 +52,7 @@ def get_earth():
 if __name__ == "__main__":
     x, y, elev = get_earth()
     with open('earth.pickle', 'w') as f:# open response
-        cPickle.dump((x,y,elev), f, cPickle.HIGHEST_PROTOCOL)
+        pickle.dump((x,y,elev), f, pickle.HIGHEST_PROTOCOL)
     print 'Done.'
 
 # surf = mlab.surf(np.arange(-extensions_x, extensions_x, res_x), np.arange(-extensions_y, extensions_y, res_y), elev, colormap='gist_earth')

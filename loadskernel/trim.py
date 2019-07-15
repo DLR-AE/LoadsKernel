@@ -8,8 +8,10 @@ import numpy as np
 import scipy.optimize as so
 import logging, copy
 from scipy.integrate import ode
+
 from loadskernel.integrate import RungeKutta4, ExplicitEuler
 import loadskernel.io_functions.specific_functions as specific_io
+import loadskernel.model_equations as model_equations
 
 class Trim:
     def __init__(self, model, jcl, trimcase, simcase):
@@ -77,7 +79,7 @@ class Trim:
             ['p',        'fix',    self.trimcase['p'],],
             ['q',        'fix',    self.trimcase['q'],],
             ['r',        'fix',    self.trimcase['r'],],
-            ], dtype='|S16')
+            ], dtype='<U18')
         for i_mode in range(n_modes):
             self.states = np.vstack((self.states ,  ['Uf'+str(i_mode), 'free', 0.0]))
         for i_mode in range(n_modes):
@@ -88,7 +90,7 @@ class Trim:
             ['command_eta',  'free',  0.0,], 
             ['command_zeta', 'free',  0.0,],
             ['thrust',  'fix', 0.0]
-            ], dtype='|S16')
+            ], dtype='<U18')
         
         # outputs
         self.state_derivatives = np.array([ 
@@ -104,7 +106,7 @@ class Trim:
             ['dp',       'target', self.trimcase['pdot'],],
             ['dq',       'target', self.trimcase['qdot'],],
             ['dr',       'target', self.trimcase['rdot'],],
-            ], dtype='|S16')
+            ], dtype='<U18')
             
         for i_mode in range(n_modes):
             self.state_derivatives = np.vstack((self.state_derivatives ,  ['dUf_dt'+str(i_mode), 'target', 0.0]))
@@ -116,13 +118,13 @@ class Trim:
             ['dcommand_eta',   'fix',  0.0,],
             ['dcommand_zeta',  'fix',  0.0,],
             ['dthrust',        'fix',  0.0,],
-            ], dtype='|S16')
+            ], dtype='<U18')
 
         self.outputs = np.array([
             ['Nz',       'target',  self.trimcase['Nz']],
             ['Vtas',     'free',    vtas,],
             ['beta',     'free',    0.0]
-            ], dtype='|S16')
+            ], dtype='<U18')
         
         # ------------------
         # --- pitch only --- 
@@ -328,7 +330,6 @@ class Trim:
         self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_outputs)
         
     def calc_jacobian(self):
-        import model_equations # Warum muss der import hier stehen??
 #         equations = model_equations.Steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
 #         X0 = np.array(self.trimcond_X[:,2], dtype='float')
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
@@ -338,9 +339,9 @@ class Trim:
             self.idx_lag_states = []
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             # initialize lag states with zero and extend steady response vectors X and Y
-            if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'generalized':
+            if 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'generalized':
                 logging.error('Generalized RFA not yet implemented.')
-            elif self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'halfgeneralized':
+            elif 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'halfgeneralized':
                 n_modes = self.model.mass['n_modes'][self.model.mass['key'].index(self.trimcase['mass'])]
                 logging.info('adding {} x {} unsteady lag states to the system'.format(2 * n_modes,self.model.aero['n_poles']))
                 lag_states = np.zeros((2 * n_modes * self.model.aero['n_poles'])) 
@@ -418,9 +419,7 @@ class Trim:
         self.response['idx_B'] = idx_B
         self.response['idx_C'] = idx_C
             
-    def calc_derivatives(self):
-        import model_equations # Warum muss der import hier stehen??
-        
+    def calc_derivatives(self):        
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = model_equations.Steady(self)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
@@ -466,10 +465,7 @@ class Trim:
         # lates the functions.  The Jacobian is then calculated by a for-
         # ward-difference approximation.
         # http://www.math.utah.edu/software/minpack/minpack/hybrd.html
-    
-                
-        import model_equations # Warum muss der import hier stehen??
-        
+            
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
             equations = model_equations.Steady(self)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
@@ -503,7 +499,6 @@ class Trim:
                 return
 
     def exec_sim(self):
-        import model_equations 
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
             equations = model_equations.Steady(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
@@ -532,9 +527,9 @@ class Trim:
                 self.response['X'][11+self.simcase['disturbance_mode']] += self.simcase['disturbance']
             # Initialize lag states with zero and extend steady response vectors X and Y
             # Distinguish between pyhsical rfa on panel level and generalized rfa. This influences the number of lag states.
-            if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'generalized':
+            if 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'generalized':
                 logging.error('Generalized RFA not yet implemented.')
-            elif self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'halfgeneralized':
+            elif 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'halfgeneralized':
                 n_modes = self.model.mass['n_modes'][self.model.mass['key'].index(self.trimcase['mass'])]
                 logging.info('adding {} x {} unsteady lag states to the system'.format(2 * n_modes,self.model.aero['n_poles']))
                 lag_states = np.zeros((2 * n_modes * self.model.aero['n_poles'])) 
@@ -587,7 +582,6 @@ class Trim:
             
             
     def iterative_trim(self):
-        import model_equations # Warum muss der import hier stehen??
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = model_equations.Steady(self)
         elif self.jcl.aero['method'] in [ 'cfd_steady']:

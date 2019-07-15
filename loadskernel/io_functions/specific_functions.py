@@ -3,11 +3,12 @@ Created on Apr 9, 2019
 
 @author: voss_ar
 ''' 
-import cPickle, time, imp, sys, os, psutil, logging, shutil, re, csv
+import pickle
+import time, imp, sys, os, psutil, logging, shutil, re, csv
 import numpy as np
   
 def write_list_of_dictionaries(dictionary, filename_csv):
-    with open(filename_csv, 'wb') as fid:
+    with open(filename_csv, 'w') as fid:
         if dictionary.__len__() > 0:
             w = csv.DictWriter(fid, dictionary[0].keys())
             w.writeheader()
@@ -18,10 +19,10 @@ def write_list_of_dictionaries(dictionary, filename_csv):
     return
 
 def load_pickle(file_object):
-    return cPickle.load(file_object)
+    return pickle.load(file_object)
     
 def dump_pickle(data, file_object):
-    cPickle.dump(data, file_object, cPickle.HIGHEST_PROTOCOL)
+    pickle.dump(data, file_object, pickle.HIGHEST_PROTOCOL)
     
 def load_jcl(job_name, path_input, jcl):
     if jcl == None:
@@ -40,8 +41,8 @@ def load_jcl(job_name, path_input, jcl):
 def load_model(job_name, path_output):
     logging.info( '--> Loading model data.')
     t_start = time.time()
-    with open(path_output + 'model_' + job_name + '.pickle', 'r') as f:
-        tmp = cPickle.load(f)
+    with open(path_output + 'model_' + job_name + '.pickle', 'rb') as f:
+        tmp = pickle.load(f)
     model = NewModel()
     for key in tmp.keys(): setattr(model, key, tmp[key])
     logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
@@ -61,7 +62,7 @@ def load_responses(job_name, path_output, remove_failed=False, sorted=False):
         sys.exit()
     else:
         t_start = time.time()
-        f = open(filename, 'r')
+        f = open(filename, 'rb')
         response = []
         while True:
             try:
@@ -88,14 +89,14 @@ def gather_responses(job_name, path):
     for filename in filenames:
         if re.match('response_{}_subcase_[\d]*.pickle'.format(job_name), filename) is not None:
             logging.debug('loading {}'.format(filename))
-            with open(os.path.join(path, filename), 'r') as f:
+            with open(os.path.join(path, filename), 'rb') as f:
                 response.append(load_pickle(f))
     return response
 
 def open_responses(job_name, path_output):
     logging.info( '--> Opening response(s).'  )
     filename = path_output + 'response_' + job_name + '.pickle'
-    return open(filename, 'r')
+    return open(filename, 'rb')
 
 def load_next(file_object):
     logging.info( '--> Loading next.'  )

@@ -8,7 +8,8 @@ import numpy as np
 import scipy
 import scipy.sparse as sp
 import time, string, logging
-from read_geom import nastran_number_converter
+
+from loadskernel.read_geom import nastran_number_converter
 
 def spline_nastran(filename, strcgrid, aerogrid):
     logging.info('Read Nastran spline (PARAM    OPGTKG   1) from {}'.format(filename))

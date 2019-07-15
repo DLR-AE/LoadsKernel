@@ -10,9 +10,10 @@ plt.rcParams.update({'font.size': 16,
                      'svg.fonttype':'none'})
 from mpl_toolkits.mplot3d import axes3d
 from matplotlib import animation
-import os, logging, cPickle
+import os, logging
+import pickle
 from PIL.ImageColor import colormap
-import plotting_standard
+from loadskernel import plotting_standard
 
 class DetailedPlots(plotting_standard.StandardPlots):
     
@@ -428,7 +429,7 @@ class Animations(plotting_standard.StandardPlots):
         
         # get earth
 #         with open('harz.pickle', 'r') as f:  
-#             (x,y,elev) = cPickle.load(f)
+#             (x,y,elev) = pickle.load(f)
         # plot earth, scale colormap
 #         surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
 #         setup_runway(self, length=1000.0, width=15.0, elevation=0.0)

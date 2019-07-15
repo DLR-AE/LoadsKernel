@@ -6,7 +6,9 @@ Created on Tue Mar  3 14:36:41 2015
 """
 import numpy as np
 import csv, logging, copy
-import PID, filter
+
+import loadskernel.PID as PID
+import loadskernel.filter as filter
 
 class mephisto:
     def __init__(self):

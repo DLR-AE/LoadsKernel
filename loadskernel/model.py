@@ -4,17 +4,18 @@ Created on Fri Nov 28 10:53:48 2014
 
 @author: voss_ar
 """
-import build_mass_class
-import build_aero_functions
-import spline_rules
-import spline_functions
-import build_splinegrid
-import read_geom
-import read_cfdgrids
-import io_functions
-from grid_trafo import grid_trafo
-from atmosphere import isa as atmo_isa
-import VLM, DLM
+import loadskernel.build_mass_class as build_mass_class
+import loadskernel.build_aero_functions as build_aero_functions
+import loadskernel.spline_rules as spline_rules
+import loadskernel.spline_functions as spline_functions
+import loadskernel.build_splinegrid as build_splinegrid
+import loadskernel.read_geom as read_geom
+import loadskernel.read_cfdgrids as read_cfdgrids
+import loadskernel.io_functions as io_functions
+from loadskernel.grid_trafo import grid_trafo as grid_trafo
+from loadskernel.atmosphere import isa as atmo_isa
+import loadskernel.VLM as VLM
+import loadskernel.DLM as DLM
 
 import numpy as np
 import scipy.sparse as sp
@@ -100,7 +101,7 @@ class Model:
                 self.GM  = CoFE_data['GM'].T # convert from CoFE to Nastran
     
     def build_strcshell(self):
-        if self.jcl.geom.has_key('filename_shell') and not self.jcl.geom['filename_shell'] == []:
+        if 'filename_shell' in self.jcl.geom and not self.jcl.geom['filename_shell'] == []:
             for i_file in range(len(self.jcl.geom['filename_shell'])):
                 panels = read_geom.Modgen_CQUAD4(self.jcl.geom['filename_shell'][i_file]) 
                 if i_file == 0:
@@ -114,14 +115,14 @@ class Model:
     
     def build_mongrid(self):
         if self.jcl.geom['method'] in ['mona', 'CoFE']:
-            if self.jcl.geom.has_key('filename_mongrid') and not self.jcl.geom['filename_mongrid'] == '':
+            if 'filename_mongrid' in self.jcl.geom and not self.jcl.geom['filename_mongrid'] == '':
                 logging.info( 'Building Monitoring Stations from GRID data...')
                 self.mongrid = read_geom.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_moncoord'], self.coord)
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
                 self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
                 self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
-            elif self.jcl.geom.has_key('filename_monpnt') and not self.jcl.geom['filename_monpnt'] == '':
+            elif 'filename_monpnt' in self.jcl.geom and not self.jcl.geom['filename_monpnt'] == '':
                 logging.info( 'Reading Monitoring Stations from MONPNTs...')
                 self.mongrid = read_geom.Nastran_MONPNT1(self.jcl.geom['filename_monpnt']) 
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_monpnt'], self.coord)
@@ -183,7 +184,7 @@ class Model:
     def build_aerogrid(self):
         # grids
         for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
-            if self.jcl.aero.has_key('method_caero'):
+            if 'method_caero' in self.jcl.aero:
                 subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file], method_caero = self.jcl.aero['method_caero'], i_file=i_file) 
             else: # use default method defined in function
                 subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file]) 
@@ -226,7 +227,7 @@ class Model:
             
     def build_W2GJ(self):
         # Correctionfor camber and twist, W2GJ
-        if self.jcl.aero.has_key('filename_deriv_4_W2GJ') and self.jcl.aero['filename_deriv_4_W2GJ']:
+        if 'filename_deriv_4_W2GJ' in self.jcl.aero and self.jcl.aero['filename_deriv_4_W2GJ']:
             # parsing of several files possible, must be in correct sequence
             for i_file in range(len(self.jcl.aero['filename_deriv_4_W2GJ'])):
                 subgrid = read_geom.Modgen_W2GJ(self.jcl.aero['filename_deriv_4_W2GJ'][i_file]) 
@@ -235,7 +236,7 @@ class Model:
                 else:
                     self.camber_twist['ID'] = np.hstack((self.camber_twist['ID'], subgrid['ID']))
                     self.camber_twist['cam_rad'] = np.hstack((self.camber_twist['cam_rad'], subgrid['cam_rad']))
-        elif self.jcl.aero.has_key('filename_DMI_W2GJ') and self.jcl.aero['filename_DMI_W2GJ']:
+        elif 'filename_DMI_W2GJ' in self.jcl.aero and self.jcl.aero['filename_DMI_W2GJ']:
             for i_file in range(len(self.jcl.aero['filename_DMI_W2GJ'])):
                 DMI = read_geom.Nastran_DMI(self.jcl.aero['filename_DMI_W2GJ'][i_file]) 
                 if i_file == 0:
@@ -250,13 +251,13 @@ class Model:
     def build_macgrid(self):
         # build mac grid from geometry, except other values are given in general section of jcl
         self.macgrid = build_aero_functions.build_macgrid(self.aerogrid, self.jcl.general['b_ref'])
-        if self.jcl.general.has_key('A_ref'):
+        if 'A_ref' in self.jcl.general:
             self.macgrid['A_ref'] = self.jcl.general['A_ref']
-        if self.jcl.general.has_key('c_ref'):
+        if 'c_ref' in self.jcl.general:
             self.macgrid['c_ref'] = self.jcl.general['c_ref']
-        if self.jcl.general.has_key('b_ref'):
+        if 'b_ref' in self.jcl.general:
             self.macgrid['b_ref'] = self.jcl.general['b_ref']
-        if self.jcl.general.has_key('MAC_ref'):
+        if 'MAC_ref' in self.jcl.general:
             self.macgrid['offset'] = np.array([self.jcl.general['MAC_ref']])
         
         rules = spline_rules.rules_aeropanel(self.aerogrid)
@@ -294,7 +295,7 @@ class Model:
         if self.jcl.aero['method_AIC'] == 'nastran':
             for i_aero in range(len(self.jcl.aero['key'])):
                 Ajj = read_geom.nastran_op4(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)
-                if self.jcl.aero.has_key('given_AIC_is_transposed') and self.jcl.aero['given_AIC_is_transposed']:
+                if 'given_AIC_is_transposed' in self.jcl.aero and self.jcl.aero['given_AIC_is_transposed']:
                     Qjj = np.linalg.inv(np.real(Ajj))
                 else:
                     Qjj = np.linalg.inv(np.real(Ajj).T)
@@ -350,7 +351,7 @@ class Model:
         for i_aero in range(len(self.jcl.aero['key'])):
             for i_k in range(len(self.jcl.aero['k_red'])):
                 Ajj = read_geom.nastran_op4(self.jcl.aero['filename_AIC_unsteady'][i_aero][i_k], sparse_output=False, sparse_format=False)  
-                if self.jcl.aero.has_key('given_AIC_is_transposed') and self.jcl.aero['given_AIC_is_transposed']:
+                if 'given_AIC_is_transposed' in self.jcl.aero and self.jcl.aero['given_AIC_is_transposed']:
                     Qjj = np.linalg.inv(Ajj)
                 else:
                     Qjj = np.linalg.inv(Ajj.T)

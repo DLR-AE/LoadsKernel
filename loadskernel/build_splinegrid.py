@@ -5,9 +5,9 @@ Created on Fri May  8 18:11:26 2015
 @author: voss_ar
 """
 
-import read_geom
 import numpy as np
 
+import loadskernel.read_geom as read_geom
 
 def build_splinegrid(strcgrid, filenames):
     #subgrid = read_geom.Modgen_GRID(filename)

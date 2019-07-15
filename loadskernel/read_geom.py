@@ -17,8 +17,6 @@ def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=Fal
     '''
     filesize = float(os.stat(filename).st_size)
     logging.info('Read modal data from f06 file: %s with %.2f MB' %(filename, filesize/1024**2))
-    percent = 0.
-    print 'Progress [%]: ',
 
     eigenvalues = {"ModeNo":[],
                    "ExtractionOrder":[],
@@ -35,19 +33,12 @@ def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=Fal
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            
-            # calculate progress and print to command line
-            if fid.tell()/filesize*100. > percent:
-                percent += 1.
-                print int(percent),
-
-            
-            if string.find(string.replace(read_string,' ',''),'REALEIGENVALUES') != -1:
+            if str.find(str.replace(read_string,' ',''),'REALEIGENVALUES') != -1:
                 #print ' -> reading eigenvalues...' # Eigenwerte
                 fid.readline()
                 fid.readline()
                 while True:
-                    line = string.split(fid.readline())
+                    line = str.split(fid.readline())
                     if len(line) == 7:
                         eigenvalues["ModeNo"].append(int(line[0]))
                         eigenvalues["ExtractionOrder"].append(int(line[1]))
@@ -59,15 +50,14 @@ def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=Fal
                     else:
                         break
                     
-            elif string.find(string.replace(read_string,' ',''),'REALEIGENVECTORNO') != -1 and read_string != '':
-                #print ' -> reading eigenvectors...' # Eigenvektoren
-                eigenvector_no = int(string.split(read_string)[-1])
-                if not eigenvectors.has_key(str(eigenvector_no)):
+            elif str.find(str.replace(read_string,' ',''),'REALEIGENVECTORNO') != -1 and read_string != '':
+                eigenvector_no = int(str.split(read_string)[-1])
+                if not str(eigenvector_no) in eigenvectors:
                     eigenvectors[str(eigenvector_no)] = []
                 fid.readline()
                 fid.readline()
                 while True:
-                    line = string.split(fid.readline())
+                    line = str.split(fid.readline())
                     if len(line) == 8 and line[1] == 'G':
                         node_ids.append(int(line[0]))
                         eigenvectors[str(eigenvector_no)].append([int(line[0]), float(line[2]),float(line[3]),float(line[4]),float(line[5]),float(line[6]),float(line[7])])
@@ -77,9 +67,7 @@ def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=Fal
             elif read_string == '':
                 break    
 
-    print ' Done.'
     logging.info('Found %i eigenvalues and %i eigenvectors for %i nodes.' %(len(eigenvalues["ModeNo"]), len(eigenvectors.keys()), len(node_ids)/len(eigenvalues["ModeNo"])))
-
     return  eigenvalues, eigenvectors, node_ids
     
 def reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection):
@@ -121,7 +109,7 @@ def Nastran_weightgenerator(filename):
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            if string.find(read_string, 'O U T P U T   F R O M   G R I D   P O I N T   W E I G H T   G E N E R A T O R') !=-1:
+            if str.find(read_string, 'O U T P U T   F R O M   G R I D   P O I N T   W E I G H T   G E N E R A T O R') !=-1:
                 read_string = fid.readline()
                 CID = nastran_number_converter(read_string.split()[-1], 'int')
                 read_string = fid.readline()
@@ -135,7 +123,7 @@ def Nastran_weightgenerator(filename):
                                          nastran_number_converter(read_string.split()[5], 'float'), \
                                          nastran_number_converter(read_string.split()[6], 'float'), \
                                        ])
-            elif string.find(read_string, 'MASS AXIS SYSTEM (S)') !=-1:
+            elif str.find(read_string, 'MASS AXIS SYSTEM (S)') !=-1:
                 read_string = fid.readline()
                 cg_y = nastran_number_converter(read_string.split()[3], 'float')
                 cg_z = nastran_number_converter(read_string.split()[4], 'float')
@@ -164,7 +152,7 @@ def Modgen_GRID(filename):
     with open(filename, 'r') as fid:
         lines = fid.readlines()
     for line in lines:
-        if line[0] != '$' and string.find(line[:8], 'GRID') !=-1 :
+        if line[0] != '$' and str.find(line[:8], 'GRID') !=-1 :
             if len(line) <= 48: # if CD is missing, fix with CP
                 line = line + '        '
             grids.append([nastran_number_converter(line[8:16], 'ID'), nastran_number_converter(line[16:24], 'CP'), nastran_number_converter(line[24:32], 'float'), nastran_number_converter(line[32:40], 'float'), nastran_number_converter(line[40:48], 'float'), nastran_number_converter(line[48:56], 'CD')])
@@ -186,10 +174,10 @@ def Modgen_CQUAD4(filename):
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            if string.find(read_string, 'CQUAD4') !=-1 and read_string[0] != '$':
+            if str.find(read_string, 'CQUAD4') !=-1 and read_string[0] != '$':
                 ids.append(nastran_number_converter(read_string[8:16], 'ID'),)
                 cornerpoints_points.append([nastran_number_converter(read_string[24:32], 'ID'), nastran_number_converter(read_string[32:40], 'ID'), nastran_number_converter(read_string[40:48], 'ID'), nastran_number_converter(read_string[48:56], 'ID')])
-            elif string.find(read_string, 'CTRIA3') !=-1 and read_string[0] != '$':
+            elif str.find(read_string, 'CTRIA3') !=-1 and read_string[0] != '$':
                 ids.append(nastran_number_converter(read_string[8:16], 'ID'),)
                 cornerpoints_points.append([nastran_number_converter(read_string[24:32], 'ID'), nastran_number_converter(read_string[32:40], 'ID'), nastran_number_converter(read_string[40:48], 'ID')])
             elif read_string == '':
@@ -209,7 +197,7 @@ def CAERO(filename, i_file):
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            if string.find(read_string, 'CAERO1') !=-1 and read_string[0] != '$':
+            if str.find(read_string, 'CAERO1') !=-1 and read_string[0] != '$':
                 # read first line of CAERO card
                 caerocard = {'EID': nastran_number_converter(read_string[8:16], 'ID'),
                              'CP': nastran_number_converter(read_string[24:32], 'ID'),
@@ -227,7 +215,7 @@ def CAERO(filename, i_file):
                 caerocard['length43'] = nastran_number_converter(read_string[64:72], 'float')
                 caerocard['X3'] = caerocard['X4'] + np.array([caerocard['length43'], 0.0, 0.0])
                 caerocards.append(caerocard)
-            if string.find(read_string, 'CAERO7') !=-1 and read_string[0] != '$':
+            if str.find(read_string, 'CAERO7') !=-1 and read_string[0] != '$':
                 # The CAERO7 cards of ZAERO is nearly identical to Nastran'S CAERO1 card. 
                 # However, it uses 3 lines, which makes the card more readable to the human eye.
                 # Also, not the number of boxes but the number of divisions is given (n_boxes = n_division-1)
@@ -352,7 +340,7 @@ def Nastran_DMI(filename):
             read_string = fid.readline()
             if read_string[:3] == 'DMI' and nastran_number_converter(read_string[16:24], 'int') == 0:
                 # this is the header
-                DMI['NAME'] = string.replace(read_string[8:16],' ','') # matrix name
+                DMI['NAME'] = str.replace(read_string[8:16],' ','') # matrix name
                 DMI['FORM'] = nastran_number_converter(read_string[24:32], 'int')
                 DMI['TIN']  = nastran_number_converter(read_string[32:40], 'int')
                 DMI['n_row']  = nastran_number_converter(read_string[56:64], 'int')
@@ -450,22 +438,22 @@ def read_op4_sparse(fid, data, n_col, type_real, type_double):
             # figure out the row number and number of word to come
             read_string = fid.readline()
             if bigmat:
-                L = np.int(nastran_number_converter(read_string[0:8], 'int') - 1)
+                L = int(nastran_number_converter(read_string[0:8], 'int') - 1)
                 n_words -= L+2
                 i_row = nastran_number_converter(read_string[8:16], 'int') -1
             else:
                 IS = nastran_number_converter(read_string[0:16], 'int')
-                L = np.int(IS/65536 - 1)
+                L = int(IS/65536 - 1)
                 n_words -= L+1
                 i_row = IS - 65536*(L+1) -1
             # figure out how many lines the datablock will have
             n_items = L # items that go into the column
             if type_double:
-                n_items = n_items / 2
+                n_items = int(n_items / 2)
             if type_real:
                 n_lines = int(math.ceil(n_items/5.0))
             else:
-                n_items = n_items / 2 
+                n_items = int(n_items / 2) 
                 n_lines = int(math.ceil(n_items/2.5))
             # now read the data
             data = read_op4_column(fid, data, i_col, i_row, n_lines, n_items, type_real)
@@ -535,7 +523,7 @@ def Modgen_CORD2R(filename, coord, grid=''):
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            if string.find(read_string, 'CORD2R') !=-1 and read_string[0] != '$':
+            if str.find(read_string, 'CORD2R') !=-1 and read_string[0] != '$':
                 # extract information from CORD2R card
                 line1 = read_string
                 line2 = fid.readline()
@@ -555,7 +543,7 @@ def Modgen_CORD2R(filename, coord, grid=''):
                 coord['offset'].append(A)
                 coord['dircos'].append(dircos)
                 
-            elif string.find(read_string, 'CORD1R') !=-1 and read_string[0] != '$':
+            elif str.find(read_string, 'CORD1R') !=-1 and read_string[0] != '$':
                 # CHORD1R ist aehnlich zu CORD2R, anstelle von offsets werden als grid points angegeben 
                 if grid == '':
                     logging.warning(read_string)
@@ -594,10 +582,10 @@ def Modgen_AESURF(filename):
     with open(filename, 'r') as fid:
         lines = fid.readlines()
     for line in lines:
-        if string.find(line, 'AESURF') !=-1 and line[0] != '$':
+        if str.find(line, 'AESURF') !=-1 and line[0] != '$':
             # extract information from AESURF card
             aesurf['ID'].append(nastran_number_converter(line[8:16], 'int'))
-            aesurf['key'].append(string.replace(line[16:24], ' ', ''))
+            aesurf['key'].append(str.replace(line[16:24], ' ', ''))
             aesurf['CID'].append(nastran_number_converter(line[24:32], 'int'))
             aesurf['AELIST'].append(nastran_number_converter(line[32:40], 'int'))
             aesurf['eff'].append(nastran_number_converter(line[56:64], 'float'))
@@ -621,22 +609,15 @@ def Nastran_SET1(filename, keyword='SET1', type='int'):
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-#             if string.find(read_string[:8], keyword) !=-1 and string.replace(read_string[24:32], ' ', '') == 'THRU' and read_string[:1] != '$':
-#                  # Assumption: the list is defined with the help of THRU and there is only one THRU
-#                 startvalue = nastran_number_converter(read_string[16:24], 'int')
-#                 stoppvalue = nastran_number_converter(read_string[32:40], 'int')
-#                 values = np.arange(startvalue, stoppvalue+1)
-#                 sets['ID'].append(nastran_number_converter(read_string[8:16], 'int'))
-#                 sets['values'].append(values)
-            if string.find(read_string[:8], keyword) !=-1 and read_string[-2:-1] == '+' and read_string[:1] != '$':
+            if str.find(read_string[:8], keyword) !=-1 and read_string[-2:-1] == '+' and read_string[:1] != '$':
                 # this is the first line
                 row = read_string[8:-2]
                 next_line = True
             elif next_line and read_string[:1] == '+' and read_string[-2:-1] == '+':
                 # these are the middle lines
                 row += read_string[8:-2]
-            elif np.all(next_line and read_string[:1] == '+') or np.all(string.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
-                if np.all(string.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
+            elif np.all(next_line and read_string[:1] == '+') or np.all(str.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
+                if np.all(str.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
                     # this is the first AND the last line, no more IDs to come
                     row = read_string[8:]
                 else:
@@ -650,7 +631,7 @@ def Nastran_SET1(filename, keyword='SET1', type='int'):
                 
                 values = []
                 while len(row)>0:
-                    if string.replace(row[:8], ' ', '') == 'THRU':
+                    if str.replace(row[:8], ' ', '') == 'THRU':
                         startvalue = values[-1]+1
                         stoppvalue = nastran_number_converter(row[8:16], type)
                         values += range(startvalue, stoppvalue+1) 
@@ -673,10 +654,10 @@ def Nastran_AECOMP(filename):
     with open(filename, 'r') as fid:
         lines = fid.readlines()
     for line in lines:
-        if string.find(line, 'AECOMP') !=-1 and line[0] != '$':
+        if str.find(line, 'AECOMP') !=-1 and line[0] != '$':
             # Assumption: only one list is given per AECOMP
-            aecomp['name'].append(string.replace(line[8:16], ' ', ''))
-            aecomp['list_type'].append(string.replace(line[16:24], ' ', ''))
+            aecomp['name'].append(str.replace(line[8:16], ' ', ''))
+            aecomp['list_type'].append(str.replace(line[16:24], ' ', ''))
             aecomp['list_id'].append(nastran_number_converter(line[24:32], 'int'))
     
     return aecomp
@@ -693,17 +674,17 @@ def Nastran_MONPNT1(filename):
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            if string.find(read_string, 'MONPNT1') !=-1 and read_string[0] != '$':
+            if str.find(read_string, 'MONPNT1') !=-1 and read_string[0] != '$':
                 # extract information from MONPNT1 card
                 # erste Zeile
                 ID.append(i_ID) # Eigentlich haben MONPNTs keine IDs sondern nur Namen...
                 i_ID += 1
                 # An dieser Stelle reicht es nicht mehr aus, nur die Leerzeichen zu entfernen...
-                name.append(string.join((ch for ch in read_string[8:16] if ch in string.ascii_letters + string.digits + '_'), ''))
-                label.append(string.join((ch for ch in read_string[16:72] if ch in string.ascii_letters + string.digits + '_'), ''))
+                name.append(str.join((ch for ch in read_string[8:16] if ch in str.ascii_letters + str.digits + '_'), ''))
+                label.append(str.join((ch for ch in read_string[16:72] if ch in str.ascii_letters + str.digits + '_'), ''))
                 # zweite Zeile
                 read_string = fid.readline()
-                comp.append(string.replace(read_string[16:24], ' ', ''))
+                comp.append(str.replace(read_string[16:24], ' ', ''))
                 CP.append(nastran_number_converter(read_string[24:32], 'int'))
                 CD.append(nastran_number_converter(read_string[56:64], 'int'))
                 offset.append([nastran_number_converter(read_string[32:40], 'float'), nastran_number_converter(read_string[40:48], 'float'), nastran_number_converter(read_string[48:56], 'float')])
@@ -730,7 +711,7 @@ def Modgen_W2GJ(filename):
     with open(filename, 'r') as fid:
         lines = fid.readlines()
     for line in lines:
-        if string.find(line, 'CAM_RAD') !=-1 and line[0] != '$':
+        if str.find(line, 'CAM_RAD') !=-1 and line[0] != '$':
             pos_ID = line.split().index('ID-CAE1')
             pos_BOX = line.split().index('ID-BOX')
             pos_CAM_RAD = line.split().index('CAM_RAD')
@@ -749,7 +730,7 @@ def Nastran_NodeLocationReport(filename):
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            if string.find(read_string, 'Node ID') !=-1 and read_string[0] != '$':
+            if str.find(read_string, 'Node ID') !=-1 and read_string[0] != '$':
                 while True:
                     read_string = fid.readline()
                     if read_string.split() != [] and nastran_number_converter(read_string.split()[0], 'ID') != 0:

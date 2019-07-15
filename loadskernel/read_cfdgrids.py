@@ -5,16 +5,16 @@ import logging, h5py
 class ReadCfdgrids:
     def  __init__(self, jcl):
         self.jcl = jcl
-        if jcl.meshdefo.has_key('surface'):
+        if 'surface' in jcl.meshdefo:
             self.filename_grid = self.jcl.meshdefo['surface']['filename_grid']
             self.markers = self.jcl.meshdefo['surface']['markers']
         else:
             logging.error('jcl.meshdefo has no key "surface"')
 
     def read_surface(self, merge_domains=False):
-        if self.jcl.meshdefo['surface'].has_key('fileformat') and self.jcl.meshdefo['surface']['fileformat']=='cgns':
+        if 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat']=='cgns':
             self.read_cfdmesh_cgns(merge_domains)
-        elif self.jcl.meshdefo['surface'].has_key('fileformat') and self.jcl.meshdefo['surface']['fileformat']=='netcdf':
+        elif 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat']=='netcdf':
             self.read_cfdmesh_netcdf(merge_domains)
         else:
             logging.error('jcl.meshdefo["surface"]["fileformat"] must be "netcdf" or "cgns"' )

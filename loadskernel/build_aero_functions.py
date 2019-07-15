@@ -5,12 +5,13 @@ Created on Mon Nov 24 09:07:55 2014
 @author: voss_ar
 """
 
-import read_geom
-import spline_rules
-import spline_functions
 import numpy as np
 import logging
 from matplotlib import pyplot as plt
+
+import loadskernel.read_geom as read_geom
+import loadskernel.spline_rules as spline_rules
+import loadskernel.spline_functions as spline_functions
 
 def build_x2grid(jcl_aero, aerogrid, coord):
     

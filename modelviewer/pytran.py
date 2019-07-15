@@ -38,9 +38,8 @@ class NastranSOL101:
         return dict
                 
     def read_data(self):
-        print 'Reading data...',
         # INPUTs        
-        if self.file.root.NASTRAN.INPUT.ELEMENT._v_children.has_key('CQUAD4'):        
+        if 'CQUAD4' in self.file.root.NASTRAN.INPUT.ELEMENT._v_children:        
             bin_stream = self.file.root.NASTRAN.INPUT.ELEMENT.CQUAD4
             components = ["EID", "PID", "T"]
             self.cquad4 = self.read_bin(bin_stream, components)
@@ -48,7 +47,7 @@ class NastranSOL101:
         else:
             self.cquad4 = {"EID":[], "PID":[], "T":[]}
             
-        if self.file.root.NASTRAN.INPUT.ELEMENT._v_children.has_key('CTRIA3'):  
+        if 'CTRIA3' in self.file.root.NASTRAN.INPUT.ELEMENT._v_children:  
             bin_stream = self.file.root.NASTRAN.INPUT.ELEMENT.CTRIA3
             components = ["EID", "PID", "T"]
             self.ctria3 = self.read_bin(bin_stream, components)
@@ -56,7 +55,7 @@ class NastranSOL101:
         else:
             self.ctria3 = {"EID":[], "PID":[], "T":[]}
         
-        if self.file.root.NASTRAN.INPUT.PROPERTY._v_children.has_key('PSHELL'): 
+        if 'PSHELL' in self.file.root.NASTRAN.INPUT.PROPERTY._v_children: 
             bin_stream = self.file.root.NASTRAN.INPUT.PROPERTY.PSHELL
             components = ['PID', 'MID1', 'MID2', 'MID3', 'T']
             self.pshell = self.read_bin(bin_stream, components)
@@ -67,7 +66,7 @@ class NastranSOL101:
 #             self.stress_quad4 = self.read_bin(bin_stream, components)
             
         
-        if self.file.root.NASTRAN.INPUT.PROPERTY._v_children.has_key('PCOMP'): 
+        if 'PCOMP' in self.file.root.NASTRAN.INPUT.PROPERTY._v_children: 
             bin_stream = self.file.root.NASTRAN.INPUT.PROPERTY.PCOMP.IDENTITY
             components = ['PID', 'NPLIES']
             self.pcomp = self.read_bin(bin_stream, components) 
@@ -98,11 +97,8 @@ class NastranSOL101:
 #         components = ["ID", 'SUBCASE']
 #         self.domains = self.read_bin(bin_stream, components)
 #         self.domains['n'] = self.domains['ID'].__len__()
-            
-        print 'done'
     
     def merge_shells(self):
-        print 'Merging shells...',
         self.shells = {}
         components = ["EID", "PID", "T"]
         for component in components:
@@ -113,21 +109,17 @@ class NastranSOL101:
 #         components = ["EID", "PLY", "X1", "Y1", "T1", "DOMAIN_ID"]
 #         for component in components:
 #             self.results_shells_comp[component] = np.array(self.result_quad4_comp[component] + self.result_tria3_comp[component])
-        print 'done'
     
     def map_nastran2strcgrid(self):
         self.map_nastran2strcgrid = [np.where(self.shells['EID']==ID)[0][0] for ID in self.strcshell['ID']]
         
     def shell_thickness(self):
         # map elements and properties from model and results
-        print 'Mapping thickness...',
         PIDs = self.shells['PID'][self.map_nastran2strcgrid]
         pos_PID = [self.pshell['PID'].index(ID) for ID in PIDs]
         self.celldata['thickness'] = np.array(self.pshell['T'])[pos_PID]
-        print 'done'
     
     def shell_stress_faster(self):
-        print 'Mapping stresses...',
         sigma1_quad4 = np.array(self.result_quad4_comp['X1']).reshape(self.domains['n'], self.cquad4['n'],-1)
         sigma2_quad4 = np.array(self.result_quad4_comp['Y1']).reshape(self.domains['n'], self.cquad4['n'],-1)
         tau12_quad4  = np.array(self.result_quad4_comp['T1']).reshape(self.domains['n'], self.cquad4['n'],-1)
@@ -137,7 +129,6 @@ class NastranSOL101:
         self.celldata['sigma1'] = np.concatenate((sigma1_quad4, sigma1_tria3), axis=1)[:,self.map_nastran2strcgrid,:]
         self.celldata['sigma2'] = np.concatenate((sigma2_quad4, sigma2_tria3), axis=1)[:,self.map_nastran2strcgrid,:]
         self.celldata['tau12']  = np.concatenate((tau12_quad4, tau12_tria3), axis=1)[:,self.map_nastran2strcgrid,:]
-        print 'done'
     
     def set_material_properties(self):
         #MAT8    11000001 1.55+11   8.5+9      .3   3.7+9   3.7+9   3.7+9   1510.+       
@@ -149,9 +140,7 @@ class NastranSOL101:
         self.Yc = 66.66e+6
         self.S = 25.0e+6
     
-    def shell_FI(self):
-        print 'Calculating subcase FI...',
-        
+    def shell_FI(self):       
         self.celldata['TsaiWu'] = np.zeros(self.celldata['sigma1'].shape)
         self.celldata['TsaiHill']   = np.zeros(self.celldata['sigma1'].shape)
         
@@ -163,7 +152,6 @@ class NastranSOL101:
         F12 = 0.0 #-0.5*(F11*F22)**0.5
         
         for i_subcase in range(self.domains['n']):
-            print str(self.domains['ID'][i_subcase]),
             for i_shell in range(self.shells['n']):
                 nplies = self.celldata['sigma1'][i_subcase,i_shell].__len__()
                 for i_ply in range(nplies):
@@ -181,4 +169,3 @@ class NastranSOL101:
                     
                     self.celldata['TsaiWu'][i_subcase,i_shell,i_ply] = FI_tsaiwu
                     self.celldata['TsaiHill'][i_subcase,i_shell,i_ply] = FI_tsaihill
-        print 'done'

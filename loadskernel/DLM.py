@@ -5,13 +5,15 @@ Created on Tue Aug  1 16:56:30 2017
 
 @author: voss_ar
 """
-import VLM
 import copy
 import numpy as np
 np.seterr(all='ignore')                 # turn off warnings (divide by zero, multiply NaN, ...) as singularities are expected to occur
 import numexpr as ne
 n_cores = ne.detect_number_of_cores()   # get number of cores and use all
 ne.set_num_threads(n_cores)             # set up numexpr for multithreading
+
+import loadskernel.VLM as VLM
+
 
 def calc_Qjj(aerogrid, Ma, k):
     # calc steady contributions using VLM

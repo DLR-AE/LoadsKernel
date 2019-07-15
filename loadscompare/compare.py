@@ -6,16 +6,18 @@ Created on Thu Feb  9 17:45:02 2017
 """
 
 
-import Tkinter as tk
-import ttk
-import tkFileDialog
+import tkinter as tk
+import tkinter.ttk as ttk
+import tkinter.filedialog as filedialog
 import matplotlib as mpl
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.backend_bases import key_press_handler # implement the default mpl key bindings
-import plotting
-
 import numpy as np
-import cPickle, os, copy
+import pickle, os, copy
+
+from loadscompare import plotting
+import loadskernel.io_functions as io_functions
+import loadskernel.io_functions.specific_functions
 
 class App:
     
@@ -122,11 +124,11 @@ class App:
         # abfrage der Werte mit self.l.curselection()
 
         # x- and y-axis
-        cb_xaxis = ttk.Combobox(frame_left_top, textvariable=self.var_xaxis, values=self.dof.keys(), state='readonly')
+        cb_xaxis = ttk.Combobox(frame_left_top, textvariable=self.var_xaxis, values=list(self.dof), state='readonly')
         cb_xaxis.grid(row = 3, column =0, columnspan=2, sticky=(tk.W,tk.E))
         cb_xaxis.bind('<<ComboboxSelected>>', self.show_choice )
         
-        cb_yaxis = ttk.Combobox(frame_left_top, textvariable=self.var_yaxis, values=self.dof.keys(), state='readonly')
+        cb_yaxis = ttk.Combobox(frame_left_top, textvariable=self.var_yaxis, values=list(self.dof), state='readonly')
         cb_yaxis.grid(row = 4, column =0, columnspan=2, sticky=(tk.W,tk.E))
         cb_yaxis.bind('<<ComboboxSelected>>', self.show_choice )
         
@@ -146,9 +148,9 @@ class App:
         self.plotting = plotting.Plotting(fig1)
         # embed figure
         self.canvas = FigureCanvasTkAgg(fig1, master=frame_right)
-        self.canvas.show()
+        self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        toolbar = NavigationToolbar2TkAgg(self.canvas, frame_right)
+        toolbar = NavigationToolbar2Tk(self.canvas, frame_right)
         toolbar.update()
         self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)     
     
@@ -206,19 +208,19 @@ class App:
         # Check for dynamic loads.
         if np.size(self.datasets['dataset'][x][station]['t'][0]) == 1:
             # Scenario 1: There are only static loads.
-            print '- {}: found static loads'.format(station)
+            print( '- {}: found static loads'.format(station))
             loads_string   = 'loads'
             subcase_string = 'subcase'
             t_string = 't'
         elif (np.size(self.datasets['dataset'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['dataset'][x][station].keys()) and (self.datasets['dataset'][x][station]['loads_dyn2stat'] != []):
             # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
-            print '- {}: found dyn2stat loads -> discarding dynamic loads'.format(station)
+            print( '- {}: found dyn2stat loads -> discarding dynamic loads'.format(station))
             loads_string   = 'loads_dyn2stat'
             subcase_string = 'subcases_dyn2stat'
             t_string = 't_dyn2stat'
         else:
             # Scenario 3: There are only dynamic loads. 
-            print '- {}: found dynamic loads -> please convert to static first (dyn2stat)'.format(station)
+            print( '- {}: found dynamic loads -> please convert to static first (dyn2stat)'.format(station))
         return loads_string, subcase_string, t_string
 
     def merge_monstation(self):
@@ -226,7 +228,7 @@ class App:
             # Init new dataset.
             new_dataset = {}
             for x in self.lb_dataset.curselection():
-                print 'Working on {} ...'.format(self.datasets['desc'][x])
+                print ('Working on {} ...'.format(self.datasets['desc'][x]))
                 for station in self.common_monstations:
                     if station not in new_dataset.keys():
                         # create (empty) entries for new monstation
@@ -256,7 +258,7 @@ class App:
             # Init new dataset.
             new_dataset = {}
             for x in self.lb_dataset.curselection():
-                print 'Working on {} ...'.format(self.datasets['desc'][x])
+                print( 'Working on {} ...'.format(self.datasets['desc'][x]))
                 for station in self.common_monstations:
                     loads_string, subcase_string, t_string = self.get_loads_string(x, station)
                     
@@ -277,7 +279,7 @@ class App:
                             pos = new_dataset[station]['subcase'].index(subcase)
                             new_dataset[station][loads_string][pos] = new_dataset[station][loads_string][pos] + self.datasets['dataset'][x][station][loads_string][i_case]
                         else:
-                            print '- {}: found no match for subcases {}. Superposition not possible'.format(station, subcase )                            
+                            print( '- {}: found no match for subcases {}. Superposition not possible'.format(station, subcase ))                            
                     
             # Save into data structure.
             self.datasets['ID'].append(self.datasets['n'])  
@@ -290,10 +292,10 @@ class App:
     
     def load_monstation(self):
         # open file dialog
-        filename = tkFileDialog.askopenfilename(**self.file_opt)
+        filename = filedialog.askopenfilename(**self.file_opt)
         if filename != '':
-            # load pickle
-            dataset = self.load_pickle(filename)
+            with open(filename, 'rb') as f:
+                dataset = io_functions.specific_functions.load_pickle(f)
             # save into data structure
             self.datasets['ID'].append(self.datasets['n'])  
             self.datasets['dataset'].append(dataset)
@@ -308,33 +310,23 @@ class App:
         if self.lb_dataset.curselection() != () and len(self.lb_dataset.curselection()) == 1:
             dataset_sel = self.datasets['dataset'][self.lb_dataset.curselection()[0]]
             # open file dialog
-            filename = tkFileDialog.asksaveasfilename(**self.file_opt)
+            filename = filedialog.asksaveasfilename(**self.file_opt)
             if filename != '':
-                self.save_pickle(filename, dataset_sel)
-                print 'Dataset {} saved to {}'.format(self.datasets['desc'][self.lb_dataset.curselection()[0]], filename )
-            
-    def save_pickle(self, filename, data):
-        with open(filename, 'w') as f:
-            cPickle.dump(data, f, cPickle.HIGHEST_PROTOCOL)
-        
-    def load_pickle(self, filename):
-        with open(filename, 'r') as f:
-            data = cPickle.load(f)
-        return data
-    
+                with open(filename, 'wb') as f:
+                    io_functions.specific_functions.dump_pickle(dataset_sel, f)
+
     def update_fields(self):
         self.lb_dataset.delete(0,tk.END)
         for i in range(self.datasets['n']):
             self.lb_dataset.insert('end', self.datasets['desc'][i])
 
-        keys = [dataset.keys() for dataset in self.datasets['dataset']]
+        keys = [list(dataset) for dataset in self.datasets['dataset']]
         self.common_monstations = np.unique(keys)
         self.lb_mon.delete(0,tk.END)
         for x in self.common_monstations:
             self.lb_mon.insert('end', x)
     
     def close_app(self):  
-        print "Closing App."
         self.root.quit()
         self.root.destroy()
 

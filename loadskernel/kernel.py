@@ -5,15 +5,15 @@ Created on Thu Nov 27 14:00:31 2014
 @author: voss_ar
 """
 import time, multiprocessing, getpass, platform, logging, sys, copy
-import io_functions.specific_functions
-import io_functions.matlab_functions
 
-import trim
-import post_processing
-import monstations as monstations_module
-import auxiliary_output
-import plotting_standard, plotting_extra
-
+import loadskernel.io_functions as io_functions
+import loadskernel.trim as trim
+import loadskernel.post_processing as post_processing
+import loadskernel.monstations as monstations_module
+import loadskernel.auxiliary_output as auxiliary_output
+import loadskernel.plotting_standard as plotting_standard
+import loadskernel.plotting_extra as plotting_extra
+import loadskernel.model as model_modul
 
 class Kernel():
 
@@ -100,7 +100,7 @@ class Kernel():
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         responses = io_functions.specific_functions.gather_responses(self.job_name, io_functions.specific_functions.check_path(self.path_output+'responses'))
         mon = monstations_module.monstations(self.jcl, model)
-        f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'w')  # open response
+        f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
         for i in range(len(self.jcl.trimcase)):
             response = responses[[response['i'] for response in responses].index(i)]
             if response['successful']:
@@ -115,11 +115,11 @@ class Kernel():
         f.close()  # close response
 
         logging.info('--> Saving monstation(s).')
-        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'w') as f:
+        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(mon.monstations, f)
 
         logging.info('--> Saving dyn2stat.')
-        with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'w') as f:
+        with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(mon.dyn2stat, f)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
         
@@ -129,14 +129,13 @@ class Kernel():
     def run_pre(self):
         logging.info('--> Starting preprocessing.')
         t_start = time.time()
-        import model as model_modul
         model = model_modul.Model(self.jcl, self.path_output)
         model.build_model()
         model.write_aux_data()
 
         logging.info('--> Saving model data.')
         del model.jcl
-        with open(self.path_output + 'model_' + self.job_name + '.pickle', 'w') as f:
+        with open(self.path_output + 'model_' + self.job_name + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(model.__dict__, f)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
@@ -174,7 +173,7 @@ class Kernel():
         if self.restart:
             logging.info('Restart option: loading existing responses.')
             responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output, remove_failed=True)
-        f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'w')  # open response
+        f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
         for i in range(len(self.jcl.trimcase)):
             if self.restart and i in [response['i'] for response in responses]:
                 logging.info('Restart option: found existing response.')
@@ -193,18 +192,18 @@ class Kernel():
 
                 logging.info('--> Saving response(s).')
                 io_functions.specific_functions.dump_pickle(response, f)
-                #with open(self.path_output + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.mat', 'w') as f2:
+                #with open(self.path_output + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.mat', 'wb') as f2:
                 #   io_functions.matlab_functions.save_mat(f2, response)
         f.close()  # close response
 
         logging.info('--> Saving monstation(s).')
-        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'w') as f:
+        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(mon.monstations, f)
-        #with open(self.path_output + 'monstations_' + self.job_name + '.mat', 'w') as f:
+        #with open(self.path_output + 'monstations_' + self.job_name + '.mat', 'wb') as f:
         #   io_functions.matlab_functions.save_mat(f, mon.monstations)
 
         logging.info('--> Saving dyn2stat.')
-        with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'w') as f:
+        with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(mon.dyn2stat, f)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
@@ -270,19 +269,19 @@ class Kernel():
     def main_listener(self, q_output):
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         mon = monstations_module.monstations(self.jcl, model)
-        f_response = open(self.path_output + 'response_' + self.job_name + '.pickle', 'w')  # open response
+        f_response = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
         logging.info('--> Listener ready.')
         while True:
             m = q_output.get()
             if m == 'finish':
                 f_response.close()  # close response
                 logging.info('--> Saving monstation(s).')
-                with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'w') as f:
+                with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'wb') as f:
                     io_functions.specific_functions.dump_pickle(mon.monstations, f)
-                # with open(path_output + 'monstations_' + job_name + '.mat', 'w') as f:
+                # with open(path_output + 'monstations_' + job_name + '.mat', 'wb') as f:
                 #    io_matlab.save_mat(f, mon.monstations)
                 logging.info('--> Saving dyn2stat.')
-                with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'w') as f:
+                with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'wb') as f:
                     io_functions.specific_functions.dump_pickle(mon.dyn2stat, f)
                 q_output.task_done()
                 logging.info('--> Listener quit.')
@@ -315,7 +314,7 @@ class Kernel():
         
         logging.info('--> Saving response(s).')
         path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
-        with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'w')  as f:
+        with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb')  as f:
             io_functions.specific_functions.dump_pickle(response, f)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
@@ -324,7 +323,7 @@ class Kernel():
 
         logging.info('--> Starting State Space Matrix generation for %d trimcase(s).' % len(self.jcl.trimcase))
         t_start = time.time()
-        f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'w')  # open response
+        f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
         for i in range(len(self.jcl.trimcase)):
             logging.info('')
             logging.info('========================================')
@@ -349,11 +348,11 @@ class Kernel():
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
 
         logging.info('--> Loading monstations(s).') 
-        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'r') as f:
+        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'rb') as f:
             monstations = io_functions.specific_functions.load_pickle(f)
 
         logging.info('--> Loading dyn2stat.')
-        with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'r') as f:
+        with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'rb') as f:
             dyn2stat_data = io_functions.specific_functions.load_pickle(f)
 
         logging.info('--> Drawing some standard plots.')
@@ -382,17 +381,17 @@ class Kernel():
             # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
-#         responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
-#         print '--> Drawing some more detailed plots.'  
-#         plt = plotting_extra.DetailedPlots(self.jcl, model)
-#         plt.add_responses(responses)
-#         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-#            # nur sim
-#            plt.plot_time_data()
-#         else:
-#            # nur trim
-#            plt.plot_pressure_distribution()
-#            plt.plot_forces_deformation_interactive()
+        responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
+        logging.info( '--> Drawing some more detailed plots.')  
+        plt = plotting_extra.DetailedPlots(self.jcl, model)
+        plt.add_responses(responses)
+        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+           # nur sim
+           plt.plot_time_data()
+        else:
+           # nur trim
+           plt.plot_pressure_distribution()
+           plt.plot_forces_deformation_interactive()
         
 #         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
 #             plt = plotting_extra.Animations(self.jcl, model)
@@ -418,7 +417,7 @@ class Kernel():
         
         # place code to test here
 #         responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
-#         with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'r') as f:
+#         with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'rb') as f:
 #             monstations = io_functions.specific_functions.load_pickle(f)
 #         from scripts import cps_for_MULDICON
 #         cps = cps_for_MULDICON.CPs(self.jcl, model, responses)
@@ -517,5 +516,5 @@ def unwrap_main_listener(*arg, **kwarg):
     return Kernel.main_listener(*arg, **kwarg)
 
 if __name__ == "__main__":
-    print "Please use the launch-script 'launch.py' from your input directory."
+    print ("Please use the launch-script 'launch.py' from your input directory.")
     sys.exit()
