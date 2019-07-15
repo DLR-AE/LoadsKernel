@@ -111,27 +111,27 @@ class Plotting:
         mlab.draw(self.fig)
 
     def setup_mass_display(self, radius_masses, radius_mass_cg, cggrid):
-        ug1 = tvtk.UnstructuredGrid(points=self.strcgrid['offset'])
-        ug1.point_data.scalars = radius_masses
+        self.ug1 = tvtk.UnstructuredGrid(points=self.strcgrid['offset'])
+        self.ug1.point_data.scalars = radius_masses
         # plot points as glyphs
-        self.src_masses = mlab.pipeline.add_dataset(ug1)
+        self.src_masses = mlab.pipeline.add_dataset(self.ug1)
         points = mlab.pipeline.glyph(self.src_masses, scale_mode='scalar', scale_factor = 1.0, color=(1,0.7,0))
         points.glyph.glyph.clamping = False
-        #points.glyph.glyph.range = np.array([0.0, 1.0])
         
-        ug2 = tvtk.UnstructuredGrid(points=cggrid['offset'])
-        ug2.point_data.scalars = np.array([radius_mass_cg])
+        self.ug2 = tvtk.UnstructuredGrid(points=cggrid['offset'])
+        self.ug2.point_data.scalars = np.array([radius_mass_cg])
         # plot points as glyphs
-        self.src_mass_cg = mlab.pipeline.add_dataset(ug2)
+        self.src_mass_cg = mlab.pipeline.add_dataset(self.ug2)
         points = mlab.pipeline.glyph(self.src_mass_cg, scale_mode='scalar', scale_factor = 1.0, color=(1,1,0), opacity=0.3, resolution=64)
         points.glyph.glyph.clamping = False
-        #points.glyph.glyph.range = np.array([0.0, 1.0])      
 
     def update_mass_display(self, radius_masses, radius_mass_cg, cggrid):
-        self.src_masses.outputs[0].points.from_array(self.strcgrid['offset'])
-        self.src_masses.outputs[0].point_data.scalars.from_array(radius_masses)
-        self.src_mass_cg.outputs[0].points.from_array(cggrid['offset'])
-        self.src_mass_cg.outputs[0].point_data.scalars.from_array(np.array([radius_mass_cg]))
+        self.ug1.points.from_array(self.strcgrid['offset'])
+        self.ug1.point_data.scalars.from_array(radius_masses)
+        self.ug1.modified()
+        self.ug2.points.from_array(cggrid['offset'])
+        self.ug2.point_data.scalars.from_array(np.array([radius_mass_cg]))
+        self.ug2.modified()
 
     # ------------
     # --- strc ---
