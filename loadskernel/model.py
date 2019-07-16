@@ -118,6 +118,8 @@ class Model:
             if 'filename_mongrid' in self.jcl.geom and not self.jcl.geom['filename_mongrid'] == '':
                 logging.info( 'Building Monitoring Stations from GRID data...')
                 self.mongrid = read_geom.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
+                # we dont't get names for the monstations from simple grid points, so we make up a name
+                self.mongrid['name'] = [ 'MON{:s}'.format(str(ID)) for ID in self.mongrid['ID'] ]
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_moncoord'], self.coord)
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
                 self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
