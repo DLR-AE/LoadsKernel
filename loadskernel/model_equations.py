@@ -1,13 +1,14 @@
 import numpy as np
 import importlib, logging, os, subprocess, shlex
-from trim_tools import * 
-
 from scipy import interpolate, linalg
 import scipy.io.netcdf as netcdf
-import meshdefo, efcs
 
-import PyTauModuleInit, PyPara, PyDeform, PyPrep, PySolv
-from tau_python import *
+from loadskernel.trim_tools import * 
+import loadskernel.meshdefo as meshdefo
+import loadskernel.efcs as efcs
+
+#import PyTauModuleInit, PyPara, PyDeform, PyPrep, PySolv
+#from tau_python import *
 
 class Common():
     def __init__(self, trim, X0='', simcase=''):
@@ -48,7 +49,7 @@ class Common():
         self.Dkx1        = self.model.Dkx1
         
         # set hingeline for cs deflections       
-        if self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'z':
+        if 'hingeline' in self.jcl.aero and self.jcl.aero['hingeline'] == 'z':
             self.hingeline = 'z'
         else: # default
             self.hingeline = 'y'
@@ -96,7 +97,7 @@ class Common():
         # convergence parameter for iterative evaluation
         self.defo_old = 0.0    
         
-        if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'halfgeneralized':
+        if 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'halfgeneralized':
             self.PHI_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat']).dot(self.model.mass['PHIjf'][self.i_mass])
             self.PHI_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjf'][self.i_mass])
     
@@ -192,7 +193,7 @@ class Common():
         return Pk, wj
     
     def flexible_nonlin(self, dUcg_dt, Uf, dUf_dt, Vtas):
-        if self.jcl.aero.has_key('flex') and self.jcl.aero['flex']:
+        if 'flex' in self.jcl.aero and self.jcl.aero['flex']:
             dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt)
              # modale Verformung
             Ujf = np.dot(self.PHIjf, Uf )
@@ -211,7 +212,7 @@ class Common():
         
     def flexible(self, Uf, dUf_dt, dUcg_dt, q_dyn, Vtas):
         wj = np.zeros(self.model.aerogrid['n'])
-        if self.jcl.aero.has_key('flex') and self.jcl.aero['flex']:
+        if 'flex' in self.jcl.aero and self.jcl.aero['flex']:
             dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt)
              # modale Verformung
             Ujf = np.dot(self.PHIjf, Uf )
@@ -240,7 +241,7 @@ class Common():
         return Pk, wj
     
     def idrag(self, wj, q_dyn):
-        if self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae'] and self.jcl.aero.has_key('induced_drag') and self.jcl.aero['induced_drag']:
+        if self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae'] and 'induced_drag' in self.jcl.aero and self.jcl.aero['induced_drag']:
             Bjj = self.model.aero['Bjj'][self.i_aero]   
             cp = np.dot(self.Qjj, wj) # gesammtes cp durch gesammten downwash wj
             wj_ind = np.dot(Bjj, cp)
@@ -257,9 +258,9 @@ class Common():
         return Pk_idrag
     
     def unsteady(self, X, t, wj, Uf, dUf_dt, onflow, q_dyn, Vtas):
-        if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'generalized':
+        if 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'generalized':
             logging.error('Generalized RFA not yet implemented.')
-        if self.jcl.aero.has_key('method_rfa') and self.jcl.aero['method_rfa'] == 'halfgeneralized':
+        if 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'halfgeneralized':
             Pk_unsteady, Pk_unsteady_B, Pk_unsteady_D, dlag_states_dt =  self.unsteady_halfgeneralized(X, t, Uf, dUf_dt, onflow, q_dyn, Vtas)
         else: # 'physical'
 #             dUmac_dt = np.dot(self.PHImac_cg, onflow)
@@ -407,18 +408,18 @@ class Common():
     
     def correctioon_coefficients(self, alpha, beta, q_dyn):
         Pb_corr = np.zeros(6)
-        if self.jcl.aero.has_key('Cm_alpha_corr'):
+        if 'Cm_alpha_corr' in self.jcl.aero:
             Pb_corr[4] += self.jcl.aero['Cm_alpha_corr'][self.i_aero]*q_dyn*self.jcl.general['A_ref']*self.jcl.general['c_ref']*alpha
-        if self.jcl.aero.has_key('Cn_beta_corr'):
+        if 'Cn_beta_corr' in self.jcl.aero:
             Pb_corr[5] += self.jcl.aero['Cn_beta_corr'][self.i_aero]*q_dyn*self.jcl.general['A_ref']*self.jcl.general['b_ref']*beta
         return Pb_corr    
     
     def vdrag(self, alpha, q_dyn):
         Pmac = np.zeros(6)
-        if self.jcl.aero.has_key('viscous_drag') and self.jcl.aero['viscous_drag'] == 'coefficients':
-            if self.jcl.aero.has_key('Cd_0'): Cd0 = self.jcl.aero['Cd_0'][self.i_aero]
+        if 'viscous_drag' in self.jcl.aero and self.jcl.aero['viscous_drag'] == 'coefficients':
+            if 'Cd_0' in self.jcl.aero: Cd0 = self.jcl.aero['Cd_0'][self.i_aero]
             else:                             Cd0 = 0.012
-            if self.jcl.aero.has_key('Cd_0'): Cd_alpha_sq = self.jcl.aero['Cd_alpha^2'][self.i_aero]
+            if 'Cd_0' in self.jcl.aero: Cd_alpha_sq = self.jcl.aero['Cd_alpha^2'][self.i_aero]
             else:                             Cd_alpha_sq = 0.018
             Pmac[0] = q_dyn*self.jcl.general['A_ref'] * (Cd0 + Cd_alpha_sq*alpha**2.0)
         return Pmac    
@@ -486,9 +487,9 @@ class Common():
         # Trimcase and simcase can have different support conditions.
         
         # get support conditions from trimcase or simcase
-        if modus in ['trim', 'trim_full_output'] and self.trimcase.has_key('support'):
+        if modus in ['trim', 'trim_full_output'] and 'support' in self.trimcase:
             support = self.trimcase['support']
-        elif modus in ['sim', 'sim_full_output'] and self.simcase!= '' and self.simcase.has_key('support'):
+        elif modus in ['sim', 'sim_full_output'] and self.simcase!= '' and 'support' in self.simcase:
             support = self.simcase['support']
         else:
             support = []

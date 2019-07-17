@@ -269,7 +269,7 @@ class OP2(object):
 
         reclen = self._Str4.unpack(self._fileh.read(4))[0]
         db_binary_name = self._fileh.read(reclen)
-        db_name = db_binary_name.strip()
+        db_name = db_binary_name.strip().decode('ascii')
         self._fileh.read(4)  # endrec
         self._get_key()
         key = self._get_key()
@@ -287,7 +287,7 @@ class OP2(object):
 
         reclen = self._Str4.unpack(self._fileh.read(4))[0]
         db_binary_name2 = self._fileh.read(reclen)
-        db_name2 = db_binary_name2.strip()
+        db_name2 = db_binary_name2.strip().decode('ascii')
         self._fileh.read(4)  # endrec
 
         self._skip_key(2)

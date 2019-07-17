@@ -7,7 +7,7 @@ Created on Fri May  5 14:37:24 2017
 """
 
 import numpy as np
-import cPickle, time, scipy, copy
+import time, scipy, copy
 from scipy import io
 
 def calc_induced_velocities(aerogrid, Ma):
@@ -205,11 +205,3 @@ def calc_Gammas(aerogrid, Ma):
         Gamma[i_Ma,:,:], Q_ind[i_Ma,:,:] = calc_Gamma(aerogrid, Ma[i_Ma])
     return Gamma, Q_ind
 
-# if __name__ == "__main__":
-#     with open('/scratch/test/model_jcl_Discus2c_test.pickle', 'r') as f:
-#         model = cPickle.load(f)
-#     #with open('aerogrid.mat', 'w') as f:
-#     #    scipy.io.savemat(f, model['aerogrid'])
-#     t_start = time.time()
-#     D_final, D_induced_drag = calc_Gamma(aerogrid=model['aerogrid'], Ma=0.15)
-#     print( '--> Done in %.2f [sec].' % (time.time() - t_start))

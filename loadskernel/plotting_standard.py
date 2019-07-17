@@ -310,10 +310,10 @@ class StandardPlots():
                 # verticalalignment or va 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
                 # max
                 plt.scatter(offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], color='r')
-                plt.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(self.monstations[self.monstations.keys()[0]][subcase_string][i_max[i_station]]), fontsize=4, verticalalignment='bottom' )
+                plt.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(self.monstations[list(self.monstations)[0]][subcase_string][i_max[i_station]]), fontsize=4, verticalalignment='bottom' )
                 # min
                 plt.scatter(offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], color='r')
-                plt.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(self.monstations[self.monstations.keys()[0]][subcase_string][i_min[i_station]]), fontsize=4, verticalalignment='top' )
+                plt.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(self.monstations[list(self.monstations)[0]][subcase_string][i_min[i_station]]), fontsize=4, verticalalignment='top' )
 
             self.subplot.set_title('Wing')        
             self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))

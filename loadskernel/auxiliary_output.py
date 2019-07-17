@@ -1,10 +1,12 @@
 
-import io_functions.specific_functions
-import io_functions.nastran_functions
 import numpy as np
 import copy, getpass, platform, time, logging, csv
-from grid_trafo import *
 from collections import OrderedDict
+
+import loadskernel.io_functions as io_functions
+import loadskernel.io_functions.nastran_functions
+import loadskernel.io_functions.specific_functions
+from loadskernel.grid_trafo import *
 
 class AuxiliaryOutput:
     #===========================================================================

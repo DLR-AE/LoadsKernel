@@ -31,7 +31,7 @@ class monstations:
                         }     
         
     def get_monstation_name(self, i_station):
-        if not self.model.mongrid.has_key('name'):
+        if not 'name' in self.model.mongrid:
                 name = 'MON{:s}'.format(str(int(self.model.mongrid['ID'][i_station]))) # make up a name
         else:
             name = self.model.mongrid['name'][i_station] # take name from mongrid

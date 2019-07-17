@@ -4,7 +4,8 @@ import scipy.io.netcdf as netcdf
 import numpy as np
 import logging, h5py, shutil
 
-import spline_functions, build_splinegrid
+import loadskernel.spline_functions as spline_functions
+import loadskernel.build_splinegrid as build_splinegrid
 
 class meshdefo:
     def  __init__(self, jcl, model, plotting=False):
@@ -12,14 +13,14 @@ class meshdefo:
         self.model      = model
         self.cfdgrids   = model.cfdgrids
         self.plotting   = plotting
-        if not jcl.meshdefo.has_key('surface'):
+        if not 'surface' in jcl.meshdefo:
             logging.error('jcl.meshdefo has no key "surface"')
             
     def Ux2(self, Ux2):
         Ujx2 = np.zeros(self.model.aerogrid['n']*6)
-        if self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'y':
+        if 'hingeline' in self.jcl.aero and self.jcl.aero['hingeline'] == 'y':
             hingeline = 'y'
-        elif self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'z':
+        elif 'hingeline' in self.jcl.aero and self.jcl.aero['hingeline'] == 'z':
             hingeline = 'z'
         else: # default
             hingeline = 'y'
@@ -77,9 +78,9 @@ class meshdefo:
             mlab.show()
             
     def write_deformations(self, filename_defo):
-        if self.jcl.meshdefo['surface'].has_key('fileformat') and self.jcl.meshdefo['surface']['fileformat']=='cgns':
+        if 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat']=='cgns':
             self.write_defo_cgns(filename_defo)
-        elif self.jcl.meshdefo['surface'].has_key('fileformat') and self.jcl.meshdefo['surface']['fileformat']=='netcdf':
+        elif 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat']=='netcdf':
             self.write_defo_netcdf(filename_defo)
         else:
             logging.error('jcl.meshdefo["surface"]["fileformat"] must be "netcdf" or "cgns"' )
@@ -157,41 +158,3 @@ class meshdefo:
                 logging.info(' - {} skipped'.format(key))    
         f.close()
     
-#     def Ug_f(self, path_output):
-#         # deprecated  
-#         for response in self.responses:
-#             logging.info('Apply flexible deformations from subcase {} to cfdgrid'.format(str(self.jcl.trimcase[response['i']]['subcase'])))          
-#             # set-up spline grid
-#             #splinegrid = build_splinegrid.grid_thin_out_random(model.strcgrid, 0.5)
-#             splinegrid = build_splinegrid.grid_thin_out_radius(self.model.strcgrid, 0.4)
-#             #splinegrid = model.strcgrid
-#             # get structural deformation
-#             i_mass     = self.model.mass['key'].index(self.jcl.trimcase[response['i']]['mass'])
-#             PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
-#             n_modes    = self.model.mass['n_modes'][i_mass]
-#             Uf = response['X'][12:12+n_modes]
-#             Ug_f_body = np.dot(PHIf_strc.T, Uf.T).T #*100.0
-#              
-#             self.transfer_deformations(splinegrid, Ug_f_body)
-#             self.write_deformations(path_output + 'surface_defo_' + '_subcase_' + str(self.jcl.trimcase[response['i']]['subcase']))     
-#     def controlsurfaces(self, job_name, path_output):
-#         # deprecated  
-#         if self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'y':
-#             hingeline = 'y'
-#         elif self.jcl.aero.has_key('hingeline') and self.jcl.aero['hingeline'] == 'z':
-#             hingeline = 'z'
-#         else: # default
-#             hingeline = 'y'
-#         splinegrid = self.model.aerogrid
-#         for x2_key in self.model.x2grid['key']:        
-#             if self.jcl.meshdefo.has_key(x2_key):
-#                 logging.info('Apply control surface deflections of {} for {} [deg] to cfdgrid'.format(x2_key, str(self.jcl.meshdefo[x2_key]['values'])))   
-#                 i_x2 = self.model.x2grid['key'].index(x2_key) # get position i_x2 of current control surface
-#                 for value in self.jcl.meshdefo[x2_key]['values']:
-#                     if hingeline == 'y':
-#                         Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,value/180.0*np.pi,0])
-#                     elif hingeline == 'z':
-#                         Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,value/180.0*np.pi])
-#                         
-#                     self.transfer_deformations(splinegrid, Ujx2, '_k', surface_spline=True)
-#                     self.write_deformations(job_name, path_output, path_output + 'surface_defo_' + job_name + '_' + x2_key + '_' + str(value) )                    
