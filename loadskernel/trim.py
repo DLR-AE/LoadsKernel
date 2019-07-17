@@ -50,7 +50,7 @@ class Trim:
         self.idx_lag_states = None
         self.idx_lag_derivatives = None
         
-    def set_trimcond(self):
+    def set_maneuver(self):
         # init
         i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
@@ -312,22 +312,24 @@ class Trim:
             # outputs
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'du'))[0][0],1] = 'target'
             
-        
+    def set_trimcond(self):
+        # set states, derivatives, inputs and output parameters according to requested maneuver
+        self.set_maneuver()
         # append inputs to X vector...
         self.trimcond_X = np.vstack((self.states , self.inputs))
         self.n_states   = self.states.__len__()
         self.n_inputs   = self.inputs.__len__()
-        self.idx_states = range(0,self.n_states)
-        self.idx_inputs = range(self.n_states, self.n_states+self.n_inputs)
+        self.idx_states = list(range(0,self.n_states))
+        self.idx_inputs = list(range(self.n_states, self.n_states+self.n_inputs))
         
         # ... and input derivatives and outputs to Y vector
         self.trimcond_Y = np.vstack((self.state_derivatives, self.input_derivatives, self.outputs))
         self.n_state_derivatives    = self.state_derivatives.__len__()
         self.n_input_derivatives    = self.input_derivatives.__len__()
         self.n_outputs              = self.outputs.__len__()
-        self.idx_state_derivatives  = range(0,self.n_state_derivatives)        
-        self.idx_input_derivatives  = range(self.n_state_derivatives, self.n_state_derivatives+self.n_input_derivatives)
-        self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_outputs)
+        self.idx_state_derivatives  = list(range(0,self.n_state_derivatives))
+        self.idx_input_derivatives  = list(range(self.n_state_derivatives, self.n_state_derivatives+self.n_input_derivatives))
+        self.idx_outputs            = list(range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_outputs))
         
     def calc_jacobian(self):
 #         equations = model_equations.Steady(self.model, self.jcl, self.trimcase, self.trimcond_X, self.trimcond_Y)
@@ -356,9 +358,9 @@ class Trim:
             X0 = np.hstack((self.response['X'], lag_states ))
              # add lag states to system
             self.n_lag_states = lag_states.__len__()
-            self.idx_lag_states         = range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lag_states)
-            self.idx_lag_derivatives    = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states)
-            self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states+self.n_outputs)
+            self.idx_lag_states         = list(range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lag_states))
+            self.idx_lag_derivatives    = list(range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states))
+            self.idx_outputs            = list(range(self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states+self.n_outputs))
 
             equations = model_equations.Unsteady(self)
         else:
@@ -517,9 +519,9 @@ class Trim:
             self.response['X'] = np.hstack((self.response['X'], lg_states ))
             self.response['Y'] = np.hstack((self.response['Y'][self.idx_state_derivatives + self.idx_input_derivatives], lg_derivatives, self.response['Y'][self.idx_outputs] ))
             self.n_lg_states = lg_states.__len__()
-            self.idx_lg_states         = range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lg_states)
-            self.idx_lg_derivatives    = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states)
-            self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states+self.n_outputs)
+            self.idx_lg_states         = list(range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lg_states))
+            self.idx_lg_derivatives    = list(range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states))
+            self.idx_outputs            = list(range(self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states+self.n_outputs))
             equations = model_equations.Landing(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             if 'disturbance' in self.simcase.keys():
@@ -540,9 +542,9 @@ class Trim:
             self.response['X'] = np.hstack((self.response['X'], lag_states ))
             self.response['Y'] = np.hstack((self.response['Y'][self.idx_state_derivatives + self.idx_input_derivatives], lag_states, self.response['Y'][self.idx_outputs] ))
             self.n_lag_states = lag_states.__len__()
-            self.idx_lag_states         = range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lag_states)
-            self.idx_lag_derivatives    = range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states)
-            self.idx_outputs            = range(self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states+self.n_outputs)
+            self.idx_lag_states         = list(range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lag_states))
+            self.idx_lag_derivatives    = list(range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states))
+            self.idx_outputs            = list(range(self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states+self.n_outputs))
             equations = model_equations.Unsteady(self, X0=self.response['X'], simcase=self.simcase)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))

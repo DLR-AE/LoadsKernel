@@ -51,7 +51,7 @@ def grid_thin_out_random(grid, thin_out_factor):
     return grid_thin
     
 def grid_thin_out_radius(grid, radius):
-    pos = range(grid['n'])
+    pos = list(range(grid['n']))
     i = 0
     while i < len(pos):
         dist = np.sum((grid['offset'][pos] - grid['offset'][pos[i]])**2, axis=1)**0.5

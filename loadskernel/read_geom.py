@@ -634,7 +634,7 @@ def Nastran_SET1(filename, keyword='SET1', type='int'):
                     if str.replace(row[:8], ' ', '') == 'THRU':
                         startvalue = values[-1]+1
                         stoppvalue = nastran_number_converter(row[8:16], type)
-                        values += range(startvalue, stoppvalue+1) 
+                        values += list(range(startvalue, stoppvalue+1) )
                         row = row[16:]
                     else:
                         values.append(nastran_number_converter(row[:8], type))
