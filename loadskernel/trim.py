@@ -13,7 +13,6 @@ from loadskernel.integrate import RungeKutta4, ExplicitEuler
 import loadskernel.io_functions.specific_functions as specific_io
 import loadskernel.model_equations as model_equations
 from loadskernel.trim_conditions import TrimConditions
-from matplotlib.streamplot import get_integrator
 
 class Trim(TrimConditions):
     def calc_jacobian(self):
@@ -188,7 +187,8 @@ class Trim(TrimConditions):
         logging.info('running time simulation for ' + str(t_final) + ' sec...')
         integrator = self.select_integrator(equations, 'Adams-Bashforth')
         integrator.set_initial_value(X0, 0.0)
-        xt = [], t = []
+        xt = []
+        t = []
         while integrator.successful() and integrator.t < t_final:  
             integrator.integrate(integrator.t+dt)
             xt.append(integrator.y)
