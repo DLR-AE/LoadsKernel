@@ -65,10 +65,6 @@ class Trim(TrimConditions):
         self.response['state_derivativess'] = self.state_derivatives[:,0]
         self.response['inputs'] = self.inputs[:,0]
         self.response['outputs'] = self.outputs[:,0]
-        
-        
-        i_mass      = self.model.mass['key'].index(self.trimcase['mass'])
-        n_modes     = self.model.mass['n_modes'][i_mass] 
         # States need to be reordered into ABCD matrices!
         # X = [ rbm,  flex,  command_cs,  lag_states ]
         # Y = [drbm, dflex, dcommand_cs, dlag_states, outputs]
