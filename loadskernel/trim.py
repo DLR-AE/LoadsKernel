@@ -52,12 +52,11 @@ class Trim(TrimConditions):
         
         logging.info('Calculating jacobian for ' + str(len(X0)) + ' variables...')
         jac = approx_jacobian(X0=X0, func=equations.equations, epsilon=0.001, dt=1.0) # epsilon sollte klein sein, dt sollte 1.0s sein
-#         X = self.response['X']
-#         Y = self.response['Y']
+        X = self.response['X']
+        Y = self.response['Y']
         self.response.clear()
-#         self.response['X'] = X
-#         self.response['Y'] = Y
-        self.response = {}
+        self.response['X'] = X
+        self.response['Y'] = Y
         self.response['X0'] = X0 # Linearisierungspunkt
         self.response['Y0'] = equations.equations(X0, t=0.0, modus='trim')
         self.response['jac'] = jac
