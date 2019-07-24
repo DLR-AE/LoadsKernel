@@ -2,7 +2,7 @@
 import numpy as np
 import logging
 
-class monstations:
+class Monstations:
     #===========================================================================
     # In this class actually no calculation is done, it merely gathers data.
     # From the response, the monstations are assembled in a more convenient order and format.

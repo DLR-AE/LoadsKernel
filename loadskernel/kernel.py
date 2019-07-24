@@ -99,7 +99,7 @@ class Kernel():
         self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         responses = io_functions.specific_functions.gather_responses(self.job_name, io_functions.specific_functions.check_path(self.path_output+'responses'))
-        mon = monstations_module.monstations(self.jcl, model)
+        mon = monstations_module.Monstations(self.jcl, model)
         f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
         for i in range(len(self.jcl.trimcase)):
             response = responses[[response['i'] for response in responses].index(i)]
@@ -169,7 +169,7 @@ class Kernel():
         logging.info('--> Starting Main in sequential mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        mon = monstations_module.monstations(self.jcl, model)
+        mon = monstations_module.Monstations(self.jcl, model)
         if self.restart:
             logging.info('Restart option: loading existing responses.')
             responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output, remove_failed=True)
@@ -268,7 +268,7 @@ class Kernel():
 
     def main_listener(self, q_output):
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        mon = monstations_module.monstations(self.jcl, model)
+        mon = monstations_module.Monstations(self.jcl, model)
         f_response = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
         logging.info('--> Listener ready.')
         while True:
