@@ -182,6 +182,30 @@ class AuxiliaryOutput:
                     if self.jcl.trimcase[i_case]['subcase'] in crit_trimcases:
                         io_functions.nastran_functions.write_subcases(fid, self.jcl.trimcase[i_case]['subcase'], self.jcl.trimcase[i_case]['desc'])
     
+    def write_critical_sectionloads(self, filename, dyn2stat=False): 
+        crit_trimcases = np.unique(self.crit_trimcases)
+        crit_monstations = {}
+        for key, monstation in self.monstations.items():
+            # create an empty monstation
+            crit_monstations[key] = {}
+            crit_monstations[key]['CD'] = monstation['CD']
+            crit_monstations[key]['CP'] = monstation['CP']
+            crit_monstations[key]['offset'] = monstation['offset']
+            crit_monstations[key]['subcase'] = []
+            crit_monstations[key]['loads'] = []
+            crit_monstations[key]['t'] = []
+            # copy only critical subcases into new monstation
+            for subcase_id in monstation['subcase']:
+                if subcase_id in crit_trimcases:
+                    pos_to_copy = monstation['subcase'].index(subcase_id)
+                    crit_monstations[key]['subcase'] += [monstation['subcase'][pos_to_copy]]
+                    crit_monstations[key]['loads'] += [monstation['loads'][pos_to_copy]]
+                    crit_monstations[key]['t'] += [monstation['t'][pos_to_copy]]
+        logging.info('saving critical monstation(s).')
+        with open(filename, 'wb') as f:
+            io_functions.specific_functions.dump_pickle(crit_monstations, f)
+        
+    
     def save_cpacs_header(self):
         
         self.cf.add_elem('/cpacs/header', 'name', self.jcl.general['aircraft'], 'text')
