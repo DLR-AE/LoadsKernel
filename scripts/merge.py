@@ -5,10 +5,12 @@ Created on Thu Nov 27 14:00:31 2014
 @author: voss_ar
 """
 import getpass, platform, logging, sys, copy
-import loadskernel.io_functions.specific_functions as specific_io
-from  loadskernel import auxiliary_output
-from  loadskernel import plotting_standard
 import numpy as np
+
+import loadskernel.io_functions.specific_functions as specific_io
+from loadskernel import auxiliary_output
+from loadskernel import plotting_standard
+from loadskernel import kernel
 
 class Merge:
     def __init__(self, path_input, path_output):
@@ -23,22 +25,20 @@ class Merge:
                         }
         self.common_monstations = np.array([])
         
-        path_input = specific_io.check_path(path_input) 
-        path_output = specific_io.check_path(path_output) 
-        self.path_input  = path_input
-        self.path_output = path_output
+        self.path_input = specific_io.check_path(path_input) 
+        self.path_output = specific_io.check_path(path_output) 
     
     def load_job(self, job_name):
         # load jcl
         jcl = specific_io.load_jcl(job_name, self.path_input, jcl=None)
         
         logging.info( '--> Loading monstations(s).' )
-        with open(self.path_output + 'monstations_' + job_name + '.pickle', 'r') as f:
-            monstations = io.load_pickle(f)
+        with open(self.path_output + 'monstations_' + job_name + '.pickle', 'rb') as f:
+            monstations = specific_io.load_pickle(f)
 
         logging.info( '--> Loading dyn2stat.'  )
-        with open(self.path_output + 'dyn2stat_' + job_name + '.pickle', 'r') as f:
-            dyn2stat_data = io.load_pickle(f)
+        with open(self.path_output + 'dyn2stat_' + job_name + '.pickle', 'rb') as f:
+            dyn2stat_data = specific_io.load_pickle(f)
         
         # save into data structure
         self.datasets['ID'].append(self.datasets['n'])  
@@ -55,13 +55,14 @@ class Merge:
         self.update_fields()
         
     def update_fields(self):
-        keys = [monstations.keys() for monstations in self.datasets['monstations']]
+        keys = [list(monstations) for monstations in self.datasets['monstations']]
         self.common_monstations = np.unique(keys)
-
             
     def run_merge(self, job_name, jobs_to_merge):
            
-        self.setup_logger( job_name )
+        k = kernel.Kernel(job_name, path_input=self.path_input, path_output=self.path_output)
+        k.setup()
+        k.setup_logger()
         logging.info( 'Starting Loads Merge')
         logging.info( 'user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() +')')
         self.model = specific_io.load_model(jobs_to_merge[0], self.path_output)
@@ -70,7 +71,8 @@ class Merge:
         self.plot_monstations(job_name)
         self.build_auxiliary_output(job_name)
 
-        print 'Done.'
+        logging.info('Loads Merge finished.')
+        k.print_logo()
     
     def build_new_dataset(self):
         # Init new datastructure
@@ -83,7 +85,7 @@ class Merge:
         
         # Merge datasets
         for x in range(self.datasets['n']):
-            print 'Working on {} ...'.format(self.datasets['desc'][x])
+            logging.info('Working on {} ...'.format(self.datasets['desc'][x]))
             # Append trimcases
             new_jcl.trimcase += self.datasets['jcl'][x].trimcase
             new_jcl.simcase += self.datasets['jcl'][x].simcase
@@ -93,10 +95,9 @@ class Merge:
                     new_dyn2stat[key] = []
                 new_dyn2stat[key] += self.datasets['dyn2stat'][x][key]
                     
-                
             # Handle monstations
             for station in self.common_monstations:
-                if station not in new_monstations.keys():
+                if station not in new_monstations:
                     # create (empty) entries for new monstation
                     new_monstations[station] = {'CD': self.datasets['monstations'][x][station]['CD'],
                                                 'CP': self.datasets['monstations'][x][station]['CP'],
@@ -108,13 +109,13 @@ class Merge:
                 # Check for dynamic loads.
                 if np.size(self.datasets['monstations'][x][station]['t'][0]) == 1:
                     # Scenario 1: There are only static loads.
-                    print '- {}: found static loads'.format(station)
+                    logging.info('- {}: found static loads'.format(station))
                     loads_string   = 'loads'
                     subcase_string = 'subcase'
                     t_string = 't'
                 elif (np.size(self.datasets['monstations'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['monstations'][x][station].keys()) and (self.datasets['monstations'][x][station]['loads_dyn2stat'] != []):
                     # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
-                    print '- {}: found dyn2stat loads -> discarding dynamic loads'.format(station)
+                    logging.info('- {}: found dyn2stat loads -> discarding dynamic loads'.format(station))
                     loads_string   = 'loads_dyn2stat'
                     subcase_string = 'subcases_dyn2stat'
                     t_string = 't_dyn2stat'
@@ -150,36 +151,19 @@ class Merge:
         logging.info( '--> Saving auxiliary output data.')
         jcl           = self.datasets['jcl'][self.new_dataset_id]
         dyn2stat_data = self.datasets['dyn2stat'][self.new_dataset_id]
+        monstations   = self.datasets['monstations'][self.new_dataset_id]
         
         aux_out = auxiliary_output.AuxiliaryOutput(jcl=jcl, model=self.model, trimcase=jcl.trimcase)
         aux_out.crit_trimcases = self.crit_trimcases
         aux_out.dyn2stat_data = dyn2stat_data
+        aux_out.monstations = monstations
         
         aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
         aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=True) 
-    
-    def setup_logger(self, job_name):
-        # define a Handler which writes INFO messages or higher to the sys.stout
-        console = logging.StreamHandler(sys.stdout)
-        console.setLevel(logging.INFO)
-        formatter = logging.Formatter(fmt='%(levelname)s: %(message)s')  # set a format which is simpler for console use
-        console.setFormatter(formatter)  # tell the handler to use this format
-        # define a Handler which writes INFO messages or higher to a log file
-        logfile = logging.FileHandler(filename=self.path_output + 'log_' + job_name + ".txt", mode='w')
-        logfile.setLevel(logging.INFO)
-        formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
-        logfile.setFormatter(formatter)
-        # add the handler(s) to the root logger
-        logger = logging.getLogger('')
-        logger.setLevel(logging.INFO)
-        logger.addHandler(console)
-        logger.addHandler(logfile)
+        aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name + '.pickle', dyn2stat=True) 
     
 if __name__ == "__main__":
-#     print "Please use the launch-script 'launch.py' from your input directory."
-#     sys.exit()
-    jobs_to_merge = ['jcl_XRF1_cfd_ll2_all', 
-                     'jcl_XRF1_cfd_ll2_upwind']
-    m = Merge(path_input='/scratch/XRF1_LoadsKernel/JCLs', path_output='/scratch/XRF1_LoadsKernel')
-    m.run_merge('jcl_XRF1_cfd_merged_ll2', jobs_to_merge)
+    jobs_to_merge = ['jcl_HAP-O2_maneuver', 'jcl_HAP-O2_gust_closedloop']
+    m = Merge(path_input='/scratch/HAP_workingcopy/JCLs', path_output='/scratch/HAP_LoadsKernel')
+    m.run_merge('jcl_HAP-O2_merged', jobs_to_merge)
     
