@@ -108,7 +108,7 @@ class Kernel():
                 if 't_final' and 'dt' in self.jcl.simcase[i].keys():
                     mon.gather_dyn2stat(-1, response, mode='time-based')
                 else:
-                    mon.gather_dyn2stat(-1, response, mode='stat2stat')
+                    mon.gather_dyn2stat(i, response, mode='stat2stat')
 
             logging.info('--> Saving response(s).')
             io_functions.specific_functions.dump_pickle(response, f)
@@ -188,7 +188,7 @@ class Kernel():
                 if 't_final' and 'dt' in self.jcl.simcase[i].keys():
                     mon.gather_dyn2stat(-1, response, mode='time-based')
                 else:
-                    mon.gather_dyn2stat(-1, response, mode='stat2stat')
+                    mon.gather_dyn2stat(i, response, mode='stat2stat')
 
                 logging.info('--> Saving response(s).')
                 io_functions.specific_functions.dump_pickle(response, f)
@@ -292,7 +292,7 @@ class Kernel():
                 if 't_final' and 'dt' in self.jcl.simcase[m['i']].keys():
                     mon.gather_dyn2stat(-1, m, mode='time-based')
                 else:
-                    mon.gather_dyn2stat(-1, m, mode='stat2stat')
+                    mon.gather_dyn2stat(m['i'], m, mode='stat2stat')
             else:
                 # trim failed, no post processing, save 'None'
                 logging.info("--> Received response ('failed') from worker.")
