@@ -144,7 +144,7 @@ class AuxiliaryOutput:
             crit_trimcases = self.crit_trimcases
         crit_trimcases_info = []
         for i_case in range(len(self.jcl.trimcase)):
-            if self.jcl.trimcase[i_case]['subcase'] in crit_trimcases:
+            if str(self.jcl.trimcase[i_case]['subcase']) in crit_trimcases:
                 trimcase = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
                             'desc':     self.jcl.trimcase[i_case]['desc'],}
 #                 does not work if maneuver and time simulations are handled simultaneously
@@ -175,11 +175,11 @@ class AuxiliaryOutput:
             crit_trimcases = self.crit_trimcases
             with open(filename+'_Pg', 'w') as fid: 
                 for i_case in range(len(self.jcl.trimcase)):
-                    if self.jcl.trimcase[i_case]['subcase'] in crit_trimcases:
+                    if str(self.jcl.trimcase[i_case]['subcase']) in crit_trimcases:
                         io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_case]['Pg'], self.jcl.trimcase[i_case]['subcase'])
             with open(filename+'_subcases', 'w') as fid:         
                 for i_case in range(len(self.jcl.trimcase)):
-                    if self.jcl.trimcase[i_case]['subcase'] in crit_trimcases:
+                    if str(self.jcl.trimcase[i_case]['subcase']) in crit_trimcases:
                         io_functions.nastran_functions.write_subcases(fid, self.jcl.trimcase[i_case]['subcase'], self.jcl.trimcase[i_case]['desc'])
     
     def write_critical_sectionloads(self, filename, dyn2stat=False): 
