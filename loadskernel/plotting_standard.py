@@ -19,7 +19,14 @@ class StandardPlots():
         self.model = model
         self.responses = None
         self.monstations = None
-                
+        self.potatos_fz_mx = [] # Wing, HTP
+        self.potatos_mx_my = [] # Wing, HTP, VTP
+        self.potatos_fz_my = []
+        self.potatos_fy_mx = [] # VTP
+        self.potatos_mx_mz = [] # VTP
+        self.potatos_my_mz = [] # FUS
+        self.cuttingforces_wing = []
+        
         # Allegra
         if self.jcl.general['aircraft'] == 'ALLEGRA':
             self.potatos_fz_mx = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
@@ -83,9 +90,24 @@ class StandardPlots():
             self.f_scale = 0.002 # vectors
             self.p_scale = 0.4 # points
         elif self.jcl.general['aircraft'] in ['HAP-C1', 'HAP-C2', 'HAP']:
-            self.potatos_fz_mx = ['64001']
-            self.potatos_mx_my = ['64001']
-            self.potatos_fz_my = ['64001']
+            self.potatos_fz_mx =      ['64001', '64002', '64003', '64004', '64005', '64006', '64007', '64008', '64009', '64010', 
+                                       '64011', '64012', '64013', '64014', '64015', '64016', '64017', '64018', '64019', '64020', 
+                                       '64021', '64022', '64023', '64024', '64025', '64026', '64027', '64028', '64029', '64030', 
+                                       '64031', '64032', '64033', '64034', '64035',
+                                       '33301', '33302', '33303', '33304', '33305', '33306', '33307', '33308', '33309', '33310', 
+                                       '33311', '33312', '33313'] # Wing, HTP
+            self.potatos_mx_my =      ['64001', '64002', '64003', '64004', '64005', '64006', '64007', '64008', '64009', '64010', 
+                                       '64011', '64012', '64013', '64014', '64015', '64016', '64017', '64018', '64019', '64020', 
+                                       '64021', '64022', '64023', '64024', '64025', '64026', '64027', '64028', '64029', '64030', 
+                                       '64031', '64032', '64033', '64034', '64035',
+                                       '33301', '33302', '33303', '33304', '33305', '33306', '33307', '33308', '33309', '33310', 
+                                       '33311', '33312', '33313',
+                                       '100001', '100002', '100003', '100004', '100005', '100006', '100007', '100008', '100009', '100010'] # Wing, HTP, VTP
+            self.potatos_fz_my =      []
+            self.potatos_fy_mx =      ['33201', '33202', '33203', '33204', '33205', '33206'] # VTP
+            self.potatos_mx_mz =      ['33201', '33202', '33203', '33204', '33205', '33206'] # VTP
+            self.potatos_my_mz =      ['100001', '100002', '100003', '100004', '100005', '100006', '100007', '100008', '100009', '100010'] # FUS
+             
             self.cuttingforces_wing = ['54035', '54034', '54033', '54032', '54031', '54030', '54029', '54028', '54027', '54026', 
                                        '54025', '54024', '54023', '54022', '54021', '54020', '54019', '54018', '54017', '54016', 
                                        '54015', '54014', '54013', '54012', '54011', '54010', '54009', '54008', '54007', '54006', 
@@ -264,7 +286,7 @@ class StandardPlots():
         fig = plt.figure()
         self.subplot = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
         
-        potato = np.unique(self.potatos_fz_mx + self.potatos_mx_my + self.potatos_fz_my)
+        potato = np.unique(self.potatos_fz_mx + self.potatos_mx_my + self.potatos_fz_my + self.potatos_fy_mx + self.potatos_mx_mz + self.potatos_my_mz)
         self.crit_trimcases = []
         for station in potato:            
             if station in self.potatos_fz_mx:
@@ -284,6 +306,24 @@ class StandardPlots():
                 var_yaxis='My [Nm]'
                 dof_xaxis=2
                 dof_yaxis=4
+                self.potato_plot_nicely(station, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
+            if station in self.potatos_fy_mx:
+                var_xaxis='Fy [N]'
+                var_yaxis='Mx [Nm]'
+                dof_xaxis=1
+                dof_yaxis=3
+                self.potato_plot_nicely(station, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
+            if station in self.potatos_mx_mz:
+                var_xaxis='Mx [Nm]'
+                var_yaxis='Mz [Nm]'
+                dof_xaxis=3
+                dof_yaxis=5
+                self.potato_plot_nicely(station, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
+            if station in self.potatos_my_mz:
+                var_xaxis='My [Nm]'
+                var_yaxis='Mz [Nm]'
+                dof_xaxis=4
+                dof_yaxis=5
                 self.potato_plot_nicely(station, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
         plt.close(fig)
           
