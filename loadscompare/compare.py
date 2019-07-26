@@ -55,7 +55,7 @@ class App:
         self.file_opt = {}
         self.file_opt['filetypes']  = [('Loads Kernel files', 'monstation*.pickle'), ('all pickle files', '.pickle'), ('all files', '.*')]
         self.file_opt['initialdir'] = os.getcwd()
-        self.file_opt['title']      = 'This is a title'
+        self.file_opt['title']      = 'Load Monstations'
         
         # --- init GUI ---
 
@@ -90,7 +90,7 @@ class App:
         root.grid_rowconfigure(1, weight=1)
 
         # ListBox to select several datasets 
-        self.lb_dataset = tk.Listbox(frame_left_top, height=10, selectmode=tk.EXTENDED, exportselection=False)
+        self.lb_dataset = tk.Listbox(frame_left_top, height=20, selectmode=tk.EXTENDED, exportselection=False)
         self.lb_dataset.grid(row=0, column=0, sticky=(tk.N,tk.W,tk.E,tk.S))
         self.lb_dataset.bind('<<ListboxSelect>>', self.show_choice)
         s_dataset = ttk.Scrollbar(frame_left_top, orient=tk.VERTICAL, command=self.lb_dataset.yview)
@@ -111,11 +111,11 @@ class App:
         self.cb_color.bind('<<ComboboxSelected>>', self.update_color )        
 
         # ListBox to select monstations 
-        self.lb_mon = tk.Listbox(frame_left_top, height=10, selectmode=tk.SINGLE, exportselection=False)
-        self.lb_mon.grid(row=0, column=2, sticky=(tk.N,tk.W,tk.E,tk.S))
+        self.lb_mon = tk.Listbox(frame_left_top, height=20, selectmode=tk.SINGLE, exportselection=False)
+        self.lb_mon.grid(row=0, column=2, rowspan=8, sticky=(tk.N,tk.W,tk.E,tk.S))
         self.lb_mon.bind('<<ListboxSelect>>', self.show_choice)
         s_mon = ttk.Scrollbar(frame_left_top, orient=tk.VERTICAL, command=self.lb_mon.yview)
-        s_mon.grid(row=0, column=3, sticky=(tk.N,tk.S))
+        s_mon.grid(row=0, column=3, rowspan=8, sticky=(tk.N,tk.S))
         # attach listbox to scrollbar
         self.lb_mon.config(yscrollcommand=s_mon.set)
         s_mon.config(command=self.lb_mon.yview)
@@ -141,6 +141,8 @@ class App:
         cb_labels = ttk.Checkbutton( frame_left_top, text="show labels", variable=self.show_labels,  onvalue=tk.TRUE, offvalue=tk.FALSE, command=self.update_plot )        
         cb_labels.grid(row = 6, column =0, columnspan=2, sticky=(tk.W,tk.E))
         
+        self.label_n_loadcases =tk.Label(frame_left_top, anchor='w', justify='left', padx=0, text='') 
+        self.label_n_loadcases.grid(row=7, column=0, columnspan=2)
         
         # init Matplotlib Plot
         fig1 = mpl.figure.Figure()
@@ -189,6 +191,9 @@ class App:
             color_sel   = [self.datasets['color'][i] for i in current_selection_reversed]
             desc_sel    = [self.datasets['desc'][i] for i in current_selection_reversed]
             mon_sel     = self.common_monstations[self.lb_mon.curselection()]
+            n_subcases = [dataset[mon_sel]['subcase'].__len__() for dataset in dataset_sel ]
+            n_subcases_dyn2stat = [dataset[mon_sel]['subcases_dyn2stat'].__len__() for dataset in dataset_sel ]
+            
             self.plotting.potato_plots( dataset_sel, 
                                         mon_sel, 
                                         desc_sel, 
@@ -200,6 +205,7 @@ class App:
                                         self.show_hull.get(),
                                         self.show_labels.get(),
                                       )
+            self.label_n_loadcases.config(text='Selected load case: {} \nDyn2Stat: {}'.format(np.sum(n_subcases), np.sum(n_subcases_dyn2stat)))
         else:    
             self.plotting.plot_nothing()
         self.canvas.draw()
