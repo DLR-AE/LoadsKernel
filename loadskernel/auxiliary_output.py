@@ -139,7 +139,7 @@ class AuxiliaryOutput:
         # eigentlich gehoert diese Funtion eher zum post-processing als zum
         # plotten, kann aber erst nach dem plotten ausgefuehrt werden...
         if dyn2stat:
-            crit_trimcases = list(set([int(str(crit_trimcase).split('_')[0]) for crit_trimcase in self.crit_trimcases])) # extract original subcase number
+            crit_trimcases = list(set([crit_trimcase.split('_')[0] for crit_trimcase in self.crit_trimcases])) # extract original subcase number
         else: 
             crit_trimcases = self.crit_trimcases
         crit_trimcases_info = []
