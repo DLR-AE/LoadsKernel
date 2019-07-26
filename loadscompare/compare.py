@@ -192,7 +192,10 @@ class App:
             desc_sel    = [self.datasets['desc'][i] for i in current_selection_reversed]
             mon_sel     = self.common_monstations[self.lb_mon.curselection()]
             n_subcases = [dataset[mon_sel]['subcase'].__len__() for dataset in dataset_sel ]
-            n_subcases_dyn2stat = [dataset[mon_sel]['subcases_dyn2stat'].__len__() for dataset in dataset_sel ]
+            try:
+                n_subcases_dyn2stat = [dataset[mon_sel]['subcases_dyn2stat'].__len__() for dataset in dataset_sel ]
+            except:
+                n_subcases_dyn2stat = [0]
             
             self.plotting.potato_plots( dataset_sel, 
                                         mon_sel, 
