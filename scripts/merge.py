@@ -109,16 +109,16 @@ class Merge:
                 # Check for dynamic loads.
                 if np.size(self.datasets['monstations'][x][station]['t'][0]) == 1:
                     # Scenario 1: There are only static loads.
-                    logging.info('- {}: found static loads'.format(station))
                     loads_string   = 'loads'
                     subcase_string = 'subcase'
                     t_string = 't'
+                    logging.info('- {}: found {} static loads'.format(station, self.datasets['monstations'][x][station][subcase_string].__len__() ))
                 elif (np.size(self.datasets['monstations'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['monstations'][x][station].keys()) and (self.datasets['monstations'][x][station]['loads_dyn2stat'] != []):
                     # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
-                    logging.info('- {}: found dyn2stat loads -> discarding dynamic loads'.format(station))
                     loads_string   = 'loads_dyn2stat'
                     subcase_string = 'subcases_dyn2stat'
                     t_string = 't_dyn2stat'
+                    logging.info('- {}: found {} dyn2stat loads -> discarding dynamic loads'.format(station, self.datasets['monstations'][x][station][subcase_string].__len__() ))
                 else:
                     # Scenario 3: There are only dynamic loads. 
                     return
