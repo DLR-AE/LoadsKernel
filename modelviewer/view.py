@@ -272,13 +272,13 @@ class Modelviewer():
         # Elements of monstations tab
         self.list_monstations = QtGui.QListWidget()      
         self.list_monstations.itemClicked.connect(self.get_monstation_for_plotting)
-        self.lb_monstation_name = QtGui.QLabel('Name:')
+        self.lb_monstation_coord = QtGui.QLabel('Coord:')
         bt_monstations_hide = QtGui.QPushButton('Hide')
         bt_monstations_hide.clicked.connect(self.plotting.hide_monstations)
 
         layout_monstations = QtGui.QVBoxLayout(tab_monstations)
         layout_monstations.addWidget(self.list_monstations)
-        layout_monstations.addWidget(self.lb_monstation_name)
+        layout_monstations.addWidget(self.lb_monstation_coord)
         layout_monstations.addWidget(bt_monstations_hide)
 
     def initCSTab(self):
@@ -454,9 +454,9 @@ class Modelviewer():
     def get_monstation_for_plotting(self, *args):
         if self.list_monstations.currentItem() is not None:
             key = self.list_monstations.currentItem().data(0)
-            self.plotting.plot_monstations(monstation=key)
-            pos = np.where(self.model.mongrid['ID'] == int(key))[0][0]
-            self.lb_monstation_name.setText('Name: {}'.format(self.model.mongrid['name'][pos]))
+            monstation_id = self.model.mongrid['ID'][self.model.mongrid['name'].index(key)]
+            self.plotting.plot_monstations(monstation_id)
+            self.lb_monstation_coord.setText('Coord: {}'.format(self.model.mongrid['CD'][self.model.mongrid['name'].index(key)]))
             
     def calc_MAC(self):
         # The mean aerodynamic center is calculated from the aerodynamics.
@@ -569,8 +569,8 @@ class Modelviewer():
 
         self.list_monstations.clear()
         if hasattr(self.model, 'mongrid'):
-            for key in self.model.mongrid['ID']:
-                self.list_monstations.addItem(QtGui.QListWidgetItem(str(key)))
+            for name in self.model.mongrid['name']:
+                self.list_monstations.addItem(QtGui.QListWidgetItem(str(name)))
 
     def load_nastran_results(self):
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.hdf5_opt['title'], self.hdf5_opt['initialdir'], self.hdf5_opt['filters'])[0]

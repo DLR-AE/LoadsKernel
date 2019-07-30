@@ -331,10 +331,10 @@ class Plotting:
         self.show_monstations=False
         mlab.draw(self.fig)
             
-    def plot_monstations(self, monstation):
+    def plot_monstations(self, monstation_id):
         if self.show_monstations:
             self.hide_monstations()
-        pos = self.model.mongrid_rules['ID_i'].index(int(monstation))
+        pos = self.model.mongrid_rules['ID_i'].index(int(monstation_id))
         rules = {'ID_i': [self.model.mongrid_rules['ID_i'][pos]],
                  'ID_d': [self.model.mongrid_rules['ID_d'][pos]],
                 } 
