@@ -10,10 +10,11 @@ plt.rcParams.update({'font.size': 16,
                      'svg.fonttype':'none'})
 from mpl_toolkits.mplot3d import axes3d
 from matplotlib import animation
-import os, logging
-import pickle
+import os, logging, pickle
 from PIL.ImageColor import colormap
+
 from loadskernel import plotting_standard
+import loadskernel.io_functions as io_functions
 
 class DetailedPlots(plotting_standard.StandardPlots):
     
@@ -88,8 +89,8 @@ class DetailedPlots(plotting_standard.StandardPlots):
             plt.show()
             
     def plot_time_data(self):
-        for i_response in range(len(self.responses)):
-            response   = self.responses[i_response]
+        for i_response in range(len(self.jcl.trimcase)):
+            response   = io_functions.specific_functions.load_next(self.responses)
             trimcase   = self.jcl.trimcase[response['i']]
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
             Pb_gust = []
@@ -221,6 +222,16 @@ class DetailedPlots(plotting_standard.StandardPlots):
             plt.grid('on')
             plt.legend(['Cz'])
             
+            plt.figure(8)
+            plt.plot(response['t'], response['X'][:,-4]/np.pi*180.0, 'b-')
+            plt.plot(response['t'], response['X'][:,-3]/np.pi*180.0, 'g-')
+            plt.plot(response['t'], response['X'][:,-2]/np.pi*180.0, 'r-')
+            plt.plot(response['t'], response['X'][:,-1], 'k-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('Inputs [deg,%]')
+            plt.grid('on')
+            plt.legend(['Xi', 'Eta', 'Zeta', 'Thrust'])
+            
             
         # show time plots
         plt.show()
@@ -236,7 +247,6 @@ class Animations(plotting_standard.StandardPlots):
             self.plot_time_animation_3d(i_response, speedup_factor=speedup_factor)
                   
     def plot_time_animation_3d(self, i_response, path_output='./', speedup_factor=1.0, make_movie=False):
-        # To Do: show simulation time in animation
         from mayavi import mlab
         from tvtk.api import tvtk
         response   = self.responses[i_response]
@@ -248,11 +258,10 @@ class Animations(plotting_standard.StandardPlots):
             points_i = np.array([self.x[i], self.y[i], self.z[i]]).T
             scalars_i = self.color_scalar[i,:]
             update_strc_display(self, points_i, scalars_i)
-            #update_aerogrid_display(self, scalars_i)
             update_text_display(self, response['t'][i][0])
-            for src_vector, src_cone, data in zip(self.src_vectors, self.src_cones, self.vector_data):
+            for ug_vector, ug_cone, data in zip(self.ug_vectors, self.ug_cones, self.vector_data):
                 vector_data_i = np.vstack((data['u'][i,:], data['v'][i,:], data['w'][i,:])).T
-                update_vector_display(self, src_vector, src_cone, points_i, vector_data_i)
+                update_vector_display(self, ug_vector, ug_cone, points_i, vector_data_i)
             # get current view and set new focal point
             v = mlab.view()
             r = mlab.roll()
@@ -299,8 +308,8 @@ class Animations(plotting_standard.StandardPlots):
             # store
             self.vector_data.append({'u':u, 'v':v, 'w':w  })
             
-        self.src_vectors = []
-        self.src_cones   = []
+        self.ug_vectors = []
+        self.ug_cones   = []
         def setup_vector_display(self, vector_data, color=(1,0,0), opacity=0.4):
              # vectors
             ug_vector = tvtk.UnstructuredGrid(points=np.vstack((self.x[0,:], self.y[0,:], self.z[0,:])).T)
@@ -308,78 +317,56 @@ class Animations(plotting_standard.StandardPlots):
             src_vector = mlab.pipeline.add_dataset(ug_vector)
             vector = mlab.pipeline.vectors(src_vector, color=color, mode='2ddash', opacity=opacity,  scale_mode='vector', scale_factor=1.0)
             vector.glyph.glyph.clamping=False
-            self.src_vectors.append(src_vector)
+            self.ug_vectors.append(ug_vector)
             # cones for vectors
             ug_cone = tvtk.UnstructuredGrid(points=np.vstack((self.x[0,:]+vector_data['u'][0,:], self.y[0,:]+vector_data['v'][0,:], self.z[0,:]+vector_data['w'][0,:])).T)
             ug_cone.point_data.vectors = np.vstack((vector_data['u'][0,:], vector_data['v'][0,:], vector_data['w'][0,:])).T
             src_cone = mlab.pipeline.add_dataset(ug_cone)
             cone = mlab.pipeline.vectors(src_cone, color=color, mode='cone', opacity=opacity, scale_mode='vector', scale_factor=0.1, resolution=16)
             cone.glyph.glyph.clamping=False
-            self.src_cones.append(src_cone)
+            self.ug_cones.append(ug_cone)
         
-        def update_vector_display(self, src_vector, src_cone, points, vector):
-            src_vector.outputs[0].points.from_array(points)
-            src_vector.outputs[0].point_data.vectors.from_array(vector)
-            src_cone.outputs[0].points.from_array(points+vector)
-            src_cone.outputs[0].point_data.vectors.from_array(vector)
+        def update_vector_display(self, ug_vector, ug_cone, points, vector):
+            ug_vector.points.from_array(points)
+            ug_vector.point_data.vectors.from_array(vector)
+            ug_vector.modified()
+            ug_cone.points.from_array(points+vector)
+            ug_cone.point_data.vectors.from_array(vector)
+            ug_cone.modified()
             
         def setup_strc_display(self, color=(1,1,1)):
             points = np.vstack((self.x[0,:], self.y[0,:], self.z[0,:])).T
             scalars = self.color_scalar[0,:]
-            ug = tvtk.UnstructuredGrid(points=points)
-            ug.point_data.scalars = scalars
+            self.strc_ug = tvtk.UnstructuredGrid(points=points)
+            self.strc_ug.point_data.scalars = scalars
             if hasattr(self.model, 'strcshell'):
                 # plot shell as surface
                 shells = []
                 for shell in self.model.strcshell['cornerpoints']: 
                     shells.append([np.where(self.model.strcgrid['ID']==id)[0][0] for id in shell])
                 shell_type = tvtk.Polygon().cell_type
-                ug.set_cells(shell_type, shells)
-                self.src_points = mlab.pipeline.add_dataset(ug)
-                points  = mlab.pipeline.glyph(self.src_points, colormap='viridis', scale_factor=self.p_scale)
-                surface = mlab.pipeline.surface(self.src_points, colormap='viridis')
+                self.strc_ug.set_cells(shell_type, shells)
+                src_points = mlab.pipeline.add_dataset(self.strc_ug)
+                points  = mlab.pipeline.glyph(src_points, colormap='viridis', scale_factor=self.p_scale)
+                surface = mlab.pipeline.surface(src_points, colormap='viridis')
             else: 
                 # plot points as glyphs
-                self.src_points = mlab.pipeline.add_dataset(ug)
-                points = mlab.pipeline.glyph(self.src_points, colormap='viridis', scale_factor=self.p_scale)
+                src_points = mlab.pipeline.add_dataset(self.strc_ug)
+                points = mlab.pipeline.glyph(src_points, colormap='viridis', scale_factor=self.p_scale)
             points.glyph.glyph.scale_mode = 'data_scaling_off'
         
         def update_strc_display(self, points, scalars):
-            self.src_points.outputs[0].points.from_array(points)
-            self.src_points.outputs[0].point_data.scalars.from_array(scalars)
-            
-        def setup_aerogrid_display(self, color):
-            points = self.model.aerogrid['cornerpoint_grids'][:,(1,2,3)]
-            scalars = self.color_scalar[0,:]
-            ug = tvtk.UnstructuredGrid(points=points)
-            shells = []
-            for shell in self.model.aerogrid['cornerpoint_panels']: 
-                shells.append([np.where(self.model.aerogrid['cornerpoint_grids'][:,0]==id)[0][0] for id in shell])
-            shell_type = tvtk.Polygon().cell_type
-            ug.set_cells(shell_type, shells)
-            ug.cell_data.scalars = scalars
-            self.src_aerogrid = mlab.pipeline.add_dataset(ug)
-            
-            points = mlab.pipeline.glyph(self.src_aerogrid, color=color, scale_factor=self.p_scale)
-            points.glyph.glyph.scale_mode = 'data_scaling_off'
-            
-            surface = mlab.pipeline.surface(self.src_aerogrid, colormap='viridis')
-            surface.actor.mapper.scalar_visibility=True
-            surface.actor.property.edge_visibility=False
-            surface.actor.property.edge_color=(0.9,0.9,0.9)
-            surface.actor.property.line_width=0.5
-        
-        def update_aerogrid_display(self, scalars):
-            self.src_aerogrid.outputs[0].cell_data.scalars.from_array(scalars)
-            self.src_aerogrid.update()
+            self.strc_ug.points.from_array(points)
+            self.strc_ug.point_data.scalars.from_array(scalars)
+            self.strc_ug.modified()
             
         def setup_text_display(self):
-            self.scr_text = mlab.text(x=0.1, y=0.8, text='Time', line_width=0.5, width=0.05)
+            self.scr_text = mlab.text(x=0.1, y=0.8, text='Time', line_width=0.5, width=0.1)
             self.scr_text.property.background_color=(1,1,1)
             self.scr_text.property.color=(0,0,0)
             
         def update_text_display(self, t):
-            self.scr_text.text = 't = ' + str(t) + 's'
+            self.scr_text.text = 't = {:>5.3f}s'.format(t)
         
         def setup_runway(self, length, width, elevation):
             x, y = np.mgrid[0:length,-width/2.0:width/2.0+1]
@@ -396,8 +383,6 @@ class Animations(plotting_standard.StandardPlots):
         self.y = grid['offset'+set][:,1] + response['Ug'][:,grid['set'+set][:,1]]
         self.z = grid['offset'+set][:,2] + response['Ug'][:,grid['set'+set][:,2]]
         self.color_scalar = np.linalg.norm(response['Ug_f'][:,grid['set'+set][:,(0,1,2)]], axis=2)
-        #self.color_scalar = -np.sum(response['Ug_f'][:,grid['set'+set][:,(0,1,2)]], axis=2)
-
         
         # get forces
         names = ['Pg_aero_global', 'Pg_iner_global', ]# 'Pg_idrag_global', 'Pg_cs_global']
@@ -415,7 +400,6 @@ class Animations(plotting_standard.StandardPlots):
             self.fig = mlab.figure(bgcolor=(1,1,1))
         
         # plot initial position
-        #setup_aerogrid_display(self, color=(0.9,0.9,0.9))
         setup_strc_display(self, color=(0.9,0.9,0.9)) # light grey
         setup_text_display(self)
         
@@ -427,6 +411,7 @@ class Animations(plotting_standard.StandardPlots):
         # plot coordinate system
         mlab.orientation_axes()
         
+        # --- optional ---
         # get earth
 #         with open('harz.pickle', 'r') as f:  
 #             (x,y,elev) = pickle.load(f)
@@ -434,11 +419,8 @@ class Animations(plotting_standard.StandardPlots):
 #         surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
 #         setup_runway(self, length=1000.0, width=15.0, elevation=0.0)
         
-        #mlab.view(azimuth=180.0, elevation=90.0, roll=-90.0, distance=70.0, focalpoint=np.array([self.x.mean(),self.y.mean(),self.z.mean()])) # back view
         distance = 2.5*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5
-        #mlab.view(azimuth=135.0, elevation=100.0, roll=-100.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
         mlab.view(azimuth=-120.0, elevation=100.0, roll=-75.0,  distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from left and above
-        #mlab.view(azimuth=-100.0, elevation=65.0, roll=25.0, distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from right and above
 
         if make_movie:
             if not os.path.exists('{}anim/'.format(path_output)):
