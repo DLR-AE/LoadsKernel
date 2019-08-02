@@ -11,7 +11,13 @@ from scipy.integrate import ode
 
 from loadskernel.integrate import RungeKutta4, ExplicitEuler
 import loadskernel.io_functions.specific_functions as specific_io
-import loadskernel.model_equations as model_equations
+
+from loadskernel.model_equations.steady     import Steady
+from loadskernel.model_equations.cfd_steady import CfdSteady
+from loadskernel.model_equations.nonlin_steady import NonlinSteady
+from loadskernel.model_equations.unsteady   import Unsteady
+from loadskernel.model_equations.landing    import Landing
+
 from loadskernel.trim_conditions import TrimConditions
 
 class Trim(TrimConditions):
@@ -82,9 +88,9 @@ class Trim(TrimConditions):
             
     def calc_derivatives(self):        
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
-            equations = model_equations.Steady(self)
+            equations = Steady(self)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
-            equations = model_equations.NonlinSteady(self)
+            equations = NonlinSteady(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -128,11 +134,11 @@ class Trim(TrimConditions):
         # http://www.math.utah.edu/software/minpack/minpack/hybrd.html
             
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
-            equations = model_equations.Steady(self)
+            equations = Steady(self)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
-            equations = model_equations.NonlinSteady(self)
+            equations = NonlinSteady(self)
         elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
-            equations = model_equations.Landing(self)
+            equations = Landing(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -161,18 +167,18 @@ class Trim(TrimConditions):
 
     def exec_sim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
-            equations = model_equations.Steady(self, X0=self.response['X'], simcase=self.simcase)
+            equations = Steady(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
-            equations = model_equations.NonlinSteady(self, X0=self.response['X'], simcase=self.simcase)
+            equations = NonlinSteady(self, X0=self.response['X'], simcase=self.simcase)
         elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
             self.add_landinggear() # add landing gear to system
-            equations = model_equations.Landing(self, X0=self.response['X'], simcase=self.simcase)
+            equations = Landing(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             if 'disturbance' in self.simcase.keys():
                 logging.info('adding disturbance of {} to state(s) '.format(self.simcase['disturbance']))
                 self.response['X'][11+self.simcase['disturbance_mode']] += self.simcase['disturbance']
             self.add_lagstates() # add lag states to system
-            equations = model_equations.Unsteady(self, X0=self.response['X'], simcase=self.simcase)
+            equations = Unsteady(self, X0=self.response['X'], simcase=self.simcase)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
 
@@ -224,9 +230,9 @@ class Trim(TrimConditions):
             
     def iterative_trim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
-            equations = model_equations.Steady(self)
+            equations = Steady(self)
         elif self.jcl.aero['method'] in [ 'cfd_steady']:
-            equations = model_equations.CfdSteady(self)
+            equations = CfdSteady(self)
             specific_io.check_para_path(self.jcl)
             specific_io.copy_para_file(self.jcl, self.trimcase)
             specific_io.check_tau_folders(self.jcl)
@@ -251,12 +257,12 @@ class Trim(TrimConditions):
             logging.info('running trim for ' + str(len(xfree_0)) + ' variables...')
             try:
                 xfree, info, status, msg= so.fsolve(equations.eval_equations_iteratively, xfree_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-3, xtol=1.0e-3 )
-            except model_equations.TauError as e:
+            except Common.TauError as e:
                 self.response = {}
                 self.successful = False
                 logging.warning('Trim failed for subcase {} due to TauError: {}'.format(self.trimcase['subcase'], e))
                 return
-            except model_equations.ConvergenceError as e:
+            except Common.ConvergenceError as e:
                 self.response = {}
                 self.successful = False
                 logging.warning('Trim failed for subcase {} due to ConvergenceError: {}'.format(self.trimcase['subcase'], e))
