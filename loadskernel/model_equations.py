@@ -55,9 +55,9 @@ class Common():
             self.hingeline = 'y'
  
         # import aircraft-specific class from efcs.py dynamically 
-        efcs_class = getattr(efcs, self.jcl.efcs['version'])
+        efcs_module = importlib.import_module('loadskernel.efcs.'+self.jcl.efcs['version'])
         # init efcs
-        self.efcs =  efcs_class() 
+        self.efcs =  efcs_module.Efcs() 
         
         # get cfd splining matrices
         if self.jcl.aero['method'] == 'cfd_steady':
@@ -680,7 +680,7 @@ class Common():
     
     def get_Ux2(self, X):
         # Steuerflaechenausschlaege vom efcs holen
-        Ux2 = self.efcs.efcs(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
+        Ux2 = self.efcs.cs_mapping(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
         return Ux2
     
     def rigid_EoM(self, dUcg_dt, Pb, g_cg, modus):
