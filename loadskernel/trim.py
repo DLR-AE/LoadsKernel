@@ -284,5 +284,14 @@ class Trim(TrimConditions):
 
     def exec_sim_freq_dom(self):
         equations = GustExcitation(self, X0=self.response['X'], simcase=self.simcase)
-        equations.eval_equations()
+        response_sim = equations.eval_equations()
+        for key in response_sim.keys():
+            self.response[key] = np.vstack((self.response[key],response_sim[key]))
+        logging.info('Frequency domain simulation finished.')
+        self.successful = True
+        
+        
+        
+        
+        
        
