@@ -122,7 +122,7 @@ class BuildMass:
         modes_selection = copy.deepcopy(self.jcl.mass['modes'][i_mass])         
         if self.jcl.mass['omit_rb_modes']: 
               modes_selection += 6
-        eigenvalue, eigenvector = self.calc_modes(self.Kaa, Maa, modes_selection.max())
+        eigenvalue, eigenvector = self.calc_elastic_modes(self.Kaa, Maa, modes_selection.max())
         logging.info( 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection))
         # reconstruct modal matrix for g-set / strcgrid
         PHIf_strc = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
@@ -234,8 +234,8 @@ class BuildMass:
     def modalanalysis(self, i_mass):
         modes_selection = copy.deepcopy(self.jcl.mass['modes'][i_mass])
         if self.jcl.mass['omit_rb_modes']: 
-              modes_selection += 6
-        eigenvalue, eigenvector = self.calc_modes(self.KFF, self.MFF, modes_selection.max())
+            modes_selection += 6
+        eigenvalue, eigenvector = self.calc_elastic_modes(self.KFF, self.MFF, modes_selection.max())
         logging.info( 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection))
         # reconstruct modal matrix for g-set / strcgrid
         PHIf_strc = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
@@ -260,14 +260,24 @@ class BuildMass:
             # store vector in modal matrix
             PHIf_strc[:,i] = Ug.squeeze()
             i += 1
-
         # calc modal mass and stiffness
-        Mff = np.dot( eigenvector[:,modes_selection - 1].real.T, self.MFF.dot(eigenvector[:,modes_selection - 1].real) )
-        Kff = np.dot( eigenvector.real[:,modes_selection - 1].T, self.KFF.dot(eigenvector[:,modes_selection - 1].real) )
-        Dff = self.calc_damping(eigenvalue[modes_selection - 1].real)
+        if 'replace_rb_modes' in self.jcl.mass and self.jcl.mass['replace_rb_modes']: 
+            logging.info( 'The first six modes are replaced with synthetic rigid body modes')
+            # replace modes for rigid body motion with synthetic modes
+            eigenvalue[:6], PHIf_strc[:,:6] = self.calc_rbm_modes()
+            Mff = PHIf_strc.T.dot(self.MGG.dot(PHIf_strc))
+            # switch signs of off-diagonal terms in rb mass matrix
+            Mff[:6,:6] = self.Mb
+            Kff = PHIf_strc.T.dot(self.KGG.dot(PHIf_strc))
+            # set rigid body stiffness explicitly to zero
+            Kff[np.diag_indices(6)] = eigenvalue[:6]
+        else:
+            Mff = PHIf_strc.T.dot(self.MGG.dot(PHIf_strc))
+            Kff = PHIf_strc.T.dot(self.KGG.dot(PHIf_strc))
+        Dff = self.calc_damping(eigenvalue[modes_selection - 1])
         return Mff, Kff, Dff, PHIf_strc.T
     
-    def calc_modes(self, K, M, n_modes):
+    def calc_elastic_modes(self, K, M, n_modes):
         # perform modal analysis on a-set
         logging.info( 'Modal analysis for first {} modes...'.format( n_modes ))
         eigenvalue, eigenvector = scipy.sparse.linalg.eigs(A=K, M=M , k=n_modes, sigma=0) 
@@ -280,7 +290,14 @@ class BuildMass:
         n_rbm_estimate = np.sum(np.isnan(frequencies) + np.less(frequencies, 0.1))
         if all([n_rbm_estimate < 6, self.jcl.mass['omit_rb_modes']]):
             logging.warning('There are only {} modes < 0.1 Hz! Is the number of rigid body modes correct ??'.format(n_rbm_estimate))
-        return eigenvalue, eigenvector
+        return eigenvalue.real, eigenvector.real
+    
+    def calc_rbm_modes(self):
+        eigenvalue = np.zeros(6)
+        rules = spline_rules.rules_point(self.cggrid, self.strcgrid)
+        PHIstrc_cg = spline_functions.spline_rb(self.cggrid, '', self.strcgrid, '', rules, self.coord)    
+        return eigenvalue, PHIstrc_cg
+        
     
     def calc_damping(self, eigenvalues):
         # Currently, only modal damping is implemented. See Bianchi et al.,
@@ -343,6 +360,9 @@ class BuildMass:
         logging.info( 'Mass: {}'.format(Mb[0,0]))
         logging.info( 'CG at: {}'.format(offset_cg))
         logging.info( 'Inertia: \n{}'.format(Mb[3:6,3:6]))
+        
+        self.Mb = Mb # store for later internal use
+        self.cggrid = cggrid # store for later internal use
         
         return Mb, cggrid, cggrid_norm
     

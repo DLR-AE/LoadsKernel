@@ -170,7 +170,7 @@ class Model:
     
     def build_aero(self):
         logging.info( 'Building aero model...')
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady', 'freq_dom']:
             self.build_aerogrid()
             self.build_aero_matrices()
             self.build_W2GJ()
@@ -214,18 +214,18 @@ class Model:
     
     def build_aero_matrices(self):
         # cast normal vector of panels into a matrix of form (n, n*6)
-        #self.aerogrid['Nmat'] = np.zeros((self.aerogrid['n'], self.aerogrid['n']*6))
         self.aerogrid['Nmat'] = sp.lil_matrix((self.aerogrid['n'], self.aerogrid['n']*6), dtype=float)
         for x in range(self.aerogrid['n']):
             self.aerogrid['Nmat'][x,self.aerogrid['set_k'][x,(0,1,2)]] = self.aerogrid['N'][x,(0,1,2)]
         self.aerogrid['Nmat'] = self.aerogrid['Nmat'].tocsc()
-        # cast normal vector of panels into a matrix of form (n, n*6)
-        #self.aerogrid['Rmat'] = np.zeros((self.aerogrid['n']*6, self.aerogrid['n']*6))
+        # cast downwash due to rotations of panels into a matrix notation
         self.aerogrid['Rmat'] = sp.lil_matrix((self.aerogrid['n']*6, self.aerogrid['n']*6), dtype=float)
         for x in range(self.aerogrid['n']):
             self.aerogrid['Rmat'][x*6+1,self.aerogrid['set_k'][x,5]] = -1.0 # Bug found by Roman. Onflow x r yields a negative downwash
             self.aerogrid['Rmat'][x*6+2,self.aerogrid['set_k'][x,4]] =  1.0
         self.aerogrid['Rmat'] = self.aerogrid['Rmat'].tocsc()
+        # cast areas of panels into matrix notation
+        self.aerogrid['Amat'] = sp.eye(self.aerogrid['n'], dtype=float, format='csc').multiply(self.aerogrid['A'])
             
     def build_W2GJ(self):
         # Correctionfor camber and twist, W2GJ
@@ -318,7 +318,7 @@ class Model:
             logging.error( 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
         
     def build_AICs_unsteady(self):
-        if self.jcl.aero['method'] == 'mona_unsteady':
+        if self.jcl.aero['method'] in ['mona_unsteady']:
             if self.jcl.aero['method_AIC'] == 'dlm':
                 self.build_AICs_DLM()
                 self.build_rfa()
@@ -328,6 +328,8 @@ class Model:
             else:
                 logging.error( 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
         else:
+            if self.jcl.aero['method'] in ['freq_dom'] and self.jcl.aero['method_AIC'] == 'dlm':
+                self.build_AICs_DLM()
             self.aero['n_poles'] = 0
     
     def build_AICs_DLM(self):
@@ -347,6 +349,7 @@ class Model:
                             xz_symmetry=xz_symmetry)
         logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
         self.aero['Qjj_unsteady'] = Qjj # dim: Ma,k,n,n
+        self.aero['k_red'] =  self.jcl.aero['k_red']
         
     def build_AICs_Nastran(self):
         self.aero['Qjj_unsteady'] = np.zeros((len(self.jcl.aero['key']), len(self.jcl.aero['k_red']), self.aerogrid['n'], self.aerogrid['n'] ), dtype=complex)
@@ -358,9 +361,9 @@ class Model:
                 else:
                     Qjj = np.linalg.inv(Ajj.T)
                 self.aero['Qjj_unsteady'][i_aero,i_k,:,:] = Qjj 
+        self.aero['k_red'] =  self.jcl.aero['k_red']
       
     def build_rfa(self):
-        self.aero['k_red'] =  self.jcl.aero['k_red']
         # rfa
         self.aero['ABCD'] = []
         self.aero['RMSE'] = []
@@ -373,7 +376,7 @@ class Model:
             self.aero['RMSE'].append(RMSE)
         self.aero['n_poles'] = n_poles
         self.aero['betas'] =  betas
-        self.aero.pop('Qjj_unsteady') # remove unsteady AICs to save memory
+        #self.aero.pop('Qjj_unsteady') # remove unsteady AICs to save memory
     
     def build_splines(self):
         # ----------------

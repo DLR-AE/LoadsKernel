@@ -21,6 +21,7 @@ class Common():
         self.model      = trim.model
         self.jcl        = trim.jcl
         self.trimcase   = trim.trimcase
+        self.X0         = X0
         self.simcase    = simcase
         self.trimcond_X = trim.trimcond_X
         self.trimcond_Y = trim.trimcond_Y
@@ -47,6 +48,7 @@ class Common():
         self.Mfcg        = self.model.mass['Mfcg'][self.i_mass]
         self.PHIjf       = self.model.mass['PHIjf'][self.i_mass]
         self.PHIkf       = self.model.mass['PHIkf'][self.i_mass]
+        self.PHIlf       = self.model.mass['PHIlf'][self.i_mass]
         self.n_modes     = self.model.mass['n_modes'][self.i_mass] 
         
         self.PHIk_strc   = self.model.PHIk_strc
@@ -102,7 +104,7 @@ class Common():
         # convergence parameter for iterative evaluation
         self.defo_old = 0.0    
         
-        if 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'halfgeneralized':
+        if self.jcl.aero['method'] in ['mona_unsteady', 'freq_dom']:
             self.PHI_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat']).dot(self.model.mass['PHIjf'][self.i_mass])
             self.PHI_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjf'][self.i_mass])
     

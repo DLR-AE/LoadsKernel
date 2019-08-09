@@ -17,6 +17,7 @@ from loadskernel.model_equations.cfd_steady import CfdSteady
 from loadskernel.model_equations.nonlin_steady import NonlinSteady
 from loadskernel.model_equations.unsteady   import Unsteady
 from loadskernel.model_equations.landing    import Landing
+from loadskernel.model_equations.frequency_domain import GustExcitation
 
 from loadskernel.trim_conditions import TrimConditions
 
@@ -118,7 +119,7 @@ class Trim(TrimConditions):
         logging.info('--------------------------------------------------------------------------------------')
                             
     def exec_trim(self):
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'freq_dom']:
             self.direct_trim()
         elif self.jcl.aero['method'] in [ 'cfd_steady']:
             self.iterative_trim()
@@ -133,7 +134,7 @@ class Trim(TrimConditions):
         # ward-difference approximation.
         # http://www.math.utah.edu/software/minpack/minpack/hybrd.html
             
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'freq_dom'] and not hasattr(self.jcl, 'landinggear'):
             equations = Steady(self)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
             equations = NonlinSteady(self)
@@ -165,7 +166,7 @@ class Trim(TrimConditions):
                 logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'], msg))
                 return
 
-    def exec_sim(self):
+    def exec_sim_time_dom(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
             equations = Steady(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
@@ -280,4 +281,8 @@ class Trim(TrimConditions):
                     self.successful = False
                     logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'], msg))
                     return
+
+    def exec_sim_freq_dom(self):
+        equations = GustExcitation(self, X0=self.response['X'], simcase=self.simcase)
+        equations.eval_equations()
        
