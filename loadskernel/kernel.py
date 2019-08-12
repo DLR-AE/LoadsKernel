@@ -152,7 +152,8 @@ class Kernel():
         trim_i.exec_trim()
         # trim_i.iterative_trim()
         if trim_i.successful and 't_final' and 'dt' in i_jcl.simcase[i].keys():
-            trim_i.exec_sim()
+            trim_i.exec_sim_time_dom()
+            #trim_i.exec_sim_freq_dom()
         response = trim_i.response
         response['i'] = i
         response['successful'] = trim_i.successful
@@ -381,7 +382,7 @@ class Kernel():
             # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
-        responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
+        responses = io_functions.specific_functions.open_responses(self.job_name, self.path_output)
         logging.info( '--> Drawing some more detailed plots.')  
         plt = plotting_extra.DetailedPlots(self.jcl, model)
         plt.add_responses(responses)
