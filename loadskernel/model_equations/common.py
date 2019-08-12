@@ -291,8 +291,8 @@ class Common():
         # There are lag states for the rotational motion (_1) and for the translational motion (_2).
         # This is to separate the lag states as the AIC matrices need to be generalized differently for the two cases.
         # In addition, the lag states depend on the generalized velocity and the generalized acceleration.
-        lag_states_1 = X[12+self.n_modes*2+3:12+self.n_modes*2+3+self.n_modes*n_poles].reshape((self.n_modes,n_poles))
-        lag_states_2 = X[12+self.n_modes*2+3+self.n_modes*n_poles:12+self.n_modes*2+3+self.n_modes*n_poles*2].reshape((self.n_modes,n_poles))
+        lag_states_1 = X[self.trim.idx_lag_states[:self.trim.n_lag_states/2]].reshape((self.n_modes,n_poles))
+        lag_states_2 = X[self.trim.idx_lag_states[self.trim.n_lag_states/2:]].reshape((self.n_modes,n_poles))
         c_over_Vtas = (0.5*c_ref)/Vtas
         if t <= 0.0: # initial step
             self.t_old  = np.copy(t) 
@@ -358,7 +358,7 @@ class Common():
         ABCD        = self.model.aero['ABCD'][self.i_aero]
         c_ref       = self.jcl.general['c_ref']
     
-        lag_states = X[12+self.n_modes*2+3:12+self.n_modes*2+3+n_j*n_poles].reshape((n_j,n_poles))
+        lag_states = X[self.trim.idx_lag_states].reshape((n_j,n_poles))
         c_over_Vtas = (0.5*c_ref)/Vtas
         if t <= 0.0: # initial step
             self.t_old  = np.copy(t) 
