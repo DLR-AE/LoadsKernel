@@ -79,7 +79,7 @@ class Common():
             Vtas = sum(uvw**2)**0.5
         
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD']
-            self.x0 = self.simcase['gust_para']['T1'] * Vtas 
+            self.s0 = self.simcase['gust_para']['T1'] * Vtas 
             if 'WG_TAS' not in self.simcase.keys():
                 self.WG_TAS, U_ds, V_gust = design_gust_cs_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], self.model.atmo['rho'][self.i_atmo], Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
             else:
@@ -236,7 +236,7 @@ class Common():
         wj = np.zeros(self.model.aerogrid['n'])
         if self.simcase and self.simcase['gust']:
             # Eintauchtiefe in die Boe berechnen
-            s_gust = (X[0] - self.model.aerogrid['offset_j'][:,0] - self.x0)
+            s_gust = (X[0] - self.model.aerogrid['offset_j'][:,0] - self.s0)
             # downwash der 1-cos Boe auf ein jedes Panel berechnen
             wj_gust = self.WG_TAS * 0.5 * (1-np.cos(np.pi * s_gust / self.simcase['gust_gradient']))
             wj_gust[np.where(s_gust <= 0.0)] = 0.0

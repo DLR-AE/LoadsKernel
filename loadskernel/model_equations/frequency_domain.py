@@ -152,7 +152,7 @@ class GustExcitation(Common):
     def wj_gust(self, t):
         ac_position = np.array([t * self.Vtas]*self.model.aerogrid['n'])
         panel_offset = np.array([self.model.aerogrid['offset_j'][:,0]]*t.__len__()).T
-        s_gust = (ac_position - panel_offset - self.x0)
+        s_gust = (ac_position - panel_offset - self.s0)
         # downwash der 1-cos Boe auf ein jedes Panel berechnen
         wj_gust = self.WG_TAS * 0.5 * (1-np.cos(np.pi * s_gust / self.simcase['gust_gradient']))
         wj_gust[np.where(s_gust <= 0.0)] = 0.0
