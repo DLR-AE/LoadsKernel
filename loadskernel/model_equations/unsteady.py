@@ -30,7 +30,9 @@ class Unsteady(Common):
         wj = wj_rbm + wj_cam + wj_cs + wj_f + wj_gust
         Pk_idrag         = self.idrag(wj, q_dyn)
         Pk_unsteady, dlag_states_dt = self.unsteady(X, t, wj, Uf, dUf_dt, onflow, q_dyn, Vtas)
-                
+        
+        Pextra, Pb_ext, Pf_ext = self.engine(X)
+        
         # -------------------------------  
         # --- correction coefficients ---   
         # -------------------------------
@@ -41,7 +43,7 @@ class Unsteady(Common):
         # ---------------------------
         Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero)
-        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr
+        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + Pb_ext
         
         g_cg = gravitation_on_earth(self.PHInorm_cg, Tgeo2body)
                
@@ -49,7 +51,7 @@ class Unsteady(Common):
         # --- EoM ---   
         # -----------
         d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg, modus)
-        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
+        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) + Pf_ext # viel schneller!
         d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
         
         # ----------------------
@@ -67,10 +69,10 @@ class Unsteady(Common):
                        dcommand, 
                        dlag_states_dt,
                        Nxyz[2],
-                       Vtas, 
+                       Vtas,
                        beta,
-                     ))
-             
+                     )) 
+        
         if modus in ['trim', 'sim']:
             return Y
         elif modus in ['trim_full_output', 'sim_full_output']:
@@ -100,7 +102,7 @@ class Unsteady(Common):
                         'd2Uf_dt2': d2Uf_dt2,
                         'Nxyz': Nxyz,
                         'g_cg': g_cg,
-                        'Pextra': None,
+                        'Pextra': Pextra,
                        }
             return response        
     
