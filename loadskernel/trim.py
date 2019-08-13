@@ -166,6 +166,68 @@ class Trim(TrimConditions):
                 logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'], msg))
                 return
 
+    def iterative_trim(self):
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
+            equations = Steady(self)
+        elif self.jcl.aero['method'] in [ 'cfd_steady']:
+            equations = CfdSteady(self)
+            specific_io.check_para_path(self.jcl)
+            specific_io.copy_para_file(self.jcl, self.trimcase)
+            specific_io.check_tau_folders(self.jcl)
+        else:
+            logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
+        
+        # remove modes from trimcond_Y and _Y
+        i_mass = self.model.mass['key'].index(self.trimcase['mass'])
+        n_modes = self.model.mass['n_modes'][i_mass]
+        
+        for i_mode in range(n_modes):
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'd2Uf_d2t'+str(i_mode)))[0][0],1] = 'fix'
+        xfree_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]] # start trim from scratch
+        
+        if self.trimcase['maneuver'] == 'bypass':
+            logging.info('running bypass...')
+            self.response = equations.eval_equations(xfree_0, time=0.0, modus='trim_full_output')
+        else:
+            logging.info('running trim for ' + str(len(xfree_0)) + ' variables...')
+            try:
+                xfree, info, status, msg= so.fsolve(equations.eval_equations_iteratively, xfree_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-3, xtol=1.0e-3 )
+            except Common.TauError as e:
+                self.response = {}
+                self.successful = False
+                logging.warning('Trim failed for subcase {} due to TauError: {}'.format(self.trimcase['subcase'], e))
+                return
+            except Common.ConvergenceError as e:
+                self.response = {}
+                self.successful = False
+                logging.warning('Trim failed for subcase {} due to ConvergenceError: {}'.format(self.trimcase['subcase'], e))
+                return
+            else:
+                logging.info(msg)
+                logging.info('function evaluations: ' + str(info['nfev']))
+                # no errors, check trim status for success
+                if status == 1:
+                    # if trim was successful, then do one last evaluation with the final parameters.
+                    self.response = equations.eval_equations_iteratively(xfree, time=0.0, modus='trim_full_output')
+                    self.successful = True
+                else:
+                    self.response = {}
+                    self.successful = False
+                    logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'], msg))
+                    return
+
+    def exec_sim(self):
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady']:
+            self.exec_sim_time_dom()
+        elif self.jcl.aero['method'] in [ 'freq_dom']:
+            self.exec_sim_freq_dom()
+        else:
+            logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
+        
+        
     def exec_sim_time_dom(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
             equations = Steady(self, X0=self.response['X'], simcase=self.simcase)
@@ -229,59 +291,6 @@ class Trim(TrimConditions):
             integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=1e-4)
         return integrator
             
-    def iterative_trim(self):
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
-            equations = Steady(self)
-        elif self.jcl.aero['method'] in [ 'cfd_steady']:
-            equations = CfdSteady(self)
-            specific_io.check_para_path(self.jcl)
-            specific_io.copy_para_file(self.jcl, self.trimcase)
-            specific_io.check_tau_folders(self.jcl)
-        else:
-            logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
-        
-        # remove modes from trimcond_Y and _Y
-        i_mass = self.model.mass['key'].index(self.trimcase['mass'])
-        n_modes = self.model.mass['n_modes'][i_mass]
-        
-        for i_mode in range(n_modes):
-            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],1] = 'fix'
-            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
-            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
-            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'd2Uf_d2t'+str(i_mode)))[0][0],1] = 'fix'
-        xfree_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]] # start trim from scratch
-        
-        if self.trimcase['maneuver'] == 'bypass':
-            logging.info('running bypass...')
-            self.response = equations.eval_equations(xfree_0, time=0.0, modus='trim_full_output')
-        else:
-            logging.info('running trim for ' + str(len(xfree_0)) + ' variables...')
-            try:
-                xfree, info, status, msg= so.fsolve(equations.eval_equations_iteratively, xfree_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-3, xtol=1.0e-3 )
-            except Common.TauError as e:
-                self.response = {}
-                self.successful = False
-                logging.warning('Trim failed for subcase {} due to TauError: {}'.format(self.trimcase['subcase'], e))
-                return
-            except Common.ConvergenceError as e:
-                self.response = {}
-                self.successful = False
-                logging.warning('Trim failed for subcase {} due to ConvergenceError: {}'.format(self.trimcase['subcase'], e))
-                return
-            else:
-                logging.info(msg)
-                logging.info('function evaluations: ' + str(info['nfev']))
-                # no errors, check trim status for success
-                if status == 1:
-                    # if trim was successful, then do one last evaluation with the final parameters.
-                    self.response = equations.eval_equations_iteratively(xfree, time=0.0, modus='trim_full_output')
-                    self.successful = True
-                else:
-                    self.response = {}
-                    self.successful = False
-                    logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'], msg))
-                    return
-
     def exec_sim_freq_dom(self):
         equations = GustExcitation(self, X0=self.response['X'], simcase=self.simcase)
         response_sim = equations.eval_equations()
@@ -290,8 +299,3 @@ class Trim(TrimConditions):
         logging.info('Frequency domain simulation finished.')
         self.successful = True
         
-        
-        
-        
-        
-       

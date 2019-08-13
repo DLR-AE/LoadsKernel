@@ -152,8 +152,7 @@ class Kernel():
         trim_i.exec_trim()
         # trim_i.iterative_trim()
         if trim_i.successful and 't_final' and 'dt' in i_jcl.simcase[i].keys():
-            trim_i.exec_sim_time_dom()
-            #trim_i.exec_sim_freq_dom()
+            trim_i.exec_sim()
         response = trim_i.response
         response['i'] = i
         response['successful'] = trim_i.successful
