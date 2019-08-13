@@ -42,6 +42,9 @@ class Common():
         self.Mff         = self.model.mass['Mff'][self.i_mass]
         self.Kff         = self.model.mass['Kff'][self.i_mass]
         self.Dff         = self.model.mass['Dff'][self.i_mass]
+        self.Mhh         = self.model.mass['Mhh'][self.i_mass]
+        self.Khh         = self.model.mass['Khh'][self.i_mass]
+        self.Dhh         = self.model.mass['Dhh'][self.i_mass]
         self.PHIf_strc   = self.model.mass['PHIf_strc'][self.i_mass]
         self.PHIstrc_cg  = self.model.mass['PHIstrc_cg'][self.i_mass]
         self.Mgg         = self.model.mass['MGG'][self.i_mass]
@@ -49,6 +52,8 @@ class Common():
         self.PHIjf       = self.model.mass['PHIjf'][self.i_mass]
         self.PHIkf       = self.model.mass['PHIkf'][self.i_mass]
         self.PHIlf       = self.model.mass['PHIlf'][self.i_mass]
+        self.PHIjh       = self.model.mass['PHIjh'][self.i_mass]
+        self.PHIlh       = self.model.mass['PHIlh'][self.i_mass]
         self.n_modes     = self.model.mass['n_modes'][self.i_mass] 
         
         self.PHIk_strc   = self.model.PHIk_strc
@@ -105,8 +110,10 @@ class Common():
         self.defo_old = 0.0    
         
         if self.jcl.aero['method'] in ['mona_unsteady', 'freq_dom']:
-            self.PHI_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat']).dot(self.model.mass['PHIjf'][self.i_mass])
-            self.PHI_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjf'][self.i_mass])
+            self.Djf_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat']).dot(self.model.mass['PHIjf'][self.i_mass])
+            self.Djf_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjf'][self.i_mass])
+            self.Djh_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat']).dot(self.model.mass['PHIjh'][self.i_mass])
+            self.Djh_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjh'][self.i_mass])
     
     def ode_arg_sorter(self, t, X):
         return self.eval_equations(X, t, 'sim')
@@ -121,7 +128,7 @@ class Common():
         Pl[self.model.aerogrid['set_l'][:,0]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,0]
         Pl[self.model.aerogrid['set_l'][:,1]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,1]
         Pl[self.model.aerogrid['set_l'][:,2]] = rho * Gamma.dot(wj) * np.cross(q, r)[:,2]
-        Pk = self.model.Dlk.T.dot(Pl)
+        Pk = self.model.PHIlk.T.dot(Pl)
         return Pk
 
     def calc_Pk(self, q_dyn, wj):
@@ -130,7 +137,7 @@ class Common():
         Pl[self.model.aerogrid['set_l'][:,0]] = fl[0,:]
         Pl[self.model.aerogrid['set_l'][:,1]] = fl[1,:]
         Pl[self.model.aerogrid['set_l'][:,2]] = fl[2,:]
-        Pk = self.model.Dlk.T.dot(Pl)
+        Pk = self.model.PHIlk.T.dot(Pl)
         return Pk
 
     def rbm_nonlin(self, dUcg_dt, alpha, Vtas):
@@ -258,7 +265,7 @@ class Common():
             # Der induzierte Widerstand greift in x-Richtung an. Gibt es hierfuer vielleicht eine bessere/generische Loesung?
             Pld[self.model.aerogrid['set_l'][:,0]] = fld
             
-            Pk_idrag = self.model.Dlk.T.dot(Pld)
+            Pk_idrag = self.model.PHIlk.T.dot(Pld)
         else:
             Pk_idrag = np.zeros(self.model.aerogrid['n']*6) 
             
@@ -314,14 +321,14 @@ class Common():
         self.dUf_dt_old = np.copy(dUf_dt)
 
         # B - Daemfungsterm
-        cp_unsteady = ABCD[1,:,:].dot(self.PHI_1).dot(dUf_dt) * c_over_Vtas \
-                    + ABCD[1,:,:].dot(self.PHI_2).dot(d2Uf_d2t) / Vtas * -1.0 * c_over_Vtas 
+        cp_unsteady = ABCD[1,:,:].dot(self.Djf_1).dot(dUf_dt) * c_over_Vtas \
+                    + ABCD[1,:,:].dot(self.Djf_2).dot(d2Uf_d2t) / Vtas * -1.0 * c_over_Vtas 
         flunsteady = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*cp_unsteady
         Plunsteady = np.zeros((6*self.model.aerogrid['n']))
         Plunsteady[self.model.aerogrid['set_l'][:,0]] = flunsteady[0,:]
         Plunsteady[self.model.aerogrid['set_l'][:,1]] = flunsteady[1,:]
         Plunsteady[self.model.aerogrid['set_l'][:,2]] = flunsteady[2,:]
-        Pk_unsteady_B = self.model.Dlk.T.dot(Plunsteady)
+        Pk_unsteady_B = self.model.PHIlk.T.dot(Plunsteady)
         
         # C - Beschleunigungsterm -entfaellt -
         
@@ -338,15 +345,15 @@ class Common():
   
         D_dot_lag = np.zeros(self.model.aerogrid['n'])
         for i_pole in np.arange(0,self.model.aero['n_poles']):
-            D_dot_lag += ABCD[3+i_pole,:,:].dot(self.PHI_1).dot(lag_states_1[:,i_pole]) \
-                       + ABCD[3+i_pole,:,:].dot(self.PHI_2).dot(lag_states_2[:,i_pole])
+            D_dot_lag += ABCD[3+i_pole,:,:].dot(self.Djf_1).dot(lag_states_1[:,i_pole]) \
+                       + ABCD[3+i_pole,:,:].dot(self.Djf_2).dot(lag_states_2[:,i_pole])
         cp_unsteady = D_dot_lag 
         flunsteady = q_dyn * self.model.aerogrid['N'].T*self.model.aerogrid['A']*cp_unsteady
         Plunsteady = np.zeros(6*self.model.aerogrid['n'])
         Plunsteady[self.model.aerogrid['set_l'][:,0]] = flunsteady[0,:]
         Plunsteady[self.model.aerogrid['set_l'][:,1]] = flunsteady[1,:]
         Plunsteady[self.model.aerogrid['set_l'][:,2]] = flunsteady[2,:]
-        Pk_unsteady_D = self.model.Dlk.T.dot(Plunsteady)
+        Pk_unsteady_D = self.model.PHIlk.T.dot(Plunsteady)
        
         Pk_unsteady =  Pk_unsteady_D + Pk_unsteady_B
         return Pk_unsteady, Pk_unsteady_B, Pk_unsteady_D, dlag_states_dt
@@ -391,7 +398,7 @@ class Common():
         Plunsteady[self.model.aerogrid['set_l'][:,0]] = flunsteady[0,:]
         Plunsteady[self.model.aerogrid['set_l'][:,1]] = flunsteady[1,:]
         Plunsteady[self.model.aerogrid['set_l'][:,2]] = flunsteady[2,:]
-        Pk_unsteady_B = self.model.Dlk.T.dot(Plunsteady)
+        Pk_unsteady_B = self.model.PHIlk.T.dot(Plunsteady)
         
         # C - Beschleunigungsterm -entfaellt -
         
@@ -408,7 +415,7 @@ class Common():
         Plunsteady[self.model.aerogrid['set_l'][:,0]] = flunsteady[0,:]
         Plunsteady[self.model.aerogrid['set_l'][:,1]] = flunsteady[1,:]
         Plunsteady[self.model.aerogrid['set_l'][:,2]] = flunsteady[2,:]
-        Pk_unsteady_D = self.model.Dlk.T.dot(Plunsteady)
+        Pk_unsteady_D = self.model.PHIlk.T.dot(Plunsteady)
 
         Pk_unsteady = Pk_unsteady_D + Pk_unsteady_B 
         return Pk_unsteady, Pk_unsteady_B, Pk_unsteady_D, dlag_states_dt

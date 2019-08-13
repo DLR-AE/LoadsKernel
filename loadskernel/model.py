@@ -262,12 +262,12 @@ class Model:
             self.macgrid['offset'] = np.array([self.jcl.general['MAC_ref']])
         
         rules = spline_rules.rules_aeropanel(self.aerogrid)
-        self.Djk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord, sparse_output=True)
-        self.Dlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
+        self.PHIjk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord, sparse_output=True)
+        self.PHIlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
         
         rules = spline_rules.rules_point(self.macgrid, self.aerogrid)
         self.Dkx1 = spline_functions.spline_rb(self.macgrid, '', self.aerogrid, '_k', rules, self.coord, sparse_output=False)
-        self.Djx1 = self.Djk.dot(self.Dkx1)
+        self.Djx1 = self.PHIjk.dot(self.Dkx1)
     
     def build_cs(self):
         # control surfaces
@@ -450,6 +450,9 @@ class Model:
                          'PHIjf': [],
                          'PHIlf': [],
                          'PHIkf': [],
+                         'PHIjh': [],
+                         'PHIlh': [],
+                         'PHIkh': [],
                          'PHIcfd_f': [],
                          'Mff': [],
                          'Kff': [],
@@ -520,6 +523,7 @@ class Model:
         cggrid_norm     = self.mass['cggrid_norm'][i_mass]
         MGG             = self.mass['MGG'][i_mass]
         PHIf_strc       = self.mass['PHIf_strc'][i_mass]
+        PHIh_strc       = self.mass['PHIh_strc'][i_mass]
                 
         rules = spline_rules.rules_point(cggrid, self.strcgrid)
         PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
@@ -550,9 +554,12 @@ class Model:
         PHIcg_norm = spline_functions.spline_rb(cggrid_norm, '', cggrid, '', rules, self.coord) 
         
         # some pre-multiplications to speed-up main processing
-        PHIjf = self.Djk.dot(self.PHIk_strc.dot(PHIf_strc.T))
-        PHIlf = self.Dlk.dot(self.PHIk_strc.dot(PHIf_strc.T))
+        PHIjf = self.PHIjk.dot(self.PHIk_strc.dot(PHIf_strc.T))
+        PHIlf = self.PHIlk.dot(self.PHIk_strc.dot(PHIf_strc.T))
         PHIkf = self.PHIk_strc.dot(PHIf_strc.T)
+        PHIjh = self.PHIjk.dot(self.PHIk_strc.dot(PHIh_strc.T))
+        PHIlh = self.PHIlk.dot(self.PHIk_strc.dot(PHIh_strc.T))
+        PHIkh = self.PHIk_strc.dot(PHIh_strc.T)
 
         Mfcg=PHIf_strc.dot(-MGG.dot(PHIstrc_cg))
 
@@ -566,4 +573,7 @@ class Model:
         self.mass['PHIjf'].append(PHIjf)
         self.mass['PHIlf'].append(PHIlf)
         self.mass['PHIkf'].append(PHIkf)
+        self.mass['PHIjh'].append(PHIjh)
+        self.mass['PHIlh'].append(PHIlh)
+        self.mass['PHIkh'].append(PHIkh)
 

@@ -16,6 +16,7 @@ from loadskernel.model_equations.common import Common
 class GustExcitation(Common):
     
     def eval_equations(self):
+        self.n_modes = self.model.mass['n_modes'][self.i_mass] + 6
         self.Vtas, self.q_dyn = self.recover_Vtas(self.X0)
         # Number of sample points
         dt = self.simcase['dt']
@@ -41,43 +42,40 @@ class GustExcitation(Common):
             TFs[:,i_mode,:] = self.mirror_fouriersamples_even(fouriersamples[:,i_mode,:])
         logging.info('Transfer functions finished.')
         
-        Pf_fouriersamples, Pk_fouriersamples = self.calc_gust_excitation(fourierfreqs, t)
-        Pf_fourier = self.mirror_fouriersamples_even(Pf_fouriersamples)
+        Ph_fouriersamples, Pk_fouriersamples = self.calc_gust_excitation(fourierfreqs, t)
+        Ph_fourier = self.mirror_fouriersamples_even(Ph_fouriersamples)
         Pk_fourier = self.mirror_fouriersamples_even(Pk_fouriersamples)
         logging.info('Gust excitation finished.')
 
-        Uf_fourier = TFs[:,:,:] * Pf_fourier # [Antwort, Anregung, Frequenz]
-        Uf       = ifft( np.array((Uf_fourier)*(1j*fftomega)**0).sum(axis=1) )
-        dUf_dt   = ifft( np.array((Uf_fourier)*(1j*fftomega)**1).sum(axis=1) )
-        d2Uf_dt2 = ifft( np.array((Uf_fourier)*(1j*fftomega)**2).sum(axis=1) )
+        Uh_fourier = TFs[:,:,:] * Ph_fourier # [Antwort, Anregung, Frequenz]
+        Uh       = ifft( np.array((Uh_fourier)*(1j*fftomega)**0).sum(axis=1) )
+        dUh_dt   = ifft( np.array((Uh_fourier)*(1j*fftomega)**1).sum(axis=1) )
+        d2Uh_dt2 = ifft( np.array((Uh_fourier)*(1j*fftomega)**2).sum(axis=1) )
         Pk_aero  = ifft( Pk_fourier )
         g_cg = np.zeros((3,self.n_freqs))
         commands = np.zeros((self.trim.n_inputs, self.n_freqs))
-        # set rigid body accelerations to zero as they are included in flexible modes
-        dUcg_dt   = np.zeros((6,self.n_freqs))
-        d2Ucg_dt2 = np.zeros((6,self.n_freqs))
-        X = np.concatenate((Uf[:6,:],      # x, y, z, Phi, Theta, Psi
-                            dUf_dt[:6,:],  # u, v, w, p, q, r
-                            Uf[:,:],      # modal deformations
-                            dUf_dt[:,:],  # modal velocities
+        X = np.concatenate((Uh[:6,:],      # x, y, z, Phi, Theta, Psi
+                            dUh_dt[:6,:],  # u, v, w, p, q, r
+                            Uh[6:,:],      # modal deformations
+                            dUh_dt[6:,:],  # modal velocities
                             commands,
                             ))
         response = {'X':X.T,
                     't': np.array([t]).T,
                     'Pk_aero': Pk_aero.T,
-                    'dUcg_dt': dUcg_dt.T,
-                    'd2Ucg_dt2': d2Ucg_dt2.T,
-                    'Uf': Uf.T,
-                    'dUf_dt': dUf_dt.T,
-                    'd2Uf_dt2': d2Uf_dt2.T,
+                    'dUcg_dt': dUh_dt[:6,:].T,
+                    'd2Ucg_dt2': d2Uh_dt2[:6,:].T,
+                    'Uf': Uh[6:,:].T,
+                    'dUf_dt': dUh_dt[6:,:].T,
+                    'd2Uf_dt2': d2Uh_dt2[6:,:].T,
                     'g_cg': g_cg.T,
                     }
         return response  
         
         
 #         plt.figure(2)
-#         #plt.plot(freqs, 2.0/self.n_freqs * np.abs(Pfs_f[:,0:self.n_freqs//2]).T, label='Pf')
-#         plt.plot(freqs, 2.0/self.n_freqs * np.abs(Pf_fourier[:,:self.n_freqs//2]).T, label='Pf')
+#         #plt.plot(freqs, 2.0/self.n_freqs * np.abs(Phs_f[:,0:self.n_freqs//2]).T, label='Ph')
+#         plt.plot(freqs, 2.0/self.n_freqs * np.abs(Ph_fourier[:,:self.n_freqs//2]).T, label='Ph')
 #         plt.xlabel('f [Hz]')
 #         plt.ylabel('Amplitude')
 #         plt.yscale('log')
@@ -111,42 +109,42 @@ class GustExcitation(Common):
 
     def transfer_function(self, f, n=0):
         omega = 2.0*np.pi*f
-        Qff_1 = self.Qff_1_interp(self.k_red(f))
-        Qff_2 = self.Qff_2_interp(self.k_red(f))
-        TF = np.linalg.inv(-self.Mff*omega**2 + 1j*omega*(self.Dff + self.q_dyn*Qff_2) + self.Kff + self.q_dyn*Qff_1)*(1j*omega)**n
+        Qhh_1 = self.Qhh_1_interp(self.k_red(f))
+        Qhh_2 = self.Qhh_2_interp(self.k_red(f))
+        TF = np.linalg.inv(-self.Mhh*omega**2 + 1j*omega*(self.Dhh + self.q_dyn*Qhh_2) + self.Khh + self.q_dyn*Qhh_1)*(1j*omega)**n
         return TF
 
     def build_AIC_interpolators(self):
         # interpolation of physical AIC
         self.Qjj_interp = interp1d( self.model.aero['k_red'], self.model.aero['Qjj_unsteady'][self.i_aero], axis=0, fill_value="extrapolate")
         # do some pre-multiplications first, then the interpolation
-        Qff_1 = []; Qff_2 = []; Qfj = []
+        Qhh_1 = []; Qhh_2 = []; Qhj = []
         for Qjj_unsteady in self.model.aero['Qjj_unsteady'][self.i_aero]:
-            Qff_1.append( self.PHI_1.T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady)).dot(self.PHI_1) )
-            Qff_2.append( self.PHI_2.T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady)).dot(self.PHI_2) )
-            Qfj.append( self.PHIlf.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady))) )
-        self.Qff_1_interp = interp1d( self.model.aero['k_red'], Qff_1, axis=0, fill_value="extrapolate")
-        self.Qff_2_interp = interp1d( self.model.aero['k_red'], Qff_2, axis=0, fill_value="extrapolate")
-        self.Qfj_interp = interp1d( self.model.aero['k_red'], Qfj, axis=0, fill_value="extrapolate")    
+            Qhh_1.append( self.Djh_1.T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady)).dot(self.Djh_1) )
+            Qhh_2.append( self.Djh_2.T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady)).dot(self.Djh_2) )
+            Qhj.append( self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady))) )
+        self.Qhh_1_interp = interp1d( self.model.aero['k_red'], Qhh_1, axis=0, fill_value="extrapolate")
+        self.Qhh_2_interp = interp1d( self.model.aero['k_red'], Qhh_2, axis=0, fill_value="extrapolate")
+        self.Qhj_interp = interp1d( self.model.aero['k_red'], Qhj, axis=0, fill_value="extrapolate")    
     
     def calc_gust_excitation(self, freqs, t):
         # Notation: [n_panels, timesteps]
         wj_gust_f = fft(self.wj_gust(t)) # Eventuell muss wj_gust_f noch skaliert werden mit 2.0/N * np.abs(wj_gust_f[:,0:N//2])
-        Pf_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
+        Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
         Pk_fourier = np.zeros((self.model.aerogrid['n']*6, len(freqs)), dtype='complex128')
         for i_f in range(len(freqs)):
-            Pf_fourier[:,i_f] = self.calc_Pf_fourier(freqs[i_f], wj_gust_f[:,i_f])
+            Ph_fourier[:,i_f] = self.calc_Ph_fourier(freqs[i_f], wj_gust_f[:,i_f])
             Pk_fourier[:,i_f] = self.calc_Pk_fourier(freqs[i_f], wj_gust_f[:,i_f])
-        return Pf_fourier, Pk_fourier
+        return Ph_fourier, Pk_fourier
     
-    def calc_Pf_fourier(self,f, wj):
-        Qfj = self.Qfj_interp(self.k_red(f))
-        Pf = self.q_dyn * Qfj.dot(wj)
-        return Pf
+    def calc_Ph_fourier(self,f, wj):
+        Qhj = self.Qhj_interp(self.k_red(f))
+        Ph = self.q_dyn * Qhj.dot(wj)
+        return Ph
     
     def calc_Pk_fourier(self,f, wj):
         Qjj = self.Qjj_interp(self.k_red(f))
-        Pk = self.q_dyn * self.model.Dlk.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj.dot(wj))))
+        Pk = self.q_dyn * self.model.PHIlk.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj.dot(wj))))
         return Pk
     
     def wj_gust(self, t):

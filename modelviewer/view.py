@@ -471,7 +471,7 @@ class Modelviewer():
         Pl[self.model.aerogrid['set_l'][:,0]] = fl[0,:]
         Pl[self.model.aerogrid['set_l'][:,1]] = fl[1,:]
         Pl[self.model.aerogrid['set_l'][:,2]] = fl[2,:]
-        Pmac = self.model.Dkx1.T.dot(self.model.Dlk.T.dot(Pl))
+        Pmac = self.model.Dkx1.T.dot(self.model.PHIlk.T.dot(Pl))
         self.MAC = np.zeros(3)
         self.MAC[0] = self.model.macgrid['offset'][0,0] -  Pmac[4] / Pmac[2]
         self.MAC[1] = self.model.macgrid['offset'][0,1] +  Pmac[3] / Pmac[2]        
