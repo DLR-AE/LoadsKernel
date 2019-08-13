@@ -4,14 +4,13 @@ Created on Fri Nov 28 10:53:48 2014
 
 @author: voss_ar
 """
-import loadskernel.build_mass_class as build_mass_class
+import loadskernel.build_mass as build_mass
 import loadskernel.build_aero_functions as build_aero_functions
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
 import loadskernel.read_geom as read_geom
 import loadskernel.read_cfdgrids as read_cfdgrids
-import loadskernel.io_functions as io_functions
 from loadskernel.grid_trafo import grid_trafo as grid_trafo
 from loadskernel.atmosphere import isa as atmo_isa
 import loadskernel.VLM as VLM
@@ -79,7 +78,7 @@ class Model:
             # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
             grid_trafo(self.strcgrid, self.coord, 0)
             logging.info('The structural model consists of {} grid points and {} coordinate systems.'.format(self.strcgrid['n'], len(self.coord['ID']) ))
-            if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
+            if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'mona']: 
                 self.KGG = read_geom.nastran_op4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
                 self.GM  = read_geom.nastran_op4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True)
             else:
@@ -446,6 +445,7 @@ class Model:
                          'PHInorm_cg': [],
                          'PHIcg_norm': [],
                          'PHIf_strc': [],
+                         'PHIh_strc': [],
                          'PHIf_extra': [],
                          'PHIjf': [],
                          'PHIlf': [],
@@ -454,9 +454,12 @@ class Model:
                          'Mff': [],
                          'Kff': [],
                          'Dff': [],
+                         'Mhh': [],
+                         'Khh': [],
+                         'Dhh': [],
                          'n_modes': []
                         }
-            bm = build_mass_class.BuildMass(self.jcl, self.strcgrid, self.coord, self.KGG, self.GM )
+            bm = build_mass.BuildMass(self.jcl, self.strcgrid, self.coord, self.KGG, self.GM )
             
             if self.jcl.mass['method'] == 'modalanalysis': 
                 bm.init_modalanalysis()
@@ -484,18 +487,20 @@ class Model:
             MGG = CoFE_data['MGG']
         
         if self.jcl.mass['method'] == 'mona': 
-            Mff, Kff, Dff, PHIf_strc, Mb, cggrid, cggrid_norm = bm.mass_from_SOL103(i_mass)
+            Mb, cggrid, cggrid_norm = bm.cg_from_SOL103(i_mass)
+            bm.modes_from_SOL103(i_mass)
+            bm.MGG = MGG
         elif self.jcl.mass['method'] in ['modalanalysis', 'CoFE']: 
             bm.prepare_mass_matrices(MGG)
-            Mb, cggrid, cggrid_norm     = bm.calc_cg(i_mass)
-            Mff, Kff, Dff, PHIf_strc    = bm.modalanalysis(i_mass)
+            Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass)
+            bm.modalanalysis(i_mass)
         elif self.jcl.mass['method'] == 'guyan': 
             bm.prepare_mass_matrices(MGG)
-            Mb, cggrid, cggrid_norm     = bm.calc_cg(i_mass)
-            Mff, Kff, Dff, PHIf_strc    = bm.guyanreduction(i_mass)
+            Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass)
+            bm.guyanreduction(i_mass)
         else:
             logging.error( 'Unknown mass method: ' + str(self.jcl.mass['method']))
-        
+        Mff, Kff, Dff, PHIf_strc, Mhh, Khh, Dhh, PHIh_strc = bm.calc_modal_matrices()
         self.mass['Mb'].append(Mb)
         self.mass['MGG'].append(MGG)
         self.mass['cggrid'].append(cggrid)
@@ -504,6 +509,10 @@ class Model:
         self.mass['Mff'].append(Mff) 
         self.mass['Kff'].append(Kff) 
         self.mass['Dff'].append(Dff) 
+        self.mass['PHIh_strc'].append(PHIh_strc)
+        self.mass['Mhh'].append(Mhh) 
+        self.mass['Khh'].append(Khh) 
+        self.mass['Dhh'].append(Dhh) 
         self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
                 
     def build_translation_matrices(self, i_mass):

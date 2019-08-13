@@ -1,7 +1,5 @@
 
 import scipy
-#from scipy import sparse
-#from scipy.sparse import linalg
 import numpy as np
 import sys, copy, logging
 import matplotlib.pyplot as plt
@@ -23,48 +21,49 @@ class BuildMass:
         plt.rcParams['svg.fonttype'] = 'none'
         plt.rcParams.update({'font.size': 16})
         
-    def mass_from_SOL103(self, i_mass):
-          # Mff, Kff and PHIstrc_f
-          eigenvalues, eigenvectors, node_ids_all = read_geom.NASTRAN_f06_modal(self.jcl.mass['filename_S103'][i_mass])
-          nodes_selection = self.strcgrid['ID']
-          modes_selection = copy.deepcopy(self.jcl.mass['modes'][i_mass])
-          if self.jcl.mass['omit_rb_modes']:
-              modes_selection += 6
-          eigenvalues, eigenvectors = read_geom.reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection)
-          Mff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedMass']
-          Kff = np.eye(len(self.jcl.mass['modes'][i_mass])) * eigenvalues['GeneralizedStiffness']
-          Dff = self.calc_damping(np.array(eigenvalues['Eigenvalue']).real)
-          PHIf_strc = np.zeros((len(self.jcl.mass['modes'][i_mass]), len(self.strcgrid['ID'])*6))
-          for i_mode in range(len(modes_selection)):
-              eigenvector = eigenvectors[str(modes_selection[i_mode])][:,1:]
-              PHIf_strc[i_mode,:] = eigenvector.reshape((1,-1))[0]
+    def modes_from_SOL103(self, i_mass):
+        # Mff, Kff and PHIstrc_f
+        eigenvalues, eigenvectors, node_ids_all = read_geom.NASTRAN_f06_modal(self.jcl.mass['filename_S103'][i_mass])
+        nodes_selection = self.strcgrid['ID']
+        modes_selection = copy.deepcopy(self.jcl.mass['modes'][i_mass])
+        if self.jcl.mass['omit_rb_modes']:
+            modes_selection += 6
+        eigenvalues, eigenvectors = read_geom.reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection)
+        PHIf_strc = np.zeros((len(self.jcl.mass['modes'][i_mass]), len(self.strcgrid['ID'])*6))
+        for i_mode in range(len(modes_selection)):
+            eigenvector = eigenvectors[str(modes_selection[i_mode])][:,1:]
+            PHIf_strc[i_mode,:] = eigenvector.reshape((1,-1))[0]
+        self.PHIstrc_f = PHIf_strc.T
+        self.eigenvalues_f = np.array(eigenvalues['GeneralizedStiffness'])
           
-          # Mb        
-          massmatrix_0, inertia, offset_cg, CID = read_geom.Nastran_weightgenerator(self.jcl.mass['filename_S103'][i_mass])  
-          cggrid = {"ID": np.array([9000+i_mass]),
-                    "offset": np.array([offset_cg]),
-                    "set": np.array([[0, 1, 2, 3, 4, 5]]),
-                    'CD': np.array([CID]),
-                    'CP': np.array([CID]),
-                    'coord_desc': 'bodyfixed',
-                    }
-          cggrid_norm = {"ID": np.array([9300+i_mass]),
-                    "offset": np.array([[-offset_cg[0], offset_cg[1], -offset_cg[2]]]),
-                    "set": np.array([[0, 1, 2, 3, 4, 5]]),
-                    'CD': np.array([9300]),
-                    'CP': np.array([9300]),
-                    'coord_desc': 'bodyfixed_DIN9300',
-                    } 
-    
-          # assemble mass matrix about center of gravity, relativ to the axis of the basic coordinate system
-          # DO NOT switch signs for coupling terms of I to suite EoMs, Nastran already did this!
-          Mb = np.zeros((6,6))
-          Mb[0,0] = massmatrix_0[0,0]
-          Mb[1,1] = massmatrix_0[0,0]
-          Mb[2,2] = massmatrix_0[0,0]
-          Mb[3:6,3:6] = inertia #np.array([[1,-1,-1],[-1,1,-1],[-1,-1,1]]) * inertia
-          
-          return Mff, Kff, Dff, PHIf_strc, Mb, cggrid, cggrid_norm 
+    def cg_from_SOL103(self, i_mass):   
+        massmatrix_0, inertia, offset_cg, CID = read_geom.Nastran_weightgenerator(self.jcl.mass['filename_S103'][i_mass])  
+        cggrid = {"ID": np.array([9000+i_mass]),
+                  "offset": np.array([offset_cg]),
+                  "set": np.array([[0, 1, 2, 3, 4, 5]]),
+                  'CD': np.array([CID]),
+                  'CP': np.array([CID]),
+                  'coord_desc': 'bodyfixed',
+                  }
+        cggrid_norm = {"ID": np.array([9300+i_mass]),
+                  "offset": np.array([[-offset_cg[0], offset_cg[1], -offset_cg[2]]]),
+                  "set": np.array([[0, 1, 2, 3, 4, 5]]),
+                  'CD': np.array([9300]),
+                  'CP': np.array([9300]),
+                  'coord_desc': 'bodyfixed_DIN9300',
+                  } 
+
+        # assemble mass matrix about center of gravity, relativ to the axis of the basic coordinate system
+        # DO NOT switch signs for coupling terms of I to suite EoMs, Nastran already did this!
+        Mb = np.zeros((6,6))
+        Mb[0,0] = massmatrix_0[0,0]
+        Mb[1,1] = massmatrix_0[0,0]
+        Mb[2,2] = massmatrix_0[0,0]
+        Mb[3:6,3:6] = inertia #np.array([[1,-1,-1],[-1,1,-1],[-1,-1,1]]) * inertia
+
+        self.cggrid = cggrid # store for later internal use
+  
+        return Mb, cggrid, cggrid_norm 
 
     def init_guyanreduction(self):
         # In a first step, the positions of the a- and o-set DoFs are prepared.
@@ -124,8 +123,9 @@ class BuildMass:
               modes_selection += 6
         eigenvalue, eigenvector = self.calc_elastic_modes(self.Kaa, Maa, modes_selection.max())
         logging.info( 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection))
+        self.eigenvalues_f = eigenvalue[modes_selection - 1]
         # reconstruct modal matrix for g-set / strcgrid
-        PHIf_strc = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
+        self.PHIstrc_f = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
         i = 0 # counter selected modes
         for i_mode in modes_selection - 1:
             # deformation of a-set due to i_mode is the ith column of the eigenvector
@@ -151,14 +151,9 @@ class BuildMass:
             Ug[self.pos_s] = Us
             Ug[self.pos_m] = Um
             # store vector in modal matrix
-            PHIf_strc[:,i] = Ug.squeeze()
+            self.PHIstrc_f[:,i] = Ug.squeeze()
             i += 1
-
-        # calc modal mass and stiffness
-        Mff = np.dot( eigenvector[:,modes_selection - 1].real.T,      Maa.dot(eigenvector[:,modes_selection - 1].real) )
-        Kff = np.dot( eigenvector[:,modes_selection - 1].real.T, self.Kaa.dot(eigenvector[:,modes_selection - 1].real) )
-        Dff = self.calc_damping(eigenvalue[modes_selection - 1].real)
-        return Mff, Kff, Dff, PHIf_strc.T
+        return
         
     def get_sets_from_bitposes(self, x_dec):
         # Reference:
@@ -237,8 +232,9 @@ class BuildMass:
             modes_selection += 6
         eigenvalue, eigenvector = self.calc_elastic_modes(self.KFF, self.MFF, modes_selection.max())
         logging.info( 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection))
+        self.eigenvalues_f = eigenvalue[modes_selection - 1]
         # reconstruct modal matrix for g-set / strcgrid
-        PHIf_strc = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
+        self.PHIstrc_f = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
         i = 0 # counter selected modes
         for i_mode in modes_selection - 1:
             # deformation of f-set due to i_mode is the ith column of the eigenvector
@@ -258,24 +254,30 @@ class BuildMass:
             Ug[self.pos_s] = Us
             Ug[self.pos_m] = Um
             # store vector in modal matrix
-            PHIf_strc[:,i] = Ug.squeeze()
+            self.PHIstrc_f[:,i] = Ug.squeeze()
             i += 1
+        return
+    
+    def calc_modal_matrices(self):
         # calc modal mass and stiffness
-        if 'replace_rb_modes' in self.jcl.mass and self.jcl.mass['replace_rb_modes']: 
-            logging.info( 'The first six modes are replaced with synthetic rigid body modes')
-            # replace modes for rigid body motion with synthetic modes
-            eigenvalue[:6], PHIf_strc[:,:6] = self.calc_rbm_modes()
-            Mff = PHIf_strc.T.dot(self.MGG.dot(PHIf_strc))
-            # switch signs of off-diagonal terms in rb mass matrix
-            Mff[:6,:6] = self.Mb
-            Kff = PHIf_strc.T.dot(self.KGG.dot(PHIf_strc))
-            # set rigid body stiffness explicitly to zero
-            Kff[np.diag_indices(6)] = eigenvalue[:6]
-        else:
-            Mff = PHIf_strc.T.dot(self.MGG.dot(PHIf_strc))
-            Kff = PHIf_strc.T.dot(self.KGG.dot(PHIf_strc))
-        Dff = self.calc_damping(eigenvalue[modes_selection - 1])
-        return Mff, Kff, Dff, PHIf_strc.T
+        logging.info( 'Working on f-set')
+        Mff = self.PHIstrc_f.T.dot(self.MGG.dot(self.PHIstrc_f))
+        Kff = self.PHIstrc_f.T.dot(self.KGG.dot(self.PHIstrc_f))
+        Dff = self.calc_damping(self.eigenvalues_f)
+        
+        logging.info( 'Working on h-set')
+        # add synthetic modes for rigid body motion
+        eigenvalues_rb, PHIb_strc = self.calc_rbm_modes()
+        PHIstrc_h = np.concatenate((PHIb_strc, self.PHIstrc_f), axis=1)
+        Mhh = PHIstrc_h.T.dot(self.MGG.dot(PHIstrc_h))
+        # switch signs of off-diagonal terms in rb mass matrix
+        # Mhh[:6,:6] = self.Mb
+        Khh = PHIstrc_h.T.dot(self.KGG.dot(PHIstrc_h))
+        # set rigid body stiffness explicitly to zero
+        Khh[np.diag_indices(6)] = eigenvalues_rb
+        Dhh = self.calc_damping(np.concatenate((eigenvalues_rb, self.eigenvalues_f)))
+        return Mff, Kff, Dff, self.PHIstrc_f.T, Mhh, Khh, Dhh, PHIstrc_h.T
+        
     
     def calc_elastic_modes(self, K, M, n_modes):
         # perform modal analysis on a-set
@@ -293,11 +295,10 @@ class BuildMass:
         return eigenvalue.real, eigenvector.real
     
     def calc_rbm_modes(self):
-        eigenvalue = np.zeros(6)
+        eigenvalues = np.zeros(6)
         rules = spline_rules.rules_point(self.cggrid, self.strcgrid)
         PHIstrc_cg = spline_functions.spline_rb(self.cggrid, '', self.strcgrid, '', rules, self.coord)    
-        return eigenvalue, PHIstrc_cg
-        
+        return eigenvalues, PHIstrc_cg     
     
     def calc_damping(self, eigenvalues):
         # Currently, only modal damping is implemented. See Bianchi et al.,
@@ -361,7 +362,6 @@ class BuildMass:
         logging.info( 'CG at: {}'.format(offset_cg))
         logging.info( 'Inertia: \n{}'.format(Mb[3:6,3:6]))
         
-        self.Mb = Mb # store for later internal use
         self.cggrid = cggrid # store for later internal use
         
         return Mb, cggrid, cggrid_norm
