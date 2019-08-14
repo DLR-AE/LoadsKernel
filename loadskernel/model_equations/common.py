@@ -53,6 +53,7 @@ class Common():
         self.PHIkf       = self.model.mass['PHIkf'][self.i_mass]
         self.PHIlf       = self.model.mass['PHIlf'][self.i_mass]
         self.PHIjh       = self.model.mass['PHIjh'][self.i_mass]
+        self.PHIkh       = self.model.mass['PHIkh'][self.i_mass]
         self.PHIlh       = self.model.mass['PHIlh'][self.i_mass]
         self.n_modes     = self.model.mass['n_modes'][self.i_mass] 
         

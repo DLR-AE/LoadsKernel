@@ -274,7 +274,7 @@ class BuildMass:
         # Mhh[:6,:6] = self.Mb
         Khh = PHIstrc_h.T.dot(self.KGG.dot(PHIstrc_h))
         # set rigid body stiffness explicitly to zero
-        Khh[np.diag_indices(6)] = eigenvalues_rb
+        Khh[np.diag_indices(len(eigenvalues_rb))] = eigenvalues_rb
         Dhh = self.calc_damping(np.concatenate((eigenvalues_rb, self.eigenvalues_f)))
         return Mff, Kff, Dff, self.PHIstrc_f.T, Mhh, Khh, Dhh, PHIstrc_h.T
         
@@ -295,10 +295,10 @@ class BuildMass:
         return eigenvalue.real, eigenvector.real
     
     def calc_rbm_modes(self):
-        eigenvalues = np.zeros(6)
-        rules = spline_rules.rules_point(self.cggrid, self.strcgrid)
-        PHIstrc_cg = spline_functions.spline_rb(self.cggrid, '', self.strcgrid, '', rules, self.coord)    
-        return eigenvalues, PHIstrc_cg     
+        eigenvalues = np.zeros(5)
+        rules = spline_rules.rules_point(self.cggrid_norm, self.strcgrid)
+        PHIstrc_cg = spline_functions.spline_rb(self.cggrid_norm, '', self.strcgrid, '', rules, self.coord)
+        return eigenvalues, PHIstrc_cg[:,1:]
     
     def calc_damping(self, eigenvalues):
         # Currently, only modal damping is implemented. See Bianchi et al.,
@@ -363,6 +363,7 @@ class BuildMass:
         logging.info( 'Inertia: \n{}'.format(Mb[3:6,3:6]))
         
         self.cggrid = cggrid # store for later internal use
+        self.cggrid_norm = cggrid_norm # store for later internal use
         
         return Mb, cggrid, cggrid_norm
     
