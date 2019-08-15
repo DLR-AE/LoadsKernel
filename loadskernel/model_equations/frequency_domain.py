@@ -41,12 +41,12 @@ class GustExcitation(Common):
         for i_mode in range(self.n_modes):
             TFs[:,i_mode,:] = self.mirror_fouriersamples_even(positiv_TFs[:,i_mode,:])
         
-        logging.info('calculation gust excitation')
+        logging.info('calculating gust excitation')
         Ph_gust_fourier, Pk_gust_fourier = self.calc_gust_excitation(positiv_fftfreqs, t)
         Ph_gust_fourier = self.mirror_fouriersamples_even(Ph_gust_fourier)
         Pk_gust_fourier = self.mirror_fouriersamples_even(Pk_gust_fourier)
         
-        logging.info('calculation responses')
+        logging.info('calculating responses')
         Uh_fourier = TFs * Ph_gust_fourier # [Antwort, Anregung, Frequenz]
         Uh       = ifft( np.array((Uh_fourier)*(1j*fftomega)**0).sum(axis=1) )
         dUh_dt   = ifft( np.array((Uh_fourier)*(1j*fftomega)**1).sum(axis=1) )
