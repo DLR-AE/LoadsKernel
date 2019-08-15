@@ -65,7 +65,6 @@ class GustExcitation(Common):
         Ucg       = np.concatenate((np.zeros((self.n_freqs,1)), Uh[:5,:].T.real - Uh[:5,0].real), axis=1)
         dUcg_dt   = np.concatenate((np.zeros((self.n_freqs,1)), dUh_dt[:5,:].T.real - dUh_dt[:5,0].real), axis=1)
         d2Ucg_dt2 = np.concatenate((np.zeros((self.n_freqs,1)), d2Uh_dt2[:5,:].T.real - d2Uh_dt2[:5,0].real), axis=1)
-        d2Ucg_dt2 = d2Ucg_dt2 * np.array([-1.,1.,-1.,-1.,1.,-1.]) # in body fixed system for loads
         Uf        = Uh[5:,:].T.real - Uh[5:,0].real
         dUf_dt    = dUh_dt[5:,:].T.real - dUh_dt[5:,0].real
         d2Uf_dt2  = d2Uh_dt2[5:,:].T.real - d2Uh_dt2[5:,0].real
@@ -73,8 +72,8 @@ class GustExcitation(Common):
         g_cg = np.zeros((self.n_freqs, 3))
         commands = np.zeros((self.n_freqs, self.trim.n_inputs))
         
-        X = np.concatenate((Ucg,      # x, y, z, Phi, Theta, Psi
-                            dUcg_dt,  # u, v, w, p, q, r
+        X = np.concatenate((Ucg * np.array([-1.,1.,-1.,-1.,1.,-1.]),     # in DIN 9300 body fixed system for flight physics,  x, y, z, Phi, Theta, Psi
+                            dUcg_dt * np.array([-1.,1.,-1.,-1.,1.,-1.]), # in DIN 9300 body fixed system for flight physics,  u, v, w, p, q, r
                             Uf,      # modal deformations
                             dUf_dt,  # modal velocities
                             commands,

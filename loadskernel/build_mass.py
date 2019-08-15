@@ -277,8 +277,7 @@ class BuildMass:
         Khh[np.diag_indices(len(eigenvalues_rb))] = eigenvalues_rb
         Dhh = self.calc_damping(np.concatenate((eigenvalues_rb, self.eigenvalues_f)))
         return Mff, Kff, Dff, self.PHIstrc_f.T, Mhh, Khh, Dhh, PHIstrc_h.T
-        
-    
+ 
     def calc_elastic_modes(self, K, M, n_modes):
         # perform modal analysis on a-set
         logging.info( 'Modal analysis for first {} modes...'.format( n_modes ))
@@ -296,8 +295,8 @@ class BuildMass:
     
     def calc_rbm_modes(self):
         eigenvalues = np.zeros(5)
-        rules = spline_rules.rules_point(self.cggrid_norm, self.strcgrid)
-        PHIstrc_cg = spline_functions.spline_rb(self.cggrid_norm, '', self.strcgrid, '', rules, self.coord)
+        rules = spline_rules.rules_point(self.cggrid, self.strcgrid)
+        PHIstrc_cg = spline_functions.spline_rb(self.cggrid, '', self.strcgrid, '', rules, self.coord)
         return eigenvalues, PHIstrc_cg[:,1:]
     
     def calc_damping(self, eigenvalues):
