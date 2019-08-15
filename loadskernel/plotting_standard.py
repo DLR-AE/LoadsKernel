@@ -286,7 +286,7 @@ class StandardPlots():
         fig = plt.figure()
         self.subplot = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
         
-        potato = np.unique(self.potatos_fz_mx + self.potatos_mx_my + self.potatos_fz_my + self.potatos_fy_mx + self.potatos_mx_mz + self.potatos_my_mz)
+        potato = np.sort(np.unique(self.potatos_fz_mx + self.potatos_mx_my + self.potatos_fz_my + self.potatos_fy_mx + self.potatos_mx_mz + self.potatos_my_mz))
         self.crit_trimcases = []
         for station in potato:            
             if station in self.potatos_fz_mx:
@@ -370,8 +370,9 @@ class StandardPlots():
     def plot_monstations_time(self, filename_pdf):
         logging.info('start plotting cutting forces over time ...')
         pp = PdfPages(filename_pdf)
-        for key in set(self.potatos_fz_mx + self.potatos_mx_my + self.potatos_fz_my):
-            monstation = self.monstations[key]
+        potato = np.sort(np.unique(self.potatos_fz_mx + self.potatos_mx_my + self.potatos_fz_my + self.potatos_fy_mx + self.potatos_mx_mz + self.potatos_my_mz))
+        for station in potato:
+            monstation = self.monstations[station]
             fig, ax = plt.subplots(3, sharex=True )
             for i_simcase in range(len(self.jcl.simcase)):
                 loads = np.array(monstation['loads'][i_simcase])
@@ -381,7 +382,7 @@ class StandardPlots():
                 ax[2].plot(t, loads[:,4], 'r', zorder=-2)
             # make plots nice
             ax[0].set_position([0.2, 0.65, 0.7, 0.2])
-            ax[0].title.set_text(key)
+            ax[0].title.set_text(station)
             ax[0].set_ylabel('Fz [N]')
             ax[0].get_yaxis().set_label_coords(x=-0.18, y=0.5)
             ax[0].grid(b=True, which='major', axis='both')

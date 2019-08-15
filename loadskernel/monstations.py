@@ -15,7 +15,8 @@ class Monstations:
         self.monstations = {}
         for i_station in range(self.model.mongrid['n']):
             name = self.get_monstation_name(i_station)
-            self.monstations[name] = {'CD': self.model.mongrid['CD'][i_station],
+            self.monstations[name] = {'ID': self.model.mongrid['ID'][i_station],
+                                      'CD': self.model.mongrid['CD'][i_station],
                                       'CP': self.model.mongrid['CP'][i_station],
                                       'offset': self.model.mongrid['offset'][i_station],
                                       'subcase': [],
