@@ -742,7 +742,7 @@ class Common():
             Pb_ext = PHIextra_cg.T.dot(Pextra)
             Pf_ext = PHIf_extra.dot(Pextra)
         else:
-            Pextra = None
+            Pextra = np.array([])
             Pb_ext = np.zeros(6)
             Pf_ext = np.zeros(self.n_modes)
             
