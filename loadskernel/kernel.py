@@ -381,17 +381,19 @@ class Kernel():
             # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
-        responses = io_functions.specific_functions.open_responses(self.job_name, self.path_output)
-        logging.info( '--> Drawing some more detailed plots.')  
-        plt = plotting_extra.DetailedPlots(self.jcl, model)
-        plt.add_responses(responses)
-        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-           # nur sim
-           plt.plot_time_data()
-        else:
-           # nur trim
-           plt.plot_pressure_distribution()
-           plt.plot_forces_deformation_interactive()
+#         logging.info( '--> Drawing some more detailed plots.')  
+#         plt = plotting_extra.DetailedPlots(self.jcl, model)
+#         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+#            # nur sim
+#            responses = io_functions.specific_functions.open_responses(self.job_name, self.path_output)
+#            plt.add_responses(responses)
+#            plt.plot_time_data()
+#         else:
+#            # nur trim
+#            responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
+#            plt.add_responses(responses)
+#            plt.plot_pressure_distribution()
+#            plt.plot_forces_deformation_interactive()
         
 #         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
 #             plt = plotting_extra.Animations(self.jcl, model)
@@ -409,43 +411,13 @@ class Kernel():
         return
 
     def run_test(self):
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-#         import freq_dom
-#         flutter = freq_dom.Flutter(fluttercase=self.jcl.trimcase[0], model=model, jcl=self.jcl)
-#         flutter.k_method()
-        
-        
         # place code to test here
+#         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
 #         responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
-#         with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'rb') as f:
-#             monstations = io_functions.specific_functions.load_pickle(f)
-#         from scripts import cps_for_MULDICON
-#         cps = cps_for_MULDICON.CPs(self.jcl, model, responses)
-#         cps.plot()
-#        import plots_for_Muldicon
-#        plots = plots_for_Muldicon.Plots(jcl, model, responses)
-#        plots.plot_aero_spanwise()
-#         plots.plot_contributions()
-#         plots.plot_time_data(job_name, path_output)
-#         import plots_for_Discus2c
-#         plots = plots_for_Discus2c.Plots(jcl, model, responses=responses, monstations=monstations)
-#         plots.plot_ft()
-#         plots.plot_contributions()
 #        from scripts import plot_flexdefo
 #        plot = plot_flexdefo.Flexdefo(self.jcl, model, responses)
 #        plot.plot_flexdefos_trim()
-#         import plots_for_HALO
-#         plots = plots_for_HALO.Plots(path_output, jcl, model, responses=responses, monstations=monstations)
-#         plots.plot_ft()
 
-#         import test_smarty
-#         test_smarty.interpolate_pkcfd(model, jcl)
-
-#         import build_meshdefo
-#         build_meshdefo.controlsurface_meshdefo(model, jcl, job_name, path_output)
-
-#         from vergleich_druckverteilung import vergleich_druckverteilung
-#         vergleich_druckverteilung(model, jcl.trimcase[0])
         return
 
     def print_logo(self):
