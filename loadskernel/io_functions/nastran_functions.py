@@ -7,6 +7,8 @@ import numpy as np
 import  logging
 
 def number_nastarn_converter(number):
+    if np.abs(number) < 1e-8:
+        number = 0.0 # set tiny number to zero
     if number.is_integer():
         number_str = '{:> 7.1f}'.format(number)
     elif 0.0 <= np.log10(number.__abs__()) < 5.0:
