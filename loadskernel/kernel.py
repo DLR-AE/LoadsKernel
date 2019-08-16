@@ -451,33 +451,34 @@ class Kernel():
         return mpi_hosts
 
     def setup_logger_cluster(self, i):
-        path_log = io_functions.specific_functions.check_path(self.path_output+'log/')
-        # define a Handler which writes INFO messages or higher to a log file
-        logfile = logging.FileHandler(filename=path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + ".txt", mode='w')
-        logfile.setLevel(logging.INFO)
-        formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
-        logfile.setFormatter(formatter)
-        # add the handler(s) to the root logger
-        logger = logging.getLogger('')
-        logger.setLevel(logging.INFO)
-        logger.addHandler(logfile)
+        logger = logging.getLogger()
+        if not logger.hasHandlers():
+            path_log = io_functions.specific_functions.check_path(self.path_output+'log/')
+            # define a Handler which writes INFO messages or higher to a log file
+            logfile = logging.FileHandler(filename=path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + ".txt", mode='w')
+            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
+            logfile.setFormatter(formatter)
+            # add the handler(s) to the root logger
+            logger.setLevel(logging.INFO)
+            logger.addHandler(logfile)
     
     def setup_logger(self):
-        # define a Handler which writes INFO messages or higher to the sys.stout
-        console = logging.StreamHandler(sys.stdout)
-        console.setLevel(logging.INFO)
-        formatter = logging.Formatter(fmt='%(levelname)s: %(message)s')  # set a format which is simpler for console use
-        console.setFormatter(formatter)  # tell the handler to use this format
-        # define a Handler which writes INFO messages or higher to a log file
-        logfile = logging.FileHandler(filename=self.path_output + 'log_' + self.job_name + ".txt", mode='a')
-        logfile.setLevel(logging.INFO)
-        formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
-        logfile.setFormatter(formatter)
-        # add the handler(s) to the root logger
-        logger = logging.getLogger('')
-        logger.setLevel(logging.INFO)
-        logger.addHandler(console)
-        logger.addHandler(logfile)
+        logger = logging.getLogger()
+        if not logger.hasHandlers():
+            # define a Handler which writes messages or higher to the sys.stout
+            console = logging.StreamHandler(sys.stdout)
+            console.set_name('console')
+            formatter = logging.Formatter(fmt='%(levelname)s: %(message)s')  # set a format which is simpler for console use
+            console.setFormatter(formatter)  # tell the handler to use this format
+            # define a Handler which writes messages or higher to a log file
+            logfile = logging.FileHandler(filename=self.path_output + 'log_' + self.job_name + ".txt", mode='a')
+            console.set_name('logfile')
+            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
+            logfile.setFormatter(formatter)
+            # add the handler(s) to the root logger
+            logger.setLevel(logging.INFO) # set individual logging levels with logfile.setLevel(logging.INFO)
+            logger.addHandler(console)
+            logger.addHandler(logfile)
 
 def unwrap_main_worker(*arg, **kwarg):
     # This is a function outside the class to unwrap the self from the arguments. Requirement for multiprocessing pool.
