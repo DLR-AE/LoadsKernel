@@ -13,13 +13,10 @@ from tests.helper_functions import HelperFunctions
 @pytest.mark.incremental
 class TestDiscus2c(HelperFunctions):
     
-    @pytest.fixture(scope="session")
     def set_path(self):
         self.job_name = 'jcl_Discus2c'
         self.path_input = '/work/voss_ar/loads-kernel-examples/Discus2c/JCLs/'
         self.path_output='/work/voss_ar/loads-kernel-examples/Discus2c/output/'
-        #self.path_output = tmpdir_factory.mktemp("output")
-        #print(self.path_output)
         self.path_reference='/work/voss_ar/loads-kernel-examples/Discus2c/reference_output/'
         
     def test_preprocessing(self):
@@ -76,7 +73,7 @@ class TestDiscus2c(HelperFunctions):
         k.run()
         
         # do comparisons
-        logging.info('Comparing cirt_trimcases with reference')
+        logging.info('Comparing crit_trimcases with reference')
         with open(self.path_output + 'crit_trimcases_' + self.job_name + '.csv', 'r') as f:
             lines = f.readlines()
         with open(self.path_reference + 'crit_trimcases_' + self.job_name + '.csv', 'r') as f:
@@ -97,4 +94,19 @@ class TestDiscus2c(HelperFunctions):
             reference_lines = f.readlines()
         assert self.compare_lists(lines, reference_lines), "subcases do NOT match reference"
 
+class TestDiscus2cNonlinSteady(TestDiscus2c):
+
+    def set_path(self):
+        self.job_name = 'jcl_Discus2c_nonlin_steady'
+        self.path_input = '/work/voss_ar/loads-kernel-examples/Discus2c/JCLs/'
+        self.path_output='/work/voss_ar/loads-kernel-examples/Discus2c/output/'
+        self.path_reference='/work/voss_ar/loads-kernel-examples/Discus2c/reference_output/'
+
+class TestDiscus2cTimedom(TestDiscus2c):
+
+    def set_path(self):
+        self.job_name = 'jcl_Discus2c_timedom'
+        self.path_input = '/work/voss_ar/loads-kernel-examples/Discus2c/JCLs/'
+        self.path_output='/work/voss_ar/loads-kernel-examples/Discus2c/output/'
+        self.path_reference='/work/voss_ar/loads-kernel-examples/Discus2c/reference_output/'
 
