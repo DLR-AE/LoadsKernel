@@ -53,7 +53,7 @@ if __name__ == "__main__":
     x, y, elev = get_earth()
     with open('earth.pickle', 'w') as f:# open response
         pickle.dump((x,y,elev), f, pickle.HIGHEST_PROTOCOL)
-    print 'Done.'
+    print('Done.')
 
 # surf = mlab.surf(np.arange(-extensions_x, extensions_x, res_x), np.arange(-extensions_y, extensions_y, res_y), elev, colormap='gist_earth')
 # mlab.orientation_axes()
