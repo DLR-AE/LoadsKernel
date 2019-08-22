@@ -234,7 +234,7 @@ class StandardPlots():
         self.pp.close()
         logging.info('plots saved as ' + filename_pdf)
     
-    def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull, show_labels):
+    def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull=True, show_labels=False, show_minmax=False):
         loads_string, subcase_string = self.get_loads_strings(station)
         loads   = np.array(self.monstations[station][loads_string])
         points = np.vstack((loads[:,dof_xaxis], loads[:,dof_yaxis])).T
@@ -251,11 +251,21 @@ class StandardPlots():
                         self.subplot.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(self.monstations[station][subcase_string][hull.vertices[i_case]]), fontsize=8)
             except:
                 crit_trimcases = []
+        
+        elif show_minmax:
+            pos_max_loads = np.argmax(points, 0)
+            pos_min_loads = np.argmin(points, 0)
+            pos_minmax_loads = np.concatenate((pos_min_loads, pos_max_loads))
+            self.subplot.scatter(points[pos_minmax_loads,0], points[pos_minmax_loads,1], color=(1,0,0), zorder=-2) # plot points
+            crit_trimcases = [self.monstations[station][subcase_string][i] for i in pos_minmax_loads]
+
         else:
             crit_trimcases = self.monstations[station][subcase_string][:]
-            if show_labels: 
-                for i_case in range(crit_trimcases.__len__()):               
-                    self.subplot.text(points[i_case,0], points[i_case,1], str(self.monstations[station][subcase_string][i_case]), fontsize=8)
+  
+        if show_labels: 
+            for crit_trimcase in crit_trimcases:
+                pos = self.monstations[station][subcase_string].index(crit_trimcase)
+                self.subplot.text(points[pos,0], points[pos,1], str(self.monstations[station][subcase_string][pos]), fontsize=8)
                         
         self.crit_trimcases += crit_trimcases
     
@@ -266,8 +276,9 @@ class StandardPlots():
                              color='cornflowerblue', 
                              dof_xaxis=dof_xaxis, 
                              dof_yaxis=dof_yaxis, 
-                             show_hull=True, 
-                             show_labels=True)
+                             show_hull=True,
+                             show_labels=True,
+                             show_minmax=False)
             
             self.subplot.legend(loc='best')
             self.subplot.ticklabel_format(style='sci', axis='x', scilimits=(-2,2))
