@@ -21,14 +21,14 @@ class Plotting(plotting_standard.StandardPlots):
     def plot_nothing(self):
         self.subplot.cla()
         
-    def potato_plots(self, dataset_sel, station, descs, colors, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis, show_hull, show_labels):
+    def potato_plots(self, dataset_sel, station, descs, colors, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis, show_hull, show_labels, show_minmax):
         # This function relies on the potato plotting function in LK imported above to avoid code duplications.
         # The labels, margins, etc. are adjusted in this function to fit the window space.
         self.subplot.cla()
         for i_dataset in range(len(dataset_sel)):
             self.crit_trimcases = []
             self.add_monstations(dataset_sel[i_dataset])
-            self.potato_plot(station, descs[i_dataset], colors[i_dataset], dof_xaxis, dof_yaxis, show_hull, show_labels)
+            self.potato_plot(station, descs[i_dataset], colors[i_dataset], dof_xaxis, dof_yaxis, show_hull, show_labels, show_minmax)
         self.subplot.legend(loc='best')
         self.subplot.ticklabel_format(style='sci', axis='x', scilimits=(-2,2))
         self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))

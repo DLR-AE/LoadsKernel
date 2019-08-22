@@ -141,8 +141,12 @@ class App:
         cb_labels = ttk.Checkbutton( frame_left_top, text="show labels", variable=self.show_labels,  onvalue=tk.TRUE, offvalue=tk.FALSE, command=self.update_plot )        
         cb_labels.grid(row = 6, column =0, columnspan=2, sticky=(tk.W,tk.E))
         
+        self.show_minmax = tk.BooleanVar()
+        cb_minmax = ttk.Checkbutton( frame_left_top, text="show min/max", variable=self.show_minmax,  onvalue=tk.TRUE, offvalue=tk.FALSE, command=self.update_plot )        
+        cb_minmax.grid(row = 7, column =0, columnspan=2, sticky=(tk.W,tk.E))
+
         self.label_n_loadcases =tk.Label(frame_left_top, anchor='w', justify='left', padx=0, text='') 
-        self.label_n_loadcases.grid(row=7, column=0, columnspan=2)
+        self.label_n_loadcases.grid(row=8, column=0, columnspan=2)
         
         # init Matplotlib Plot
         fig1 = mpl.figure.Figure()
@@ -207,6 +211,7 @@ class App:
                                         self.var_yaxis.get(),
                                         self.show_hull.get(),
                                         self.show_labels.get(),
+                                        self.show_minmax.get(),
                                       )
             self.label_n_loadcases.config(text='Selected load case: {} \nDyn2Stat: {}'.format(np.sum(n_subcases), np.sum(n_subcases_dyn2stat)))
         else:    
