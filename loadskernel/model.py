@@ -220,8 +220,8 @@ class Model:
         # cast downwash due to rotations of panels into a matrix notation
         self.aerogrid['Rmat'] = sp.lil_matrix((self.aerogrid['n']*6, self.aerogrid['n']*6), dtype=float)
         for x in range(self.aerogrid['n']):
-            self.aerogrid['Rmat'][x*6+1,self.aerogrid['set_k'][x,5]] = -1.0 # Bug found by Roman. Onflow x r yields a negative downwash
-            self.aerogrid['Rmat'][x*6+2,self.aerogrid['set_k'][x,4]] =  1.0
+            self.aerogrid['Rmat'][x*6+1,self.aerogrid['set_k'][x,5]] = 1.0
+            self.aerogrid['Rmat'][x*6+2,self.aerogrid['set_k'][x,4]] = 1.0
         self.aerogrid['Rmat'] = self.aerogrid['Rmat'].tocsc()
         # cast areas of panels into matrix notation
         self.aerogrid['Amat'] = sp.eye(self.aerogrid['n'], dtype=float, format='csc').multiply(self.aerogrid['A'])
