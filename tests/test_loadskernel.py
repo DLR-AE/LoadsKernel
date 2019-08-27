@@ -108,3 +108,12 @@ class TestDiscus2cTimedom(TestDiscus2c):
         path_input = '/work/voss_ar/loads-kernel-examples/Discus2c/JCLs/'
         path_reference='/work/voss_ar/loads-kernel-examples/Discus2c/reference_output/'
 
+class TestAllegraTimedom(TestDiscus2c):
+        job_name = 'jcl_ALLEGRA_timedom'
+        path_input = '/work/voss_ar/loads-kernel-examples/Allegra/JCLs/'
+        path_reference='/work/voss_ar/loads-kernel-examples/Allegra/reference_output/'
+        
+class TestAllegraFreqdom(TestDiscus2c):
+        job_name = 'jcl_ALLEGRA_freqdom'
+        path_input = '/work/voss_ar/loads-kernel-examples/Allegra/JCLs/'
+        path_reference='/work/voss_ar/loads-kernel-examples/Allegra/reference_output/'
