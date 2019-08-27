@@ -19,11 +19,11 @@ def spline_nastran(filename, strcgrid, aerogrid):
     PHI = np.zeros((aerogrid['n']*6, strcgrid['n']*6))
     for line in lines:
         i_line += 1
-        if string.find(string.replace(line,' ',''),'GPJK') != -1:
+        if str.find(str.replace(line,' ',''),'GPJK') != -1:
             i_line += 3
             break
         
-    while string.find(string.replace(lines[i_line],' ',''),'COLUMN') != -1:
+    while str.find(str.replace(lines[i_line],' ',''),'COLUMN') != -1:
         #print lines[i_line]
         line_split = lines[i_line].split()
         if line_split[3].split('-')[1][:2] == 'T3':
