@@ -26,7 +26,7 @@ class jcl:
                      'filename_GM': 'GM.dat',       # matrix GM via DMAP Alter und OP4            - required for mass method = 'modalanalysis' or 'guyan'
                      'filename_aset': 'aset.bdf',   # bdf file(s) with ASET1-card                 - required for mass method = 'guyan'
                     }
-        self.aero = {'method': 'mona_steady', # 'mona_steady', 'mona_unsteady', 'steady_nonlin' or 'cfd_steady'
+        self.aero = {'method': 'mona_steady', # 'mona_steady', 'mona_unsteady', 'nonlin_steady', 'cfd_steady' or 'freq_dom'
                      'flex': True, # True or False, aerodynamic feedback of elastic structure
                      'method_caero': 'CAERO1',                               # aerogrid is given by CAERO1, CAERO7 or by CQUAD4 cards
                      'filename_caero_bdf': ['CAERO1_bdf'],                   # bdf file(s) with CAERO1 or CQUAD4-cards for aerogrid. IDs in ascending order.
