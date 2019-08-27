@@ -78,9 +78,12 @@ class Model:
             # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
             grid_trafo(self.strcgrid, self.coord, 0)
             logging.info('The structural model consists of {} grid points and {} coordinate systems.'.format(self.strcgrid['n'], len(self.coord['ID']) ))
-            if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'mona']: 
+            if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
                 self.KGG = read_geom.nastran_op4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
                 self.GM  = read_geom.nastran_op4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True)
+            elif self.jcl.mass['method'] in ['mona']: 
+                self.KGG = read_geom.nastran_op4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True)
+                self.GM  = None
             else:
                 self.KGG = None
                 self.GM  = None
