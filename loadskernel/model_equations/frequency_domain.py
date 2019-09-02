@@ -32,7 +32,7 @@ class GustExcitation(Common):
         fftfreqs = fftfreq(self.n_freqs, dt) # whole frequency space including negative frequencies
         fftomega = 2.0*np.pi*fftfreqs
         positiv_fftfreqs = np.abs(fftfreqs[:self.n_freqs//2+1]) # positive only frequencies where we need to calculate the TFs and excitations
-
+        logging.info('Frequency domain solution with tfinal = {}x{} s, nfreq = {}, fmax={} Hz and df = {} Hz'.format(self.t_factor, self.simcase['t_final'], self.n_freqs//2, f/2.0, f/self.n_freqs) )
         if self.k_red(freqs.max()) > np.max(self.model.aero['k_red']):
             logging.warning('Required reduced frequency = {:0.3} but AICs given only up to {:0.3}'.format(self.k_red(freqs.max()), np.max(self.model.aero['k_red'])))
         
