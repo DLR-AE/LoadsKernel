@@ -15,7 +15,7 @@ class Unsteady(Common):
         # recover states
         Tgeo2body, Tbody2geo    = self.geo2body(X)
         dUcg_dt, Uf, dUf_dt     = self.recover_states(X)
-        Vtas, q_dyn             = self.recover_Vtas(X)
+        Vtas, q_dyn             = self.recover_Vtas(self.X0)
         onflow, alpha, beta, my = self.recover_onflow(X)
         Ux2 = self.get_Ux2(X)        
         # --------------------   
