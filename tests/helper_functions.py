@@ -31,7 +31,7 @@ class HelperFunctions:
     def compare_items(self, item_a, item_b):
         if issparse(item_a):
             # sparse efficiency, compare != instead of ==
-            return np.all((item_a != item_b).toarray()) == False
+            return np.all((item_a != item_b).toarray() == False)
         elif type(item_a) == np.ndarray:
             # compares numpy arrays within tolerance of 1e-4
             return np.allclose(item_a, item_b, atol=1e-4)
