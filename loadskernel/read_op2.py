@@ -308,7 +308,7 @@ class OP2(object):
         dtype = 1
         nrows = trailer[2]
         ncols = trailer[1]
-        logging.info('    %s (%s, %s)' % (name, nrows, ncols))
+        print('    %s (%s, %s)' % (name, nrows, ncols))
         matrix = np.zeros((nrows, ncols), order='F')
         if self._bit64:
             intsize = 8
@@ -316,7 +316,7 @@ class OP2(object):
             intsize = 4
         col = 0
         frm = self._endian + '%dd'
-        logging.info('frm =', frm)
+        print('frm =', frm)
         while dtype > 0:  # read in matrix columns
             # key is number of elements in next record (row # followed
             # by key-1 real numbers)
@@ -342,7 +342,7 @@ class OP2(object):
             matrix = matrix.byteswap()
 
         if name in ['EFMFSMS', 'EFMASSS', 'RBMASSS']:
-            logging.info(matrix)
+            print(matrix)
         return matrix
 
     def skip_op2_matrix(self, trailer):
@@ -400,7 +400,7 @@ class OP2(object):
             if name is None:
                 break
             if rectype > 0:
-                logging.info("Reading matrix {}...".format(name))
+                print("Reading matrix {}...".format(name))
                 mats[name] = self.read_op2_matrix(trailer)
             else:
                 self.skip_op2_table()
@@ -413,7 +413,7 @@ class OP2(object):
         if len(self.dblist) == 0:
             self.directory(verbose=False)
         for s in self.dblist:
-            logging.info(s)
+            print(s)
 
     def directory(self, verbose=True, redo=False): # TODO: _read_op2_name_trailer
         """
@@ -613,14 +613,14 @@ class OP2(object):
 
         """
         key = self._get_key()
-        logging.info("{0} Headers:".format(name))
+        print("{0} Headers:".format(name))
         Frm = struct.Struct(self._intstru % 3)
         eot = 0
         while not eot:
             while key > 0:
                 reclen = self._Str4.unpack(self._fileh.read(4))[0]
                 head = Frm.unpack(self._fileh.read(3*self._ibytes))
-                logging.info(np.hstack((head, reclen)))
+                print(np.hstack((head, reclen)))
                 self._fileh.seek((key-3)*self._ibytes, 1)
                 self._fileh.read(4)
                 key = self._get_key()
@@ -696,19 +696,19 @@ def read_post_op2(op2_filename, verbose=False):
                 raise RuntimeError('name=%r' % name)
             if dbtype > 0:
                 if verbose:
-                    logging.info("Reading matrix {0}...".format(name))
+                    print("Reading matrix {0}...".format(name))
                 if name not in mats:
                     mats[name] = []
                 mats[name] += [o2.read_op2_matrix(name, trailer)]
             else:
                 if name.find('USET') == 0:
                     if verbose:
-                        logging.info("Reading USET table {0}...".format(name))
+                        print("Reading USET table {0}...".format(name))
                     uset = o2._read_op2_uset()
                     continue
                 else:
                     if verbose:
-                        logging.info("Skipping table %r..." % name)
+                        print("Skipping table %r..." % name)
                 o2.skip_op2_table()
 
     return {'uset': uset,
