@@ -60,7 +60,7 @@ class GustExcitation(Common):
                                                                    np.array((Uh_fourier)*(1j*fftomega)**1).sum(axis=1)[:,:self.n_freqs//2+1], )
         Ph_aero_fourier = self.mirror_fouriersamples_even(Ph_aero_fourier)
         Pk_aero_fourier = self.mirror_fouriersamples_even(Pk_aero_fourier)
-        Pk_aero  = np.real(ifft( Pk_gust_fourier ) - ifft( Pk_aero_fourier ))[:,t_out]
+        Pk_aero  = np.real(ifft( Pk_gust_fourier ) + ifft( Pk_aero_fourier ))[:,t_out]
         Pk_gust  = np.real(ifft( Pk_gust_fourier ))[:,t_out]
         
         # split h-set into b- and f-set
@@ -111,7 +111,7 @@ class GustExcitation(Common):
         omega = 2.0*np.pi*f
         Qhh_1 = self.Qhh_1_interp(self.k_red(f))
         Qhh_2 = self.Qhh_2_interp(self.k_red(f))
-        TF = np.linalg.inv(-self.Mhh*omega**2 + np.complex(0,1)*omega*(self.Dhh + Qhh_2) + self.Khh + Qhh_1)
+        TF = np.linalg.inv(-self.Mhh*omega**2 + np.complex(0,1)*omega*(self.Dhh - Qhh_2) + self.Khh - Qhh_1)
         return TF
 
     def build_AIC_interpolators(self):
