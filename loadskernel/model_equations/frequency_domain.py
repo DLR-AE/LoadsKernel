@@ -98,9 +98,8 @@ class GustExcitation(Common):
         self.positiv_fftfreqs = np.abs(fftfreqs[:self.n_freqs//2+1]) # positive only frequencies where we need to calculate the TFs and excitations
         
         logging.info('Frequency domain solution with tfinal = {}x{} s, nfreq = {}, fmax={} Hz and df = {} Hz'.format(t_factor, self.simcase['t_final'], self.n_freqs//2, fmax/2.0, fmax/self.n_freqs) )
-        if self.k_red(self.freqs.max()) > np.max(self.model.aero['k_red']):
+        if self.f2k(self.freqs.max()) > np.max(self.model.aero['k_red']):
             logging.warning('Required reduced frequency = {:0.3} but AICs given only up to {:0.3}'.format(self.f2k(self.freqs.max()), np.max(self.model.aero['k_red'])))
-
 
     def mirror_fouriersamples_even(self, fouriersamples):
         mirrored_fourier = np.zeros((fouriersamples.shape[0], self.n_freqs), dtype='complex128')
@@ -187,8 +186,7 @@ class KMethod(GustExcitation):
         self.calc_eigenvalues()
         logging.info('plotting eigenvalues')
         self.plot_eigenvalues()
-                    
-        
+                        
     def setup_frequence_parameters(self):
         self.n_modes = self.model.mass['n_modes'][self.i_mass]# + 5
         self.k_reds = self.simcase['flutter_para']['k_red']
