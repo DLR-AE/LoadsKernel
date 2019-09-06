@@ -18,6 +18,9 @@ from loadskernel.model_equations.nonlin_steady import NonlinSteady
 from loadskernel.model_equations.unsteady   import Unsteady
 from loadskernel.model_equations.landing    import Landing
 from loadskernel.model_equations.frequency_domain import GustExcitation
+from loadskernel.model_equations.frequency_domain import KMethod
+from loadskernel.model_equations.frequency_domain import KEMethod
+from loadskernel.model_equations.frequency_domain import PKMethod
 
 from loadskernel.trim_conditions import TrimConditions
 
@@ -222,8 +225,10 @@ class Trim(TrimConditions):
     def exec_sim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady']:
             self.exec_sim_time_dom()
-        elif self.jcl.aero['method'] in [ 'freq_dom']:
+        elif self.jcl.aero['method'] in ['freq_dom'] and self.simcase['gust']:
             self.exec_sim_freq_dom()
+        elif self.jcl.aero['method'] in ['freq_dom'] and self.simcase['flutter']:
+            self.exec_flutter()
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -298,5 +303,16 @@ class Trim(TrimConditions):
             response_sim[key] += self.response[key]
         self.response = response_sim
         logging.info('Frequency domain simulation finished.')
+        self.successful = True
+    
+    def exec_flutter(self):
+        if self.simcase['flutter_para']['method'] == 'k':
+            equations = KMethod(self, X0=self.response['X'], simcase=self.simcase)
+        elif self.simcase['flutter_para']['method'] == 'ke':
+            equations = KEMethod(self, X0=self.response['X'], simcase=self.simcase)
+        elif self.simcase['flutter_para']['method'] == 'pk':
+            equations = PKMethod(self, X0=self.response['X'], simcase=self.simcase)
+        self.response = equations.eval_equations()
+        logging.info('Flutter analysis finished.')
         self.successful = True
         
