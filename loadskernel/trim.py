@@ -227,8 +227,6 @@ class Trim(TrimConditions):
             self.exec_sim_time_dom()
         elif self.jcl.aero['method'] in ['freq_dom'] and self.simcase['gust']:
             self.exec_sim_freq_dom()
-        elif self.jcl.aero['method'] in ['freq_dom'] and self.simcase['flutter']:
-            self.exec_flutter()
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -312,7 +310,9 @@ class Trim(TrimConditions):
             equations = KEMethod(self, X0=self.response['X'], simcase=self.simcase)
         elif self.simcase['flutter_para']['method'] == 'pk':
             equations = PKMethod(self, X0=self.response['X'], simcase=self.simcase)
-        self.response = equations.eval_equations()
+        response_flutter = equations.eval_equations()
         logging.info('Flutter analysis finished.')
+        for key in response_flutter.keys():
+            self.response[key] = response_flutter[key]
         self.successful = True
         

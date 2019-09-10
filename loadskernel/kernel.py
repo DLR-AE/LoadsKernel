@@ -139,26 +139,28 @@ class Kernel():
             io_functions.specific_functions.dump_pickle(model.__dict__, f)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
-    def main_common(self, model, i_jcl, i):
+    def main_common(self, model, jcl, i):
         logging.info('')
         logging.info('========================================')
-        logging.info('trimcase: ' + i_jcl.trimcase[i]['desc'])
-        logging.info('subcase: ' + str(i_jcl.trimcase[i]['subcase']))
-        logging.info('(case ' + str(i + 1) + ' of ' + str(len(i_jcl.trimcase)) + ')')
+        logging.info('trimcase: ' + jcl.trimcase[i]['desc'])
+        logging.info('subcase: ' + str(jcl.trimcase[i]['subcase']))
+        logging.info('(case ' + str(i + 1) + ' of ' + str(len(jcl.trimcase)) + ')')
         logging.info('========================================')
-        trim_i = trim.Trim(model, i_jcl, i_jcl.trimcase[i], i_jcl.simcase[i])
+        trim_i = trim.Trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
         trim_i.set_trimcond()
         # trim_i.calc_derivatives()
         trim_i.exec_trim()
         # trim_i.iterative_trim()
-        if trim_i.successful and 't_final' and 'dt' in i_jcl.simcase[i].keys():
+        if trim_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
             trim_i.exec_sim()
+        elif trim_i.successful and 'flutter' in jcl.simcase[i] and jcl.simcase[i]['flutter']:
+            trim_i.exec_flutter()
         response = trim_i.response
         response['i'] = i
         response['successful'] = trim_i.successful
         del trim_i
         if response['successful']:
-            post_processing_i = post_processing.post_processing(i_jcl, model, i_jcl.trimcase[i], response)
+            post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], response)
             post_processing_i.force_summation_method()
             post_processing_i.euler_transformation()
             post_processing_i.cuttingforces()
@@ -179,10 +181,10 @@ class Kernel():
                 logging.info('Restart option: found existing response.')
                 response = responses[[response['i'] for response in responses].index(i)]
             else:
-                i_jcl = copy.deepcopy(self.jcl)
+                jcl = copy.deepcopy(self.jcl)
                 if self.jcl.aero['method'] in ['cfd_steady']:
-                    i_jcl.aero['mpi_hosts'] = self.setup_mpi_hosts(n_workers=1)  # assign hosts
-                response = self.main_common(model, i_jcl, i)
+                    jcl.aero['mpi_hosts'] = self.setup_mpi_hosts(n_workers=1)  # assign hosts
+                response = self.main_common(model, jcl, i)
             if response['successful']:
                 mon.gather_monstations(self.jcl.trimcase[i], response)
                 if 't_final' and 'dt' in self.jcl.simcase[i].keys():
@@ -237,11 +239,11 @@ class Kernel():
         logging.info('--> Launching {} worker(s).'.format(str(n_workers)))
         workers = []
         for i_worker in range(n_workers):
-            i_jcl = copy.deepcopy(self.jcl)
-            if i_jcl.aero['method'] in ['cfd_steady']:
-                i_jcl.aero['mpi_hosts'] = mpi_hosts[:i_jcl.aero['tau_cores']]  # assign hosts
-                mpi_hosts = mpi_hosts[i_jcl.aero['tau_cores']:]  # remaining hosts
-            workers.append(pool.apply_async(unwrap_main_worker, (self, q_input, q_output, i_jcl)))
+            jcl = copy.deepcopy(self.jcl)
+            if jcl.aero['method'] in ['cfd_steady']:
+                jcl.aero['mpi_hosts'] = mpi_hosts[:jcl.aero['tau_cores']]  # assign hosts
+                mpi_hosts = mpi_hosts[jcl.aero['tau_cores']:]  # remaining hosts
+            workers.append(pool.apply_async(unwrap_main_worker, (self, q_input, q_output, jcl)))
  
         for i_worker in range(n_workers):
             q_input.put('finish')  # putting finish signal into queue for worker
@@ -252,7 +254,7 @@ class Kernel():
         q_output.join()
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
-    def main_worker(self, q_input, q_output, i_jcl):
+    def main_worker(self, q_input, q_output, jcl):
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         while True:
             i = q_input.get()
@@ -261,7 +263,7 @@ class Kernel():
                 logging.info('--> Worker quit.')
                 break
             else:
-                response = self.main_common(model, i_jcl, i)
+                response = self.main_common(model, jcl, i)
                 q_output.put(response)
                 q_input.task_done()
         return
@@ -306,11 +308,11 @@ class Kernel():
         t_start = time.time()
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         
-        i_jcl = copy.deepcopy(self.jcl)
+        jcl = copy.deepcopy(self.jcl)
         if self.jcl.aero['method'] in ['cfd_steady']:
-            i_jcl.aero['mpi_hosts'] = self.setup_mpi_hosts(n_workers=1)  # assign hosts
+            jcl.aero['mpi_hosts'] = self.setup_mpi_hosts(n_workers=1)  # assign hosts
             
-        response = self.main_common(model, i_jcl, i)
+        response = self.main_common(model, jcl, i)
         
         logging.info('--> Saving response(s).')
         path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
@@ -381,19 +383,23 @@ class Kernel():
             # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
-#         logging.info( '--> Drawing some more detailed plots.')  
-#         plt = plotting_extra.DetailedPlots(self.jcl, model)
-#         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-#            # nur sim
-#            responses = io_functions.specific_functions.open_responses(self.job_name, self.path_output)
-#            plt.add_responses(responses)
-#            plt.plot_time_data()
-#         else:
-#            # nur trim
-#            responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
-#            plt.add_responses(responses)
-#            plt.plot_pressure_distribution()
-#            plt.plot_forces_deformation_interactive()
+        logging.info( '--> Drawing some more detailed plots.')  
+        plt = plotting_extra.DetailedPlots(self.jcl, model)
+        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+            # nur sim
+            responses = io_functions.specific_functions.open_responses(self.job_name, self.path_output)
+            plt.add_responses(responses)
+            plt.plot_time_data()
+        elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
+            responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
+            plt.add_responses(responses)
+            plt.plot_fluttercurves()
+        else:
+            # nur trim
+            responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
+            plt.add_responses(responses)
+            #plt.plot_pressure_distribution()
+            plt.plot_forces_deformation_interactive()
         
 #         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
 #             plt = plotting_extra.Animations(self.jcl, model)
