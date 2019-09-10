@@ -184,11 +184,16 @@ class KMethod(GustExcitation):
         self.build_systems()
         logging.info('calculating eigenvalues')
         self.calc_eigenvalues()
-        logging.info('plotting eigenvalues')
-        self.plot_eigenvalues()
+        
+        response = {'freqs':self.freqs,
+                    'damping':self.damping,
+                    'Vtas':self.Vtas,
+                   }
+        return response  
+
                         
     def setup_frequence_parameters(self):
-        self.n_modes = self.model.mass['n_modes'][self.i_mass]# + 5
+        self.n_modes = self.model.mass['n_modes'][self.i_mass] + 5
         self.k_reds = self.simcase['flutter_para']['k_red']
         self.n_freqs = len(self.k_reds)
                 
@@ -196,10 +201,10 @@ class KMethod(GustExcitation):
             logging.warning('Required reduced frequency = {:0.3} but AICs given only up to {:0.3}'.format(self.k_reds.max(), np.max(self.model.aero['k_red'])))
     
     def build_AIC_interpolators(self):
-        Qff = []
+        Qhh = []
         for Qjj_unsteady, k_red in zip(self.model.aero['Qjj_unsteady'][self.i_aero], self.model.aero['k_red']):
-            Qff.append(self.PHIlf.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djf_1 + np.complex(0,1)*k_red/(self.model.macgrid['c_ref']/2.0)*self.Djf_2))) )
-        self.Qff_interp = interp1d( self.model.aero['k_red'], Qff, kind='cubic', axis=0, fill_value="extrapolate")
+            Qhh.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1 + np.complex(0,1)*k_red/(self.model.macgrid['c_ref']/2.0)*self.Djh_2))) )
+        self.Qhh_interp = interp1d( self.model.aero['k_red'], Qhh, kind='cubic', axis=0, fill_value="extrapolate")
         
     def build_systems(self):
         self.A = np.zeros((self.n_modes, self.n_modes, self.n_freqs), dtype='complex128') # [Antwort, Anregung, Frequenz]
@@ -209,10 +214,10 @@ class KMethod(GustExcitation):
     
     def system(self, k_red):
         rho = self.model.atmo['rho'][self.i_atmo]
-        Qff = self.Qff_interp(k_red)
+        Qhh = self.Qhh_interp(k_red)
         # Schwochow equation (7.10)
-        A = -self.Mff - rho/2.0*(self.model.macgrid['c_ref']/2.0/k_red)**2.0*Qff
-        B = -self.Kff
+        A = -self.Mhh - rho/2.0*(self.model.macgrid['c_ref']/2.0/k_red)**2.0*Qhh
+        B = -self.Khh
         return A, B
     
     def calc_eigenvalues(self):
@@ -253,54 +258,15 @@ class KMethod(GustExcitation):
         self.damping = np.array(damping)
         self.Vtas = np.array(Vtas)
     
-    def plot_eigenvalues(self):
-        # set up plotting and logging
-        #Plot boundaries
-        Vmin = 0
-        Vmax = 40
-        gmin = -1.0
-        gmax = 1.0
-        fmin = 0
-        fmax = 10
-        
-        colors = itertools.cycle(( plt.cm.jet(np.linspace(0, 1, 11)) ))
-        markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
-        desc = [str(mode+1) for mode in range(self.freqs.shape[1])]
-        
-        fig1 = plt.figure()
-        ax1 = fig1.add_axes([0.15, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
-        fig2 = plt.figure()
-        ax2 = fig2.add_axes([0.15, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
-        
-        for j in range(self.freqs.shape[1]): 
-            marker = next(markers)
-            color = next(colors)
-            ax1.plot(self.Vtas[:, j], self.freqs[:, j], marker=marker, markersize=3.0, linewidth=1.0, label=desc[j])
-            ax2.plot(self.Vtas[:, j], self.damping[:, j], marker=marker, markersize=3.0, linewidth=1.0, label=desc[j])
-        
-        ax1.set_xlabel('Vtas [m/s]')
-        ax1.set_ylabel('f [Hz]')
-        ax1.axis([Vmin, Vmax, fmin, fmax])
-
-        ax2.set_xlabel('Vtas [m/s]')
-        ax2.set_ylabel('Damping ratio zeta')
-        ax2.axis([Vmin, Vmax, gmin, gmax])
-
-        for ax in [ax1, ax2]:
-            yax = ax.get_yaxis()
-            yax.set_label_coords(x=-0.18, y=0.5)
-            ax.grid(b=True, which='both', axis='both')
-            lgd = ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2, fontsize=10)
-        plt.show()
-
+    
 class KEMethod(KMethod):
     
     def system(self, k_red):
         rho = self.model.atmo['rho'][self.i_atmo]
-        Qff = self.Qff_interp(k_red)
+        Qhh = self.Qhh_interp(k_red)
         # Nastran equation (2-120)
-        A = self.Kff
-        B = (k_red/self.model.macgrid['c_ref']*2.0)**2.0 * self.Mff + rho/2.0 * Qff
+        A = self.Khh
+        B = (k_red/self.model.macgrid['c_ref']*2.0)**2.0 * self.Mhh + rho/2.0 * Qhh
         return A, B
     
     def calc_eigenvalues(self):
@@ -319,7 +285,7 @@ class KEMethod(KMethod):
         eigenvectors.append(eigenvector)
         freqs.append(freq[idx_sort])
         Vtas.append(V[idx_sort])
-        damping.append(-eigenvalue.imag/eigenvalue.real)
+        damping.append(np.imag(V[idx_sort]**2 / eigenvalue))
         
         for i_f in range(1, self.n_freqs):
             eigenvalue, eigenvector = linalg.eig(self.A[:,:,i_f], self.B[:,:,i_f])
