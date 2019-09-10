@@ -200,10 +200,7 @@ class Common():
                 Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
             elif self.hingeline == 'z':
                 Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
-            # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne kommt...
-            # Mit der Norm von wj geht das Vorzeichen verloren - dies ist aber fuer den Steuerflaechenausschlag wichtig.
-            wj += self.model.x2grid['eff'][i_x2] * np.sign(Ux2[i_x2]) * np.sqrt(np.sin(Ujx2[self.model.aerogrid['set_j'][:,4]])**2.0 + \
-                                                                                  np.sin(Ujx2[self.model.aerogrid['set_j'][:,5]])**2.0)  #* Vtas/Vtas
+            wj += np.sum(self.model.aerogrid['N'][:] * np.cross(Ujx2[self.model.aerogrid['set_j'][:,(3,4,5)]], np.array([-1.,0.,0.])),axis=1)
         Pk = self.calc_Pk(q_dyn, wj)
         return Pk, wj
     
