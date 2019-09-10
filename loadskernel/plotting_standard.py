@@ -11,7 +11,7 @@ plt.rcParams.update({'font.size': 16,
                      'savefig.dpi': 300,})
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
-import logging
+import logging, itertools
 
 class StandardPlots():
     def __init__(self, jcl, model):
@@ -60,7 +60,7 @@ class StandardPlots():
             self.f_scale = 0.1 # vectors
             self.p_scale = 0.05 # points
         # FLEXOP
-        elif self.jcl.general['aircraft'] in ['FLEXOP', 'fs35']:
+        elif self.jcl.general['aircraft'] in ['FLEXOP', 'fs35', 'Openclass']:
             self.potatos_fz_mx = ['MON1']
             self.potatos_mx_my = ['MON1']
             self.potatos_fz_my = ['MON1']
@@ -422,3 +422,48 @@ class StandardPlots():
             plt.close()
         pp.close()
         logging.info('plots saved as ' + filename_pdf)
+
+    def plot_fluttercurves(self):
+        logging.info('start plotting flutter curves...')
+        for response in self.responses:
+            trimcase   = self.jcl.trimcase[response['i']]
+            i_mass     = self.model.mass['key'].index(trimcase['mass'])
+            i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
+            #Plot boundaries
+            freqs = np.real(self.model.mass['Khh'][i_mass].diagonal())**0.5 /2/np.pi
+            fmin = 0
+            fmax = 5 * np.ceil(freqs.max() / 5)
+            Vtrim = self.model.atmo['a'][i_atmo] * trimcase['Ma']
+            Vmin = 0
+            Vmax = 5 * np.ceil(Vtrim*2.0 / 5)
+            gmin = -0.1
+            gmax = 0.1
+            
+            
+            colors = itertools.cycle(( plt.cm.jet(np.linspace(0, 1, 11)) ))
+            markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
+            
+            fig, ax = plt.subplots(2, sharex=True )
+            for j in range(response['freqs'].shape[1]): 
+                marker = next(markers)
+                color = next(colors)
+                ax[0].plot(response['Vtas'][:, j], response['freqs'][:, j],   marker=marker, markersize=2.0, linewidth=1.0)
+                ax[1].plot(response['Vtas'][:, j], response['damping'][:, j], marker=marker, markersize=2.0, linewidth=1.0)
+            
+            # make plots nice
+            ax[0].set_position([0.2, 0.55, 0.7, 0.35])
+            ax[0].title.set_text(trimcase['desc'])
+            ax[0].set_ylabel('f [Hz]')
+            ax[0].get_yaxis().set_label_coords(x=-0.18, y=0.5)
+            ax[0].grid(b=True, which='major', axis='both')
+            ax[0].minorticks_on()
+            ax[0].axis([Vmin, Vmax, fmin, fmax])
+            ax[1].set_position([0.2, 0.15, 0.7, 0.35])
+            ax[1].set_ylabel('g [%]')
+            ax[1].get_yaxis().set_label_coords(x=-0.18, y=0.5)
+            ax[1].grid(b=True, which='major', axis='both')
+            ax[1].minorticks_on()
+            ax[1].axis([Vmin, Vmax, gmin, gmax])
+            ax[1].set_xlabel('Vtas [m/s]')
+
+        plt.show()
