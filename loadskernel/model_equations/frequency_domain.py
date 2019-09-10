@@ -7,9 +7,7 @@ import numpy as np
 from scipy import linalg
 from scipy.fftpack import fft, ifft, fftfreq
 from scipy.interpolate import interp1d 
-import logging
-from matplotlib import pyplot as plt
-import itertools
+import logging, itertools, copy
 
 from loadskernel.trim_tools import * 
 from loadskernel.build_mass import BuildMass
@@ -311,17 +309,103 @@ class KEMethod(KMethod):
         self.damping = np.array(damping)
         self.Vtas = np.array(Vtas)
 
-class PKMethod(GustExcitation):
+class PKMethod(KMethod):
+    
+    def setup_frequence_parameters(self):
+        self.n_modes = self.model.mass['n_modes'][self.i_mass] + 5
+        self.Vvec = self.simcase['flutter_para']['Vtas']        
+        
+    def eval_equations(self):
+        self.setup_frequence_parameters()
+        
+        logging.info('building systems') 
+        self.build_AIC_interpolators() # unsteady
+        logging.info('starting iterations to match k_red with Vtas and omega') 
+        # loop over Vtas
+        eigenvalues = []; eigenvectors = []; freqs = []; damping = []; Vtas = []
+        for i_V in range(len(self.Vvec)):
+            self.Vtas = self.Vvec[i_V]
+            #logging.info('Vtas {}'.format(str(self.Vtas)))
+            eigenvalues_i = []; eigenvectors_i = []
+            # compute initial guess at k_red=0.0
+            eigenvalue, eigenvector = linalg.eig(self.system(k_red=0.0))
+            idx_pos = np.where(eigenvalue.imag >= 0.0)[0]  # nur oszillierende Eigenbewegungen
+            idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
+            eigenvalues0 = eigenvalue[idx_pos][idx_sort]
+            eigenvectors0 = eigenvector[:, idx_pos][:, idx_sort]
+            k0 = eigenvalues0.imag*self.model.macgrid['c_ref']/2.0/self.Vtas
+            # loop over modes
+            for i_mode in range(self.n_modes):
+                e = 1.0
+                k_old = copy.deepcopy(k0[i_mode])
+                eigenvectors_old = copy.deepcopy(eigenvectors0)
+                # iteration to match k_red with Vtas and omega of the mode under investigation
+                while e >= 0.001:
+                    eigenvalues_new, eigenvectors_new = self.calc_eigenvalues(self.system(k_old), eigenvectors_old)
+                    k_new = eigenvalues_new[i_mode].imag*self.model.macgrid['c_ref']/2.0/self.Vtas
+                    e = np.abs(k_new - k_old)
+                    k_old = k_new
+                    eigenvectors_old = eigenvectors_new
+                eigenvalues_i.append(eigenvalues_new[i_mode])
+                eigenvectors_i.append(eigenvectors_new[:,i_mode])
+            
+            # store 
+            eigenvalues_i = np.array(eigenvalues_i)
+            eigenvectors_i = np.array(eigenvectors_i).T
+            if i_V >= 1:
+                MAC = BuildMass.calc_MAC(BuildMass, eigenvectors[-1], eigenvectors_i, plot=False)
+                idx_sort = [MAC[x, :].argmax() for x in range(MAC.shape[0])]
+                eigenvalues_i = eigenvalues_i[idx_sort]
+                eigenvectors_i = eigenvectors_i[:, idx_sort]
+            
+            eigenvalues.append(eigenvalues_i)
+            eigenvectors.append(eigenvectors_i)
+            freqs.append(eigenvalues_i.imag /2.0/np.pi)
+            #damping.append(eigenvalues_i.real / np.abs(eigenvalues_i))
+            damping.append(eigenvalues_i.real / eigenvalues_i.imag)
+            Vtas.append([self.Vtas]*self.n_modes)
+            
+        response = {'freqs':np.array(freqs),
+                    'damping':np.array(damping),
+                    'Vtas':np.array(Vtas),
+                   }
+        return response    
+            
+            
+            
+    def calc_eigenvalues(self, A, eigenvector_old):
+        eigenvalue, eigenvector = linalg.eig(A)
+        idx_pos = np.where(eigenvalue.imag >= 0.0)[0]  # nur oszillierende Eigenbewegungen
+        #idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
+        MAC = BuildMass.calc_MAC(BuildMass, eigenvector_old, eigenvector[:, idx_pos], plot=False)
+        idx_sort = [MAC[x, :].argmax() for x in range(MAC.shape[0])]
+        eigenvalues = eigenvalue[idx_pos][idx_sort]
+        eigenvectors = eigenvector[:, idx_pos][:, idx_sort]
+        return eigenvalues, eigenvectors
+        
+        
+        
+    
+    def build_AIC_interpolators(self):
+        # do some pre-multiplications first, then the interpolation
+        Qhh_1 = []; Qhh_2 = []
+        for Qjj_unsteady in self.model.aero['Qjj_unsteady'][self.i_aero]:
+            Qhh_1.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1))) )
+            Qhh_2.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2))) )
+        self.Qhh_1_interp = interp1d( self.model.aero['k_red'], Qhh_1, axis=0, fill_value="extrapolate")
+        self.Qhh_2_interp = interp1d( self.model.aero['k_red'], Qhh_2, axis=0, fill_value="extrapolate")
     
     def system(self, k_red):
-        omega = 2.0*np.pi*self.k2f(k_red)
+        rho = self.model.atmo['rho'][self.i_atmo]
+        
         Qhh_1 = self.Qhh_1_interp(k_red)
         Qhh_2 = self.Qhh_2_interp(k_red)
-        upper_part = np.concatenate((np.zeros((self.n_modes, self.n_modes), dtype='complex128'), np.eye(self.n_modes, dtype='complex128')))
-        
         Mhh_inv = np.linalg.inv(self.Mhh)
-        lower_part = np.concatenate(( -Mhh_inv.dot(self.Khh - Qhh_1), -Mhh_inv.dot(self.Dhh - Qhh_2)))
-        system = np.concatenate((upper_part, lower_part), axis=1)
-        return system 
+        
+        upper_part = np.concatenate((np.zeros((self.n_modes, self.n_modes), dtype='complex128'), np.eye(self.n_modes, dtype='complex128')))
+        lower_part = np.concatenate(( -Mhh_inv.dot(self.Khh - rho/2.0*self.Vtas**2.0*Qhh_1), -Mhh_inv.dot(self.Dhh - rho/2.0*self.Vtas*Qhh_2)))
+        A = np.concatenate((upper_part, lower_part), axis=1)
+        
+        return A 
 
 
