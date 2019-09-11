@@ -367,14 +367,13 @@ class BuildMass:
         return Mb, cggrid, cggrid_norm
     
     def calc_MAC(self, X, Y, plot=True):
-        MAC = np.zeros((X.shape[1],Y.shape[1]),  dtype='complex128')
+        MAC = np.zeros((X.shape[1],Y.shape[1]),)
         for jj in range(Y.shape[1]):
             for ii in range(X.shape[1]):
-                q1 = np.dot(np.conj(X[:,ii].T), X[:,ii])
-                q2 = np.dot(np.conj(Y[:,jj].T), Y[:,jj])
-                q3 = np.dot(np.conj(X[:,ii].T), Y[:,jj])
-                MAC[ii,jj]  = np.conj(q3)*q3/q1/q2
-        MAC = np.abs(MAC)
+                q1 = np.dot(X[:,ii].conj().T, X[:,ii])
+                q2 = np.dot(Y[:,jj].conj().T, Y[:,jj])
+                q3 = np.dot(X[:,ii].conj().T, Y[:,jj])
+                MAC[ii,jj]  = np.real( np.abs(q3)**2/q1/q2 )
         
         if plot:
             plt.figure()
