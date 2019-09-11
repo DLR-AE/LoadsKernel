@@ -320,58 +320,52 @@ class PKMethod(KMethod):
         
         logging.info('building systems') 
         self.build_AIC_interpolators() # unsteady
-        logging.info('starting iterations to match k_red with Vtas and omega') 
-        # loop over Vtas
+        logging.info('starting iterations for {} modes to match k_red with Vtas and omega'.format(self.n_modes)) 
+        # compute initial guess at k_red=0.0 and first flight speed
+        self.Vtas = self.Vvec[0]
+        eigenvalue, eigenvector = linalg.eig(self.system(k_red=0.0))
+        idx_pos = np.where(eigenvalue.imag > 0.0)[0]  # nur oszillierende Eigenbewegungen
+        idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
+        eigenvalues0 = eigenvalue[idx_pos][idx_sort]
+        eigenvectors0 = eigenvector[:, idx_pos][:, idx_sort]
+        k0 = eigenvalues0.imag*self.model.macgrid['c_ref']/2.0/self.Vtas
+    
         eigenvalues = []; eigenvectors = []; freqs = []; damping = []; Vtas = []
-        for i_V in range(len(self.Vvec)):
-            self.Vtas = self.Vvec[i_V]
-            #logging.info('Vtas {}'.format(str(self.Vtas)))
+        # loop over modes
+        for i_mode in range(self.n_modes):
+            logging.debug('Mode {}'.format(i_mode+1))
             eigenvalues_i = []; eigenvectors_i = []
-            # compute initial guess at k_red=0.0
-            eigenvalue, eigenvector = linalg.eig(self.system(k_red=0.0))
-            idx_pos = np.where(eigenvalue.imag >= 0.0)[0]  # nur oszillierende Eigenbewegungen
-            idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
-            eigenvalues0 = eigenvalue[idx_pos][idx_sort]
-            eigenvectors0 = eigenvector[:, idx_pos][:, idx_sort]
-            k0 = eigenvalues0.imag*self.model.macgrid['c_ref']/2.0/self.Vtas
-            # loop over modes
-            for i_mode in range(self.n_modes):
-                e = 1.0
-                k_old = copy.deepcopy(k0[i_mode])
-                eigenvectors_old = copy.deepcopy(eigenvectors0)
+            k_old = copy.deepcopy(k0[i_mode])
+            eigenvectors_old = copy.deepcopy(eigenvectors0)
+            # loop over Vtas
+            for i_V in range(len(self.Vvec)):
+                self.Vtas = self.Vvec[i_V]
+                e = 1.0; n_iter = 0
                 # iteration to match k_red with Vtas and omega of the mode under investigation
-                while e >= 0.001:
+                while e >= 1e-4:
                     eigenvalues_new, eigenvectors_new = self.calc_eigenvalues(self.system(k_old), eigenvectors_old)
                     k_new = eigenvalues_new[i_mode].imag*self.model.macgrid['c_ref']/2.0/self.Vtas
                     e = np.abs(k_new - k_old)
                     k_old = k_new
-                    eigenvectors_old = eigenvectors_new
+                    n_iter += 1
+                    if n_iter > 100:
+                        logging.warning('PK-Iteration did NOT converge for mode {} at Vtas={} with k_red={}. The residual k_red is e={}'.format(i_mode+1, self.Vvec[i_V], k_new, e))
+                        break
+                eigenvectors_old = eigenvectors_new
                 eigenvalues_i.append(eigenvalues_new[i_mode])
-                eigenvectors_i.append(eigenvectors_new[:,i_mode])
-            
             # store 
             eigenvalues_i = np.array(eigenvalues_i)
-            eigenvectors_i = np.array(eigenvectors_i).T
-            if i_V >= 1:
-                MAC = BuildMass.calc_MAC(BuildMass, eigenvectors[-1], eigenvectors_i, plot=False)
-                idx_sort = [MAC[x, :].argmax() for x in range(MAC.shape[0])]
-                eigenvalues_i = eigenvalues_i[idx_sort]
-                eigenvectors_i = eigenvectors_i[:, idx_sort]
-            
             eigenvalues.append(eigenvalues_i)
-            eigenvectors.append(eigenvectors_i)
             freqs.append(eigenvalues_i.imag /2.0/np.pi)
             #damping.append(eigenvalues_i.real / np.abs(eigenvalues_i))
-            damping.append(eigenvalues_i.real / eigenvalues_i.imag)
-            Vtas.append([self.Vtas]*self.n_modes)
+            damping.append(2.0 * eigenvalues_i.real / eigenvalues_i.imag)
+            Vtas.append(self.Vvec)
             
-        response = {'freqs':np.array(freqs),
-                    'damping':np.array(damping),
-                    'Vtas':np.array(Vtas),
+        response = {'freqs':np.array(freqs).T,
+                    'damping':np.array(damping).T,
+                    'Vtas':np.array(Vtas).T,
                    }
         return response    
-            
-            
             
     def calc_eigenvalues(self, A, eigenvector_old):
         eigenvalue, eigenvector = linalg.eig(A)
@@ -382,18 +376,15 @@ class PKMethod(KMethod):
         eigenvalues = eigenvalue[idx_pos][idx_sort]
         eigenvectors = eigenvector[:, idx_pos][:, idx_sort]
         return eigenvalues, eigenvectors
-        
-        
-        
-    
+
     def build_AIC_interpolators(self):
         # do some pre-multiplications first, then the interpolation
         Qhh_1 = []; Qhh_2 = []
         for Qjj_unsteady in self.model.aero['Qjj_unsteady'][self.i_aero]:
             Qhh_1.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1))) )
             Qhh_2.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2))) )
-        self.Qhh_1_interp = interp1d( self.model.aero['k_red'], Qhh_1, axis=0, fill_value="extrapolate")
-        self.Qhh_2_interp = interp1d( self.model.aero['k_red'], Qhh_2, axis=0, fill_value="extrapolate")
+        self.Qhh_1_interp = interp1d( self.model.aero['k_red'], Qhh_1, kind='slinear', axis=0, fill_value="extrapolate")
+        self.Qhh_2_interp = interp1d( self.model.aero['k_red'], Qhh_2, kind='slinear', axis=0, fill_value="extrapolate")
     
     def system(self, k_red):
         rho = self.model.atmo['rho'][self.i_atmo]
@@ -407,5 +398,3 @@ class PKMethod(KMethod):
         A = np.concatenate((upper_part, lower_part), axis=1)
         
         return A 
-
-
