@@ -324,8 +324,13 @@ class PKMethod(KMethod):
         # compute initial guess at k_red=0.0 and first flight speed
         self.Vtas = self.Vvec[0]
         eigenvalue, eigenvector = linalg.eig(self.system(k_red=0.0))
-        idx_pos = np.where(eigenvalue.imag > 0.0)[0]  # nur oszillierende Eigenbewegungen
-        idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
+        #idx_pos_osc = np.where(eigenvalue.imag > 0.0)[0]  # nur oszillierende Eigenbewegungen
+        idx_pos_osc = np.where(eigenvalue.imag >= 1e-6)[0]  # nur oszillierende Eigenbewegungen
+        idx_pos_real = np.where(  (eigenvalue.real > 1e-6) & (eigenvalue.imag.__abs__() < 1e-6)  )[0]
+        idx_pos = np.concatenate((idx_pos_real, idx_pos_osc))[-self.n_modes:]
+        if len(idx_pos_osc) != self.n_modes:
+            logging.warning('{} oscillatory and {} real eigenvalues found but {} expected.'.format(len(idx_pos_osc), len(idx_pos_real), self.n_modes))
+        idx_sort = np.argsort(eigenvalue.imag[idx_pos])  # sort result by eigenvalue
         eigenvalues0 = eigenvalue[idx_pos][idx_sort]
         eigenvectors0 = eigenvector[:, idx_pos][:, idx_sort]
         k0 = eigenvalues0.imag*self.model.macgrid['c_ref']/2.0/self.Vtas
