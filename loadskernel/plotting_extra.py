@@ -344,13 +344,12 @@ class Animations(plotting_standard.StandardPlots):
                 shell_type = tvtk.Polygon().cell_type
                 self.strc_ug.set_cells(shell_type, shells)
                 src_points = mlab.pipeline.add_dataset(self.strc_ug)
-                points  = mlab.pipeline.glyph(src_points, colormap='viridis', scale_factor=self.p_scale)
+                points  = mlab.pipeline.glyph(src_points, colormap='viridis', scale_factor=self.p_scale, scale_mode = 'none')
                 surface = mlab.pipeline.surface(src_points, colormap='viridis')
             else: 
                 # plot points as glyphs
                 src_points = mlab.pipeline.add_dataset(self.strc_ug)
-                points = mlab.pipeline.glyph(src_points, colormap='viridis', scale_factor=self.p_scale)
-            points.glyph.glyph.scale_mode = 'data_scaling_off'
+                points = mlab.pipeline.glyph(src_points, colormap='viridis', scale_factor=self.p_scale, scale_mode = 'none')
         
         def update_strc_display(self, points, scalars):
             self.strc_ug.points.from_array(points)
