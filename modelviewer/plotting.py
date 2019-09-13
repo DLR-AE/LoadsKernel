@@ -13,7 +13,7 @@ from mayavi.sources.utils import has_attributes
 
 class Plotting:
     def __init__(self):
-        self.pscale = 0.05
+        self.pscale = 0.2
         pass
 
     def plot_nothing(self):
