@@ -66,7 +66,7 @@ class StandardPlots():
             self.potatos_fz_my = ['MON1']
             self.cuttingforces_wing = ['MON1']
             self.f_scale = 0.1 # vectors
-            self.p_scale = 0.05 # points
+            self.p_scale = 0.2 # points
         # HALO
         elif self.jcl.general['aircraft'] == 'HALO':
             self.potatos_fz_mx = ['PMS_L', 'PMS_R']
@@ -440,27 +440,28 @@ class StandardPlots():
             gmax = 0.1
             
             
-            colors = itertools.cycle(( plt.cm.jet(np.linspace(0, 1, 11)) ))
+            colors = itertools.cycle(( plt.cm.tab20c(np.linspace(0, 1, 20)) ))
             markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
             
             fig, ax = plt.subplots(2, sharex=True )
             for j in range(response['freqs'].shape[1]): 
                 marker = next(markers)
                 color = next(colors)
-                ax[0].plot(response['Vtas'][:, j], response['freqs'][:, j],   marker=marker, markersize=2.0, linewidth=1.0)
-                ax[1].plot(response['Vtas'][:, j], response['damping'][:, j], marker=marker, markersize=2.0, linewidth=1.0)
+                ax[0].plot(response['Vtas'][:, j], response['freqs'][:, j],   marker=marker, markersize=2.0, linewidth=1.0, color=color)
+                ax[1].plot(response['Vtas'][:, j], response['damping'][:, j], marker=marker, markersize=2.0, linewidth=1.0, color=color)
             
             # make plots nice
-            ax[0].set_position([0.2, 0.55, 0.7, 0.35])
+            ax[0].set_position([0.15, 0.55, 0.75, 0.35])
             ax[0].title.set_text(trimcase['desc'])
+            ax[0].title.set_fontsize(16)
             ax[0].set_ylabel('f [Hz]')
-            ax[0].get_yaxis().set_label_coords(x=-0.18, y=0.5)
+            ax[0].get_yaxis().set_label_coords(x=-0.13, y=0.5)
             ax[0].grid(b=True, which='major', axis='both')
             ax[0].minorticks_on()
             ax[0].axis([Vmin, Vmax, fmin, fmax])
-            ax[1].set_position([0.2, 0.15, 0.7, 0.35])
-            ax[1].set_ylabel('g [%]')
-            ax[1].get_yaxis().set_label_coords(x=-0.18, y=0.5)
+            ax[1].set_position([0.15, 0.15, 0.75, 0.35])
+            ax[1].set_ylabel('g [-]')
+            ax[1].get_yaxis().set_label_coords(x=-0.13, y=0.5)
             ax[1].grid(b=True, which='major', axis='both')
             ax[1].minorticks_on()
             ax[1].axis([Vmin, Vmax, gmin, gmax])
