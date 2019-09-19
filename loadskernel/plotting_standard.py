@@ -12,6 +12,8 @@ plt.rcParams.update({'font.size': 16,
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
 import logging, itertools
+from loadskernel.units import tas2eas
+
 
 class StandardPlots():
     def __init__(self, jcl, model):
@@ -433,13 +435,12 @@ class StandardPlots():
             freqs = np.real(self.model.mass['Khh'][i_mass].diagonal())**0.5 /2/np.pi
             fmin = 0
             fmax = 5 * np.ceil(freqs.max() / 5)
-            Vtrim = self.model.atmo['a'][i_atmo] * trimcase['Ma']
+            Vtrim = tas2eas(self.model.atmo['a'][i_atmo] * trimcase['Ma'], self.model.atmo['h'][i_atmo])
             Vmin = 0
             Vmax = 5 * np.ceil(Vtrim*2.0 / 5)
             gmin = -0.1
             gmax = 0.1
-            
-            
+
             colors = itertools.cycle(( plt.cm.tab20c(np.linspace(0, 1, 20)) ))
             markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
             
@@ -447,8 +448,8 @@ class StandardPlots():
             for j in range(response['freqs'].shape[1]): 
                 marker = next(markers)
                 color = next(colors)
-                ax[0].plot(response['Vtas'][:, j], response['freqs'][:, j],   marker=marker, markersize=2.0, linewidth=1.0, color=color)
-                ax[1].plot(response['Vtas'][:, j], response['damping'][:, j], marker=marker, markersize=2.0, linewidth=1.0, color=color)
+                ax[0].plot(tas2eas(response['Vtas'][:, j], self.model.atmo['h'][i_atmo]), response['freqs'][:, j],   marker=marker, markersize=2.0, linewidth=1.0, color=color)
+                ax[1].plot(tas2eas(response['Vtas'][:, j], self.model.atmo['h'][i_atmo]), response['damping'][:, j], marker=marker, markersize=2.0, linewidth=1.0, color=color)
             
             # make plots nice
             ax[0].set_position([0.15, 0.55, 0.75, 0.35])
@@ -465,6 +466,6 @@ class StandardPlots():
             ax[1].grid(b=True, which='major', axis='both')
             ax[1].minorticks_on()
             ax[1].axis([Vmin, Vmax, gmin, gmax])
-            ax[1].set_xlabel('Vtas [m/s]')
+            ax[1].set_xlabel('$V_{eas} [m/s]$')
 
         plt.show()
