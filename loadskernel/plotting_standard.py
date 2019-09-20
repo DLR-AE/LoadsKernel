@@ -13,6 +13,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
 import logging, itertools
 from loadskernel.units import tas2eas
+from loadskernel.units import eas2tas
 
 
 class StandardPlots():
@@ -467,5 +468,16 @@ class StandardPlots():
             ax[1].minorticks_on()
             ax[1].axis([Vmin, Vmax, gmin, gmax])
             ax[1].set_xlabel('$V_{eas} [m/s]$')
+            
+            # additional axis for Vtas
+            ax_vtas = ax[1].twiny()
+            ax_vtas.set_position([0.15, 0.15, 0.75, 0.35])
+            ax_vtas.xaxis.set_ticks_position('bottom') # set the position of the second x-axis to bottom
+            ax_vtas.xaxis.set_label_position('bottom') # set the position of the second x-axis to bottom
+            ax_vtas.spines['bottom'].set_position(('outward', 60))
+            x1, x2 = ax[1].get_xlim()
+            ax_vtas.set_xlim(( eas2tas(x1, self.model.atmo['h'][i_atmo]), eas2tas(x2, self.model.atmo['h'][i_atmo]) ))
+            ax_vtas.minorticks_on()
+            ax_vtas.set_xlabel('$V_{tas} [m/s]$')
 
         plt.show()
