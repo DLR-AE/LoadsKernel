@@ -6,7 +6,8 @@ Created on Thu Nov 27 14:00:31 2014
 """
 import time, multiprocessing, getpass, platform, logging, sys, copy
 
-import loadskernel.io_functions as io_functions
+from loadskernel import io_functions
+from loadskernel.io_functions import matlab_functions, specific_functions
 import loadskernel.trim as trim
 import loadskernel.post_processing as post_processing
 import loadskernel.monstations as monstations_module
@@ -403,6 +404,7 @@ class Kernel():
         
 #         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
 #             plt = plotting_extra.Animations(self.jcl, model)
+#             responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
 #             plt.add_responses(responses)
 #             plt.make_animation()
 #             #plt.make_movie(self.path_output, speedup_factor=1.0)
