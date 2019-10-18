@@ -431,6 +431,14 @@ class Animations(plotting_standard.StandardPlots):
             cmd = 'ffmpeg -framerate {} -i {}anim/subcase_{}_frame_%06d.png -c:v mpeg4 -q:v 3 -r 30 -y {}anim/subcase_{}.avi'.format( speedup_factor/simcase['dt'], path_output, trimcase['subcase'], path_output, trimcase['subcase'])
             logging.info(cmd)
             os.system(cmd)
+            # GIF als Notloesung.
+            cmd1 = 'ffmpeg -i {}anim/subcase_{}_frame_000001.png -filter_complex palettegen -y /tmp/palette.png'.format( path_output, trimcase['subcase'])
+            cmd2 = 'ffmpeg -framerate {} -i {}anim/subcase_{}_frame_%06d.png -i /tmp/palette.png -r 15 -filter_complex paletteuse -y {}anim/subcase_{}.gif'.format( speedup_factor/simcase['dt'], path_output, trimcase['subcase'], path_output, trimcase['subcase'])
+            logging.info(cmd1)
+            os.system(cmd1)
+            logging.info(cmd2)
+            os.system(cmd2)
+            
         else:
             anim(self) # launch animation
             mlab.show()
