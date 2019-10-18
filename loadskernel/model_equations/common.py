@@ -700,7 +700,8 @@ class Common():
         alpha = np.arctan(onflow[2]/onflow[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
         beta  = np.arctan(onflow[1]/onflow[0]) #X[5] - np.arctan(X[7]/X[6])
         my    = 0.0
-        return onflow, alpha, beta, my
+        gamma = X[1] - alpha
+        return onflow, alpha, beta, my, gamma
     
     def get_Ux2(self, X):
         # Steuerflaechenausschlaege vom efcs holen
