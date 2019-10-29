@@ -772,21 +772,21 @@ class Common():
         Mxyz = - rot_vec * power / omega
         return Mxyz
 
-    def engine(self, X, Tbody2geo):
+    def engine(self, X):
         if hasattr(self.jcl, 'engine'):
             # get thrust setting
             thrust = X[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]
             PHIextra_cg = self.model.mass['PHIextra_cg'][self.i_mass]
             PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]
             Pextra = np.zeros(self.model.extragrid['n']*6)
-            dUextra  = PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12]))) + PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2]) # velocity LG attachment point 
+            dUextra_dt = PHIextra_cg.dot(self.PHInorm_cg.dot(X[6:12])) + PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2]) # velocity LG attachment point 
 
             for i_engine in range(self.jcl.engine['key'].__len__()):
                 thrust_vector = np.array(self.jcl.engine['thrust_vector'][i_engine])*thrust
                 Pextra[self.model.extragrid['set'][i_engine,0:3]] = thrust_vector
                 
                 if self.jcl.engine['method'] == 'propellerdisk':
-                    pqr     = dUextra[self.model.extragrid['set'][i_engine,(3,4,5)]]
+                    pqr     = dUextra_dt[self.model.extragrid['set'][i_engine,(3,4,5)]]
                     RPM     = self.trimcase['RPM']
                     power   = self.trimcase['power']
                     rotation_inertia    = self.jcl.engine['rotation_inertia'][i_engine]
