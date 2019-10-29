@@ -460,7 +460,6 @@ class Common():
             # init
             PHIextra_cg = self.model.mass['PHIextra_cg'][self.i_mass]
             PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]
-            PHIextra_cg = self.model.mass['PHIextra_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
             p1   = PHIextra_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.extragrid['set'][:,2]] + PHIf_extra.T.dot(X[12:12+self.n_modes])[self.model.extragrid['set'][:,2]] # position LG attachment point over ground
             dp1  = PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12])))[self.model.extragrid['set'][:,2]]  + PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2])[self.model.extragrid['set'][:,2]] # velocity LG attachment point 
             
@@ -668,7 +667,7 @@ class Common():
             pos = []
             for ID in self.model.cfdgrid['ID']: 
                 pos.append(np.where(global_id == ID)[0][0]) 
-        # build force vector from cfd solution                    
+        # build force vector from cfd solution self.engine(X)                   
         Pcfd = np.zeros(self.model.cfdgrid['n']*6)
         Pcfd[self.model.cfdgrid['set'][:,0]] = ncfile_pval.variables['x-force'][:][pos].copy()
         Pcfd[self.model.cfdgrid['set'][:,1]] = ncfile_pval.variables['y-force'][:][pos].copy()
@@ -763,16 +762,39 @@ class Common():
             dcommand = np.zeros(self.trim.n_input_derivatives)
         return dcommand
     
-    def engine(self, X):
+    def precession_moment(self, I, RPM, rot_vec, pqr):
+        omega = rot_vec * RPM / 60.0 * 2.0 * np.pi # Winkelgeschwindigkeitsvektor rad/s
+        Mxyz = np.cross(omega, pqr) * I
+        return Mxyz
+    
+    def torque_moment(self, RPM, rot_vec, power):
+        omega = RPM / 60.0 * 2.0 * np.pi # Winkelgeschwindigkeit rad/s
+        Mxyz = - rot_vec * power / omega
+        return Mxyz
+
+    def engine(self, X, Tbody2geo):
         if hasattr(self.jcl, 'engine'):
             # get thrust setting
-            thrust_setting = X[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]
+            thrust = X[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]
             PHIextra_cg = self.model.mass['PHIextra_cg'][self.i_mass]
             PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]
             Pextra = np.zeros(self.model.extragrid['n']*6)
+            dUextra  = PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12]))) + PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2]) # velocity LG attachment point 
+
             for i_engine in range(self.jcl.engine['key'].__len__()):
-                thrust_vector = np.array(self.jcl.engine['thrust_vector'][i_engine])*self.jcl.engine['design_thrust'][i_engine]*thrust_setting
+                thrust_vector = np.array(self.jcl.engine['thrust_vector'][i_engine])*thrust
                 Pextra[self.model.extragrid['set'][i_engine,0:3]] = thrust_vector
+                
+                if self.jcl.engine['method'] == 'propellerdisk':
+                    pqr     = dUextra[self.model.extragrid['set'][i_engine,(3,4,5)]]
+                    RPM     = self.trimcase['RPM']
+                    power   = self.trimcase['power']
+                    rotation_inertia    = self.jcl.engine['rotation_inertia'][i_engine]
+                    rotation_vector     = np.array(self.jcl.engine['rotation_vector'][i_engine])
+                    M_precession = self.precession_moment(rotation_inertia, RPM, rotation_vector, pqr)
+                    M_torque = self.torque_moment(RPM, rotation_vector, power)
+                    Pextra[self.model.extragrid['set'][i_engine,3:]] = M_precession + M_torque
+                    
             Pb_ext = PHIextra_cg.T.dot(Pextra)
             Pf_ext = PHIf_extra.dot(Pextra)
         else:

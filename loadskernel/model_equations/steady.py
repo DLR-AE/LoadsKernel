@@ -34,7 +34,7 @@ class Steady(Common):
         
         Pk_unsteady = Pk_rbm*0.0
         
-        Pextra, Pb_ext, Pf_ext = self.engine(X)
+        Pextra, Pb_ext, Pf_ext = self.engine(X, Tbody2geo)
         
         # -------------------------------  
         # --- correction coefficients ---   

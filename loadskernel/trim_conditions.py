@@ -326,12 +326,17 @@ class TrimConditions:
 
     def add_engine(self):
         if hasattr(self.jcl, 'engine'):
-            logging.info('setting trim conditions to include thrust')
-            # inputs
-            self.inputs[np.where((self.inputs[:,0] == 'thrust'))[0][0],1] = 'free'
-            # outputs
-            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'du'))[0][0],1] = 'target'
-            
+            if 'thrust' in self.trimcase and self.trimcase['thrust'] in ['free', 'balanced']:
+                logging.info('setting trim conditions to balanced thrust')
+                # inputs
+                self.inputs[np.where((self.inputs[:,0] == 'thrust'))[0][0],1] = 'free'
+                # outputs
+                self.state_derivatives[np.where((self.state_derivatives[:,0] == 'du'))[0][0],1] = 'target'
+            elif 'thrust' in self.trimcase:
+                logging.info('setting trim conditions to {} [N] thrust per engine'.format(self.trimcase['thrust']))
+                # inputs
+                self.inputs[np.where((self.inputs[:,0] == 'thrust'))[0][0],2] = self.trimcase['thrust']
+
     def add_landinggear(self):
         self.lg_states = []
         self.lg_derivatives = []

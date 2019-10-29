@@ -74,7 +74,7 @@ class AuxiliaryOutput:
             trimresult['command_xi [deg]']   = response['X'][12+2*n_modes]/np.pi*180.0
             trimresult['command_eta [deg]']  = response['X'][13+2*n_modes]/np.pi*180.0
             trimresult['command_zeta [deg]'] = response['X'][14+2*n_modes]/np.pi*180.0
-            trimresult['thrust [percent]'] = response['X'][15+2*n_modes]*100.0
+            trimresult['thrust per engine [N]'] = response['X'][15+2*n_modes]
             trimresult['Nz'] = response['Y'][12+2*n_modes+4]
             trimresult['Vtas'] = response['Y'][12+2*n_modes+5]
             trimresult['q_dyn'] = response['q_dyn'][0]
