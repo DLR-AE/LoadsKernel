@@ -463,43 +463,64 @@ class Common():
             PHIextra_cg = self.model.mass['PHIextra_cg'][self.model.mass['key'].index(self.trimcase['mass'])]
             p1   = PHIextra_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.extragrid['set'][:,2]] + PHIf_extra.T.dot(X[12:12+self.n_modes])[self.model.extragrid['set'][:,2]] # position LG attachment point over ground
             dp1  = PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12])))[self.model.extragrid['set'][:,2]]  + PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2])[self.model.extragrid['set'][:,2]] # velocity LG attachment point 
-            p2  = X[self.trim.idx_lg_states[:self.model.extragrid['n']]]  # position Tire center over ground
-            dp2 = X[self.trim.idx_lg_states[self.model.extragrid['n']:]] # velocity Tire center
-            # loop over every landing gear
-            for i in range(self.model.extragrid['n']):
-                # calculate pre-stress F0 in gas spring
-                # assumption: gas spring is compressed by 2/3 when aircraft on ground 
-                F0 = self.jcl.landinggear['para'][i]['F_static'] / ((1.0-2.0/3.0)**(-self.jcl.landinggear['para'][i]['n']*self.jcl.landinggear['para'][i]['ck'])) # N
-                # gas spring and damper
-                stroke = p2[i] - p1[i] + self.jcl.landinggear['para'][i]['stroke_length'] + self.jcl.landinggear['para'][i]['fitting_length']
-                if stroke > 0.001:
-                    Ff = F0*(1.0-stroke/self.jcl.landinggear['para'][i]['stroke_length'])**(-self.jcl.landinggear['para'][i]['n']*self.jcl.landinggear['para'][i]['ck'])
-                    Fd = np.sign(dp2[i]-dp1[i])*self.jcl.landinggear['para'][i]['d2']*(dp2[i]-dp1[i])**2.0 
-                elif stroke < -0.001:
-                    Ff = -F0
-                    Fd = 0.0 #np.sign(dp2[i]-dp1[i])*self.jcl.landinggear['para'][i]['d2']*(dp2[i]-dp1[i])**2.0
-                else:
-                    Ff = 0.0
-                    Fd = 0.0
-                # tire
-                if p2[i] < self.jcl.landinggear['para'][i]['r_tire']:
-                    Fz = self.jcl.landinggear['para'][i]['c1_tire']*(self.jcl.landinggear['para'][i]['r_tire'] - p2[i]) + self.jcl.landinggear['para'][i]['d1_tire']*(-dp2[i]) 
-                else:
-                    Fz = 0.0
-                Fg_tire = 0.0 #self.jcl.landinggear['para'][i]['m_tire'] * 9.81
-                
-                # in case of retracted landing gear no forces apply
-                if self.simcase['landinggear_state'][i] == 'extended':
-                    F1[i]=(Ff+Fd)
-                    F2[i]=(-Fg_tire-(Ff+Fd)+Fz)
-                    Fx[i]=(0.25*Fz) # CS 25.479(d)(1)
-                    ddp2[i]=(1.0/self.jcl.landinggear['para'][i]['m_tire']*(-Fg_tire-(Ff+Fd)+Fz))
-                else: 
-                    F1[i]=(0.0)
-                    F2[i]=(0.0)
-                    Fx[i]=(0.0)
-                    ddp2[i]=(0.0)
+            
+            if self.jcl.landinggear['method'] in ['generic']:
+                p2  = X[self.trim.idx_lg_states[:self.model.extragrid['n']]]  # position Tire center over ground
+                dp2 = X[self.trim.idx_lg_states[self.model.extragrid['n']:]] # velocity Tire center
+                # loop over every landing gear
+                for i in range(self.model.extragrid['n']):
+                    # calculate pre-stress F0 in gas spring
+                    # assumption: gas spring is compressed by 2/3 when aircraft on ground 
+                    F0 = self.jcl.landinggear['para'][i]['F_static'] / ((1.0-2.0/3.0)**(-self.jcl.landinggear['para'][i]['n']*self.jcl.landinggear['para'][i]['ck'])) # N
+                    # gas spring and damper
+                    stroke = p2[i] - p1[i] + self.jcl.landinggear['para'][i]['stroke_length'] + self.jcl.landinggear['para'][i]['fitting_length']
+                    if stroke > 0.001:
+                        Ff = F0*(1.0-stroke/self.jcl.landinggear['para'][i]['stroke_length'])**(-self.jcl.landinggear['para'][i]['n']*self.jcl.landinggear['para'][i]['ck'])
+                        Fd = np.sign(dp2[i]-dp1[i])*self.jcl.landinggear['para'][i]['d2']*(dp2[i]-dp1[i])**2.0 
+                    elif stroke < -0.001:
+                        Ff = -F0
+                        Fd = 0.0 #np.sign(dp2[i]-dp1[i])*self.jcl.landinggear['para'][i]['d2']*(dp2[i]-dp1[i])**2.0
+                    else:
+                        Ff = 0.0
+                        Fd = 0.0
+                    # tire
+                    if p2[i] < self.jcl.landinggear['para'][i]['r_tire']:
+                        Fz = self.jcl.landinggear['para'][i]['c1_tire']*(self.jcl.landinggear['para'][i]['r_tire'] - p2[i]) + self.jcl.landinggear['para'][i]['d1_tire']*(-dp2[i]) 
+                    else:
+                        Fz = 0.0
+                    Fg_tire = 0.0 #self.jcl.landinggear['para'][i]['m_tire'] * 9.81
                     
+                    # in case of retracted landing gear no forces apply
+                    if self.simcase['landinggear_state'][i] == 'extended':
+                        F1[i]=(Ff+Fd)
+                        F2[i]=(-Fg_tire-(Ff+Fd)+Fz)
+                        Fx[i]=(0.25*Fz) # CS 25.479(d)(1)
+                        ddp2[i]=(1.0/self.jcl.landinggear['para'][i]['m_tire']*(-Fg_tire-(Ff+Fd)+Fz))
+                    else: 
+                        F1[i]=(0.0)
+                        F2[i]=(0.0)
+                        Fx[i]=(0.0)
+                        ddp2[i]=(0.0)
+            
+            elif self.jcl.landinggear['method'] in ['skid']:
+                # loop over every landing gear
+                for i in range(self.model.extragrid['n']):
+                    stroke = self.jcl.landinggear['para'][i]['r_tire'] - p1[i]
+                    if stroke > 0.0:
+                        Fz = stroke * self.jcl.landinggear['para'][i]['c1_tire']
+                    else:
+                        Fz = 0.0
+                    # in case of retracted landing gear no forces apply
+                    if self.simcase['landinggear_state'][i] == 'extended':
+                        F1[i]=(Fz)
+                        Fx[i]=(0.4*Fz) # landing skid
+                    else: 
+                        F1[i]=(0.0)
+                        Fx[i]=(0.0)
+                p2   = []
+                dp2  = []
+                ddp2 = []
+
             # insert forces in 6dof vector Pextra
             Pextra[self.model.extragrid['set'][:,0]] = Fx 
             Pextra[self.model.extragrid['set'][:,2]] = F1

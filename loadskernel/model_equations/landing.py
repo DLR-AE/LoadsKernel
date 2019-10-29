@@ -95,9 +95,9 @@ class Landing(Common):
         elif modus in ['trim_full_output', 'sim_full_output']:
             # calculate translations, velocities and accelerations of some additional points
             # (might also be used for sensors in a closed-loop system
-            p1   = (PHIextra_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ])))[self.model.extragrid['set'][:,2]] #+ PHIf_extra.T.dot(X[12:12+self.n_modes]))[self.model.extragrid['set'][:,2]] # position LG attachment point over ground
-            dp1  = (PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12]))))[self.model.extragrid['set'][:,2]] # + PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2]))[self.model.extragrid['set'][:,2]] # velocity LG attachment point 
-            ddp1 = (PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, Y[6:12]))))[self.model.extragrid['set'][:,2]] # + PHIf_extra.T.dot(Y[12+self.n_modes:12+self.n_modes*2]))[self.model.extragrid['set'][:,2]] # acceleration LG attachment point 
+            p1   = PHIextra_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.extragrid['set'][:,2]] + PHIf_extra.T.dot(X[12:12+self.n_modes])[self.model.extragrid['set'][:,2]] # position LG attachment point over ground
+            dp1  = PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12])))[self.model.extragrid['set'][:,2]] + PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2])[self.model.extragrid['set'][:,2]] # velocity LG attachment point 
+            ddp1 = PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, Y[6:12])))[self.model.extragrid['set'][:,2]] + PHIf_extra.T.dot(Y[12+self.n_modes:12+self.n_modes*2])[self.model.extragrid['set'][:,2]] # acceleration LG attachment point 
 
             response = {'X': X, 
                         'Y': Y,

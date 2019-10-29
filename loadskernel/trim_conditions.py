@@ -177,12 +177,14 @@ class TrimConditions:
         elif self.trimcase['maneuver'] in ['L1wheel', 'L2wheel']:
             logging.info('setting trim conditions to "level landing"')
             # inputs
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
 
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dx'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dz'))[0][0],2] = self.trimcase['dz']
             self.outputs[np.where((self.outputs[:,0] == 'Vtas'))[0][0],1] = 'target'
             # outputs
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
              
         # -----------------------
@@ -191,12 +193,14 @@ class TrimConditions:
         elif self.trimcase['maneuver'] in ['L3wheel']:
             logging.info('setting trim conditions to "3 wheel landing"')
             # inputs
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dx'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dz'))[0][0],2] = self.trimcase['dz']
             self.states[np.where((self.states[:,0] == 'theta'))[0][0],1] = 'target'
             self.states[np.where((self.states[:,0] == 'theta'))[0][0],2] = self.trimcase['theta']
             # outputs
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
             self.outputs[np.where((self.outputs[:,0] == 'Nz'))[0][0],1] = 'free'
             self.outputs[np.where((self.outputs[:,0] == 'Vtas'))[0][0],1] = 'target'
@@ -329,15 +333,19 @@ class TrimConditions:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'du'))[0][0],1] = 'target'
             
     def add_landinggear(self):
-        logging.info('adding 2 x {} states for landing gear'.format(self.model.extragrid['n']))
         self.lg_states = []
         self.lg_derivatives = []
-        for i in range(self.model.extragrid['n']):
-            self.lg_states.append(self.response['p1'][i] - self.jcl.landinggear['para'][i]['stroke_length'] - self.jcl.landinggear['para'][i]['fitting_length'])
-            self.lg_derivatives.append(self.response['dp1'][i])
-        for i in range(self.model.extragrid['n']):
-            self.lg_states.append(self.response['dp1'][i])
-            self.lg_derivatives.append(self.response['ddp1'][i])
+        
+        if self.jcl.landinggear['method'] in ['generic']:
+            logging.info('adding 2 x {} states for landing gear'.format(self.model.extragrid['n']))
+            for i in range(self.model.extragrid['n']):
+                self.lg_states.append(self.response['p1'][i] - self.jcl.landinggear['para'][i]['stroke_length'] - self.jcl.landinggear['para'][i]['fitting_length'])
+                self.lg_derivatives.append(self.response['dp1'][i])
+            for i in range(self.model.extragrid['n']):
+                self.lg_states.append(self.response['dp1'][i])
+                self.lg_derivatives.append(self.response['ddp1'][i])
+        elif self.jcl.landinggear['method'] in ['skid']:  
+            pass
         # update response with landing gear states
         self.response['X'] = np.hstack((self.response['X'], self.lg_states ))
         self.response['Y'] = np.hstack((self.response['Y'][self.idx_state_derivatives + self.idx_input_derivatives], self.lg_derivatives, self.response['Y'][self.idx_outputs] ))

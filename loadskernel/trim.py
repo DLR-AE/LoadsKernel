@@ -141,7 +141,7 @@ class Trim(TrimConditions):
             equations = Steady(self)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
             equations = NonlinSteady(self)
-        elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
+        elif self.simcase['landinggear'] and self.jcl.landinggear['method'] in ['generic', 'skid']:
             equations = Landing(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
@@ -236,7 +236,7 @@ class Trim(TrimConditions):
             equations = Steady(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
             equations = NonlinSteady(self, X0=self.response['X'], simcase=self.simcase)
-        elif self.simcase['landinggear'] and self.jcl.landinggear['method'] == 'generic':
+        elif self.simcase['landinggear'] and self.jcl.landinggear['method'] in ['generic', 'skid']:
             self.add_landinggear() # add landing gear to system
             equations = Landing(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
