@@ -779,7 +779,8 @@ class Common():
             PHIextra_cg = self.model.mass['PHIextra_cg'][self.i_mass]
             PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]
             Pextra = np.zeros(self.model.extragrid['n']*6)
-            dUextra_dt = PHIextra_cg.dot(self.PHInorm_cg.dot(X[6:12])) + PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2]) # velocity LG attachment point 
+            dUcg_dt, Uf, dUf_dt = self.recover_states(X)
+            dUextra_dt = PHIextra_cg.dot(dUcg_dt) + PHIf_extra.T.dot(dUf_dt) # velocity LG attachment point 
 
             for i_engine in range(self.jcl.engine['key'].__len__()):
                 thrust_vector = np.array(self.jcl.engine['thrust_vector'][i_engine])*thrust
