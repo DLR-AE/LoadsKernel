@@ -475,7 +475,7 @@ def read_op4_dense(fid, data, n_col, type_real):
         if type_real:
             n_lines = int(math.ceil(n_items/5.0))
         else:
-            n_items = n_items / 2 
+            n_items = int(n_items / 2) 
             n_lines = int(math.ceil(n_items/2.5))
         data = read_op4_column(fid, data, i_col, i_row, n_lines, n_items, type_real)
     return  data
