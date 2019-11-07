@@ -329,9 +329,11 @@ class Model:
                 self.build_rfa()
             else:
                 logging.error( 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
-        else:
-            if self.jcl.aero['method'] in ['freq_dom'] and self.jcl.aero['method_AIC'] == 'dlm':
+        elif self.jcl.aero['method'] in ['freq_dom']:
+            if self.jcl.aero['method_AIC'] == 'dlm':
                 self.build_AICs_DLM()
+            elif self.jcl.aero['method_AIC'] == 'nastran':
+                self.build_AICs_Nastran()
             self.aero['n_poles'] = 0
     
     def build_AICs_DLM(self):
