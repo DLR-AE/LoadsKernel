@@ -59,6 +59,15 @@ class AuxiliaryOutput:
             n_modes = self.model.mass['n_modes'][i_mass]
 
             # get trimmed states
+            trimresult['x'] = response['X'][0]
+            trimresult['y'] = response['X'][1]
+            trimresult['z'] = response['X'][2]
+            trimresult['phi [deg]']   = response['X'][3]/np.pi*180.0
+            trimresult['theta [deg]'] = response['X'][4]/np.pi*180.0
+            trimresult['psi [deg]']   = response['X'][5]/np.pi*180.0
+            trimresult['dx'] = response['Y'][0]
+            trimresult['dy'] = response['Y'][1]
+            trimresult['dz'] = response['Y'][2]
             trimresult['u'] = response['X'][6]
             trimresult['v'] = response['X'][7]
             trimresult['w'] = response['X'][8]
