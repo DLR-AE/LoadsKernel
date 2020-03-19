@@ -12,7 +12,7 @@ def number_nastarn_converter(number):
     if number.is_integer():
         number_str = '{:> 7.1f}'.format(number)
     elif 0.0 <= np.log10(number.__abs__()) < 5.0:
-        number_str = '{:> 7.1f}'.format(number)
+        number_str = '{:> 7.4f}'.format(number)
     elif -4.0 <= np.log10(number.__abs__()) < 0.0:
         number_str = '{:> 7.4f}'.format(number)
     else:
