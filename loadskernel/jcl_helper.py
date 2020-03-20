@@ -3,6 +3,7 @@ import csv, logging
 from collections import OrderedDict
 from numpy import array
 import numpy as np
+from loadskernel.units import *
 
 def csv2listofdicts(filename_csv):
     logging.info('Reading list of dicts from: ' + filename_csv)
