@@ -34,12 +34,12 @@ class Efcs:
         # xi - Rollachse
         dAILPA += command_xi # bei positivem xi (Knueppel nach rechts) sollen die linken Querruder nach unten ausschlagen
         dAILPB += command_xi
-        dAILPC += command_xi
-        dAILPD += command_xi
+#         dAILPC += command_xi
+#         dAILPD += command_xi
         dAILSA -= command_xi # bei positivem xi (Knueppel nach rechts) sollen die rechten Querruder nach oben ausschlagen
         dAILSB -= command_xi
-        dAILSC -= command_xi
-        dAILSD -= command_xi
+#         dAILSC -= command_xi
+#         dAILSD -= command_xi
         
         # eta - Nickachse
         dELEV1 -= command_eta
