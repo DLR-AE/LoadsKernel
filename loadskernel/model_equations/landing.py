@@ -63,7 +63,7 @@ class Landing(Common):
         # ----------------------
         # --- CS derivatives ---
         # ----------------------
-        dcommand = self.get_command_derivatives(t, dUcg_dt, X, Vtas, gamma)
+        dcommand = self.get_command_derivatives(t, dUcg_dt, X, Vtas, gamma, alpha, beta)
 
         # --------------   
         # --- output ---   
