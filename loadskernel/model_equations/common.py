@@ -748,7 +748,7 @@ class Common():
         d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
         return d2Uf_dt2
     
-    def get_command_derivatives(self, t, dUcg_dt, X, Vtas, gamma):
+    def get_command_derivatives(self, t, dUcg_dt, X, Vtas, gamma, alpha, beta):
         if self.simcase and self.simcase['cs_signal']:
             dcommand = self.efcs.cs_signal(t)
         elif self.simcase and self.simcase['controller']:
@@ -756,7 +756,8 @@ class Common():
                                             feedback_p=dUcg_dt[3], feedback_q=dUcg_dt[4], feedback_r=dUcg_dt[5],
                                             feedback_phi=X[np.where(self.trimcond_X[:,0]=='phi')[0][0]], feedback_theta=X[np.where(self.trimcond_X[:,0]=='theta')[0][0]], feedback_psi=X[np.where(self.trimcond_X[:,0]=='psi')[0][0]],
                                             feedback_v=Vtas, feedback_gamma=gamma,
-                                            feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], feedback_zeta=X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]], feedback_thrust=X[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]
+                                            feedback_alpha=alpha, feedback_beta=beta,
+                                            feedback_xi=X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], feedback_zeta=X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]], feedback_thrust=X[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]
                                            )
         else:
             dcommand = np.zeros(self.trim.n_input_derivatives)

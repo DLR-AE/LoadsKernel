@@ -92,8 +92,9 @@ class Efcs:
         # set up fmu 
         self.fmi.set_real([self.reference_values['Gamma_cmd']], [0.0])
         self.fmi.set_real([self.reference_values['V_cmd']],     [setpoint_v])
-        self.fmi.set_real([self.reference_values['Theta_cmd']], [0.0])
-        self.fmi.set_real([self.reference_values['Psi_dot_cmd']],[0.0])
+        self.fmi.set_real([self.reference_values['LonMan']], [0.0]) # Theta_cmd
+        self.fmi.set_real([self.reference_values['LatMan']], [0.0]) # Phi_cmd
+        #self.fmi.set_real([self.reference_values['Psi_dot_cmd']],[0.0])
         self.fmi.set_real([self.reference_values['TECS_OnOff']],[False])
         self.fmi.set_real([self.reference_values['CL_OnOff']],  [True])
         
@@ -101,6 +102,8 @@ class Efcs:
         self.fmi.set_real([self.reference_values['Phi'], self.reference_values['Theta'], self.reference_values['Psi']],[0.0, setpoint_theta, 0.0])
         self.fmi.set_real([self.reference_values['V_EAS']],[setpoint_v])
         self.fmi.set_real([self.reference_values['gamma']],[0.0])
+        self.fmi.set_real([self.reference_values['alpha']],[0.0])
+        self.fmi.set_real([self.reference_values['beta']],[0.0])
         
         #self.fmi.set_real([self.reference_values['y_out[1]'], self.reference_values['y_out[2]']], [command_0[1], command_0[2]])
         #self.fmi.set_real([self.reference_values['y_out[3]'], self.reference_values['y_out[4]']], [command_0[3], command_0[3]])
@@ -121,12 +124,19 @@ class Efcs:
         self.zeta_actuator.sample_time=0.0
         self.max_zeta = +10.0/180.0*np.pi
         self.min_zeta = -10.0/180.0*np.pi
+        
+        self.xi_actuator = PID.PID_ideal(Kp = 10.0, Ki = 0.0, Kd = 0.0, t=0.0)
+        self.xi_actuator.SetPoint=0.0
+        self.xi_actuator.sample_time=0.0
+        self.max_xi = +10.0/180.0*np.pi
+        self.min_xi = -10.0/180.0*np.pi
     
     def controller(self, t, 
                    feedback_p, feedback_q, feedback_r,
                    feedback_phi, feedback_theta, feedback_psi,
                    feedback_v, feedback_gamma,
-                   feedback_eta, feedback_zeta, feedback_thrust):
+                   feedback_alpha, feedback_beta,
+                   feedback_xi, feedback_eta, feedback_zeta, feedback_thrust):
           
         dt_fmu = t - self.last_time
         if dt_fmu > 0.01:
@@ -134,10 +144,12 @@ class Efcs:
             self.fmi.set_real([self.reference_values['Phi'], self.reference_values['Theta'], self.reference_values['Psi']],[feedback_phi, feedback_theta, feedback_psi])
             self.fmi.set_real([self.reference_values['V_EAS']],[feedback_v])
             self.fmi.set_real([self.reference_values['gamma']],[feedback_gamma])
+            self.fmi.set_real([self.reference_values['alpha']],[feedback_alpha])
+            self.fmi.set_real([self.reference_values['beta']],[feedback_beta])
             self.fmi.do_step(t-dt_fmu, dt_fmu, True)
             self.last_time = t
   
-        command_eta, command_zeta = self.fmi.get_real([self.reference_values['y_out[1]'], self.reference_values['y_out[2]']])
+        command_eta, command_zeta, command_xi = self.fmi.get_real([self.reference_values['y_out[1]'], self.reference_values['y_out[2]'], self.reference_values['y_out[5]']])
         thrust_l, thrust_r        = self.fmi.get_real([self.reference_values['y_out[3]'], self.reference_values['y_out[4]']])
          
         command_eta = -command_eta + self.command_0[1]
@@ -151,6 +163,12 @@ class Efcs:
             command_zeta = self.max_zeta
         elif command_zeta < self.min_zeta:
             command_zeta = self.min_zeta 
+        
+        command_xi = -command_xi + self.command_0[0] 
+        if command_xi > self.max_xi:
+            command_xi = self.max_xi
+        elif command_xi < self.min_xi:
+            command_xi = self.min_xi 
          
         # Aktuator
         self.eta_actuator.setSetPoint(command_eta)
@@ -168,8 +186,16 @@ class Efcs:
             command_dzeta = self.max_actuator_speed
         elif command_dzeta < -self.max_actuator_speed:
             command_dzeta = -self.max_actuator_speed
+        
+        self.xi_actuator.setSetPoint(command_xi)
+        self.xi_actuator.update(t=t, feedback_value=feedback_xi) # xi
+        command_dxi = self.xi_actuator.output # dxi
+        if command_dxi > self.max_actuator_speed:
+            command_dxi = self.max_actuator_speed
+        elif command_dxi < -self.max_actuator_speed:
+            command_dxi = -self.max_actuator_speed
          
         # commands for xi remains untouched
-        dcommand = np.array([0.0, command_deta, command_dzeta, 0.0])
+        dcommand = np.array([command_dxi, command_deta, command_dzeta, 0.0])
         return dcommand
     
