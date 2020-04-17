@@ -198,7 +198,7 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
     n_j = Qjj.shape[1]
     
     logging.info( '- solving B = A*x with least-squares method')
-    solution, residuals, rank, s = np.linalg.lstsq(Ajj, Qjj_reshaped)
+    solution, residuals, rank, s = np.linalg.lstsq(Ajj, Qjj_reshaped, rcond=-1)
     ABCD = solution.reshape(3 + n_poles, n_j, n_j)
     
     # Kontrolle
