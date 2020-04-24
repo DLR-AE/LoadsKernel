@@ -27,7 +27,7 @@ from loadskernel.trim_conditions import TrimConditions
 class Trim(TrimConditions):
     def calc_jacobian(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
-            equations = model_equations.Steady(self)
+            equations = Steady(self)
             """
             The Jacobian matrix is computed about the trimmed flight condition. 
             Alternatively, it may be computed about the trim condition specified in the JCL with: X0 = np.array(self.trimcond_X[:,2], dtype='float')
@@ -36,7 +36,7 @@ class Trim(TrimConditions):
             self.idx_lag_states = []
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             self.add_lagstates()
-            equations = model_equations.Unsteady(self)
+            equations = Unsteady(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
             
@@ -71,7 +71,7 @@ class Trim(TrimConditions):
         self.response['Y0'] = equations.equations(X0, t=0.0, modus='trim')
         self.response['jac'] = jac
         self.response['states'] = self.states[:,0]
-        self.response['state_derivativess'] = self.state_derivatives[:,0]
+        self.response['state_derivatives'] = self.state_derivatives[:,0]
         self.response['inputs'] = self.inputs[:,0]
         self.response['outputs'] = self.outputs[:,0]
         # States need to be reordered into ABCD matrices!
@@ -89,6 +89,7 @@ class Trim(TrimConditions):
         self.response['idx_A'] = idx_A
         self.response['idx_B'] = idx_B
         self.response['idx_C'] = idx_C
+        self.response['desc'] = self.trimcase['desc']
             
     def calc_derivatives(self):        
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
@@ -103,6 +104,7 @@ class Trim(TrimConditions):
             
         X0 = np.array(self.trimcond_X[:,2], dtype='float')
         response0 = equations.equations(X0, 0.0, 'trim_full_output')
+        derivatives = []
         logging.info('Calculating derivatives for ' + str(len(X0)) + ' variables...')
         logging.info('MAC_ref = {}'.format(self.jcl.general['MAC_ref']))
         logging.info('A_ref = {}'.format(self.jcl.general['A_ref']))
@@ -117,9 +119,11 @@ class Trim(TrimConditions):
             xi[i] += delta
             response = equations.equations(xi, 0.0, 'trim_full_output')
             Pmac_c = (response['Pmac']-response0['Pmac'])/response['q_dyn']/A/delta
+            derivatives.append([Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref']])
             tmp = '{:>20} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g}'.format( self.trimcond_X[i,0], Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref'] )
             logging.info(tmp)
         logging.info('--------------------------------------------------------------------------------------')
+        self.response['derivatives'] = np.array(derivatives)
                             
     def exec_trim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'freq_dom']:

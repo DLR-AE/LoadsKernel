@@ -68,7 +68,7 @@ class TrimConditions:
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
         n_modes = self.model.mass['n_modes'][i_mass]
         vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
-        theta = 1.0/180.0*np.pi # starting with a small angle of attack increases the performance and convergence of the CFD solution
+        theta = 0.0/180.0*np.pi # starting with a small angle of attack increases the performance and convergence of the CFD solution
         u = vtas*np.cos(theta)
         w = vtas*np.sin(theta)
         z = -self.model.atmo['h'][i_atmo]
