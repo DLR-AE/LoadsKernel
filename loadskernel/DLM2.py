@@ -80,42 +80,28 @@ def calc_Ajj(aerogrid, Ma, k):
     e2 = e**2.0
     chord = np.repeat(np.array(aerogrid['l'], ndmin=2), aerogrid['n'], axis=0)
     
-    # distances between points in matrix notation
-    xmr = np.array(Pr[:,0], ndmin=2).T - np.array(Pm[:,0], ndmin=2)
-    ymr = np.array(Pr[:,1], ndmin=2).T - np.array(Pm[:,1], ndmin=2)
-    zmr = np.array(Pr[:,2], ndmin=2).T - np.array(Pm[:,2], ndmin=2)
-    
+    # cartesian coordinates of receiving points relative to sending points
     xsr = np.array(Pr[:,0], ndmin=2).T - np.array(Ps[:,0], ndmin=2)
     ysr = np.array(Pr[:,1], ndmin=2).T - np.array(Ps[:,1], ndmin=2)
     zsr = np.array(Pr[:,2], ndmin=2).T - np.array(Ps[:,2], ndmin=2)
     
-    xpr = np.array(Pr[:,0], ndmin=2).T - np.array(Pp[:,0], ndmin=2)
-    ypr = np.array(Pr[:,1], ndmin=2).T - np.array(Pp[:,1], ndmin=2)
-    zpr = np.array(Pr[:,2], ndmin=2).T - np.array(Pp[:,2], ndmin=2)
-
     # dihedral angle gamma = arctan(dz/dy) and sweep angle lambda = arctan(dx/dy)
-    tanGamma  = (Pp[:,2]-Pm[:,2])/(Pp[:,1]-Pm[:,1])
-    tanLambda = (Pp[:,0]-Pm[:,0])/(Pp[:,1]-Pm[:,1]) 
+    tanGamma  = (Pp[:,2]-Pm[:,2])/(2.0*e)
+    tanLambda = (Pp[:,0]-Pm[:,0])/(2.0*e)
+    gamma = np.arctan(tanGamma)
+    # relative dihedral angle between receiving point and sending boxes
+    gamma_sr = np.array(gamma, ndmin=2).T - np.array(gamma, ndmin=2)
     
-    gamma = np.arctan(tanGamma) 
     cosGamma = np.cos(gamma)
     sinGamma = np.sin(gamma)
-    
-    # define r1 and the local coordinates eta, zeta in matrix notation
-    cosGamma = np.repeat(np.array(cosGamma, ndmin=2),aerogrid['n'],axis=0)
-    sinGamma = np.repeat(np.array(sinGamma, ndmin=2),aerogrid['n'],axis=0)
-    eta   = ysr*cosGamma + zsr*sinGamma
-    zeta  = zsr*cosGamma - ysr*sinGamma
-    # pre-calculate some values which will be used a couple of times
-    eta2  = eta**2.0
-    zeta2 = zeta**2.0
-    r2    = eta2 + zeta2
-    ratio = np.abs(2.0*e*zeta/(r2 - e2))
+    # local coordinates of receiving point relative to sending point
+    ybar  = ysr*cosGamma + zsr*sinGamma
+    zbar  = zsr*cosGamma - ysr*sinGamma
     
     # call the kernel function
-    P1m, P2m = kernelfunction(xmr,ymr,zmr,cosGamma,sinGamma,tanLambda,k,Ma)
-    P1p, P2p = kernelfunction(xpr,ypr,zpr,cosGamma,sinGamma,tanLambda,k,Ma)
-    P1s, P2s = kernelfunction(xsr,ysr,zsr,cosGamma,sinGamma,tanLambda,k,Ma)
+    P1m, P2m = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,-e,k,Ma)
+    P1p, P2p = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,+e,k,Ma)
+    P1s, P2s = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda, 0,k,Ma)
     
     # define terms used in the parabolic approximation
     A1 = (P1m-2.0*P1s+P1p)/(2.0*e2)     # Rodden 1971, eq 28
@@ -126,29 +112,36 @@ def calc_Ajj(aerogrid, Ma, k):
     B2 = (P2p-P2m)/(2.0*e)              # Rodden 1971, eq 38
     C2 = P2s                            # Rodden 1971, eq 39
 
+
+    # pre-calculate some values which will be used a couple of times
+    ybar2 = ybar**2.0
+    zbar2 = zbar**2.0
+    r2    = ybar2 + zbar2
+    ratio = np.abs(2.0*e*zbar/(r2 - e2))
+
     # The "planar" part
     # -----------------
     # Initial values
     F = np.zeros(e.shape)    
     # Condition 1, planar
-    i0 = zeta==0.0
-    F[i0] = (2.0*e[i0])/(eta2[i0] - e2[i0])
+    i0 = zbar==0.0
+    F[i0] = (2.0*e[i0])/(ybar2[i0] - e2[i0])
     # Condition 2, co-planar / close-by
-    ia = (ratio <= 0.3) & (zeta!=0.0) 
+    ia = (ratio <= 0.3) & (zbar!=0.0) 
     funny_series = 0.0
     for n in range(2,8): 
         funny_series += (-1.0)**n/(2.0*n-1.0) * ratio[ia]**(2.0*n-4.0)
     alpha = 4.0*e[ia]**4.0/(r2[ia]-e2[ia])**2.0 * funny_series                              # Rodden 1971, eq 33
     
-    F[ia] = 2.0*e[ia]/(r2[ia] - e2[ia])*(1.0-alpha*zeta2[ia]/e2[ia])                        # Rodden 1971, eq 32
+    F[ia] = 2.0*e[ia]/(r2[ia] - e2[ia])*(1.0-alpha*zbar2[ia]/e2[ia])                        # Rodden 1971, eq 32
     # Condition 3, the rest / further away
-    ir = (ratio > 0.3) & (zeta!=0.0) 
-    F[ir] = 1.0/np.abs(zeta[ir])*np.arctan2(2.0*e[ir]*np.abs(zeta[ir]),(r2[ir] - e2[ir])) # Rodden 1971, eq 31b
+    ir = (ratio > 0.3) & (zbar!=0.0) 
+    F[ir] = 1.0/np.abs(zbar[ir])*np.arctan2(2.0*e[ir]*np.abs(zbar[ir]),(r2[ir] - e2[ir])) # Rodden 1971, eq 31b
     # check: np.all(i0 + ia + ir) == True
         
     #  normalwash matrix, Rodden 1971, eq 34
-    I34 = ((eta2 - zeta2)*A1 + eta*B1 + C1) * F \
-         + (0.5*B1 + eta*A1) * np.log( ((eta-e)**2.0+zeta2)/((eta+e)**2.0+zeta2) ) \
+    I34 = ((ybar2 - zbar2)*A1 + ybar*B1 + C1) * F \
+         + (0.5*B1 + ybar*A1) * np.log( ((ybar-e)**2.0+zbar2)/((ybar+e)**2.0+zbar2) ) \
          + 2.0*e*A1
     D1 = chord/(np.pi*8.0)*I34
     
@@ -157,20 +150,20 @@ def calc_Ajj(aerogrid, Ma, k):
     D2 = np.zeros(e.shape, dtype='complex')
     # Condition 1, similar to above but with different boundary, Rodden 1971 eq 40
     # 1/ratio <= 0.1 is equivalent to ratio > 10.0
-    ib = (ratio >= 10.0) & (zeta!=0.0) 
-    I40 = (r2[ib]*A2[ib] + eta[ib]*B2[ib] + C2[ib])*F[ib] \
-        + 1.0/((eta[ib]+e[ib])**2.0+zeta2[ib]) * ( (r2[ib]*eta[ib]+(eta2[ib]-zeta2[ib])*e[ib])*A2[ib] + (r2[ib]+eta[ib]*e[ib])*B2[ib] + (eta[ib]+e[ib])*C2[ib] ) \
-        - 1.0/((eta[ib]-e[ib])**2.0+zeta2[ib]) * ( (r2[ib]*eta[ib]+(eta2[ib]-zeta2[ib])*e[ib])*A2[ib] + (r2[ib]-eta[ib]*e[ib])*B2[ib] + (eta[ib]-e[ib])*C2[ib] )
+    ib = (ratio >= 10.0) & (zbar!=0.0) 
+    I40 = (r2[ib]*A2[ib] + ybar[ib]*B2[ib] + C2[ib])*F[ib] \
+        + 1.0/((ybar[ib]+e[ib])**2.0+zbar2[ib]) * ( (r2[ib]*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (r2[ib]+ybar[ib]*e[ib])*B2[ib] + (ybar[ib]+e[ib])*C2[ib] ) \
+        - 1.0/((ybar[ib]-e[ib])**2.0+zbar2[ib]) * ( (r2[ib]*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (r2[ib]-ybar[ib]*e[ib])*B2[ib] + (ybar[ib]-e[ib])*C2[ib] )
     
-    D2[ib] = chord[ib]/(16.0*np.pi*zeta2[ib])*I40
+    D2[ib] = chord[ib]/(16.0*np.pi*zbar2[ib])*I40
     
     # Condition 2, Rodden 1971 eq 41
-    ic = (ratio < 10.0) & (zeta!=0.0) 
+    ic = (ratio < 10.0) & (zbar!=0.0) 
     # reconstruct alpha from eq 32, NOT eq 33!
-    alpha41 = (1.0 - F[ic] * (r2[ic]-e2[ic])/(2.0*e[ic]))/zeta2[ic]*e2[ic]
-    I41 = ( 2.0*(r2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic])+4.0*eta[ic]*e2[ic]*B2[ic] ) \
-        / ( ((eta[ic]+e[ic])**2.0+zeta2[ic])*((eta[ic]-e[ic])**2.0+zeta2[ic]) ) \
-        - alpha41/e2[ic] * ( r2[ic]*A2[ic] + eta[ic]*B2[ic] + C2[ic] )
+    alpha41 = (1.0 - F[ic] * (r2[ic]-e2[ic])/(2.0*e[ic]))/zbar2[ic]*e2[ic]
+    I41 = ( 2.0*(r2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic])+4.0*ybar[ic]*e2[ic]*B2[ic] ) \
+        / ( ((ybar[ic]+e[ic])**2.0+zbar2[ic])*((ybar[ic]-e[ic])**2.0+zbar2[ic]) ) \
+        - alpha41/e2[ic] * ( r2[ic]*A2[ic] + ybar[ic]*B2[ic] + C2[ic] )
 
     D2[ic] = chord[ic]*e[ic]/(8.0*np.pi*(r2[ic]-e2[ic]))*I41
     
@@ -180,7 +173,7 @@ def calc_Ajj(aerogrid, Ma, k):
     return D
 
 
-def kernelfunction(xbar,ybar,zbar,cosGamma,sinGamma,tanLambda,k,M):
+def kernelfunction(xbar,ybar,zbar,gamma_sr,tanLambda,ebar,k,M):
     # This is the function that calculates "the" kernel function(s) of the DLM.
     # K1,2 are reformulated in Rodden 1971 compared to Rodden 1968 and include new 
     # conditions, e.g. for co-planar panels.
@@ -189,18 +182,17 @@ def kernelfunction(xbar,ybar,zbar,cosGamma,sinGamma,tanLambda,k,M):
     # from the VLM. Also, we directly subtract the steady parts K10 and K20, as the 
     # steady contribution will be added later from the VLM.
     
-    r1 = ((ybar**2.0) + (zbar**2.0))**0.5       # Rodden 1971, eq 4
-    beta2 = (1.0-(M**2.0))                      # Rodden 1971, eq 9
-    # R und u1 eigentlich mit (xbar-eta*tanLambda) --> Eventuell falsche Werte für Fleilflügel?
-    R = ((xbar**2.0) + beta2*(r1**2.0))**0.5    # Rodden 1971, eq 10
-    u1 = ((M*R) - xbar) / (beta2*r1)            # Rodden 1971, eq 11
-    k1 = k*r1                                   # Rodden 1971, eq 12 with k = w/U
-    j = 1j                                      # imaginary number
-    ejku = np.exp(-j*k1*u1)                     # pre-multiplication
+    r1 = ((ybar-ebar)**2.0 + zbar**2.0)**0.5                    # Rodden 1971, eq 4
+    beta2 = (1.0-(M**2.0))                                      # Rodden 1971, eq 9
+    R = ((xbar-ebar*tanLambda)**2.0 + beta2*r1**2.0)**0.5       # Rodden 1971, eq 10
+    u1 = (M*R - xbar + ebar*tanLambda) / (beta2*r1)             # Rodden 1971, eq 11
+    k1 = k*r1                                                   # Rodden 1971, eq 12 with k = w/U
+    j = 1j                                                      # imaginary number
+    ejku = np.exp(-j*k1*u1)                                     # pre-multiplication
     
     # direction cosine matrices
-    T1 = cosGamma                               # Rodden 1971 eq 5
-    T2 = zbar*(zbar*cosGamma + ybar*sinGamma)   # Rodden 1971, eq 21a: T2_new = T2_old*r1^2
+    T1 = np.cos(gamma_sr)                                               # Rodden 1971, eq 5
+    T2 = zbar*(zbar*np.cos(gamma_sr) + (ybar-ebar)*np.sin(gamma_sr))    # Rodden 1971, eq 21a: T2_new = T2_old*r1^2
     
     # Approximation of intergrals I1,2, Rodden 1971, eq 13+14    
     I1, I2 = get_I12(u1, k1)
@@ -210,8 +202,8 @@ def kernelfunction(xbar,ybar,zbar,cosGamma,sinGamma,tanLambda,k,M):
     K2 = 3.0*I2 - j*k1*ejku*(M**2.0)*(r1**2.0)/(R**2.0)*(1.0+u1**2.0)**0.5 \
             + ejku*M*r1 * ((1.0+u1**2.0)*beta2*r1**2.0 / R**2.0 + 2.0 + M*r1*u1/R) /R * (1.0+u1**2.0)**1.5
     # This is the analytical solution for K1,2 at k=0.0, Rodden 1971, eq 15+16
-    K10 = -1.0-(xbar)/R # eigentlich mit (xbar-eta*tanLambda) --> Eventuell falsche Werte für Fleilflügel?
-    K20 =  2.0+(xbar)*(2.0+beta2*r1**2.0/R**2.0)/R # hier ebenso
+    K10 = -1.0-(xbar-ebar*tanLambda)/R # eigentlich mit (xbar-eta*tanLambda) --> Eventuell falsche Werte für Fleilflügel?
+    K20 =  2.0+(xbar-ebar*tanLambda)*(2.0+beta2*r1**2.0/R**2.0)/R # hier ebenso
     
     # Resolve the singularity arising when r1 = 0
     ir0xpos = (r1==0) & (xbar>=0.0)
@@ -219,8 +211,8 @@ def kernelfunction(xbar,ybar,zbar,cosGamma,sinGamma,tanLambda,k,M):
     K1[ir0xpos]=-2.0; K2[ir0xpos]=+4.0
     K1[ir0xneg]=0.0; K2[ir0xneg]=0.0
          
-    P1 = -(K1*np.exp(-j*k*xbar) - K10)*T1     # Rodden 1971, eq 27b, check: -K1*np.exp(-j*k*xbar)*T1
-    P2 = -(K2*np.exp(-j*k*xbar) - K20)*T2     # Rodden 1971, eq 36b, check: -K2*np.exp(-j*k*xbar)*T2/r1**2.0
+    P1 = -(K1*np.exp(-j*k*(xbar-ebar*tanLambda)) - K10)*T1     # Rodden 1971, eq 27b, check: -K1*np.exp(-j*k*xbar)*T1
+    P2 = -(K2*np.exp(-j*k*(xbar-ebar*tanLambda)) - K20)*T2     # Rodden 1971, eq 36b, check: -K2*np.exp(-j*k*xbar)*T2/r1**2.0
     
     return P1, P2
 
