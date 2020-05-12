@@ -90,7 +90,7 @@ def calc_Ajj(aerogrid, Ma, k):
     tanLambda = (Pp[:,0]-Pm[:,0])/(2.0*e)
     gamma = np.arctan(tanGamma)
     # relative dihedral angle between receiving point and sending boxes
-    gamma_sr = np.array(gamma, ndmin=2).T - np.array(gamma, ndmin=2)
+    gamma_sr = np.array(gamma, ndmin=2) - np.array(gamma, ndmin=2).T
     
     cosGamma = np.cos(gamma)
     sinGamma = np.sin(gamma)
@@ -116,27 +116,26 @@ def calc_Ajj(aerogrid, Ma, k):
     # pre-calculate some values which will be used a couple of times
     ybar2 = ybar**2.0
     zbar2 = zbar**2.0
-    r2    = ybar2 + zbar2
-    ratio = np.abs(2.0*e*zbar/(r2 - e2))
+    ratio = 2.0*e*zbar/(ybar2 + zbar2 - e2)
 
     # The "planar" part
     # -----------------
     # Initial values
-    F = np.zeros(e.shape)    
+    F = np.zeros(e.shape)
     # Condition 1, planar
     i0 = zbar==0.0
     F[i0] = (2.0*e[i0])/(ybar2[i0] - e2[i0])
     # Condition 2, co-planar / close-by
-    ia = (ratio <= 0.3) & (zbar!=0.0) 
+    ia = (ratio.__abs__() <= 0.3) & (zbar!=0.0) 
     funny_series = 0.0
     for n in range(2,8): 
         funny_series += (-1.0)**n/(2.0*n-1.0) * ratio[ia]**(2.0*n-4.0)
-    alpha = 4.0*e[ia]**4.0/(r2[ia]-e2[ia])**2.0 * funny_series                              # Rodden 1971, eq 33
+    alpha = 4.0*e[ia]**4.0/(ybar2[ia] + zbar2[ia]-e2[ia])**2.0 * funny_series                            # Rodden 1971, eq 33 and Rodden 1972, eq 31b
     
-    F[ia] = 2.0*e[ia]/(r2[ia] - e2[ia])*(1.0-alpha*zbar2[ia]/e2[ia])                        # Rodden 1971, eq 32
+    F[ia] = 2.0*e[ia]/(ybar2[ia] + zbar2[ia] - e2[ia])*(1.0-alpha*zbar2[ia]/e2[ia])                      # Rodden 1971, eq 32        
     # Condition 3, the rest / further away
-    ir = (ratio > 0.3) & (zbar!=0.0) 
-    F[ir] = 1.0/np.abs(zbar[ir])*np.arctan2(2.0*e[ir]*np.abs(zbar[ir]),(r2[ir] - e2[ir])) # Rodden 1971, eq 31b
+    ir = (ratio.__abs__() > 0.3) & (zbar!=0.0) 
+    F[ir] = 1.0/np.abs(zbar[ir])*np.arctan2(2.0*e[ir]*np.abs(zbar[ir]),(ybar2[ir] + zbar2[ir] - e2[ir])) # Rodden 1971, eq 31b
     # check: np.all(i0 + ia + ir) == True
         
     #  normalwash matrix, Rodden 1971, eq 34
@@ -150,22 +149,22 @@ def calc_Ajj(aerogrid, Ma, k):
     D2 = np.zeros(e.shape, dtype='complex')
     # Condition 1, similar to above but with different boundary, Rodden 1971 eq 40
     # 1/ratio <= 0.1 is equivalent to ratio > 10.0
-    ib = (ratio >= 10.0) & (zbar!=0.0) 
-    I40 = (r2[ib]*A2[ib] + ybar[ib]*B2[ib] + C2[ib])*F[ib] \
-        + 1.0/((ybar[ib]+e[ib])**2.0+zbar2[ib]) * ( (r2[ib]*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (r2[ib]+ybar[ib]*e[ib])*B2[ib] + (ybar[ib]+e[ib])*C2[ib] ) \
-        - 1.0/((ybar[ib]-e[ib])**2.0+zbar2[ib]) * ( (r2[ib]*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (r2[ib]-ybar[ib]*e[ib])*B2[ib] + (ybar[ib]-e[ib])*C2[ib] )
+    ib = (np.abs(1.0/ratio) <= 0.1) #& (zbar!=0.0) 
+    I40 = ((ybar2[ib] + zbar2[ib])*A2[ib] + ybar[ib]*B2[ib] + C2[ib])*F[ib] \
+        + 1.0/((ybar[ib]+e[ib])**2.0+zbar2[ib]) * ( ((ybar2[ib] + zbar2[ib])*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (ybar2[ib] + zbar2[ib]+ybar[ib]*e[ib])*B2[ib] + (ybar[ib]+e[ib])*C2[ib] ) \
+        - 1.0/((ybar[ib]-e[ib])**2.0+zbar2[ib]) * ( ((ybar2[ib] + zbar2[ib])*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (ybar2[ib] + zbar2[ib]-ybar[ib]*e[ib])*B2[ib] + (ybar[ib]-e[ib])*C2[ib] )
     
     D2[ib] = chord[ib]/(16.0*np.pi*zbar2[ib])*I40
     
     # Condition 2, Rodden 1971 eq 41
-    ic = (ratio < 10.0) & (zbar!=0.0) 
+    ic = (np.abs(1.0/ratio) > 0.1) & (zbar!=0.0) 
     # reconstruct alpha from eq 32, NOT eq 33!
-    alpha41 = (1.0 - F[ic] * (r2[ic]-e2[ic])/(2.0*e[ic]))/zbar2[ic]*e2[ic]
-    I41 = ( 2.0*(r2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic])+4.0*ybar[ic]*e2[ic]*B2[ic] ) \
+    alpha41 = (1.0 - F[ic] * (ybar2[ic] + zbar2[ic]-e2[ic])/(2.0*e[ic]))/zbar2[ic]*e2[ic]
+    I41 = ( 2.0*(ybar2[ic] + zbar2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic])+4.0*ybar[ic]*e2[ic]*B2[ic] ) \
         / ( ((ybar[ic]+e[ic])**2.0+zbar2[ic])*((ybar[ic]-e[ic])**2.0+zbar2[ic]) ) \
-        - alpha41/e2[ic] * ( r2[ic]*A2[ic] + ybar[ic]*B2[ic] + C2[ic] )
+        - alpha41/e2[ic] * ( (ybar2[ic] + zbar2[ic])*A2[ic] + ybar[ic]*B2[ic] + C2[ic] )
 
-    D2[ic] = chord[ic]*e[ic]/(8.0*np.pi*(r2[ic]-e2[ic]))*I41
+    D2[ic] = chord[ic]*e[ic]/(8.0*np.pi*(ybar2[ic] + zbar2[ic]-e2[ic]))*I41
     
     # add planar and non-planar parts, # Rodden eq 22
     # the steady part D0 has already been subtracted inside the kernel function
