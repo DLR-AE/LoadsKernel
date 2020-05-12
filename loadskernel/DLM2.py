@@ -86,14 +86,13 @@ def calc_Ajj(aerogrid, Ma, k):
     zsr = np.array(Pr[:,2], ndmin=2).T - np.array(Ps[:,2], ndmin=2)
     
     # dihedral angle gamma = arctan(dz/dy) and sweep angle lambda = arctan(dx/dy)
-    tanGamma  = (Pp[:,2]-Pm[:,2])/(2.0*e)
+    sinGamma  = (Pp[:,2]-Pm[:,2])/(2.0*e)
+    cosGamma  = (Pp[:,1]-Pm[:,1])/(2.0*e)
     tanLambda = (Pp[:,0]-Pm[:,0])/(2.0*e)
-    gamma = np.arctan(tanGamma)
+    gamma = np.arcsin(sinGamma)
     # relative dihedral angle between receiving point and sending boxes
     gamma_sr = np.array(gamma, ndmin=2) - np.array(gamma, ndmin=2).T
     
-    cosGamma = np.cos(gamma)
-    sinGamma = np.sin(gamma)
     # local coordinates of receiving point relative to sending point
     ybar  = ysr*cosGamma + zsr*sinGamma
     zbar  = zsr*cosGamma - ysr*sinGamma
