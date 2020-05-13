@@ -179,6 +179,8 @@ def kernelfunction(xbar,ybar,zbar,gamma_sr,tanLambda,ebar,k,M):
     # we stay with the 1968 convention and we don't want to mess with the steady part 
     # from the VLM. Also, we directly subtract the steady parts K10 and K20, as the 
     # steady contribution will be added later from the VLM.
+    # Note: Rodden has the habit of leaving out some brackets in his formulas. This   
+    # applies to eq 11, 7 and 8 where it is not clear which parts belong to the denominator.
     
     r1 = ((ybar-ebar)**2.0 + zbar**2.0)**0.5                    # Rodden 1971, eq 4
     beta2 = (1.0-(M**2.0))                                      # Rodden 1971, eq 9
@@ -196,9 +198,10 @@ def kernelfunction(xbar,ybar,zbar,gamma_sr,tanLambda,ebar,k,M):
     I1, I2 = get_integrals12(u1, k1)
 
     # Formulation of K1,2 by Landahl, Rodden 1971, eq 7+8
-    K1 = -I1 - ejku*M*r1/R*(1+u1**2.0)**0.5
-    K2 = 3.0*I2 - j*k1*ejku*(M**2.0)*(r1**2.0)/(R**2.0)*(1.0+u1**2.0)**0.5 \
-            + ejku*M*r1 * ((1.0+u1**2.0)*beta2*r1**2.0 / R**2.0 + 2.0 + M*r1*u1/R) /R * (1.0+u1**2.0)**1.5
+    K1 = -I1 - ejku*M*r1/R/(1+u1**2.0)**0.5
+    K2 = 3.0*I2 - j*k1*ejku*(M**2.0)*(r1**2.0)/(R**2.0)/(1.0+u1**2.0)**0.5 \
+            + ejku*M*r1 * ((1.0+u1**2.0)*beta2*r1**2.0 / R**2.0 + 2.0 + M*r1*u1/R)/R/(1.0+u1**2.0)**1.5
+
     # This is the analytical solution for K1,2 at k=0.0, Rodden 1971, eq 15+16
     K10 = -1.0-(xbar-ebar*tanLambda)/R 
     K20 =  2.0+(xbar-ebar*tanLambda)*(2.0+beta2*r1**2.0/R**2.0)/R 
@@ -220,19 +223,19 @@ def get_integrals12(u1, k1, method='Laschka'):
     I2 = np.zeros(u1.shape, dtype='complex')
     
     ipos = u1 >= 0.0
-    I1[ipos], I2[ipos] = integral_approximation(u1[ipos], k1[ipos], method)
+    I1[ipos], I2[ipos] = integral_approximations(u1[ipos], k1[ipos], method)
 
     ineg = u1 < 0.0
-    I10, I20 = integral_approximation(0.0*u1[ineg], k1[ineg], method)
-    I1n, I2n = integral_approximation(   -u1[ineg], k1[ineg], method)
+    I10, I20 = integral_approximations(0.0*u1[ineg], k1[ineg], method)
+    I1n, I2n = integral_approximations(   -u1[ineg], k1[ineg], method)
     I1[ineg] = 2.0*I10.real - I1n.real + 1j*I1n.imag    # Rodden 1971, eq A.5
     I2[ineg] = 2.0*I20.real - I2n.real + 1j*I2n.imag    # Rodden 1971, eq A.9
     return I1, I2
 
-def integral_approximation(u1, k1, method='Laschka'):
+def integral_approximations(u1, k1, method='Laschka'):
     if method == 'Laschka':
         logging.debug('Using Laschka approximation in DLM')
-        I1, I2 = laschka_approximations(u1, k1)
+        I1, I2 = laschka_approximation(u1, k1)
     elif method == 'Watkins':
         logging.warning('Using Watkins (not preferred!) approximation in DLM.')
         I1, I2 = watkins_approximation(u1, k1)
@@ -241,7 +244,7 @@ def integral_approximation(u1, k1, method='Laschka'):
     return I1, I2
     
 
-def laschka_approximations(u1, k1):
+def laschka_approximation(u1, k1):
     # Approximate integral I0, Rodden 1971, eq A.4 
     # Approximate integral J0, Rodden 1971, eq A.8
     # These are the coefficients in exponential approximation of u/(1+u**2.0)**0.5
