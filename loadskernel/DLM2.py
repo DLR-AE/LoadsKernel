@@ -1,17 +1,11 @@
-#!/usr/bin/env pythoeta2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Aug  1 16:56:30 2017
 
-@author: voss_ar
-"""
-import copy, time
+import copy
 import numpy as np
 import logging
-np.seterr(all='ignore')                 # turn off warnings (divide by zero, multiply NaN, ...) as singularities are expected to occur
-import numexpr as ne
-n_cores = ne.detect_number_of_cores()   # get number of cores and use all
-ne.set_num_threads(n_cores)             # set up numexpr for multithreading
+np.seterr(all='ignore') # turn off warnings (divide by zero, multiply NaN, ...) as singularities are expected to occur
+
 
 import loadskernel.VLM as VLM
 
@@ -55,7 +49,7 @@ def calc_Qjjs(aerogrid, Ma, k, xz_symmetry=False):
                 Qjj[im,ik] = Ajj_inv
     return Qjj
 
-def calc_Ajj(aerogrid, Ma, k):
+def calc_Ajj(aerogrid, Ma, k, method='parabolic'):
     # Calculates one unsteady AIC matrix (Qjj = -Ajj^-1) at given Mach number and frequency 
     #
     #                   l_2
@@ -77,7 +71,7 @@ def calc_Ajj(aerogrid, Ma, k):
     Ps = aerogrid['offset_l']   # sending (s/0)
     A = aerogrid['A']
     e = np.absolute(np.repeat(np.array(0.5 * aerogrid['A'] / aerogrid['l'], ndmin=2),aerogrid['n'],axis=0)) # semiwidth
-    e2 = e**2.0
+    e2 = e**2.0; e3 = e**3.0; e4 = e**4.0
     chord = np.repeat(np.array(aerogrid['l'], ndmin=2), aerogrid['n'], axis=0)
     
     # cartesian coordinates of receiving points relative to sending points
@@ -97,79 +91,167 @@ def calc_Ajj(aerogrid, Ma, k):
     ybar  = ysr*cosGamma + zsr*sinGamma
     zbar  = zsr*cosGamma - ysr*sinGamma
     
-    # call the kernel function
-    P1m, P2m = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,-e,k,Ma)
-    P1p, P2p = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,+e,k,Ma)
-    P1s, P2s = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda, 0,k,Ma)
-    
-    # define terms used in the parabolic approximation
-    A1 = (P1m-2.0*P1s+P1p)/(2.0*e2)     # Rodden 1971, eq 28
-    B1 = (P1p-P1m)/(2.0*e)              # Rodden 1971, eq 29
-    C1 = P1s                            # Rodden 1971, eq 30
-    
-    A2 = (P2m-2.0*P2s+P2p)/(2.0*e2)     # Rodden 1971, eq 37
-    B2 = (P2p-P2m)/(2.0*e)              # Rodden 1971, eq 38
-    C2 = P2s                            # Rodden 1971, eq 39
-
-
     # pre-calculate some values which will be used a couple of times
-    ybar2 = ybar**2.0
-    zbar2 = zbar**2.0
-    ratio = 2.0*e*zbar/(ybar2 + zbar2 - e2)
-
-    # The "planar" part
-    # -----------------
-    # Initial values
-    F = np.zeros(e.shape)
+    ybar2 = ybar**2.0; ybar4 = ybar**4.0
+    zbar2 = zbar**2.0; zbar4 = zbar**4.0
+    ratio = 2.0*e*np.abs(zbar)/(ybar2 + zbar2 - e2)
+    L = np.log( ((ybar-e)**2.0+zbar2)/((ybar+e)**2.0+zbar2) )    
+    
+    F = np.zeros(e.shape) # Initial values
+    
     # Condition 1, planar
     i0 = zbar==0.0
     F[i0] = (2.0*e[i0])/(ybar2[i0] - e2[i0])
+    
     # Condition 2, co-planar / close-by
     ia = (ratio.__abs__() <= 0.3) & (zbar!=0.0) 
     funny_series = 0.0
     for n in range(2,8): 
         funny_series += (-1.0)**n/(2.0*n-1.0) * ratio[ia]**(2.0*n-4.0)
     alpha = 4.0*e[ia]**4.0/(ybar2[ia] + zbar2[ia]-e2[ia])**2.0 * funny_series                            # Rodden 1971, eq 33 and Rodden 1972, eq 31b
-    
     F[ia] = 2.0*e[ia]/(ybar2[ia] + zbar2[ia] - e2[ia])*(1.0-alpha*zbar2[ia]/e2[ia])                      # Rodden 1971, eq 32        
+    
     # Condition 3, the rest / further away
     ir = (ratio.__abs__() > 0.3) & (zbar!=0.0) 
     F[ir] = 1.0/np.abs(zbar[ir])*np.arctan2(2.0*e[ir]*np.abs(zbar[ir]),(ybar2[ir] + zbar2[ir] - e2[ir])) # Rodden 1971, eq 31b
+    # Why chooses Rodden in 1972 and 1998 a more complicated formulation with gamma1,2?
+    # Only to place the tangens into the right quadrant? --> Is there no arctan2 in Fortran?!?
     # check: np.all(i0 + ia + ir) == True
+    
+    # call the kernel function
+    P1m, P2m = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,-e,k,Ma)
+    P1p, P2p = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,+e,k,Ma)
+    P1s, P2s = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda, 0,k,Ma)
+    
+    if method == 'parabolic':
+        # Rodden 1971
+        # define terms used in the parabolic approximation
+        A1 = (P1m-2.0*P1s+P1p)/(2.0*e2)     # Rodden 1971, eq 28
+        B1 = (P1p-P1m)/(2.0*e)              # Rodden 1971, eq 29
+        C1 = P1s                            # Rodden 1971, eq 30
         
-    #  normalwash matrix, Rodden 1971, eq 34
-    I34 = ((ybar2 - zbar2)*A1 + ybar*B1 + C1) * F \
-         + (0.5*B1 + ybar*A1) * np.log( ((ybar-e)**2.0+zbar2)/((ybar+e)**2.0+zbar2) ) \
-         + 2.0*e*A1
-    D1 = chord/(np.pi*8.0)*I34
+        A2 = (P2m-2.0*P2s+P2p)/(2.0*e2)     # Rodden 1971, eq 37
+        B2 = (P2p-P2m)/(2.0*e)              # Rodden 1971, eq 38
+        C2 = P2s                            # Rodden 1971, eq 39
+        
+        # The "planar" part
+        # -----------------
+        #  normalwash matrix, Rodden 1971, eq 34
+        D1rs = chord/(np.pi*8.0) \
+                *(    ((ybar2 - zbar2)*A1 + ybar*B1 + C1) * F \
+                    + (0.5*B1 + ybar*A1) * np.log( ((ybar-e)**2.0+zbar2)/((ybar+e)**2.0+zbar2) ) \
+                    + 2.0*e*A1 )
+        
+        # The "nonplanar" part
+        # --------------------
+        D2rs = np.zeros(e.shape, dtype='complex')
+        
+        # Condition 1, similar to above but with different boundary, Rodden 1971 eq 40
+        ib = (np.abs(1.0/ratio) <= 0.1) & (zbar!=0.0)         
+        D2rs[ib] = chord[ib]/(16.0*np.pi*zbar2[ib]) \
+            * (   ((ybar2[ib] + zbar2[ib])*A2[ib] + ybar[ib]*B2[ib] + C2[ib])*F[ib] \
+                + 1.0/((ybar[ib]+e[ib])**2.0+zbar2[ib]) * ( ((ybar2[ib] + zbar2[ib])*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (ybar2[ib] + zbar2[ib]+ybar[ib]*e[ib])*B2[ib] + (ybar[ib]+e[ib])*C2[ib] ) \
+                - 1.0/((ybar[ib]-e[ib])**2.0+zbar2[ib]) * ( ((ybar2[ib] + zbar2[ib])*ybar[ib]-(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (ybar2[ib] + zbar2[ib]-ybar[ib]*e[ib])*B2[ib] + (ybar[ib]-e[ib])*C2[ib] ) \
+              )  
+        
+        # Condition 2, Rodden 1971 eq 41
+        ic = (np.abs(1.0/ratio) > 0.1) & (zbar!=0.0) 
+        # reconstruct alpha from eq 32, NOT eq 33!
+        alpha41 = (1.0 - F[ic] * (ybar2[ic] + zbar2[ic]-e2[ic])/(2.0*e[ic]))/zbar2[ic]*e2[ic]
+        I41 = ( 2.0*(ybar2[ic] + zbar2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic])+4.0*ybar[ic]*e2[ic]*B2[ic] ) \
+            / ( ((ybar[ic]+e[ic])**2.0+zbar2[ic])*((ybar[ic]-e[ic])**2.0+zbar2[ic]) ) \
+            - alpha41/e2[ic] * ( (ybar2[ic] + zbar2[ic])*A2[ic] + ybar[ic]*B2[ic] + C2[ic] )
     
-    # The "nonplanar" part
-    # --------------------
-    D2 = np.zeros(e.shape, dtype='complex')
-    # Condition 1, similar to above but with different boundary, Rodden 1971 eq 40
-    # 1/ratio <= 0.1 is equivalent to ratio > 10.0
-    ib = (np.abs(1.0/ratio) <= 0.1) #& (zbar!=0.0) 
-    I40 = ((ybar2[ib] + zbar2[ib])*A2[ib] + ybar[ib]*B2[ib] + C2[ib])*F[ib] \
-        + 1.0/((ybar[ib]+e[ib])**2.0+zbar2[ib]) * ( ((ybar2[ib] + zbar2[ib])*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (ybar2[ib] + zbar2[ib]+ybar[ib]*e[ib])*B2[ib] + (ybar[ib]+e[ib])*C2[ib] ) \
-        - 1.0/((ybar[ib]-e[ib])**2.0+zbar2[ib]) * ( ((ybar2[ib] + zbar2[ib])*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (ybar2[ib] + zbar2[ib]-ybar[ib]*e[ib])*B2[ib] + (ybar[ib]-e[ib])*C2[ib] )
+        D2rs[ic] = chord[ic]*e[ic]/(8.0*np.pi*(ybar2[ic] + zbar2[ic]-e2[ic])) \
+            * ( ( 2.0*(ybar2[ic] + zbar2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic])+4.0*ybar[ic]*e2[ic]*B2[ic] ) \
+                / ( ((ybar[ic]+e[ic])**2.0+zbar2[ic])*((ybar[ic]-e[ic])**2.0+zbar2[ic]) ) \
+                - alpha41/e2[ic] * ( (ybar2[ic] + zbar2[ic])*A2[ic] + ybar[ic]*B2[ic] + C2[ic] ) \
+              )
     
-    D2[ib] = chord[ib]/(16.0*np.pi*zbar2[ib])*I40
-    
-    # Condition 2, Rodden 1971 eq 41
-    ic = (np.abs(1.0/ratio) > 0.1) & (zbar!=0.0) 
-    # reconstruct alpha from eq 32, NOT eq 33!
-    alpha41 = (1.0 - F[ic] * (ybar2[ic] + zbar2[ic]-e2[ic])/(2.0*e[ic]))/zbar2[ic]*e2[ic]
-    I41 = ( 2.0*(ybar2[ic] + zbar2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic])+4.0*ybar[ic]*e2[ic]*B2[ic] ) \
-        / ( ((ybar[ic]+e[ic])**2.0+zbar2[ic])*((ybar[ic]-e[ic])**2.0+zbar2[ic]) ) \
-        - alpha41/e2[ic] * ( (ybar2[ic] + zbar2[ic])*A2[ic] + ybar[ic]*B2[ic] + C2[ic] )
-
-    D2[ic] = chord[ic]*e[ic]/(8.0*np.pi*(ybar2[ic] + zbar2[ic]-e2[ic]))*I41
+    elif method == 'quartic':
+        # Rodden 1998
+        # call the kernel function two more times at +-e/2
+        P1mh, P2mh  = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,-e/2.0,k,Ma)
+        P1ph, P2ph  = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,+e/2.0,k,Ma)
+        
+        # define terms used in the quartic approximation
+        A1 = -1.0/(6.0*e2)*(P1m-16.0*P1mh+30.0*P1s-16.0*P1ph+P1p) # Rodden 1998, eq 15
+        B1 = +1.0/(6.0*e )*(P1m -8.0*P1mh          +8.0*P1ph-P1p) # Rodden 1998, eq 16
+        C1 =                                   P1s                # Rodden 1998, eq 17
+        D1 = -2.0/(3.0*e3)*(P1m -2.0*P1mh          +2.0*P1ph-P1p) # Rodden 1998, eq 18
+        E1 = +2.0/(3.0*e4)*(P1m -4.0*P1mh +6.0*P1s -4.0*P1ph+P1p) # Rodden 1998, eq 19
+        
+        A2 = -1.0/(6.0*e2)*(P2m-16.0*P2mh+30.0*P2s-16.0*P2ph+P2p) # Rodden 1998, eq 28
+        B2 = +1.0/(6.0*e )*(P2m -8.0*P2mh          +8.0*P2ph-P2p) # Rodden 1998, eq 29
+        C2 =                                   P2s                # Rodden 1998, eq 30
+        D2 = -2.0/(3.0*e3)*(P2m -2.0*P2mh          +2.0*P2ph-P2p) # Rodden 1998, eq 31
+        E2 = +2.0/(3.0*e4)*(P2m -4.0*P2mh +6.0*P2s -4.0*P2ph+P2p) # Rodden 1998, eq 32
+        
+        # The "planar" part
+        # -----------------
+        #  normalwash matrix, Rodden 1998, eq 20
+        D1rsq = chord/(np.pi*8.0) \
+            * (   ((ybar2 - zbar2)*A1 + ybar*B1 + C1 + ybar*(ybar2-3.0*zbar2)*D1 + (ybar4-6.0*ybar2*zbar2+zbar4)*E1) * F \
+                + (0.5*B1 + ybar*A1 + 0.5*(3.0*ybar2-zbar2)*D1 + 2.0*ybar*(ybar2-zbar2)*E1) * L \
+                + 2.0*e*(A1 + 2.0*ybar*D1 + (3.0*ybar2-zbar2+1.0/3.0*e2)*E1) \
+              )
+        # The "nonplanar" part
+        # --------------------
+        D2rsq = np.zeros(e.shape, dtype='complex')
+        
+        # Condition 1, similar to above but with different boundary, Rodden 1998 eq 33
+        ib = (np.abs(1.0/ratio) <= 0.1) & (zbar!=0.0)         
+        D2rsq[ib] = chord[ib]/(16.0*np.pi*zbar2[ib]) \
+            * ( F[ib] \
+                    * (   (ybar2[ib] + zbar2[ib])*A2[ib] \
+                        + ybar[ib]*B2[ib] \
+                        + C2[ib] \
+                        + ybar[ib]*(ybar2[ib]+3.0*zbar2[ib])*D2[ib] \
+                        + (ybar4[ib]+6.0*ybar2[ib]*zbar2[ib]-3.0*zbar4[ib])*E2[ib]  \
+                      ) \
+                + 1.0/((ybar[ib]+e[ib])**2.0+zbar2[ib]) \
+                    * (   ((ybar2[ib] + zbar2[ib])*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] \
+                        + (ybar2[ib] + zbar2[ib]+ybar[ib]*e[ib])*B2[ib] \
+                        + (ybar[ib]+e[ib])*C2[ib] \
+                        + (ybar4[ib]-zbar4[ib]+(ybar2[ib]-3.0*zbar2[ib])*ybar[ib]*e[ib])*D2[ib] \
+                        + ((ybar4[ib]-2.0*ybar2[ib]*zbar2[ib]-3.0*zbar4[ib])*ybar[ib]+(ybar4[ib]-6.0*ybar2[ib]*zbar2[ib]+zbar4[ib])*e[ib])*E2[ib] \
+                      ) \
+                - 1.0/((ybar[ib]-e[ib])**2.0+zbar2[ib]) \
+                    * (   ((ybar2[ib] + zbar2[ib])*ybar[ib]-(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] \
+                        + (ybar2[ib] + zbar2[ib]-ybar[ib]*e[ib])*B2[ib] \
+                        + (ybar[ib]-e[ib])*C2[ib] \
+                        + (ybar4[ib]-zbar4[ib]-(ybar2[ib]-3.0*zbar2[ib])*ybar[ib]*e[ib])*D2[ib] \
+                        + ((ybar4[ib]-2.0*ybar2[ib]*zbar2[ib]-3.0*zbar4[ib])*ybar[ib]-(ybar4[ib]-6.0*ybar2[ib]*zbar2[ib]+zbar4[ib])*e[ib])*E2[ib] \
+                      ) \
+                + (zbar2[ib]*L[ib])*D2[ib] \
+                + 4.0*zbar2[ib]*(e[ib]+ybar[ib]*L[ib])*E2[ib] \
+            )
+        
+        # Condition 2, Rodden 1998 eq 34
+        ic = (np.abs(1.0/ratio) > 0.1) & (zbar!=0.0) 
+        D2rsq[ic] = chord[ic]*e[ic]/(8.0*np.pi*(ybar2[ic] + zbar2[ic]-e2[ic])) \
+            * ( 1.0/(((ybar+e)**2.0+zbar2)*((ybar-e)**2.0+zbar)) \
+                * (   2.0*(ybar2[ic] + zbar2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic]) \
+                    + 4.0*ybar[ic]*e2[ic]*B2[ic] \
+                    + 2.0*ybar[ic]*(ybar4[ic]-2.0*e2[ic]*ybar2[ic]+2.0*ybar2[ic]*zbar2[ic]+3.0*e4[ic]+2.0*e2[ic]*zbar2[ic]+zbar4[ic])*D2[ic] \
+                    + 2.0*(3.0*ybar[ic]**6.0-7.0*e2[ic]*ybar4[ic]+5.0*ybar4[ic]*zbar2[ic]+6.0*e4[ic]*ybar2[ic]+6.0*e2[ic]*ybar2[ic]*zbar2[ic] \
+                           -3.0*e2[ic]*zbar4[ic]-zbar[ic]**6.0+ybar2[ic]*zbar2[ic]-2.0*e4[ic]*zbar2[ic])*E2\
+                  ) \
+                # noch nicht ganz klar, wie ich hier das F einbauen kann...
+                - (g1*epsilon+delta)/e2[ic] \
+                    * ( (ybar2[ic]+zbar2[ic])*A2[ic] \
+                        + ybar[ic]*B2[ic] \
+                        + C2[ic] \
+                        + ybar[ic]*(ybar2[ic]+3.0*zbar2[ic])*D2[ic]\
+                        + (ybar4[ic]+6.0*ybar2[ic]*zbar2[ic]-3.0*zbar4[ic])*E2[ic] \
+                      ) \
+              ) \
+            + chord[ic]/(8.0*np.pi) * (D2[ic]/2.0*L[ic] + 2.0*(e[ic]+ybar[ic]*L[ic])*E2[ic] )
     
     # add planar and non-planar parts, # Rodden eq 22
     # the steady part D0 has already been subtracted inside the kernel function
-    D = D1 + D2 
-    return D
-
+    Drs = D1rs + D2rs
+    return Drs
 
 def kernelfunction(xbar,ybar,zbar,gamma_sr,tanLambda,ebar,k,M):
     # This is the function that calculates "the" kernel function(s) of the DLM.
