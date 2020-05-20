@@ -40,7 +40,7 @@ def calc_Qjjs(aerogrid, Ma, k, xz_symmetry=False):
                 Ajj_DLM = np.zeros((aerogrid['n'],aerogrid['n']))
             else:
                 # calc oscillatory / unsteady contributions using DLM
-                Ajj_DLM = calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma[im], k=k[ik], method='quartic')
+                Ajj_DLM = calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma[im], k=k[ik], method='parabolic')
             Ajj = Ajj_VLM + Ajj_DLM
             Ajj_inv = -np.linalg.inv(Ajj)
             if xz_symmetry:
@@ -69,7 +69,6 @@ def calc_Ajj(aerogrid, Ma, k, method='parabolic'):
     Pm = aerogrid['offset_P1']  # minus (-e)
     Pp = aerogrid['offset_P3']  # plus (e)
     Ps = aerogrid['offset_l']   # sending (s/0)
-    A = aerogrid['A']
     e = np.absolute(np.repeat(np.array(0.5 * aerogrid['A'] / aerogrid['l'], ndmin=2),aerogrid['n'],axis=0)) # semiwidth
     e2 = e**2.0; e3 = e**3.0; e4 = e**4.0
     chord = np.repeat(np.array(aerogrid['l'], ndmin=2), aerogrid['n'], axis=0)
@@ -95,38 +94,42 @@ def calc_Ajj(aerogrid, Ma, k, method='parabolic'):
     ybar2 = ybar**2.0; ybar4 = ybar**4.0
     zbar2 = zbar**2.0; zbar4 = zbar**4.0
     ratio = 2.0*e*np.abs(zbar)/(ybar2 + zbar2 - e2)
-    L = np.log( ((ybar-e)**2.0+zbar2)/((ybar+e)**2.0+zbar2) )    
+    L = np.log( ((ybar-e)**2.0+zbar2)/((ybar+e)**2.0+zbar2) )   # Checked with Nastran idf1.f 
     
-    # Condition 1, planar
-    i0 = (zbar == 0.0)
+    # Condition 1, planar, the value of 0.001 is taken from Nastran
+    i0 = (np.abs(zbar)/e <= 0.001)
     # Condition 2, co-planar / close-by
-    ia = (np.abs(ratio) <= 0.3) & (zbar!=0.0) 
-    funny_series = 0.0
-    for n in range(2,8): 
-        funny_series += (-1.0)**n/(2.0*n-1.0) * ratio[ia]**(2.0*n-4.0)
-    alpha = 4.0*e[ia]**4.0/(ybar2[ia] + zbar2[ia]-e2[ia])**2.0 * funny_series # Rodden 1971, eq 33, Rodden 1972, eq 31b and Rodden 1998, eq 25
+    ia = (np.abs(ratio) <= 0.3) & (np.abs(zbar)/e > 0.001)
     # Condition 3, the rest / further away
-    ir = (np.abs(ratio) > 0.3) & (zbar!=0.0)     
+    ir = (np.abs(ratio) > 0.3) & (np.abs(zbar)/e > 0.001)   
     # check that all conditions are captured: np.all(i0 + ia + ir) == True
     
+    alpha = np.zeros(e.shape)
+    funny_series = 0.0
+    for n in range(2,8): 
+        funny_series += (-1.0)**n/(2.0*n-1.0) * ratio[ia]**(2.0*n-4.0) 
+    alpha[ia] = 4.0*e[ia]**4.0/(ybar2[ia] + zbar2[ia]-e2[ia])**2.0 * funny_series # Rodden 1971, eq 33, Rodden 1972, eq 31b and Rodden 1998, eq 25
+    
     if method == 'parabolic':
+        # Rodden et at. 1971 and 1972
+        
+        # Initial values
+        Fparabolic = np.zeros(e.shape) 
+        # Condition 1, planar
+        Fparabolic[i0] = 2.0*e[i0]/(ybar2[i0] - e2[i0]) # OK, idf1.f 
+        # Condition 2, co-planar / close-by
+        Fparabolic[ia] = 2.0*e[ia]/(ybar2[ia] + zbar2[ia] - e2[ia])*(1.0-alpha[ia]*zbar2[ia]/e2[ia])                  # Rodden 1971, eq 32, Checked with Nastran idf1.f      
+        # Condition 3, the rest / further away
+        Fparabolic[ir] = 1.0/np.abs(zbar[ir])*np.arctan2(2.0*e[ir]*np.abs(zbar[ir]),(ybar2[ir] + zbar2[ir] - e2[ir])) # Rodden 1971, eq 31b, Checked with Nastran idf1.f 
+        # Extra Condition found in Nastran idf2.f, line 26
+        # Fparabolic[np.abs(1.0/ratio) <= 0.0001] = 0.0
+        
         # call the kernel function with Laschka approximation
         P1m, P2m = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,-e,k,Ma, method='Laschka')
         P1p, P2p = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,+e,k,Ma, method='Laschka')
         P1s, P2s = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda, 0,k,Ma, method='Laschka')
-        # Rodden et at. 1971 and 1972
-        Fparabolic = np.zeros(e.shape) # Initial values
-        # Condition 1, planar
-        Fparabolic[i0] = 2.0*e[i0]/(ybar2[i0] - e2[i0])
         
-        # Condition 2, co-planar / close-by
-        Fparabolic[ia] = 2.0*e[ia]/(ybar2[ia] + zbar2[ia] - e2[ia])*(1.0-alpha*zbar2[ia]/e2[ia])                      # Rodden 1971, eq 32        
-        
-        # Condition 3, the rest / further away
-        Fparabolic[ir] = 1.0/np.abs(zbar[ir])*np.arctan2(2.0*e[ir]*np.abs(zbar[ir]),(ybar2[ir] + zbar2[ir] - e2[ir])) # Rodden 1971, eq 31b
-    
-        # Rodden 1971
-        # define terms used in the parabolic approximation
+        # define terms used in the parabolic approximation, Nastran incro.f 
         A1 = (P1m-2.0*P1s+P1p)/(2.0*e2)     # Rodden 1971, eq 28
         B1 = (P1p-P1m)/(2.0*e)              # Rodden 1971, eq 29
         C1 = P1s                            # Rodden 1971, eq 30
@@ -141,30 +144,31 @@ def calc_Ajj(aerogrid, Ma, k, method='parabolic'):
         D1rs = chord/(np.pi*8.0) \
                 *(    ((ybar2 - zbar2)*A1 + ybar*B1 + C1) * Fparabolic \
                     + (0.5*B1 + ybar*A1) * np.log( ((ybar-e)**2.0+zbar2)/((ybar+e)**2.0+zbar2) ) \
-                    + 2.0*e*A1 )
+                    + 2.0*e*A1 ) # Checked with Nastran idf1.f & incro.f 
         
         # The "nonplanar" part
         # --------------------
         D2rs = np.zeros(e.shape, dtype='complex')
         
         # Condition 1, similar to above but with different boundary, Rodden 1971 eq 40
-        ib = (np.abs(1.0/ratio) <= 0.1) & (zbar!=0.0)         
+        ib = (np.abs(1.0/ratio) <= 0.1) & (np.abs(zbar)/e > 0.001)
         D2rs[ib] = chord[ib]/(16.0*np.pi*zbar2[ib]) \
             * (   ((ybar2[ib] + zbar2[ib])*A2[ib] + ybar[ib]*B2[ib] + C2[ib])*Fparabolic[ib] \
                 + 1.0/((ybar[ib]+e[ib])**2.0+zbar2[ib]) * ( ((ybar2[ib] + zbar2[ib])*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (ybar2[ib] + zbar2[ib]+ybar[ib]*e[ib])*B2[ib] + (ybar[ib]+e[ib])*C2[ib] ) \
                 - 1.0/((ybar[ib]-e[ib])**2.0+zbar2[ib]) * ( ((ybar2[ib] + zbar2[ib])*ybar[ib]-(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (ybar2[ib] + zbar2[ib]-ybar[ib]*e[ib])*B2[ib] + (ybar[ib]-e[ib])*C2[ib] ) \
-              )  
+              )  # Checked with Nastran idf2.f
         
         # Condition 2, Rodden 1971 eq 41
-        ic = (np.abs(1.0/ratio) > 0.1) & (zbar!=0.0) 
+        ic = (np.abs(1.0/ratio) > 0.1) & (np.abs(zbar)/e > 0.001)
         # reconstruct alpha from eq 32, NOT eq 33!
-        alpha41 = (1.0 - Fparabolic[ic] * (ybar2[ic] + zbar2[ic]-e2[ic])/(2.0*e[ic]))/zbar2[ic]*e2[ic]
+        alpha[i0] = ((2.0*e2[i0])/(ybar2[i0]-e2[i0]))**2.0 # Nastran idf2.f, line 75
+        alpha[ir] = (1.0 - Fparabolic[ir] * (ybar2[ir] + zbar2[ir]-e2[ir])/(2.0*e[ir]))/zbar2[ir]*e2[ir]
             
         D2rs[ic] = chord[ic]*e[ic]/(8.0*np.pi*(ybar2[ic] + zbar2[ic]-e2[ic])) \
             * ( ( 2.0*(ybar2[ic] + zbar2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic])+4.0*ybar[ic]*e2[ic]*B2[ic] ) \
                 / ( ((ybar[ic]+e[ic])**2.0+zbar2[ic])*((ybar[ic]-e[ic])**2.0+zbar2[ic]) ) \
-                - alpha41/e2[ic] * ( (ybar2[ic] + zbar2[ic])*A2[ic] + ybar[ic]*B2[ic] + C2[ic] ) \
-              )
+                - alpha[ic]/e2[ic] * ( (ybar2[ic] + zbar2[ic])*A2[ic] + ybar[ic]*B2[ic] + C2[ic] ) \
+              ) # Checked with Nastran idf2.f
     
     elif method == 'quartic':
         # Rodden et al. 1998
@@ -179,7 +183,7 @@ def calc_Ajj(aerogrid, Ma, k, method='parabolic'):
          
         epsilon = np.zeros(e.shape)
         epsilon[i0] = 2.0*e[i0]/(ybar2[i0] - e2[i0])
-        epsilon[ia] = alpha
+        epsilon[ia] = alpha[ia]
         epsilon[ir] = e2[ir]/zbar2[ir]*(1.0-1.0/ratio[ir]*np.arctan(ratio[ir]))
         iar = ia + ir
         Fquartic = np.zeros(e.shape) # Initial values
@@ -221,7 +225,7 @@ def calc_Ajj(aerogrid, Ma, k, method='parabolic'):
         D2rs = np.zeros(e.shape, dtype='complex')
         
         # Condition 1, similar to above but with different boundary, Rodden 1998 eq 33
-        ib = (np.abs(1.0/ratio) <= 0.1) & (zbar!=0.0)         
+        ib = (np.abs(1.0/ratio) <= 0.1) & (np.abs(zbar)/e > 0.001)
         D2rs[ib] = chord[ib]/(16.0*np.pi*zbar2[ib]) \
             * ( Fquartic[ib] \
                     * (   (ybar2[ib] + zbar2[ib])*A2[ib] \
@@ -249,7 +253,7 @@ def calc_Ajj(aerogrid, Ma, k, method='parabolic'):
             )
         
         # Condition 2, Rodden 1998 eq 34
-        ic = (np.abs(1.0/ratio) > 0.1) & (zbar!=0.0)        
+        ic = (np.abs(1.0/ratio) > 0.1) & (np.abs(zbar)/e > 0.001)
         D2rs[ic] = chord[ic]*e[ic]/(8.0*np.pi*(ybar2[ic] + zbar2[ic]-e2[ic])) \
             * ( 1.0/(((ybar[ic]+e[ic])**2.0+zbar2[ic])*((ybar[ic]-e[ic])**2.0+zbar2[ic])) \
                 * (   2.0*(ybar2[ic] + zbar2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic]) \
@@ -303,7 +307,7 @@ def kernelfunction(xbar,ybar,zbar,gamma_sr,tanLambda,ebar,k,M,method='Laschka'):
 
     # Formulation of K1,2 by Landahl, Rodden 1971, eq 7+8
     K1 = -I1 - ejku*M*r1/R/(1+u1**2.0)**0.5
-    K2 = 3.0*I2 - j*k1*ejku*(M**2.0)*(r1**2.0)/(R**2.0)/(1.0+u1**2.0)**0.5 \
+    K2 = 3.0*I2 + j*k1*ejku*(M**2.0)*(r1**2.0)/(R**2.0)/(1.0+u1**2.0)**0.5 \
             + ejku*M*r1 * ((1.0+u1**2.0)*beta2*r1**2.0 / R**2.0 + 2.0 + M*r1*u1/R)/R/(1.0+u1**2.0)**1.5
 
     # This is the analytical solution for K1,2 at k=0.0, Rodden 1971, eq 15+16
