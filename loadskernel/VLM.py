@@ -27,7 +27,7 @@ def calc_induced_velocities(aerogrid, Ma):
     # define vortex location points
     P1 = aerogrid['offset_P1']
     P3 = aerogrid['offset_P3']
-    #P2 = (P1+P3)/2.0
+    # P2 = mid-point between P1 and P3, not used
     n_hat_w  = np.array(aerogrid['N'][:,2], ndmin=2).T.repeat(aerogrid['n'], axis=1)  # normal vector part in vertical direction
     n_hat_wl = np.array(aerogrid['N'][:,1], ndmin=2).T.repeat(aerogrid['n'], axis=1) # normal vector part in lateral direction
     
@@ -63,23 +63,19 @@ def calc_induced_velocities(aerogrid, Ma):
     # Step 5
     gamma = np.ones((aerogrid['n'], aerogrid['n']))
     D1_base = gamma / 4.0 / np.pi / mod_r1Xr2**2.0 * (r0r1/r1 - r0r2/r2)
-    D1_u = r1Xr2_x*D1_base
     D1_v = r1Xr2_y*D1_base
     D1_w = r1Xr2_z*D1_base
     # Step 3
-    epsilon = 10e-6;
+    epsilon = 10e-6
     ind =  np.where(r1<epsilon)[0]
-    D1_u[ind] = 0.0
     D1_v[ind] = 0.0
     D1_w[ind] = 0.0
         
     ind =  np.where(r2<epsilon)[0]
-    D1_u[ind] = 0.0
     D1_v[ind] = 0.0
     D1_w[ind] = 0.0
         
     ind =  np.where(mod_r1Xr2<epsilon)
-    D1_u[ind] = 0.0
     D1_v[ind] = 0.0
     D1_w[ind] = 0.0
         
@@ -88,7 +84,8 @@ def calc_induced_velocities(aerogrid, Ma):
     # For wing panels, it's the z component of induced velocities (D1_w) while for
     # winglets, it's the y component of induced velocities (D1_v)
     D1 = D1_w*n_hat_w + D1_v*n_hat_wl
-        
+    
+    # See Katz & Plotkin, Chapter 10.4.7
     # induced velocity due to inner semi-infinite vortex line
     d2 = (r1y**2.0 + r1z**2.0)**0.5
     cosBB1 = 1.0
@@ -97,12 +94,10 @@ def calc_induced_velocities(aerogrid, Ma):
     sinGamma = -r1z/d2
     
     D2_base = -(1.0/(4.0*np.pi))*(cosBB1 - cosBB2)/d2
-    D2_u = np.zeros((aerogrid['n'], aerogrid['n']))
     D2_v = sinGamma*D2_base
     D2_w = cosGamma*D2_base
     
     ind =  np.where((r1<epsilon) + (d2<epsilon))[0]
-    D2_u[ind] = 0.0
     D2_v[ind] = 0.0
     D2_w[ind] = 0.0
     
@@ -116,12 +111,10 @@ def calc_induced_velocities(aerogrid, Ma):
     sinGamma = r2z/d3
     
     D3_base = -(1.0/(4.0*np.pi))*(cosBB1 - cosBB2)/d3
-    D3_u = r1Xr2_x*D3_base
     D3_v = sinGamma*D3_base
     D3_w = cosGamma*D3_base
     
     ind =  np.where((r2<epsilon) + (d3<epsilon))[0]
-    D3_u[ind] = 0.0
     D3_v[ind] = 0.0
     D3_w[ind] = 0.0
     
