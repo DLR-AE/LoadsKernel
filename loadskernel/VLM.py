@@ -7,8 +7,7 @@ Created on Fri May  5 14:37:24 2017
 """
 
 import numpy as np
-import time, scipy, copy
-from scipy import io
+import copy
 
 def calc_induced_velocities(aerogrid, Ma):
     #
