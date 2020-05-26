@@ -21,6 +21,7 @@ def calc_Qjj(aerogrid, Ma, k):
         Ajj_DLM = calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma, k=k)
     Ajj = Ajj_VLM + Ajj_DLM
     Qjj = -np.linalg.inv(Ajj)
+    return Qjj
 
 def calc_Qjjs(aerogrid, Ma, k, xz_symmetry=False):
     # allocate memory
@@ -69,7 +70,7 @@ def calc_Ajj(aerogrid, Ma, k, method='parabolic'):
     Pm = aerogrid['offset_P1']  # minus (-e)
     Pp = aerogrid['offset_P3']  # plus (e)
     Ps = aerogrid['offset_l']   # sending (s/0)
-    e = np.absolute(np.repeat(np.array(0.5 * aerogrid['A'] / aerogrid['l'], ndmin=2),aerogrid['n'],axis=0)) # semiwidth
+    e = np.absolute(np.repeat(np.array(0.5 * ( (Pp[:,2]-Pm[:,2])**2.0 + (Pp[:,1]-Pm[:,1])**2.0 )**0.5, ndmin=2),aerogrid['n'],axis=0)) # semiwidth
     e2 = e**2.0; e3 = e**3.0; e4 = e**4.0
     chord = np.repeat(np.array(aerogrid['l'], ndmin=2), aerogrid['n'], axis=0)
     
@@ -424,7 +425,7 @@ def watkins_approximation(u1, k1):
                 ((a3*np.exp(-(b3+j*k1)*u1)/(((b3+j*k1)**2.0 + np.pi**2.0)**2.0))*(np.pi*((np.pi*np.sin(np.pi*u1)) - \
                 ((b3+j*k1)*np.cos(np.pi*u1))) - ((b3+j*k1)*(np.pi*np.cos(np.pi*u1) + ((b3+j*k1)*np.sin(np.pi*u1)))))) 
     I2_2 =  (ejku*(u1**3.0)/((1+u1**2.0)**(3.0/2.0)) - I2_1 - \
-            ejku*u1/((1+u1**2.0))**0.5)/3.0 - (k1*k1*I2_2_1/3.0)
+            ejku*u1/(1+u1**2.0)**0.5)/3.0 - (k1*k1*I2_2_1/3.0)
     I2  = I2_1 + I2_2
     return I1, I2
 
