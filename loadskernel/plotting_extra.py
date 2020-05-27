@@ -50,7 +50,7 @@ class DetailedPlots(plotting_standard.StandardPlots):
             # (by default, panels are colored according to its z-component)
             if len(cp) == aerogrid['n']:
                 color_i = colors(np.int(np.round( colors.N / (value_max - value_min ) * (cp[i_panel] - value_min ) )))
-                ax.plot_surface(xx, yy, zz, rstride=1, cstride=1, linewidth=0, color=color_i, shade=False )
+                ax.plot_surface(xx, yy, zz, rstride=1, cstride=1, linewidth=0.5, edgecolor='black', color=color_i, shade=False )
             else:
                 ax.plot_wireframe(xx, yy, zz, rstride=1, cstride=1, color='black')
         
@@ -68,7 +68,8 @@ class DetailedPlots(plotting_standard.StandardPlots):
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
-        ax.view_init(elev=90, azim=-90) 
+        ax.view_init(elev=30.0, azim=-120.0) 
+        fig.colorbar(plt.cm.ScalarMappable(cmap=colors, norm=plt.cm.colors.Normalize(value_min, value_max)), ax=ax)
         fig.tight_layout()
         
         return ax
@@ -103,7 +104,7 @@ class DetailedPlots(plotting_standard.StandardPlots):
                 Pb_gust.append(np.dot(self.model.Dkx1.T, response['Pk_gust'][i_step,:]))
                 Pb_unsteady.append(np.dot(self.model.Dkx1.T, response['Pk_unsteady'][i_step,:]))
                 Pb_aero.append(np.dot(self.model.Dkx1.T, response['Pk_aero'][i_step,:]))
-                #Pmac_c.append(response['Pmac'][i_step,:]/response['q_dyn'][i_step,:]/A)
+                Pmac_c.append(response['Pmac'][i_step,:]/response['q_dyn'][i_step,:]/A)
             Pb_gust = np.array(Pb_gust)
             Pb_unsteady = np.array(Pb_unsteady)
             Pb_aero = np.array(Pb_aero)
@@ -121,19 +122,20 @@ class DetailedPlots(plotting_standard.StandardPlots):
             plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_aero', 'Pb_aero-unsteady'])
             
 #             plt.figure(6)
-#             plt.subplot(3,1,1)
+#             n_modes = self.model.mass['n_modes'][self.model.mass['key'].index(trimcase['mass'])]
+#             plt.subplot(2,1,1)
 #             plt.plot(response['t'], response['p1'])
-#             plt.plot(response['t'], response['X'][:,12+n_modes*2+3:12+n_modes*2+3+self.model.lggrid['n']], '--')
-#             plt.legend(('p1 MLG1', 'p1 MLG2', 'p1 NLG', 'p2 MLG1', 'p2 MLG2', 'p2 NLG'), loc='best')
+#             #plt.plot(response['t'], response['X'][:,12+n_modes*2+3:12+n_modes*2+3+self.model.extragrid['n']], '--')
+#             plt.legend(self.jcl.landinggear['key'], loc='best')
 #             plt.xlabel('t [s]')
-#             plt.ylabel('p1,2 [m]')
+#             plt.ylabel('p1 [m]')
 #             plt.grid(True)
-#             plt.subplot(3,1,2)
+#             plt.subplot(2,1,2)
 #             plt.plot(response['t'], response['F1'])
-#             plt.plot(response['t'], response['F2'], '--')
-#             plt.legend(('F1 MLG1', 'F1 MLG2', 'F1 NLG', 'F2 MLG1', 'F2 MLG2', 'F2 NLG'), loc='best')
+#             #plt.plot(response['t'], response['F2'], '--')
+#             plt.legend(self.jcl.landinggear['key'], loc='best')
 #             plt.xlabel('t [s]')
-#             plt.ylabel('F1,2 [N]')
+#             plt.ylabel('F1 [N]')
 #             plt.grid(True)
 #               
 #             plt.subplot(3,1,3)
