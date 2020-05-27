@@ -1,16 +1,11 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Aug  1 16:56:30 2017
 
-@author: voss_ar
-"""
 import copy
 import numpy as np
-np.seterr(all='ignore')                 # turn off warnings (divide by zero, multiply NaN, ...) as singularities are expected to occur
-import numexpr as ne
-n_cores = ne.detect_number_of_cores()   # get number of cores and use all
-ne.set_num_threads(n_cores)             # set up numexpr for multithreading
+import logging
+np.seterr(all='ignore') # turn off warnings (divide by zero, multiply NaN, ...) as singularities are expected to occur
+
 
 import loadskernel.VLM as VLM
 
@@ -26,6 +21,7 @@ def calc_Qjj(aerogrid, Ma, k):
         Ajj_DLM = calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma, k=k)
     Ajj = Ajj_VLM + Ajj_DLM
     Qjj = -np.linalg.inv(Ajj)
+    return Qjj
 
 def calc_Qjjs(aerogrid, Ma, k, xz_symmetry=False):
     # allocate memory
@@ -45,7 +41,7 @@ def calc_Qjjs(aerogrid, Ma, k, xz_symmetry=False):
                 Ajj_DLM = np.zeros((aerogrid['n'],aerogrid['n']))
             else:
                 # calc oscillatory / unsteady contributions using DLM
-                Ajj_DLM = calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma[im], k=k[ik])
+                Ajj_DLM = calc_Ajj(aerogrid=copy.deepcopy(aerogrid), Ma=Ma[im], k=k[ik], method='parabolic')
             Ajj = Ajj_VLM + Ajj_DLM
             Ajj_inv = -np.linalg.inv(Ajj)
             if xz_symmetry:
@@ -54,19 +50,8 @@ def calc_Qjjs(aerogrid, Ma, k, xz_symmetry=False):
                 Qjj[im,ik] = Ajj_inv
     return Qjj
 
-def calc_Ajj(aerogrid, Ma, k):
-    # P0 = downwash recieving location x-y pair (1/2span, 3/4chord)
-    # P1 = root doublet location x-y pair (0 span, 1/4chord)
-    # P2 = semi-span doublet location x-y pair (1/2span, 1/4chord)
-    # P3 = tip doublet location x-y pair (1span, 1/4chord)
-    # e = half span length of the aero panel
-    # cav = centerline chord of the aero panel
-    # k = k1 term from ref 1.: omega/U
-    #   omega = frequency of oscillation
-    #   U = freestream velocity
-    # M = Mach number
-    
-
+def calc_Ajj(aerogrid, Ma, k, method='parabolic'):
+    # Calculates one unsteady AIC matrix (Qjj = -Ajj^-1) at given Mach number and frequency 
     #
     #                   l_2
     #             4 o---------o 3
@@ -77,313 +62,370 @@ def calc_Ajj(aerogrid, Ma, k):
     #         y         l_1
     #         |
     #        z.--- x
-    
-    # define downwash location (3/4 chord and half span of the aero panel)
-    P0 = aerogrid['offset_j']
-    # define vortex location points
-    P1 = aerogrid['offset_P1']
-    P3 = aerogrid['offset_P3']
-    P2 = (P1+P3)/2.0
-    A = aerogrid['A']
-    chord = aerogrid['l']
-    semispan = 0.5 * A / chord
-    
-    x01 = np.array(P0[:,0], ndmin=2).T - np.array(P1[:,0], ndmin=2)
-    y01 = np.array(P0[:,1], ndmin=2).T - np.array(P1[:,1], ndmin=2)
-    z01 = np.array(P0[:,2], ndmin=2).T - np.array(P1[:,2], ndmin=2)
-    
-    x02 = np.array(P0[:,0], ndmin=2).T - np.array(P2[:,0], ndmin=2)
-    y02 = np.array(P0[:,1], ndmin=2).T - np.array(P2[:,1], ndmin=2)
-    z02 = np.array(P0[:,2], ndmin=2).T - np.array(P2[:,2], ndmin=2)
-    
-    x03 = np.array(P0[:,0], ndmin=2).T - np.array(P3[:,0], ndmin=2)
-    y03 = np.array(P0[:,1], ndmin=2).T - np.array(P3[:,1], ndmin=2)
-    z03 = np.array(P0[:,2], ndmin=2).T - np.array(P3[:,2], ndmin=2)
-    
-    cosGamma = (P3[:,1] - P1[:,1]) / ( (P3[:,2]-P1[:,2])**2.0 + (P3[:,1]-P1[:,1])**2.0 )**0.5
-    sinGamma = (P3[:,2] - P1[:,2]) / ( (P3[:,2]-P1[:,2])**2.0 + (P3[:,1]-P1[:,1])**2.0 )**0.5
-                   
-    # Kernel function (K) calculation
-    # Kappa (defined on page 3, reference 1) is calculated. The steady part of
-    # Kappa (i.e. reduced frequency = 0) is subtracted out and later
-    # compensated for by adding downwash effects from a VLM code. This ensures 
-    # that the doublet lattice code converges to VLM results under steady
-    # conditions. (Ref 2, page 3, equation 9)
-
-    Ki_w = getKappa(x01,y01,z01,cosGamma,sinGamma,k,Ma)
-    Ki_0 = getKappa(x01,y01,z01,cosGamma,sinGamma,0,Ma)
-    Ki = Ki_w - Ki_0
-    
-    Km_w = getKappa(x02,y02,z02,cosGamma,sinGamma,k,Ma)
-    Km_0 = getKappa(x02,y02,z02,cosGamma,sinGamma,0,Ma)
-    Km = Km_w - Km_0
-    
-    K0_w = getKappa(x03,y03,z03,cosGamma,sinGamma,k,Ma)
-    K0_0 = getKappa(x03,y03,z03,cosGamma,sinGamma,0,Ma)
-    K0 = K0_w - K0_0
-    
-    # Parabolic approximation of incremental Kernel function (ref 1, equation 7)
-    # define terms used in the parabolic approximation
-    e1 = np.absolute(np.repeat(np.array(semispan, ndmin=2),aerogrid['n'],axis=0))
-    A = (Ki-2.0*Km+K0)/(2.0*e1**2.0)
-    B = (K0-Ki)/(2.0*e1)
-    C = Km
-
-    # define r1,n0,zeta0
-    cosGamma = np.repeat(np.array(cosGamma, ndmin=2),aerogrid['n'],axis=0)
-    sinGamma = np.repeat(np.array(sinGamma, ndmin=2),aerogrid['n'],axis=0)
-    n0 = (y02*cosGamma) + (z02*sinGamma)
-    zeta0 = -(y02*sinGamma) + (z02*cosGamma)
-    r2 = ((n0**2.0) + (zeta0**2.0))**0.5
-    
-    #  normalwash matrix factor I
-    I = (A*(2.0*e1))+((0.5*B+n0*A)*np.log((r2**2.0 - 2.0*n0*e1 + e1**2.0)/(r2**2.0 + 2.0*n0*e1 + e1**2.0))) + \
-        (((n0**2.0 - zeta0**2.0)*A+n0*B+C)/np.absolute(zeta0)*np.arctan(2.0*e1*np.absolute(zeta0)/(r2**2.0 - e1**2.0)))
-    # limit when zeta -> 0
-    ind = np.where(zeta0==0)
-    I2 = ((A*(2.0*e1))+((0.5*B+n0*A)*np.log(((n0-e1)/(n0+e1))**2.0)) + \
-         ((n0**2.0)*A+n0*B+C)*((2.0*e1)/(n0**2.0 - e1**2.0)))
-    I[ind] = I2[ind]
-    
-    # normalwash matrix
-    D = np.repeat(np.array(chord, ndmin=2), aerogrid['n'], axis=0)*I/(np.pi*8.0)
-    return D
-
-
-def getKappa(x0,y0,z0,cosGamma,sinGamma,k,M):
-    # Function to calculate kappa
-    # this function calculates kappa as defined on page 3 of reference 1. The
-    # All the formulae are from page 1 of the reference.
-    # kappa = (r1^2) * K where K is the incremental Kernel function
-    # K = (K1T1 + K2T2)*exp(-jwx0/U)/(r1^2), where w is oscillation frequency
-    # variables passed to the function:
-    
-    # x0 = x - chi (x is location of collocation pt (3/4th chord pt), chi is
-    #               location of doublet)
-    # y0 = y - eta
-    # z0 = z - zeta
-    # cosGamma: cosine of panel dihedral
-    # sinGamma: sine of panel dihedral
-    # k = w/U,  U is freestram velocity
-    # M: Mach no.
-    
-    # Reference papers
-    # ref 1: Albano and Rodden - A Doublet-Lattic Method for Calculating 
-    #        Lift Distributions on Oscillating Surfaces in Subsonic Flows
     #
-    # ref 2: Watkins, C. E., Hunyan, H. L., and Cunningham, H. J., "A Systematic 
-    #        Kernel Function Procedure for Determining Aerodynamic Forces on Oscillating 
-    #        or Steady Finite Wings at Subsonic Speeds," R-48, 1959, NASA.
-    #
-    # ref 3: Blair, Max. A Compilation of the mathematics leading to the doublet 
-    #        lattice method. No. WL-TR-92-3028. WRIGHT LAB WRIGHT-PATTERSON AFB OH, 1992.
+    # M = Mach number
+    # k = omega/U, the "classical" definition, not Nastran definition!
+    # Nomencalture with receiving (r), minus (-e), plus (e), sending (s/0) point and semiwidth e following Rodden 1968 
+    Pr = aerogrid['offset_j']   # receiving (r)
+    Pm = aerogrid['offset_P1']  # minus (-e)
+    Pp = aerogrid['offset_P3']  # plus (e)
+    Ps = aerogrid['offset_l']   # sending (s/0)
+    e = np.absolute(np.repeat(np.array(0.5 * ( (Pp[:,2]-Pm[:,2])**2.0 + (Pp[:,1]-Pm[:,1])**2.0 )**0.5, ndmin=2),aerogrid['n'],axis=0)) # semiwidth
+    e2 = e**2.0; e3 = e**3.0; e4 = e**4.0
+    chord = np.repeat(np.array(aerogrid['l'], ndmin=2), aerogrid['n'], axis=0)
     
-    #declare all variables as defined in reference 1, page 1
-    #z0 = zeros(size(y0));
-    r1 = ((y0**2.0) + (z0**2.0))**0.5
-    beta2 = (1-(M**2.0))
-    R = ((x0**2.0) + beta2*(r1**2.0))**0.5;
-    u1 = ((M*R) - x0) / (beta2*r1)
-    k1 = k*r1
+    # cartesian coordinates of receiving points relative to sending points
+    xsr = np.array(Pr[:,0], ndmin=2).T - np.array(Ps[:,0], ndmin=2)
+    ysr = np.array(Pr[:,1], ndmin=2).T - np.array(Ps[:,1], ndmin=2)
+    zsr = np.array(Pr[:,2], ndmin=2).T - np.array(Ps[:,2], ndmin=2)
+    
+    # dihedral angle gamma = arctan(dz/dy) and sweep angle lambda = arctan(dx/dy)
+    sinGamma  = (Pp[:,2]-Pm[:,2])/(2.0*e)
+    cosGamma  = (Pp[:,1]-Pm[:,1])/(2.0*e)
+    tanLambda = (Pp[:,0]-Pm[:,0])/(2.0*e)
+    gamma = np.arcsin(sinGamma)
+    # relative dihedral angle between receiving point and sending boxes
+    gamma_sr = np.array(gamma, ndmin=2) - np.array(gamma, ndmin=2).T
+    
+    # local coordinates of receiving point relative to sending point
+    ybar  = ysr*cosGamma + zsr*sinGamma
+    zbar  = zsr*cosGamma - ysr*sinGamma
+    
+    # pre-calculate some values which will be used a couple of times
+    ybar2 = ybar**2.0; ybar4 = ybar**4.0
+    zbar2 = zbar**2.0; zbar4 = zbar**4.0
+    ratio = 2.0*e*np.abs(zbar)/(ybar2 + zbar2 - e2)
+    L = np.log( ((ybar-e)**2.0+zbar2)/((ybar+e)**2.0+zbar2) )   # Checked with Nastran idf1.f 
+    
+    # Condition 1, planar, the value of 0.001 is taken from Nastran
+    i0 = (np.abs(zbar)/e <= 0.001)
+    # Condition 2, co-planar / close-by
+    ia = (np.abs(ratio) <= 0.3) & (np.abs(zbar)/e > 0.001)
+    # Condition 3, the rest / further away
+    ir = (np.abs(ratio) > 0.3) & (np.abs(zbar)/e > 0.001)   
+    # check that all conditions are captured: np.all(i0 + ia + ir) == True
+    
+    alpha = np.zeros(e.shape)
+    funny_series = 0.0
+    for n in range(2,8): 
+        funny_series += (-1.0)**n/(2.0*n-1.0) * ratio[ia]**(2.0*n-4.0) 
+    alpha[ia] = 4.0*e[ia]**4.0/(ybar2[ia] + zbar2[ia]-e2[ia])**2.0 * funny_series # Rodden 1971, eq 33, Rodden 1972, eq 31b and Rodden 1998, eq 25
+    
+    if method == 'parabolic':
+        # Rodden et at. 1971 and 1972
+        
+        # Initial values
+        Fparabolic = np.zeros(e.shape) 
+        # Condition 1, planar
+        Fparabolic[i0] = 2.0*e[i0]/(ybar2[i0] - e2[i0]) # OK, idf1.f 
+        # Condition 2, co-planar / close-by
+        Fparabolic[ia] = 2.0*e[ia]/(ybar2[ia] + zbar2[ia] - e2[ia])*(1.0-alpha[ia]*zbar2[ia]/e2[ia])                  # Rodden 1971, eq 32, Checked with Nastran idf1.f      
+        # Condition 3, the rest / further away
+        Fparabolic[ir] = 1.0/np.abs(zbar[ir])*np.arctan2(2.0*e[ir]*np.abs(zbar[ir]),(ybar2[ir] + zbar2[ir] - e2[ir])) # Rodden 1971, eq 31b, Checked with Nastran idf1.f 
+        # Extra Condition found in Nastran idf2.f, line 26
+        # Fparabolic[np.abs(1.0/ratio) <= 0.0001] = 0.0
+        
+        # call the kernel function with Laschka approximation
+        P1m, P2m = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,-e,k,Ma, method='Laschka')
+        P1p, P2p = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,+e,k,Ma, method='Laschka')
+        P1s, P2s = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda, 0,k,Ma, method='Laschka')
+        
+        # define terms used in the parabolic approximation, Nastran incro.f 
+        A1 = (P1m-2.0*P1s+P1p)/(2.0*e2)     # Rodden 1971, eq 28
+        B1 = (P1p-P1m)/(2.0*e)              # Rodden 1971, eq 29
+        C1 = P1s                            # Rodden 1971, eq 30
+        
+        A2 = (P2m-2.0*P2s+P2p)/(2.0*e2)     # Rodden 1971, eq 37
+        B2 = (P2p-P2m)/(2.0*e)              # Rodden 1971, eq 38
+        C2 = P2s                            # Rodden 1971, eq 39
+        
+        # The "planar" part
+        # -----------------
+        #  normalwash matrix, Rodden 1971, eq 34
+        D1rs = chord/(np.pi*8.0) \
+                *(    ((ybar2 - zbar2)*A1 + ybar*B1 + C1) * Fparabolic \
+                    + (0.5*B1 + ybar*A1) * np.log( ((ybar-e)**2.0+zbar2)/((ybar+e)**2.0+zbar2) ) \
+                    + 2.0*e*A1 ) # Checked with Nastran idf1.f & incro.f 
+        
+        # The "nonplanar" part
+        # --------------------
+        D2rs = np.zeros(e.shape, dtype='complex')
+        
+        # Condition 1, similar to above but with different boundary, Rodden 1971 eq 40
+        ib = (np.abs(1.0/ratio) <= 0.1) & (np.abs(zbar)/e > 0.001)
+        D2rs[ib] = chord[ib]/(16.0*np.pi*zbar2[ib]) \
+            * (   ((ybar2[ib] + zbar2[ib])*A2[ib] + ybar[ib]*B2[ib] + C2[ib])*Fparabolic[ib] \
+                + 1.0/((ybar[ib]+e[ib])**2.0+zbar2[ib]) * ( ((ybar2[ib] + zbar2[ib])*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (ybar2[ib] + zbar2[ib]+ybar[ib]*e[ib])*B2[ib] + (ybar[ib]+e[ib])*C2[ib] ) \
+                - 1.0/((ybar[ib]-e[ib])**2.0+zbar2[ib]) * ( ((ybar2[ib] + zbar2[ib])*ybar[ib]-(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] + (ybar2[ib] + zbar2[ib]-ybar[ib]*e[ib])*B2[ib] + (ybar[ib]-e[ib])*C2[ib] ) \
+              )  # Checked with Nastran idf2.f
+        
+        # Condition 2, Rodden 1971 eq 41
+        ic = (np.abs(1.0/ratio) > 0.1) & (np.abs(zbar)/e > 0.001)
+        # reconstruct alpha from eq 32, NOT eq 33!
+        alpha[i0] = ((2.0*e2[i0])/(ybar2[i0]-e2[i0]))**2.0 # Nastran idf2.f, line 75
+        alpha[ir] = (1.0 - Fparabolic[ir] * (ybar2[ir] + zbar2[ir]-e2[ir])/(2.0*e[ir]))/zbar2[ir]*e2[ir]
+            
+        D2rs[ic] = chord[ic]*e[ic]/(8.0*np.pi*(ybar2[ic] + zbar2[ic]-e2[ic])) \
+            * ( ( 2.0*(ybar2[ic] + zbar2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic])+4.0*ybar[ic]*e2[ic]*B2[ic] ) \
+                / ( ((ybar[ic]+e[ic])**2.0+zbar2[ic])*((ybar[ic]-e[ic])**2.0+zbar2[ic]) ) \
+                - alpha[ic]/e2[ic] * ( (ybar2[ic] + zbar2[ic])*A2[ic] + ybar[ic]*B2[ic] + C2[ic] ) \
+              ) # Checked with Nastran idf2.f
+    
+    elif method == 'quartic':
+        # Rodden et al. 1998
+        # Why chooses Rodden in 1972 and 1998 a more complicated formulation with d1,2?
+        # Only to place the tangens into the right quadrant? --> Is there no arctan2 in Fortran?!?
+        # Still, we have to use that formulation as d1,2 and epsilon will be used later in eq 34.
+        
+        d1 = np.zeros(e.shape); d2 = np.zeros(e.shape)
+        i1 = (ybar2+zbar2-e2) >  0.0; d1[i1]=1.0; d2[i1]=0.0
+        i2 = (ybar2+zbar2-e2) == 0.0; d1[i2]=0.0; d2[i2]=0.5
+        i3 = (ybar2+zbar2-e2) <  0.0; d1[i3]=1.0; d2[i3]=1.0
+         
+        epsilon = np.zeros(e.shape)
+        epsilon[i0] = 2.0*e[i0]/(ybar2[i0] - e2[i0])
+        epsilon[ia] = alpha[ia]
+        epsilon[ir] = e2[ir]/zbar2[ir]*(1.0-1.0/ratio[ir]*np.arctan(ratio[ir]))
+        iar = ia + ir
+        Fquartic = np.zeros(e.shape) # Initial values
+        Fquartic[i0] = d1[i0]*2.0*e[i0]/(ybar2[i0] - e2[i0])
+        Fquartic[iar] = d1[iar]*2.0*e[iar]/(ybar2[iar] + zbar2[iar] - e2[iar])*(1.0-epsilon[iar]*zbar2[iar]/e2[iar]) + d2[iar]*np.pi/np.abs(zbar[iar])
+        # check: np.allclose(Fparabolic, Fquartic)
+        
+        # Rodden 1998
+        # call the kernel function with Desmarais approximation
+        P1m, P2m    = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,-e    ,k,Ma,method='Desmarais')
+        P1mh, P2mh  = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,-e/2.0,k,Ma,method='Desmarais')
+        P1p, P2p    = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,+e    ,k,Ma,method='Desmarais')
+        P1ph, P2ph  = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda,+e/2.0,k,Ma,method='Desmarais')
+        P1s, P2s    = kernelfunction(xsr,ybar,zbar,gamma_sr,tanLambda, 0.0  ,k,Ma,method='Desmarais')
+        
+        # define terms used in the quartic approximation
+        A1 = -1.0/(6.0*e2)*(P1m-16.0*P1mh+30.0*P1s-16.0*P1ph+P1p) # Rodden 1998, eq 15
+        B1 = +1.0/(6.0*e )*(P1m -8.0*P1mh          +8.0*P1ph-P1p) # Rodden 1998, eq 16
+        C1 =                                   P1s                # Rodden 1998, eq 17
+        D1 = -2.0/(3.0*e3)*(P1m -2.0*P1mh          +2.0*P1ph-P1p) # Rodden 1998, eq 18
+        E1 = +2.0/(3.0*e4)*(P1m -4.0*P1mh +6.0*P1s -4.0*P1ph+P1p) # Rodden 1998, eq 19
+        
+        A2 = -1.0/(6.0*e2)*(P2m-16.0*P2mh+30.0*P2s-16.0*P2ph+P2p) # Rodden 1998, eq 28
+        B2 = +1.0/(6.0*e )*(P2m -8.0*P2mh          +8.0*P2ph-P2p) # Rodden 1998, eq 29
+        C2 =                                   P2s                # Rodden 1998, eq 30
+        D2 = -2.0/(3.0*e3)*(P2m -2.0*P2mh          +2.0*P2ph-P2p) # Rodden 1998, eq 31
+        E2 = +2.0/(3.0*e4)*(P2m -4.0*P2mh +6.0*P2s -4.0*P2ph+P2p) # Rodden 1998, eq 32
+        
+        # The "planar" part
+        # -----------------
+        #  normalwash matrix, Rodden 1998, eq 20
+        D1rs = chord/(np.pi*8.0) \
+            * (   ((ybar2 - zbar2)*A1 + ybar*B1 + C1 + ybar*(ybar2-3.0*zbar2)*D1 + (ybar4-6.0*ybar2*zbar2+zbar4)*E1) * Fquartic \
+                + (0.5*B1 + ybar*A1 + 0.5*(3.0*ybar2-zbar2)*D1 + 2.0*ybar*(ybar2-zbar2)*E1) * L \
+                + 2.0*e*(A1 + 2.0*ybar*D1 + (3.0*ybar2-zbar2+1.0/3.0*e2)*E1) \
+              )
+        # The "nonplanar" part
+        # --------------------
+        D2rs = np.zeros(e.shape, dtype='complex')
+        
+        # Condition 1, similar to above but with different boundary, Rodden 1998 eq 33
+        ib = (np.abs(1.0/ratio) <= 0.1) & (np.abs(zbar)/e > 0.001)
+        D2rs[ib] = chord[ib]/(16.0*np.pi*zbar2[ib]) \
+            * ( Fquartic[ib] \
+                    * (   (ybar2[ib] + zbar2[ib])*A2[ib] \
+                        + ybar[ib]*B2[ib] \
+                        + C2[ib] \
+                        + ybar[ib]*(ybar2[ib]+3.0*zbar2[ib])*D2[ib] \
+                        + (ybar4[ib]+6.0*ybar2[ib]*zbar2[ib]-3.0*zbar4[ib])*E2[ib]  \
+                      ) \
+                + 1.0/((ybar[ib]+e[ib])**2.0+zbar2[ib]) \
+                    * (   ((ybar2[ib] + zbar2[ib])*ybar[ib]+(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] \
+                        + (ybar2[ib] + zbar2[ib]+ybar[ib]*e[ib])*B2[ib] \
+                        + (ybar[ib]+e[ib])*C2[ib] \
+                        + (ybar4[ib]-zbar4[ib]+(ybar2[ib]-3.0*zbar2[ib])*ybar[ib]*e[ib])*D2[ib] \
+                        + ((ybar4[ib]-2.0*ybar2[ib]*zbar2[ib]-3.0*zbar4[ib])*ybar[ib]+(ybar4[ib]-6.0*ybar2[ib]*zbar2[ib]+zbar4[ib])*e[ib])*E2[ib] \
+                      ) \
+                - 1.0/((ybar[ib]-e[ib])**2.0+zbar2[ib]) \
+                    * (   ((ybar2[ib] + zbar2[ib])*ybar[ib]-(ybar2[ib]-zbar2[ib])*e[ib])*A2[ib] \
+                        + (ybar2[ib] + zbar2[ib]-ybar[ib]*e[ib])*B2[ib] \
+                        + (ybar[ib]-e[ib])*C2[ib] \
+                        + (ybar4[ib]-zbar4[ib]-(ybar2[ib]-3.0*zbar2[ib])*ybar[ib]*e[ib])*D2[ib] \
+                        + ((ybar4[ib]-2.0*ybar2[ib]*zbar2[ib]-3.0*zbar4[ib])*ybar[ib]-(ybar4[ib]-6.0*ybar2[ib]*zbar2[ib]+zbar4[ib])*e[ib])*E2[ib] \
+                      ) \
+                + (zbar2[ib]*L[ib])*D2[ib] \
+                + 4.0*zbar2[ib]*(e[ib]+ybar[ib]*L[ib])*E2[ib] \
+            )
+        
+        # Condition 2, Rodden 1998 eq 34
+        ic = (np.abs(1.0/ratio) > 0.1) & (np.abs(zbar)/e > 0.001)
+        D2rs[ic] = chord[ic]*e[ic]/(8.0*np.pi*(ybar2[ic] + zbar2[ic]-e2[ic])) \
+            * ( 1.0/(((ybar[ic]+e[ic])**2.0+zbar2[ic])*((ybar[ic]-e[ic])**2.0+zbar2[ic])) \
+                * (   2.0*(ybar2[ic] + zbar2[ic]+e2[ic])*(e2[ic]*A2[ic]+C2[ic]) \
+                    + 4.0*ybar[ic]*e2[ic]*B2[ic] \
+                    + 2.0*ybar[ic]*(ybar4[ic]-2.0*e2[ic]*ybar2[ic]+2.0*ybar2[ic]*zbar2[ic]+3.0*e4[ic]+2.0*e2[ic]*zbar2[ic]+zbar4[ic])*D2[ic] \
+                    + 2.0*(3.0*ybar[ic]**6.0-7.0*e2[ic]*ybar4[ic]+5.0*ybar4[ic]*zbar2[ic]+6.0*e4[ic]*ybar2[ic]+6.0*e2[ic]*ybar2[ic]*zbar2[ic] \
+                           -3.0*e2[ic]*zbar4[ic]-zbar[ic]**6.0+ybar2[ic]*zbar4[ic]-2.0*e4[ic]*zbar2[ic])*E2[ic]\
+                  ) \
+                - (d1[ic]*epsilon[ic] + e2[ic]/zbar2[ic]*(1.0-d1[ic]-d2[ic]*np.pi/ratio[ic]))/e2[ic] \
+                    * ( (ybar2[ic]+zbar2[ic])*A2[ic] \
+                        + ybar[ic]*B2[ic] \
+                        + C2[ic] \
+                        + ybar[ic]*(ybar2[ic]+3.0*zbar2[ic])*D2[ic]\
+                        + (ybar4[ic]+6.0*ybar2[ic]*zbar2[ic]-3.0*zbar4[ic])*E2[ic] \
+                      ) \
+              ) \
+            + chord[ic]/(8.0*np.pi) * (D2[ic]/2.0*L[ic] + 2.0*(e[ic]+ybar[ic]*L[ic])*E2[ic] )
+    else:
+        logging.error('Method {} not implemented!'.format(method))
+    
+    # add planar and non-planar parts, # Rodden eq 22
+    # the steady part D0 has already been subtracted inside the kernel function
+    Drs = D1rs + D2rs
+    return Drs
+
+def kernelfunction(xbar,ybar,zbar,gamma_sr,tanLambda,ebar,k,M,method='Laschka'):
+    # This is the function that calculates "the" kernel function(s) of the DLM.
+    # K1,2 are reformulated in Rodden 1971 compared to Rodden 1968 and include new 
+    # conditions, e.g. for co-planar panels.
+    # Note that the signs of K1,2 are switched in Rodden 1971, in this implementation 
+    # we stay with the 1968 convention and we don't want to mess with the steady part 
+    # from the VLM. Also, we directly subtract the steady parts K10 and K20, as the 
+    # steady contribution will be added later from the VLM.
+    # Note: Rodden has the habit of leaving out some brackets in his formulas. This   
+    # applies to eq 11, 7 and 8 where it is not clear which parts belong to the denominator.
+    
+    r1 = ((ybar-ebar)**2.0 + zbar**2.0)**0.5                    # Rodden 1971, eq 4
+    beta2 = (1.0-(M**2.0))                                      # Rodden 1971, eq 9
+    R = ((xbar-ebar*tanLambda)**2.0 + beta2*r1**2.0)**0.5       # Rodden 1971, eq 10
+    u1 = (M*R - xbar + ebar*tanLambda) / (beta2*r1)             # Rodden 1971, eq 11
+    k1 = k*r1                                                   # Rodden 1971, eq 12 with k = w/U
+    j = 1j                                                      # imaginary number
+    ejku = np.exp(-j*k1*u1)                                     # pre-multiplication
+    
+    # direction cosine matrices
+    T1 = np.cos(gamma_sr)                                               # Rodden 1971, eq 5
+    T2 = zbar*(zbar*np.cos(gamma_sr) + (ybar-ebar)*np.sin(gamma_sr))    # Rodden 1971, eq 21a: T2_new = T2_old*r1^2
+    
+    # Approximation of intergrals I1,2, Rodden 1971, eq 13+14    
+    I1, I2 = get_integrals12(u1, k1, method)
+
+    # Formulation of K1,2 by Landahl, Rodden 1971, eq 7+8
+    K1 = -I1 - ejku*M*r1/R/(1+u1**2.0)**0.5
+    K2 = 3.0*I2 + j*k1*ejku*(M**2.0)*(r1**2.0)/(R**2.0)/(1.0+u1**2.0)**0.5 \
+            + ejku*M*r1 * ((1.0+u1**2.0)*beta2*r1**2.0 / R**2.0 + 2.0 + M*r1*u1/R)/R/(1.0+u1**2.0)**1.5
+
+    # This is the analytical solution for K1,2 at k=0.0, Rodden 1971, eq 15+16
+    K10 = -1.0-(xbar-ebar*tanLambda)/R 
+    K20 =  2.0+(xbar-ebar*tanLambda)*(2.0+beta2*r1**2.0/R**2.0)/R 
+    
+    # Resolve the singularity arising when r1 = 0
+    ir0xpos = (r1==0) & (xbar>=0.0)
+    ir0xneg = (r1==0) & (xbar<0.0)        
+    K1[ir0xpos]=-2.0; K2[ir0xpos]=+4.0
+    K1[ir0xneg]=0.0; K2[ir0xneg]=0.0
+         
+    P1 = -(K1*np.exp(-j*k*(xbar-ebar*tanLambda)) - K10)*T1     # Rodden 1971, eq 27b, check: -K1*np.exp(-j*k*xbar)*T1
+    P2 = -(K2*np.exp(-j*k*(xbar-ebar*tanLambda)) - K20)*T2     # Rodden 1971, eq 36b, check: -K2*np.exp(-j*k*xbar)*T2/r1**2.0
+    
+    return P1, P2
+
+def get_integrals12(u1, k1, method='Laschka'):
+    
+    I1 = np.zeros(u1.shape, dtype='complex')
+    I2 = np.zeros(u1.shape, dtype='complex')
+    
+    ipos = u1 >= 0.0
+    I1[ipos], I2[ipos] = integral_approximations(u1[ipos], k1[ipos], method)
+
+    ineg = u1 < 0.0
+    I10, I20 = integral_approximations(0.0*u1[ineg], k1[ineg], method)
+    I1n, I2n = integral_approximations(   -u1[ineg], k1[ineg], method)
+    I1[ineg] = 2.0*I10.real - I1n.real + 1j*I1n.imag    # Rodden 1971, eq A.5
+    I2[ineg] = 2.0*I20.real - I2n.real + 1j*I2n.imag    # Rodden 1971, eq A.9
+    return I1, I2
+
+def integral_approximations(u1, k1, method='Laschka'):
+    if method == 'Laschka':
+        logging.debug('Using Laschka approximation in DLM')
+        I1, I2 = laschka_approximation(u1, k1)
+    elif method == 'Desmarais':
+        logging.debug('Using Desmarais approximation in DLM')
+        I1, I2 = desmarais_approximation(u1, k1)
+    elif method == 'Watkins':
+        logging.warning('Using Watkins (not preferred!) approximation in DLM.')
+        I1, I2 = watkins_approximation(u1, k1)
+    else:
+        logging.error('Method {} not implemented!'.format(method))
+    return I1, I2
+    
+def desmarais_approximation(u1, k1):
+    # Adapted formulas from laschka_approximation
+    a12 = [ 0.000319759140, -0.000055461471,  0.002726074362, 0.005749551566, 
+            0.031455895072,  0.106031126212,  0.406838011567, 0.798112357155, 
+           -0.417749229098,  0.077480713894, -0.012677284771, 0.001787032960]
+    m = 1.0
+    b = 0.009054814793
     j = 1j
-    
-    cos1 = np.array(cosGamma, ndmin=2).T.repeat(len(cosGamma), axis=1)
-    cos2 = np.array(cosGamma, ndmin=2).repeat(len(cosGamma), axis=0)
-    sin1 = np.array(sinGamma, ndmin=2).T.repeat(len(sinGamma), axis=1)
-    sin2 = np.array(sinGamma, ndmin=2).repeat(len(sinGamma), axis=0)
-    
-    T1 = ne.evaluate("cos1*cos2 + sin1*sin2")
-    T2 = ne.evaluate("(z0*cos1 - y0*sin1)*(z0*cos2 - y0*sin2)/(r1**2.0)")
-    
-    I1 = getI1(u1,k1)
-    I2 = getI2(u1,k1)
-    
-    # get kappa_temp
-    # evaluate with numpy, slower
-#     kappa_temp1 = I1 + ((M*r1)*np.exp(-j*(k1*u1))/(R*(1+(u1**2.0))**0.5))
-#     kappa_temp2 =   -3.0*I2 - (j*k1*(M**2.0)*(r1**2.0)*np.exp(-j*k1*u1)/ \
-#                     ((R**2.0)*(1+u1**2.0)**0.5)) - (M*r1*((1+u1**2.0)* \
-#                     ((beta2*r1**2.0)/R**2.0) + 2.0 + (M*r1*u1/R)))* \
-#                     np.exp(-j*k1*u1)/(((1+u1**2.0)**(3.0/2.0))*R)
-    
-    # evaluate with numexpr, faster
-    kappa_temp1_expr = "I1 + ((M*r1)*exp(-j*(k1*u1))/(R*(1+(u1**2.0))**0.5))"
-    kappa_temp2_expr = "-3.0*I2 - (j*k1*(M**2.0)*(r1**2.0)*exp(-j*k1*u1)/ \
-                    ((R**2.0)*(1+u1**2.0)**0.5)) - (M*r1*((1+u1**2.0)* \
-                    ((beta2*r1**2.0)/R**2.0) + 2.0 + (M*r1*u1/R)))* \
-                    exp(-j*k1*u1)/(((1+u1**2.0)**(3.0/2.0))*R)"
-    kappa_temp1 = ne.evaluate(kappa_temp1_expr)
-    kappa_temp2 = ne.evaluate(kappa_temp2_expr)
-                
-    kappa_temp = kappa_temp1*T1 + kappa_temp2*T2
-    
-    # Resolve the singularity arising when r1 = 0, ref 2, page 7, Eq 18
-    rInd = np.where(r1.ravel()==0)
-    kappa_flat = kappa_temp.ravel()
-    if np.any(rInd):
-        #print 'removing singularities ...'
-        kappa_flat[rInd[0][x0.ravel()[rInd]<0.0]]  = 0.0
-        kappa_flat[rInd[0][x0.ravel()[rInd]>=0.0]] = 2.0
-        kappa_temp = kappa_flat.reshape(kappa_temp.shape)
-                        
-    kappa = kappa_temp*np.exp(-j*k*x0)
-    return kappa
-    
-def getI1(u1,k1):
-    # Function to get I1
-    # ref 1: Albano and Rodden - A Doublet-Lattic Method for Calculating 
-    #        Lift Distributions on Oscillating Surfaces in Subsonic Flows
-    #
-    # ref 3: Blair, Max. A Compilation of the mathematics leading to the doublet 
-    #        lattice method. No. WL-TR-92-3028. WRIGHT LAB WRIGHT-PATTERSON AFB OH, 1992.
-    #
-    # I1 described in eqn 3 of page1 of reference 1. Approximated as shown in
-    # page 3 of the reference. 
-    #
-    
-    I1          = np.zeros(np.shape(u1), dtype='complex')
-    I1_0        = np.zeros(np.shape(u1), dtype='complex')
-    I1_neg      = np.zeros(np.shape(u1), dtype='complex')
-    u_temp1     = np.zeros(np.shape(u1), dtype='complex')
-    u1_temp2    = np.zeros(np.shape(u1), dtype='complex')
-    k1_temp1    = np.zeros(np.shape(u1), dtype='complex')
-    k1_temp2    = np.zeros(np.shape(u1), dtype='complex')
-    # evaluate I1 for u1>0
-    ind1 = np.where(u1>=0)
-    u_temp1[ind1] = u1[ind1]   # select elements in u1 > 0
-    k1_temp1[ind1] = k1[ind1]
-    I1_temp1 = getI1pos(u_temp1,k1_temp1)
-    I1[ind1] = I1_temp1[ind1]
-    j = 1j
-    
-    # evaluate I1 for u1<0
-    # Method taken from ref 3, page 90, eq 275
-    ind2 = np.where(u1<0)
-    u1_temp2[ind2] = u1[ind2]
-    k1_temp2[ind2] = k1[ind2]
-    
-    I1_0temp = getI1pos(np.zeros(np.shape(u1)),k1_temp2);
-    I1_0[ind2] = I1_0temp[ind2]
-    I1_negtemp = getI1pos(-u1_temp2,k1_temp2)
-    I1_neg[ind2] = I1_negtemp[ind2]
-    I1[ind2] = 2.0*np.real(I1_0[ind2]) - np.real(I1_neg[ind2]) + j*np.imag(I1_neg[ind2])
-    return I1
+    ejku = np.exp(-j*k1*u1) # pre-multiplication
+    I0 = 0.0
+    J0 = 0.0
+    for n,a in zip(range(1,13), a12): 
+        nm = n/m
+        nmbk = (2.0**nm)**2.0 * b**2.0 + k1**2.0
+        I0 += a*np.exp(-(2.0**nm)*b*u1) / nmbk * ( (2.0**nm)*b-j*k1 )
+        J0 += a*np.exp(-(2.0**nm)*b*u1) / nmbk**2.0 * ( (2.0**nm)**2.0 * b**2.0 - k1**2.0 + (2.0**nm)*b*u1*nmbk - j*k1*(2.0*(2.0**nm)*b + u1*nmbk) )
+    # I1 as in Rodden 1971, eq A.1
+    I1 = ( 1.0-u1/(1.0+u1**2.0)**0.5 - 1j*k1*I0 )*ejku 
+    # I2 as in Rodden 1971, eq A.6,
+    I2 = ( (2.0+j*k1*u1)*(1.0-u1/(1.0+u1**2.0)**0.5) - u1/(1.0+u1**2.0)**1.5 - j*k1*I0 + k1**2.0*J0 )*ejku/3.0
+    return I1, I2
 
-def getI1pos(u1,k1):
-    # Function to get I1 for positive u1 values
-    # ref 1: Albano and Rodden - A Doublet-Lattic Method for Calculating 
-    #        Lift Distributions on Oscillating Surfaces in Subsonic Flows
-    
-    # I1 described in eqn 3 of page1 of reference 1. Approximated as shown in
-    # page 3 of the reference. This implementation is only valid for u1>0. For
-    # u1<0, this function is still used to obtain I1 in an indirect manner as
-    # described in getI1.m, in which this function is called.
-    #
+def laschka_approximation(u1, k1):
+    # Approximate integral I0, Rodden 1971, eq A.4 
+    # Approximate integral J0, Rodden 1971, eq A.8
+    # These are the coefficients in exponential approximation of u/(1+u**2.0)**0.5
+    # The values are difficult to read in Rodden 1971 but are also given in Blair 1992, page 89. 
+    a11 = [+0.24186198, -2.7918027, +24.991079, -111.59196, +271.43549, -305.75288, -41.183630, +545.98537, -644.78155, +328.72755, -64.279511]
+    c = 0.372
+    j = 1j
+    ejku = np.exp(-j*k1*u1) # pre-multiplication
+    I0 = 0.0
+    J0 = 0.0
+    for n,a in zip(range(1,12), a11): 
+        nck = n**2.0 * c**2.0 + k1**2.0
+        I0 += a*np.exp(-n*c*u1) / nck * ( n*c-j*k1 )
+        J0 += a*np.exp(-n*c*u1) / nck**2.0 * ( n**2.0*c**2.0 - k1**2.0 + n*c*u1*nck - j*k1*(2.0*n*c + u1*nck) )
+    # I1 as in Rodden 1971, eq A.1
+    I1 = ( 1.0-u1/(1.0+u1**2.0)**0.5 - 1j*k1*I0 )*ejku 
+    # I2 as in Rodden 1971, eq A.6,
+    # but divided by 3.0 for compatibility, 
+    # and with the square bracket at the correct location ;) 
+    I2 = ( (2.0+j*k1*u1)*(1.0-u1/(1.0+u1**2.0)**0.5) - u1/(1.0+u1**2.0)**1.5 - j*k1*I0 + k1**2.0*J0 )*ejku/3.0
+    return I1, I2
+
+def watkins_approximation(u1, k1):
+    # This is the old/original approximation of integrals I1,2 as in Rodden 1968, page 3.
+    # The following code is take from the previous Matlab implementation of the DLM, has been rearranged and is used for comparison.
     a1 = 0.101
     a2 = 0.899
     a3 = 0.09480933
     b1 = 0.329
     b2 = 1.4067
     b3 = 2.90
-    
-    # solve for I1
     j = 1j
-    
+    ejku = np.exp(-j*k1*u1) # pre-multiplication
     # evaluate with numpy, slower
-#     i1 = a1*np.exp((-b1-(j*k1))*u1)/(b1+(j*k1)) + a2*np.exp((-b2-(j*k1))*u1)/(b2+(j*k1))
-#     i2 = (a3/(((b3 + (j*k1))**2.0) + (np.pi**2.0))) * (((b3+(j*k1))*np.sin(np.pi*u1)) + (np.pi*np.cos(np.pi*u1)))*np.exp((-b3-(j*k1))*u1)
-#     I1_temp = i1 + i2
-#     I1pos = ((1-(u1/(1+u1**2.0)**0.5))*np.exp(-j*k1*u1)) - (j*k1*I1_temp)
-    
-    # evaluate with numexpr, faster
-    pi = np.pi
-    i1_expr = "a1*exp((-b1-(j*k1))*u1)/(b1+(j*k1)) + a2*exp((-b2-(j*k1))*u1)/(b2+(j*k1))"
-    i2_expr = "(a3/(((b3 + (j*k1))**2.0) + (pi**2.0))) * (((b3+(j*k1))*sin(pi*u1)) + (pi*cos(pi*u1)))*exp((-b3-(j*k1))*u1)"
-    I1pos_expr = "((1-(u1/(1+u1**2.0)**0.5))*exp(-j*k1*u1)) - (j*k1*I1_temp)"
-      
-    i1 = ne.evaluate(i1_expr)
-    i2 = ne.evaluate(i2_expr)
+    i1 =        a1*np.exp((-b1-(j*k1))*u1)/(b1+(j*k1)) + \
+                a2*np.exp((-b2-(j*k1))*u1)/(b2+(j*k1))
+    i2 = (a3/(((b3 + (j*k1))**2.0) + (np.pi**2.0))) * (((b3+(j*k1))*np.sin(np.pi*u1)) + (np.pi*np.cos(np.pi*u1)))*np.exp((-b3-(j*k1))*u1)
     I1_temp = i1 + i2
-    I1pos = ne.evaluate(I1pos_expr)
+    I1 = ((1-(u1/(1+u1**2.0)**0.5))*ejku) - (j*k1*I1_temp)
     
-    return I1pos
-
-def getI2(u1,k1):
-    # Function to get I2
-    # ref 1: Albano and Rodden - A Doublet-Lattic Method for Calculating 
-    #        Lift Distributions on Oscillating Surfaces in Subsonic Flows
-    #
-    #ref 3: Blair, Max. A Compilation of the mathematics leading to the doublet 
-    #       lattice method. No. WL-TR-92-3028. WRIGHT LAB WRIGHT-PATTERSON AFB OH, 1992.
-    #
-    # I2 described in eqn 3 of page1 of reference 1. Approximated as mentioned on
-    # page 3 of the reference. 
-    #
-    
-    I2          = np.zeros(np.shape(u1), dtype='complex')
-    I2_0        = np.zeros(np.shape(u1), dtype='complex')
-    I2_neg      = np.zeros(np.shape(u1), dtype='complex')
-    u_temp1     = np.zeros(np.shape(u1), dtype='complex')
-    u1_temp2    = np.zeros(np.shape(u1), dtype='complex')
-    k1_temp1    = np.zeros(np.shape(u1), dtype='complex')
-    k1_temp2    = np.zeros(np.shape(u1), dtype='complex')
-    # calculate I2
-    ind1 = np.where(u1>=0)
-    u_temp1[ind1] = u1[ind1]   # select elements in u1 > 0
-    k1_temp1[ind1] = k1[ind1]
-    I2_temp1 = getI2pos(u_temp1,k1_temp1)
-    I2[ind1] = I2_temp1[ind1]
-    j = 1j
-    # Calulate integral I2(ref 1, page 1, eq 3) for u1<0
-    # Method taken from ref 3, page 90, eq 275
-    ind2 = np.where(u1<0)
-    u1_temp2[ind2] = u1[ind2]
-    k1_temp2[ind2] = k1[ind2]
-    
-    I2_0temp = getI2pos(np.zeros(np.shape(u1)),k1_temp2);
-    I2_0[ind2] = I2_0temp[ind2]
-    I2_negtemp = getI2pos(-u1_temp2,k1_temp2)
-    I2_neg[ind2] = I2_negtemp[ind2]
-    I2[ind2] = 2.0*np.real(I2_0[ind2]) - np.real(I2_neg[ind2]) + j*np.imag(I2_neg[ind2])
-    return I2
-
-def getI2pos(u1,k1):
-    # this function gets I2 integral for non-planar body solutions, for u1>0
-    # I2 = I2_1 + I2_2
-    # Expressions for I2_1 & I2_2 have been derived using the same
-    # approximations as those for I1 
-    #
-    a1 = 0.101
-    a2 = 0.899
-    a3 = 0.09480933
-    b1 = 0.329
-    b2 = 1.4067
-    b3 = 2.90
-    j = 1j
-    pi = np.pi
-#     eiku = np.exp(-j*k1*u1)
-    eiku = ne.evaluate("exp(-j*k1*u1)")
-    
-    I2_1 = getI1pos(u1,k1)   
+    I2_1 = I1
     # evaluate with numpy, slower 
-#     I2_2_1 =    a1*np.exp(-(b1+j*k1)*u1)/((b1+j*k1)**2.0) + \
-#                 a2*np.exp(-(b2+j*k1)*u1)/((b2+j*k1)**2.0) + \
-#                 ((a3*np.exp(-(b3+j*k1)*u1)/(((b3+j*k1)**2.0 + np.pi**2.0)**2.0))*(np.pi*((np.pi*np.sin(np.pi*u1)) - \
-#                 ((b3+j*k1)*np.cos(np.pi*u1))) - ((b3+j*k1)*(np.pi*np.cos(np.pi*u1) + ((b3+j*k1)*np.sin(np.pi*u1)))))) 
-#     I2_2 =  (eiku*(u1**3.0)/((1+u1**2.0)**(3.0/2.0)) - I2_1 - \
-#             eiku*u1/((1+u1**2.0))**0.5)/3.0 - (k1*k1*I2_2_1/3.0)
+    I2_2_1 =    a1*np.exp(-(b1+j*k1)*u1)/((b1+j*k1)**2.0) + \
+                a2*np.exp(-(b2+j*k1)*u1)/((b2+j*k1)**2.0) + \
+                ((a3*np.exp(-(b3+j*k1)*u1)/(((b3+j*k1)**2.0 + np.pi**2.0)**2.0))*(np.pi*((np.pi*np.sin(np.pi*u1)) - \
+                ((b3+j*k1)*np.cos(np.pi*u1))) - ((b3+j*k1)*(np.pi*np.cos(np.pi*u1) + ((b3+j*k1)*np.sin(np.pi*u1)))))) 
+    I2_2 =  (ejku*(u1**3.0)/((1+u1**2.0)**(3.0/2.0)) - I2_1 - \
+            ejku*u1/(1+u1**2.0)**0.5)/3.0 - (k1*k1*I2_2_1/3.0)
+    I2  = I2_1 + I2_2
+    return I1, I2
 
-    # evaluate with numexpr, faster
-    I2_2_1_expr = "a1*exp(-(b1+j*k1)*u1)/((b1+j*k1)**2.0) + \
-                a2*exp(-(b2+j*k1)*u1)/((b2+j*k1)**2.0) + \
-                ((a3*exp(-(b3+j*k1)*u1)/(((b3+j*k1)**2.0 + pi**2.0)**2.0))*(pi*((pi*sin(pi*u1)) - \
-                ((b3+j*k1)*cos(pi*u1))) - ((b3+j*k1)*(pi*cos(pi*u1) + ((b3+j*k1)*sin(pi*u1))))))"
-    I2_2_expr = "(eiku*(u1**3.0)/((1+u1**2.0)**(3.0/2.0)) - I2_1 - \
-            eiku*u1/((1+u1**2.0))**0.5)/3.0 - (k1*k1*I2_2_1/3.0)"
-     
-    I2_2_1 = ne.evaluate(I2_2_1_expr)  
-    I2_2   = ne.evaluate(I2_2_expr)
-       
-    I2pos  = I2_1 + I2_2
-    return I2pos
-    
