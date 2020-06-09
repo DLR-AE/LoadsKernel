@@ -54,10 +54,10 @@ def write_SET1(fid, SID, entrys):
 def write_force_and_moment_cards(fid, grid, Pg, SID):
     # FORCE and MOMENT cards with all values equal to zero are ommitted to avoid problems when importing to Nastran.
     for i in range(grid['n']):
-        if np.any(Pg[grid['set'][i,0:3]] != 0.0):
+        if np.any(np.abs(Pg[grid['set'][i,0:3]]) >= 1e-8):
             line = 'FORCE   ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, np.int(grid['ID'][i]), np.int(grid['CD'][i]), str(1.0), number_nastarn_converter(Pg[grid['set'][i,0]]), number_nastarn_converter(Pg[grid['set'][i,1]]), number_nastarn_converter(Pg[grid['set'][i,2]]) )
             fid.write(line)
-        if np.any(Pg[grid['set'][i,3:6]] != 0.0):
+        if np.any(np.abs(Pg[grid['set'][i,3:6]]) >= 1e-8):
             line = 'MOMENT  ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, np.int(grid['ID'][i]), np.int(grid['CD'][i]), str(1.0), number_nastarn_converter(Pg[grid['set'][i,3]]), number_nastarn_converter(Pg[grid['set'][i,4]]), number_nastarn_converter(Pg[grid['set'][i,5]]) )
             fid.write(line)
             
