@@ -11,12 +11,12 @@ def number_nastarn_converter(number):
         number = 0.0 # set tiny number to zero
     if number.is_integer():
         number_str = '{:> 7.1f}'.format(number)
-    elif 0.0 <= np.log10(number.__abs__()) < 5.0:
-        number_str = '{:> 7.4f}'.format(number)
-    elif -4.0 <= np.log10(number.__abs__()) < 0.0:
-        number_str = '{:> 7.4f}'.format(number)
+    elif 0.0 <= np.log10(number.__abs__()) < 4.0:
+        number_str = '{:> 7.6g}'.format(number)
+    elif -3.0 <= np.log10(number.__abs__()) < 0.0:
+        number_str = '{:> 7.5f}'.format(number)
     else:
-        number_str = '{:> 7.4g}'.format(number)
+        number_str = '{:> 7.3e}'.format(number)
     # try normal formatting
     if len(number_str)<=8:
         return number_str
