@@ -12,7 +12,8 @@ def number_nastarn_converter(number):
     if number.is_integer():
         number_str = '{:> 7.1f}'.format(number)
     elif 0.0 <= np.log10(number.__abs__()) < 4.0:
-        number_str = '{:> 7.6g}'.format(number)
+        # Here, '{:> 7.6g}' would be nicer, however, trailing zeros '.0' are removed, which leads to an integer, which Nastran doesn't like.
+        number_str = '{:> 7.6}'.format(number)
     elif -3.0 <= np.log10(number.__abs__()) < 0.0:
         number_str = '{:> 7.5f}'.format(number)
     else:
