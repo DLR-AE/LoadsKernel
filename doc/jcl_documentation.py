@@ -100,8 +100,17 @@ class jcl:
                            'attachment_point':[800002, 800003, 800001], # IDs of FE attachment nodes
                            'para': [para_LG, para_LG, para_LG],         # parameters for generic landing gear module, see above
                           }
+        self.engine= {'method': 'thrust_only', # activates an engine model
+                      'key': ['E-P', 'E-S' ],
+                      'attachment_point':[54100003, 64100003], # IDs of FE attachment nodes
+                      #'design_thrust': [47.0, 47.0],    # N
+                      'thrust_vector':   [[-1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]], # body coordinate system
+                      'rotation_vector': [[-1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]], # body coordinate system
+                      'rotation_inertia': [1.613, 1.613], # Nms^2 
+                     }
+                      
         self.trimcase = [{'desc': 'CC.BFDM.OVCFL000.Vergleichsfall53', # description of maneuver case, e.g. according to G. Pinho Chiozzotto, "Kriterien fuer die Erstellung eines Lastenkatalogs," Institute of Aeroelasticity, iLOADs MS1.2, Feb. 2014.
-                          'maneuver': '',      # unused
+                          'maneuver': '',       # blank for trim about all three axes, for more trim conditions see trim_conditions.py
                           'subcase': 53,        # ID number
                           'Ma': 0.8,            # Mach number
                           'aero': 'VC',         # aero key
@@ -115,7 +124,8 @@ class jcl:
                           'pdot': -286.5/180.0*np.pi,   # roll acceleration in rad/s^2
                           'qdot': 0.0,                  # pitch acceleration in rad/s^2
                           'rdot': 0.0,                  # yaw acceleration in rad/s^2
-                          'support': [0,1,2,3,4,5]      # list of DoF to be constrained
+                          'support': [0,1,2,3,4,5],     # list of DoF to be constrained
+                          'thrust':'balanced',          # thrust per engine in N or 'balanced'
                          },
                         ]
         self.simcase = [{}] # For every trimcase, a corresponding simcase is required. For maneuvers, it may be empty.
@@ -124,8 +134,10 @@ class jcl:
                          't_final': 2.0,        # final simulation time  in [s]
                          'gust': True,          # True or False, enables 1-cosine gust according to CS-25
                          'gust_gradient': 9.0,  # gust gradient H in [m]
-                         'gust_orientation': 0, # orientation of the gust in [deg], 0/360 = gust from bottom, 180 = gust from top
+                         'gust_orientation': 0, # orientation of the gust in [deg], 0/360 = gust from bottom, 180 = gust from top, 
+                         # 90 = gust from the right, 270 = gust from the left, arbitrary values possible (rotation of gust direction vector about Nastran's x-axis pointing backwards)
                          'gust_para':{'Z_mo': 12500.0, 'MLW': 65949.0, 'MTOW': 73365.0, 'MZFW': 62962.0, 'MD': 0.87, 'T1': 0.00}, # gust parameters according to CS-25
+                         'WG_TAS': 0.1,         # alternatively, give gust velocity / Vtas directly
                          'cs_signal': False,    # True or False, allows playback of control surface signals via efcs
                          'controller': False,   # True or False, enables a generic controller e.g. to maintain p, q and r
                          'landinggear':False,   # True or False, enables a generic landing gear
