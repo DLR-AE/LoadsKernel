@@ -177,19 +177,22 @@ def calc_Ajj(aerogrid, Ma, k, method='parabolic'):
         # Only to place the tangens into the right quadrant? --> Is there no arctan2 in Fortran?!?
         # Still, we have to use that formulation as d1,2 and epsilon will be used later in eq 34.
         
+        # Note that there is a difference and/or mistake (?) in eq. 23 in Roddel et al. 1998 compared to eq. 30b in Roddel et al. 1972. 
+        # The following values appear to be correct:
         d1 = np.zeros(e.shape); d2 = np.zeros(e.shape)
         i1 = (ybar2+zbar2-e2) >  0.0; d1[i1]=1.0; d2[i1]=0.0
         i2 = (ybar2+zbar2-e2) == 0.0; d1[i2]=0.0; d2[i2]=0.5
         i3 = (ybar2+zbar2-e2) <  0.0; d1[i3]=1.0; d2[i3]=1.0
-         
+        
+        # Rodden 1998, eq 24 and 25 
         epsilon = np.zeros(e.shape)
         epsilon[i0] = 2.0*e[i0]/(ybar2[i0] - e2[i0])
-        epsilon[ia] = alpha[ia]
-        epsilon[ir] = e2[ir]/zbar2[ir]*(1.0-1.0/ratio[ir]*np.arctan(ratio[ir]))
+        epsilon[ia] = alpha[ia] # Rodden 1998, eq 25
+        epsilon[ir] = e2[ir]/zbar2[ir]*(1.0-1.0/ratio[ir]*np.arctan(ratio[ir]))# Rodden 1998, eq 24
         iar = ia + ir
         Fquartic = np.zeros(e.shape) # Initial values
-        Fquartic[i0] = d1[i0]*2.0*e[i0]/(ybar2[i0] - e2[i0])
-        Fquartic[iar] = d1[iar]*2.0*e[iar]/(ybar2[iar] + zbar2[iar] - e2[iar])*(1.0-epsilon[iar]*zbar2[iar]/e2[iar]) + d2[iar]*np.pi/np.abs(zbar[iar])
+        Fquartic[i0] = d1[i0]*2.0*e[i0]/(ybar2[i0] - e2[i0]) # Rodden 1998, eq. 22 without terms including z because z==0
+        Fquartic[iar] = d1[iar]*2.0*e[iar]/(ybar2[iar] + zbar2[iar] - e2[iar])*(1.0-epsilon[iar]*zbar2[iar]/e2[iar]) + d2[iar]*np.pi/np.abs(zbar[iar]) # Rodden 1998, eq. 22
         # check: np.allclose(Fparabolic, Fquartic)
         
         # Rodden 1998
