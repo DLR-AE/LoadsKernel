@@ -114,7 +114,7 @@ class Common():
                                                 X0[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]], 
                                                 X0[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]], 
                                     setpoint_v=float(self.trimcond_Y[np.where(self.trimcond_Y[:,0]=='Vtas')[0][0], 2]),
-                                    setpoint_theta=X0[np.where(self.trimcond_X[:,0]=='theta')[0][0]]
+                                    setpoint_h=-X0[np.where(self.trimcond_X[:,0]=='z')[0][0]],
                                   )
             else:
                 logging.error('Unknown EFCS: {}'.format(self.jcl.efcs['version']))
@@ -720,7 +720,7 @@ class Common():
         alpha = np.arctan(onflow[2]/onflow[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
         beta  = np.arctan(onflow[1]/onflow[0]) #X[5] - np.arctan(X[7]/X[6])
         my    = 0.0
-        gamma = X[1] - alpha
+        gamma = X[4] - alpha
         return onflow, alpha, beta, my, gamma
     
     def get_Ux2(self, X):
@@ -752,13 +752,17 @@ class Common():
         if self.simcase and self.simcase['cs_signal']:
             dcommand = self.efcs.cs_signal(t)
         elif self.simcase and self.simcase['controller']:
-            dcommand = self.efcs.controller(t=t,
-                                            feedback_p=dUcg_dt[3], feedback_q=dUcg_dt[4], feedback_r=dUcg_dt[5],
-                                            feedback_phi=X[np.where(self.trimcond_X[:,0]=='phi')[0][0]], feedback_theta=X[np.where(self.trimcond_X[:,0]=='theta')[0][0]], feedback_psi=X[np.where(self.trimcond_X[:,0]=='psi')[0][0]],
-                                            feedback_v=Vtas, feedback_gamma=gamma,
-                                            feedback_alpha=alpha, feedback_beta=beta,
-                                            feedback_xi=X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], feedback_eta=X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], feedback_zeta=X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]], feedback_thrust=X[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]
-                                           )
+            feedback = {'pqr':          X[self.trim.idx_states[9:12]],
+                        'PhiThetaPsi':  X[self.trim.idx_states[3:6]],
+                        'h':           -X[self.trim.idx_states[2]],
+                        'Vtas':         Vtas, 
+                        'gamma':        gamma,
+                        'alpha':        alpha,
+                        'beta':         beta,
+                        'XiEtaZetaThrust': X[self.trim.idx_inputs],
+                       } 
+
+            dcommand = self.efcs.controller(t, feedback)
         else:
             dcommand = np.zeros(self.trim.n_input_derivatives)
         return dcommand

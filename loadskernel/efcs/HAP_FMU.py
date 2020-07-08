@@ -8,59 +8,9 @@ import logging, pyfmi
 from pyfmi.fmi import FMUModelCS2
 
 import loadskernel.PID as PID
+from loadskernel.efcs import HAP
 
-class Efcs:
-    def __init__(self):
-        self.keys = ['RUDD', 'ELEV1', 'ELEV2', 'AIL-P-A', 'AIL-P-B', 'AIL-P-C', 'AIL-P-D', 'AIL-S-A', 'AIL-S-B', 'AIL-S-C', 'AIL-S-D']
-        self.Ux2_0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        self.Ux2_lower = np.array([-30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0])/180*np.pi
-        self.Ux2_upper = np.array([ 30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0])/180*np.pi
-                
-    def cs_mapping(self, command_xi, command_eta, command_zeta):
-
-        # Ausgangsposition
-        dRUDD  = self.Ux2_0[0]
-        dELEV1 = self.Ux2_0[1]
-        dELEV2 = self.Ux2_0[2]
-        dAILPA = self.Ux2_0[3]
-        dAILPB = self.Ux2_0[4]
-        dAILPC = self.Ux2_0[5]
-        dAILPD = self.Ux2_0[6]
-        dAILSA = self.Ux2_0[7]
-        dAILSB = self.Ux2_0[8]
-        dAILSC = self.Ux2_0[9]
-        dAILSD = self.Ux2_0[10]
-        
-        # xi - Rollachse
-        dAILPA += command_xi # bei positivem xi (Knueppel nach rechts) sollen die linken Querruder nach unten ausschlagen
-        dAILPB += command_xi
-#         dAILPC += command_xi
-#         dAILPD += command_xi
-        dAILSA -= command_xi # bei positivem xi (Knueppel nach rechts) sollen die rechten Querruder nach oben ausschlagen
-        dAILSB -= command_xi
-#         dAILSC -= command_xi
-#         dAILSD -= command_xi
-        
-        # eta - Nickachse
-        dELEV1 -= command_eta
-        dELEV2 -= command_eta
-        
-        # zeta - Gierachse
-        dRUDD -= command_zeta # bei negativem zeta (rechts treten) soll das Ruder nach rechts ausschlagen
-        
-        Ux2 = np.array([dRUDD, dELEV1, dELEV2, dAILPA, dAILPB, dAILPC, dAILPD, dAILSA, dAILSB, dAILSC, dAILSD])
-        
-#         violation_lower = Ux2 < self.Ux2_lower
-#         if np.any(violation_lower):
-#             logging.warning( 'Commanded CS deflection not possible, violation of lower Ux2 bounds!')
-#             Ux2[violation_lower] = self.Ux2_lower[violation_lower]
-#             
-#         violation_upper = Ux2 > self.Ux2_upper
-#         if np.any(violation_upper):
-#             logging.warning( 'Commanded CS deflection not possible, violation of upper Ux2 bounds!')
-#             Ux2[violation_upper] = self.Ux2_upper[violation_upper]
-            
-        return Ux2
+class Efcs(HAP.Efcs):
     
     def fmi_init(self, filename_fmu):
         # Load the FMU

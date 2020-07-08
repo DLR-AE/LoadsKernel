@@ -10,10 +10,10 @@ import loadskernel.PID as PID
 
 class Efcs:
     def __init__(self):
-        self.keys = ['RUDD', 'ELEV1', 'ELEV2', 'AIL-P-A', 'AIL-P-B', 'AIL-P-C', 'AIL-P-D', 'AIL-S-A', 'AIL-S-B', 'AIL-S-C', 'AIL-S-D']
-        self.Ux2_0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        self.Ux2_lower = np.array([-30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0])/180*np.pi
-        self.Ux2_upper = np.array([ 30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0])/180*np.pi
+        self.keys = ['RUDD', 'ELEV1', 'ELEV2', 'AIL-P-A1', 'AIL-P-A2', 'AIL-P-B', 'AIL-S-A1', 'AIL-S-A2', 'AIL-S-B']
+        self.Ux2_0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self.Ux2_lower = np.array([-30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0])/180*np.pi
+        self.Ux2_upper = np.array([ 30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0])/180*np.pi
                 
     def cs_mapping(self, command_xi, command_eta, command_zeta):
 
@@ -21,24 +21,20 @@ class Efcs:
         dRUDD  = self.Ux2_0[0]
         dELEV1 = self.Ux2_0[1]
         dELEV2 = self.Ux2_0[2]
-        dAILPA = self.Ux2_0[3]
-        dAILPB = self.Ux2_0[4]
-        dAILPC = self.Ux2_0[5]
-        dAILPD = self.Ux2_0[6]
-        dAILSA = self.Ux2_0[7]
+        dAILPA1 = self.Ux2_0[3]
+        dAILPA2 = self.Ux2_0[4]
+        dAILPB = self.Ux2_0[5]
+        dAILSA1 = self.Ux2_0[6]
+        dAILSA2 = self.Ux2_0[7]
         dAILSB = self.Ux2_0[8]
-        dAILSC = self.Ux2_0[9]
-        dAILSD = self.Ux2_0[10]
         
         # xi - Rollachse
-        dAILPA += command_xi # bei positivem xi (Knueppel nach rechts) sollen die linken Querruder nach unten ausschlagen
+        dAILPA1 += command_xi # bei positivem xi (Knueppel nach rechts) sollen die linken Querruder nach unten ausschlagen
+        dAILPA2 += command_xi
         dAILPB += command_xi
-#         dAILPC += command_xi
-#         dAILPD += command_xi
-        dAILSA -= command_xi # bei positivem xi (Knueppel nach rechts) sollen die rechten Querruder nach oben ausschlagen
+        dAILSA1 -= command_xi # bei positivem xi (Knueppel nach rechts) sollen die rechten Querruder nach oben ausschlagen
+        dAILSA2 -= command_xi
         dAILSB -= command_xi
-#         dAILSC -= command_xi
-#         dAILSD -= command_xi
         
         # eta - Nickachse
         dELEV1 -= command_eta
@@ -47,7 +43,7 @@ class Efcs:
         # zeta - Gierachse
         dRUDD -= command_zeta # bei negativem zeta (rechts treten) soll das Ruder nach rechts ausschlagen
         
-        Ux2 = np.array([dRUDD, dELEV1, dELEV2, dAILPA, dAILPB, dAILPC, dAILPD, dAILSA, dAILSB, dAILSC, dAILSD])
+        Ux2 = np.array([dRUDD, dELEV1, dELEV2, dAILPA1, dAILPA2, dAILPB, dAILSA1, dAILSA2, dAILSB])
         
 #         violation_lower = Ux2 < self.Ux2_lower
 #         if np.any(violation_lower):

@@ -189,7 +189,7 @@ class Steady(Common):
             logging.debug('command_xi: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])/np.pi*180.0 ))
             logging.debug('command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 ))
             logging.debug('command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 ))
-            logging.debug('thrust: %.4f [percent]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='thrust')[0][0]]*100.0) ))
+            logging.debug('thrust per engine: %.4f [N]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='thrust')[0][0]]) ))
             logging.debug('CS deflections [deg]: ' + str(response['Ux2']/np.pi*180))
             logging.debug('--------------------')
             

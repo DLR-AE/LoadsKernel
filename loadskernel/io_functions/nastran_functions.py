@@ -11,12 +11,13 @@ def number_nastarn_converter(number):
         number = 0.0 # set tiny number to zero
     if number.is_integer():
         number_str = '{:> 7.1f}'.format(number)
-    elif 0.0 <= np.log10(number.__abs__()) < 5.0:
-        number_str = '{:> 7.4f}'.format(number)
-    elif -4.0 <= np.log10(number.__abs__()) < 0.0:
-        number_str = '{:> 7.4f}'.format(number)
+    elif 0.0 <= np.log10(number.__abs__()) < 4.0:
+        # Here, '{:> 7.6g}' would be nicer, however, trailing zeros '.0' are removed, which leads to an integer, which Nastran doesn't like.
+        number_str = '{:> 7.6}'.format(number)
+    elif -3.0 <= np.log10(number.__abs__()) < 0.0:
+        number_str = '{:> 7.5f}'.format(number)
     else:
-        number_str = '{:> 7.4g}'.format(number)
+        number_str = '{:> 7.3e}'.format(number)
     # try normal formatting
     if len(number_str)<=8:
         return number_str
@@ -54,10 +55,10 @@ def write_SET1(fid, SID, entrys):
 def write_force_and_moment_cards(fid, grid, Pg, SID):
     # FORCE and MOMENT cards with all values equal to zero are ommitted to avoid problems when importing to Nastran.
     for i in range(grid['n']):
-        if np.any(Pg[grid['set'][i,0:3]] != 0.0):
+        if np.any(np.abs(Pg[grid['set'][i,0:3]]) >= 1e-8):
             line = 'FORCE   ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, np.int(grid['ID'][i]), np.int(grid['CD'][i]), str(1.0), number_nastarn_converter(Pg[grid['set'][i,0]]), number_nastarn_converter(Pg[grid['set'][i,1]]), number_nastarn_converter(Pg[grid['set'][i,2]]) )
             fid.write(line)
-        if np.any(Pg[grid['set'][i,3:6]] != 0.0):
+        if np.any(np.abs(Pg[grid['set'][i,3:6]]) >= 1e-8):
             line = 'MOMENT  ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, np.int(grid['ID'][i]), np.int(grid['CD'][i]), str(1.0), number_nastarn_converter(Pg[grid['set'][i,3]]), number_nastarn_converter(Pg[grid['set'][i,4]]), number_nastarn_converter(Pg[grid['set'][i,5]]) )
             fid.write(line)
             
