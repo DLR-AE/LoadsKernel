@@ -9,6 +9,7 @@ from pyfmi.fmi import FMUModelCS2
 
 import loadskernel.PID as PID
 from loadskernel.efcs import HAP
+from loadskernel.units import tas2eas
 
 class Efcs(HAP.Efcs):
     
@@ -29,123 +30,117 @@ class Efcs(HAP.Efcs):
             logging.debug(' - '+k)
             self.reference_values[k] = v.value_reference
             
-    def fmu_init(self, filename, command_0, setpoint_v, setpoint_theta ):
+    def fmu_init(self, filename, command_0, setpoint_v, setpoint_h, ):
+        """
+        Dokumentation der FMU in [1].
+        [1] Weiser, C. and Looye, G., “P4.1 EFCS Simulink description & release notes.” DLR Institute of System Dynamics and Control, 30-Jun-2020.
+        https://teamsites.dlr.de/dlr/HAP/Dateien/3_HAP/1_Plattform/P4_Flugmanagement_u_Regelung/P4.1_Flugregelung(SR)/FCSW_export/HAP_P41_SDD_L3.pdf
+        """
+        # store initial trim commands from loads kernel for late use
         self.command_0 = command_0
-        # set up fmu interface
+        # set up fmu interface, then set up the fmu
         self.fmi_init(filename)
-        """
-        Die meisten Signale sollten aus dem xml selbsterkl��rend sein, die Outputs sind [elevator, rudder, throttle_l, throttle_r]
-        TECS_OnOFF ist ein boolean, wenn off dann ist NUR Theta CMD aktiv in der L��ngsachse, wenn on dann ist gamma_cmd und v_cmd (EAS) aktiv.
-        CL_OnOFF muss true  sein, sonst kommt nur 0.
-        In der Seitenbewegung ist gerade immer nur Psi_dot / r_cmd aktiv.
-        """
-        # set up fmu 
-        self.fmi.set_real([self.reference_values['Gamma_cmd']], [0.0])
-        self.fmi.set_real([self.reference_values['V_cmd']],     [setpoint_v])
-        self.fmi.set_real([self.reference_values['LonMan']], [0.0]) # Theta_cmd
-        self.fmi.set_real([self.reference_values['LatMan']], [0.0]) # Phi_cmd
-        #self.fmi.set_real([self.reference_values['Psi_dot_cmd']],[0.0])
-        self.fmi.set_real([self.reference_values['TECS_OnOff']],[False])
-        self.fmi.set_real([self.reference_values['CL_OnOff']],  [True])
+
+        # AP_cmd, see Table 3.1 in [1]
+        self.fmi.set_real([self.reference_values['AP_cmd[1]']], [1])            # EFCS on
+        self.fmi.set_real([self.reference_values['AP_cmd[2]']], [1])            # Autopilot on
+        self.fmi.set_real([self.reference_values['AP_cmd[3]']], [1])            # Autothrust on
+        self.fmi.set_real([self.reference_values['AP_cmd[4]']], [1])            # Vertical navigation mode set to altitude (options: altitude=1, gamma=2)
+        self.fmi.set_real([self.reference_values['AP_cmd[5]']], [1])            # Lateral navigation on
+        self.fmi.set_real([self.reference_values['AP_cmd[6]']], [1])            # Speed management on
+        self.fmi.set_real([self.reference_values['AP_cmd[7]']], [setpoint_h])   # Altitude command [m]
+        self.fmi.set_real([self.reference_values['AP_cmd[9]']], [0.0])          # Gamma command [rad]
+        self.fmi.set_real([self.reference_values['AP_cmd[11]']], [0.0])         # dVcas command [m/s], 0.0 = hold speed
         
-        self.fmi.set_real([self.reference_values['p_B'], self.reference_values['q_B'], self.reference_values['r_B']],[0.0, 0.0, 0.0])
-        self.fmi.set_real([self.reference_values['Phi'], self.reference_values['Theta'], self.reference_values['Psi']],[0.0, setpoint_theta, 0.0])
-        self.fmi.set_real([self.reference_values['V_EAS']],[setpoint_v])
-        self.fmi.set_real([self.reference_values['gamma']],[0.0])
-        self.fmi.set_real([self.reference_values['alpha']],[0.0])
-        self.fmi.set_real([self.reference_values['beta']],[0.0])
-        
-        #self.fmi.set_real([self.reference_values['y_out[1]'], self.reference_values['y_out[2]']], [command_0[1], command_0[2]])
-        #self.fmi.set_real([self.reference_values['y_out[3]'], self.reference_values['y_out[4]']], [command_0[3], command_0[3]])
+        # Pilot_cmd, see Table 3.2 in [1]
+        self.fmi.set_real([self.reference_values['Pilot_cmd[1]']], [0.0])       # dTheta command [rad]
+        self.fmi.set_real([self.reference_values['Pilot_cmd[2]']], [0.0])       # dPhi command [rad]
 
         self.fmi.initialize()
         self.last_time = 0.0
         
         # set up actuator
-        self.eta_actuator = PID.PID_ideal(Kp = 10.0, Ki = 0.0, Kd = 0.0, t=0.0)
-        self.eta_actuator.SetPoint=0.0
-        self.eta_actuator.sample_time=0.0
-        self.max_actuator_speed = 40.0/180.0*np.pi
-        self.max_eta = +20.0/180.0*np.pi
-        self.min_eta = -10.0/180.0*np.pi
+        self.eta_actuator    = PID.PID_ideal(Kp = 100.0, Ki = 0.0, Kd = 0.0, t=0.0)
+        self.zeta_actuator   = PID.PID_ideal(Kp = 100.0, Ki = 0.0, Kd = 0.0, t=0.0)
+        self.xi_actuator     = PID.PID_ideal(Kp = 100.0, Ki = 0.0, Kd = 0.0, t=0.0)
+        self.thrust_actuator = PID.PID_ideal(Kp = 0.1, Ki = 0.0, Kd = 0.0, t=0.0)
         
-        self.zeta_actuator = PID.PID_ideal(Kp = 10.0, Ki = 0.0, Kd = 0.0, t=0.0)
-        self.zeta_actuator.SetPoint=0.0
-        self.zeta_actuator.sample_time=0.0
-        self.max_zeta = +10.0/180.0*np.pi
-        self.min_zeta = -10.0/180.0*np.pi
-        
-        self.xi_actuator = PID.PID_ideal(Kp = 10.0, Ki = 0.0, Kd = 0.0, t=0.0)
-        self.xi_actuator.SetPoint=0.0
-        self.xi_actuator.sample_time=0.0
-        self.max_xi = +10.0/180.0*np.pi
-        self.min_xi = -10.0/180.0*np.pi
+        # set up limits
+        self.max_eta  = +20.0/180.0*np.pi
+        self.min_eta  = -10.0/180.0*np.pi
+        self.max_zeta = +15.0/180.0*np.pi
+        self.min_zeta = -15.0/180.0*np.pi
+        self.max_xi   = +15.0/180.0*np.pi
+        self.min_xi   = -15.0/180.0*np.pi
+        # for all actuators except thrust
+        self.max_actuator_speed = 3000.0/180.0*np.pi # 30 rad/s entspricht ca. 5 Hz, Wert von Christian Weiser, 01.07.2020
     
-    def controller(self, t, 
-                   feedback_p, feedback_q, feedback_r,
-                   feedback_phi, feedback_theta, feedback_psi,
-                   feedback_v, feedback_gamma,
-                   feedback_alpha, feedback_beta,
-                   feedback_xi, feedback_eta, feedback_zeta, feedback_thrust):
+    def controller(self, t, feedback):
           
         dt_fmu = t - self.last_time
-        if dt_fmu > 0.01:
-            self.fmi.set_real([self.reference_values['p_B'], self.reference_values['q_B'], self.reference_values['r_B']],[feedback_p, feedback_q, feedback_r])
-            self.fmi.set_real([self.reference_values['Phi'], self.reference_values['Theta'], self.reference_values['Psi']],[feedback_phi, feedback_theta, feedback_psi])
-            self.fmi.set_real([self.reference_values['V_EAS']],[feedback_v])
-            self.fmi.set_real([self.reference_values['gamma']],[feedback_gamma])
-            self.fmi.set_real([self.reference_values['alpha']],[feedback_alpha])
-            self.fmi.set_real([self.reference_values['beta']],[feedback_beta])
+        if dt_fmu > 0.0:
+            # If the time increment is positive, then perform a time step in the FMU.
+            # Update Sensors, see Table 3.3 in [1]
+            self.fmi.set_real([self.reference_values['Sensors[1]']],[tas2eas(feedback['Vtas'], feedback['h'])])     # Veas
+            self.fmi.set_real([self.reference_values['Sensors[2]']],[feedback['Vtas']])                             # Vtas
+            self.fmi.set_real([self.reference_values['Sensors[3]']],[feedback['h']])                                # baro altitude [m]
+            self.fmi.set_real([self.reference_values['Sensors[4]'], self.reference_values['Sensors[5]']],
+                              [feedback['alpha'], feedback['beta']])                                                # alpha, beta [rad]
+            self.fmi.set_real([self.reference_values['Sensors[6]'], self.reference_values['Sensors[7]'], self.reference_values['Sensors[8]']],
+                              feedback['pqr'])                                                                      # pqr [rad/s]
+            self.fmi.set_real([self.reference_values['Sensors[9]'], self.reference_values['Sensors[10]'], self.reference_values['Sensors[11]']],
+                              feedback['PhiThetaPsi'])                                                              # PhiThetaPsi [rad]
+            self.fmi.set_real([self.reference_values['Sensors[12]']],[feedback['gamma']])                           # flight path angle Gamma [rad]
+            self.fmi.set_real([self.reference_values['Sensors[16]']],[feedback['PhiThetaPsi'][2]])                  # course angle Chi [rad], without wind Chi = Psi
+            # Perform time step.
             self.fmi.do_step(t-dt_fmu, dt_fmu, True)
             self.last_time = t
-  
-        command_eta, command_zeta, command_xi = self.fmi.get_real([self.reference_values['y_out[1]'], self.reference_values['y_out[2]'], self.reference_values['y_out[5]']])
-        thrust_l, thrust_r        = self.fmi.get_real([self.reference_values['y_out[3]'], self.reference_values['y_out[4]']])
-         
-        command_eta = -command_eta + self.command_0[1]
-        if command_eta > self.max_eta:
-            command_eta = self.max_eta
-        elif command_eta < self.min_eta:
-            command_eta = self.min_eta        
-         
-        command_zeta = command_zeta + self.command_0[2] 
-        if command_zeta > self.max_zeta:
-            command_zeta = self.max_zeta
-        elif command_zeta < self.min_zeta:
-            command_zeta = self.min_zeta 
         
-        command_xi = -command_xi + self.command_0[0] 
-        if command_xi > self.max_xi:
-            command_xi = self.max_xi
-        elif command_xi < self.min_xi:
-            command_xi = self.min_xi 
-         
-        # Aktuator
-        self.eta_actuator.setSetPoint(command_eta)
-        self.eta_actuator.update(t=t, feedback_value=feedback_eta) # eta
-        command_deta = self.eta_actuator.output # deta
-        if command_deta > self.max_actuator_speed:
-            command_deta = self.max_actuator_speed
-        elif command_deta < -self.max_actuator_speed:
-            command_deta = -self.max_actuator_speed
-          
-        self.zeta_actuator.setSetPoint(command_zeta)
-        self.zeta_actuator.update(t=t, feedback_value=feedback_zeta) # zeta
-        command_dzeta = self.zeta_actuator.output # dzeta
-        if command_dzeta > self.max_actuator_speed:
-            command_dzeta = self.max_actuator_speed
-        elif command_dzeta < -self.max_actuator_speed:
-            command_dzeta = -self.max_actuator_speed
+        # Get outputs from FMU
+        command_eta, command_zeta, thrust_l, thrust_r, command_xi = self.fmi.get_real([self.reference_values['y_out[1]'], self.reference_values['y_out[2]'],
+                                                                                       self.reference_values['y_out[3]'], self.reference_values['y_out[4]'],
+                                                                                       self.reference_values['y_out[5]']])       
+        # Add the trim commands (unknown to the FMU), adjust sign conventions, apply limits.
+        command_xi   = self.apply_limit(-command_xi + self.command_0[0], self.max_xi, self.min_xi) 
+        command_eta  = self.apply_limit(-command_eta  + self.command_0[1], self.max_eta, self.min_eta)
+        command_zeta = self.apply_limit( command_zeta + self.command_0[2], self.max_zeta, self.min_zeta) 
+        # The FMU distinguishes left and right engine but there is (currently) only one thrust command in loads kernel.
+        # For now, take a mean value for both engines.
+        thrust_l, thrust_r = self.fmi.get_real([self.reference_values['y_out[3]'], self.reference_values['y_out[4]']])
+        command_thrust = 0.5*(thrust_l + thrust_r) + self.command_0[3]
         
+        # Perform time step of actuators and apply limits.
         self.xi_actuator.setSetPoint(command_xi)
-        self.xi_actuator.update(t=t, feedback_value=feedback_xi) # xi
-        command_dxi = self.xi_actuator.output # dxi
-        if command_dxi > self.max_actuator_speed:
-            command_dxi = self.max_actuator_speed
-        elif command_dxi < -self.max_actuator_speed:
-            command_dxi = -self.max_actuator_speed
-         
-        # commands for xi remains untouched
-        dcommand = np.array([command_dxi, command_deta, command_dzeta, 0.0])
+        self.xi_actuator.update(t=t, feedback_value=feedback['XiEtaZetaThrust'][0]) # xi actuator
+        command_dxi = self.apply_limit(self.xi_actuator.output, self.max_actuator_speed, -self.max_actuator_speed)
+        
+        self.eta_actuator.setSetPoint(command_eta)
+        self.eta_actuator.update(t=t, feedback_value=feedback['XiEtaZetaThrust'][1]) # eta actuator
+        command_deta = self.apply_limit(self.eta_actuator.output, self.max_actuator_speed, -self.max_actuator_speed)
+           
+        self.zeta_actuator.setSetPoint(command_zeta)
+        self.zeta_actuator.update(t=t, feedback_value=feedback['XiEtaZetaThrust'][2]) # zeta actuator
+        command_dzeta = self.apply_limit(self.zeta_actuator.output, self.max_actuator_speed, -self.max_actuator_speed)
+ 
+        self.thrust_actuator.setSetPoint(command_thrust)
+        self.thrust_actuator.update(t=t, feedback_value=feedback['XiEtaZetaThrust'][3]) # thrust actuator/ engine control unit
+        command_dthrust = self.thrust_actuator.output 
+ 
+        # assemble command derivatives in correct order for loads kernel
+        dcommand = np.array([0.0*command_dxi, command_deta, command_dzeta, command_dthrust])
+
+#         # Actuator Rates available on LogOut [1:4] = {ddE, ddR, ddT, ddA}  
+#         command_deta, command_dzeta, command_dthrust, command_dxi = self.fmi.get_real([self.reference_values['Log_out[1]'], self.reference_values['Log_out[2]'], 
+#                                                                                        self.reference_values['Log_out[3]'],  self.reference_values['Log_out[4]']])       
+# 
+#         # assemble command derivatives in correct order for loads kernel
+#         dcommand = np.array([-command_dxi*0.0, -command_deta, command_dzeta, command_dthrust])
         return dcommand
+    
+    def apply_limit(self, value, upper, lower):
+        if value > upper:
+            value = upper
+        elif value < lower:
+            value = lower
+        return value  
     
