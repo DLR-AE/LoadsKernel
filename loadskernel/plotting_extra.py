@@ -146,21 +146,21 @@ class DetailedPlots(plotting_standard.StandardPlots):
 #             plt.ylabel('dp1,2 [m/s]')
 #             plt.grid(True)
         
-#             plt.figure(2)
-#             plt.subplot(2,1,1)
-#             plt.plot(response['t'], response['q_dyn'], 'k-')
-#             plt.xlabel('t [sec]')
-#             plt.ylabel('[Pa]')
-#             plt.grid(True)
-#             plt.legend(['q_dyn'])
-#             plt.subplot(2,1,2)
-#             plt.plot(response['t'], response['Nxyz'][:,2], 'b-')
-#             plt.plot(response['t'], response['alpha']/np.pi*180.0, 'r-')
-#             plt.plot(response['t'], response['beta']/np.pi*180.0, 'c-')
-#             plt.xlabel('t [sec]')
-#             plt.legend(['Nz', 'alpha', 'beta']) 
-#             plt.grid(True)
-#             plt.ylabel('[-]/[deg]')
+            plt.figure(2)
+            plt.subplot(2,1,1)
+            plt.plot(response['t'], response['q_dyn'], 'k-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('[Pa]')
+            plt.grid(True)
+            plt.legend(['q_dyn'])
+            plt.subplot(2,1,2)
+            plt.plot(response['t'], response['Nxyz'][:,2], 'b-')
+            plt.plot(response['t'], response['alpha']/np.pi*180.0, 'r-')
+            plt.plot(response['t'], response['beta']/np.pi*180.0, 'c-')
+            plt.xlabel('t [sec]')
+            plt.legend(['Nz', 'alpha', 'beta'])
+            plt.grid(True)
+            plt.ylabel('[-]/[deg]')
             
             
             plt.figure(3)
@@ -200,22 +200,29 @@ class DetailedPlots(plotting_standard.StandardPlots):
             plt.legend(['p', 'q', 'r'])
             
             
-#             plt.figure(7)
-#             plt.plot(response['t'], Pmac_c[:,2], 'b-')
-#             plt.xlabel('t [sec]')
-#             plt.ylabel('Cz [-]')
-#             plt.grid(True)
-#             plt.legend(['Cz'])
+            plt.figure(7)
+            plt.plot(response['t'], Pmac_c[:,2], 'b-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('Cz [-]')
+            plt.grid(True)
+            plt.legend(['Cz'])
+
+            plt.figure(8)
+            plt.subplot(2,1,1)
+            plt.plot(response['t'], response['X'][:,-4]/np.pi*180.0, 'b-')
+            plt.plot(response['t'], response['X'][:,-3]/np.pi*180.0, 'g-')
+            plt.plot(response['t'], response['X'][:,-2]/np.pi*180.0, 'r-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('Inputs [deg]')
+            plt.grid(True)
+            plt.legend(['Xi', 'Eta', 'Zeta'])
+            plt.subplot(2,1,2)
+            plt.plot(response['t'], response['X'][:,-1], 'k-')
+            plt.xlabel('t [sec]')
+            plt.ylabel('Inputs [N]')
+            plt.grid(True)
+            plt.legend(['Thrust'])
             
-#             plt.figure(8)
-#             plt.plot(response['t'], response['X'][:,-4]/np.pi*180.0, 'b-')
-#             plt.plot(response['t'], response['X'][:,-3]/np.pi*180.0, 'g-')
-#             plt.plot(response['t'], response['X'][:,-2]/np.pi*180.0, 'r-')
-#             plt.plot(response['t'], response['X'][:,-1], 'k-')
-#             plt.xlabel('t [sec]')
-#             plt.ylabel('Inputs [deg,%]')
-#             plt.grid(True)
-#             plt.legend(['Xi', 'Eta', 'Zeta', 'Thrust'])
             plt.figure(9)
             plt.plot(response['t'], response['Uf'], 'b-')
 
@@ -369,7 +376,18 @@ class Animations(plotting_standard.StandardPlots):
         def setup_runway(self, length, width, elevation):
             x, y = np.mgrid[0:length,-width/2.0:width/2.0+1]
             elev = np.ones(x.shape)*elevation
-            mlab.surf(x, y, elev, warp_scale=1.0, color=(0.9,0.9,0.9))
+            surf = mlab.surf(x, y, elev, warp_scale=1.0, color=(0.9,0.9,0.9))
+        
+        def setup_grid(self, altitude):
+            spacing=100.0
+            x, y = np.mgrid[0:1000+spacing:spacing,-500:500+spacing:spacing]
+            z = np.ones(x.shape)*altitude
+            xy = mlab.surf(x, y, z, representation='wireframe', line_width=1.0, color=(0.9,0.9,0.9), opacity=0.4)
+            #x, z = np.mgrid[0:1000+spacing:spacing,altitude-500:altitude+500+spacing:spacing]
+            #y = np.zeros(x.shape)
+            #xz = mlab.surf(x, y, z, representation='wireframe', line_width=1.0, color=(0.9,0.9,0.9), opacity=0.4)
+            mlab.quiver3d(0.0, 0.0, altitude, 1000.0, 0.0, 0.0, color=(0,0,0),  mode='axes', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
+
         # --------------
         # configure plot 
         #---------------
@@ -415,7 +433,8 @@ class Animations(plotting_standard.StandardPlots):
 #             (x,y,elev) = pickle.load(f)
         # plot earth, scale colormap
 #         surf = mlab.surf(x,y,elev, colormap='terrain', warp_scale=-1.0, vmin = -500.0, vmax=1500.0) #gist_earth terrain summer
-#         setup_runway(self, length=1000.0, width=15.0, elevation=0.0)
+        #setup_runway(self, length=1000.0, width=30.0, elevation=0.0)
+        setup_grid(self, 0.0)
         
         distance = 2.5*((self.x[0,:].max()-self.x[0,:].min())**2 + (self.y[0,:].max()-self.y[0,:].min())**2 + (self.z[0,:].max()-self.z[0,:].min())**2)**0.5
         mlab.view(azimuth=-120.0, elevation=100.0, roll=-75.0,  distance=distance, focalpoint=np.array([self.x[0,:].mean(),self.y[0,:].mean(),self.z[0,:].mean()])) # view from left and above
