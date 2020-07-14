@@ -43,11 +43,11 @@ class Efcs(HAP.Efcs):
 
         # AP_cmd, see Table 3.1 in [1]
         self.fmi.set_real([self.reference_values['AP_cmd[1]']], [1])            # EFCS on
-        self.fmi.set_real([self.reference_values['AP_cmd[2]']], [1])            # Autopilot on
-        self.fmi.set_real([self.reference_values['AP_cmd[3]']], [1])            # Autothrust on
-        self.fmi.set_real([self.reference_values['AP_cmd[4]']], [1])            # Vertical navigation mode set to altitude (options: altitude=1, gamma=2)
-        self.fmi.set_real([self.reference_values['AP_cmd[5]']], [1])            # Lateral navigation on
-        self.fmi.set_real([self.reference_values['AP_cmd[6]']], [1])            # Speed management on
+        self.fmi.set_real([self.reference_values['AP_cmd[2]']], [0])            # Autopilot on
+        self.fmi.set_real([self.reference_values['AP_cmd[3]']], [0])            # Autothrust on
+        self.fmi.set_real([self.reference_values['AP_cmd[4]']], [0])            # Vertical navigation mode set to altitude (options: altitude=1, gamma=2)
+        self.fmi.set_real([self.reference_values['AP_cmd[5]']], [0])            # Lateral navigation on
+        self.fmi.set_real([self.reference_values['AP_cmd[6]']], [0])            # Speed management on
         self.fmi.set_real([self.reference_values['AP_cmd[7]']], [setpoint_h])   # Altitude command [m]
         self.fmi.set_real([self.reference_values['AP_cmd[9]']], [0.0])          # Gamma command [rad]
         self.fmi.set_real([self.reference_values['AP_cmd[11]']], [0.0])         # dVcas command [m/s], 0.0 = hold speed
@@ -61,7 +61,7 @@ class Efcs(HAP.Efcs):
         
         # set up actuator
         self.eta_actuator    = PID.PID_ideal(Kp = 100.0, Ki = 0.0, Kd = 0.0, t=0.0)
-        self.zeta_actuator   = PID.PID_ideal(Kp = 100.0, Ki = 0.0, Kd = 0.0, t=0.0)
+        self.zeta_actuator   = PID.PID_ideal(Kp = 0.5, Ki = 0.0, Kd = 0.0, t=0.0)
         self.xi_actuator     = PID.PID_ideal(Kp = 100.0, Ki = 0.0, Kd = 0.0, t=0.0)
         self.thrust_actuator = PID.PID_ideal(Kp = 0.1, Ki = 0.0, Kd = 0.0, t=0.0)
         
@@ -73,7 +73,7 @@ class Efcs(HAP.Efcs):
         self.max_xi   = +15.0/180.0*np.pi
         self.min_xi   = -15.0/180.0*np.pi
         # for all actuators except thrust
-        self.max_actuator_speed = 3000.0/180.0*np.pi # 30 rad/s entspricht ca. 5 Hz, Wert von Christian Weiser, 01.07.2020
+        self.max_actuator_speed = 30.0/180.0*np.pi # 30 rad/s entspricht ca. 5 Hz, Wert von Christian Weiser, 01.07.2020
     
     def controller(self, t, feedback):
           
@@ -127,7 +127,7 @@ class Efcs(HAP.Efcs):
         command_dthrust = self.thrust_actuator.output 
  
         # assemble command derivatives in correct order for loads kernel
-        dcommand = np.array([0.0*command_dxi, command_deta, command_dzeta, command_dthrust])
+        dcommand = np.array([command_dxi, command_deta, command_dzeta, command_dthrust])
 
 #         # Actuator Rates available on LogOut [1:4] = {ddE, ddR, ddT, ddA}  
 #         command_deta, command_dzeta, command_dthrust, command_dxi = self.fmi.get_real([self.reference_values['Log_out[1]'], self.reference_values['Log_out[2]'], 
