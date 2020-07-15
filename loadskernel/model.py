@@ -37,6 +37,7 @@ class Model:
         self.build_strcshell()
         self.build_mongrid()
         self.build_extragrid()
+        self.build_sensorgrid()
         self.build_atmo()
         self.build_aero()
         self.build_splines()
@@ -147,6 +148,15 @@ class Model:
             return
         self.extragrid['set_strcgrid'] = copy.deepcopy(self.extragrid['set'])
         self.extragrid['set'] = np.arange(0,6*self.extragrid['n']).reshape(-1,6)
+    
+    def build_sensorgrid(self):
+        if hasattr(self.jcl, 'sensor'):
+            logging.info('Building sensorgrid from sensor attachment points...')
+            self.sensorgrid = build_splinegrid.build_subgrid(self.strcgrid, self.jcl.sensor['attachment_point'] )
+        else:
+            return
+        self.sensorgrid['set_strcgrid'] = copy.deepcopy(self.sensorgrid['set'])
+        self.sensorgrid['set'] = np.arange(0,6*self.sensorgrid['n']).reshape(-1,6)
     
     def build_atmo(self):
         logging.info( 'Building atmo model...')
@@ -445,6 +455,7 @@ class Model:
                          'PHIstrc_cg': [],
                          'PHIcfd_cg': [],
                          'PHIextra_cg': [],
+                         'PHIsensor_cg': [],
                          'PHImac_cg': [],
                          'PHIcg_mac': [],
                          'PHInorm_cg': [],
@@ -452,6 +463,7 @@ class Model:
                          'PHIf_strc': [],
                          'PHIh_strc': [],
                          'PHIf_extra': [],
+                         'PHIf_sensor': [],
                          'PHIjf': [],
                          'PHIlf': [],
                          'PHIkf': [],
@@ -547,6 +559,13 @@ class Model:
             PHIf_extra = PHIf_strc[:,self.extragrid['set_strcgrid'].reshape(1,-1)[0]]
             self.mass['PHIextra_cg'].append(PHIextra_cg)
             self.mass['PHIf_extra'].append(PHIf_extra) 
+        
+        if hasattr(self, 'sensorgrid'):
+            rules = spline_rules.rules_point(cggrid, self.sensorgrid)
+            PHIsensor_cg = spline_functions.spline_rb(cggrid, '', self.sensorgrid, '', rules, self.coord)
+            PHIf_sensor = PHIf_strc[:,self.sensorgrid['set_strcgrid'].reshape(1,-1)[0]]
+            self.mass['PHIsensor_cg'].append(PHIsensor_cg)
+            self.mass['PHIf_sensor'].append(PHIf_sensor) 
 
         rules = spline_rules.rules_point(cggrid, self.macgrid)
         PHImac_cg = spline_functions.spline_rb(cggrid, '', self.macgrid, '', rules, self.coord)    
