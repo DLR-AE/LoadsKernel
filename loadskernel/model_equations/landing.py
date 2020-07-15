@@ -16,7 +16,8 @@ class Landing(Common):
         Tgeo2body, Tbody2geo    = self.geo2body(X)
         dUcg_dt, Uf, dUf_dt     = self.recover_states(X)
         Vtas, q_dyn             = self.recover_Vtas(X)
-        onflow, alpha, beta, my, gamma = self.recover_onflow(X)
+        onflow                  = self.recover_onflow(X)
+        alpha, beta, gamma      = self.windsensor(X, Vtas)
         Ux2 = self.get_Ux2(X)
         PHIextra_cg = self.model.mass['PHIextra_cg'][self.i_mass]
         PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]        

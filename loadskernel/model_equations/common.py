@@ -264,6 +264,39 @@ class Common():
         Pk = self.calc_Pk(q_dyn, wj)
         return Pk, wj
     
+    def windsensor(self, X, Vtas):
+        """
+        Definitions
+        alpha positiv = w positiv, wind from below
+        beta positiv = v positive, wind from the right side
+        """
+        if hasattr(self.jcl, 'sensor') and 'wind' in self.jcl.sensor['key']:
+            # calculate aircraft motion at sensor location
+            i_wind = self.jcl.sensor['key'].index('wind')
+            PHIsensor_cg = self.model.mass['PHIsensor_cg'][self.i_mass]
+            u, v, w = self.PHInorm_cg.dot(PHIsensor_cg.dot(X[6:12].dot(self.PHInorm_cg))[self.model.sensorgrid['set'][i_wind,:]])[0:3] # velocity sensor attachment point
+            if self.simcase and self.simcase['gust']:
+                # Eintauchtiefe in die Boe berechnen, analog zu gust()
+                s_gust = (X[0] - self.model.sensorgrid['offset'][i_wind,0] - self.s0)
+                # downwash der 1-cos Boe an der Sensorposition, analog zu gust()
+                wj_gust = self.WG_TAS * 0.5 * (1-np.cos(np.pi * s_gust / self.simcase['gust_gradient']))
+                if s_gust <= 0.0: 
+                    wj_gust = 0.0
+                if s_gust > 2*self.simcase['gust_gradient']:
+                    wj_gust = 0.0
+                # Ausrichtung und Skalierung der Boe
+                u_gust, v_gust, w_gust = Vtas * wj_gust * np.dot(np.array([0,0,1]), calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 ))
+                v -= v_gust
+                w += w_gust
+        else:
+            # if no sensors are present, then take only rigid body motion as input
+            u, v, w  = X[6:9] # u v w bodyfixed
+
+        alpha = np.arctan(w/u)
+        beta  = np.arctan(v/u)
+        gamma = X[4] - alpha # alpha = theta - gamma
+        return alpha, beta, gamma
+    
     def idrag(self, wj, q_dyn):
         if self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae'] and 'induced_drag' in self.jcl.aero and self.jcl.aero['induced_drag']:
             Bjj = self.model.aero['Bjj'][self.i_aero]   
@@ -717,11 +750,7 @@ class Common():
     
     def recover_onflow(self, X):
         onflow  = np.dot(self.PHInorm_cg, X[6:12]) # u v w p q r bodyfixed
-        alpha = np.arctan(onflow[2]/onflow[0]) #X[4] + np.arctan(X[8]/X[6]) # alpha = theta - gamma, Wind fehlt!
-        beta  = np.arctan(onflow[1]/onflow[0]) #X[5] - np.arctan(X[7]/X[6])
-        my    = 0.0
-        gamma = X[4] - alpha
-        return onflow, alpha, beta, my, gamma
+        return onflow
     
     def get_Ux2(self, X):
         # Steuerflaechenausschlaege vom efcs holen
