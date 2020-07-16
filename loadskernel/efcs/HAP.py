@@ -10,23 +10,22 @@ import loadskernel.PID as PID
 
 class Efcs:
     def __init__(self):
-        self.keys = ['RUDD', 'ELEV1', 'ELEV2', 'AIL-P-A1', 'AIL-P-A2', 'AIL-P-B', 'AIL-S-A1', 'AIL-S-A2', 'AIL-S-B']
-        self.Ux2_0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        self.Ux2_lower = np.array([-30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0, -30.0])/180*np.pi
-        self.Ux2_upper = np.array([ 30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0,  30.0])/180*np.pi
+        self.keys = ['RUDD1', 'RUDD2', 'ELEV1', 'ELEV2', 'AIL-P-A1', 'AIL-P-A2', 'AIL-P-B', 'AIL-S-A1', 'AIL-S-A2', 'AIL-S-B']
+        self.Ux2_0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
                 
     def cs_mapping(self, command_xi, command_eta, command_zeta):
 
         # Ausgangsposition
-        dRUDD  = self.Ux2_0[0]
-        dELEV1 = self.Ux2_0[1]
-        dELEV2 = self.Ux2_0[2]
-        dAILPA1 = self.Ux2_0[3]
-        dAILPA2 = self.Ux2_0[4]
-        dAILPB = self.Ux2_0[5]
-        dAILSA1 = self.Ux2_0[6]
-        dAILSA2 = self.Ux2_0[7]
-        dAILSB = self.Ux2_0[8]
+        dRUDD1  = self.Ux2_0[0]
+        dRUDD2 = self.Ux2_0[1]
+        dELEV1 = self.Ux2_0[2]
+        dELEV2 = self.Ux2_0[3]
+        dAILPA1 = self.Ux2_0[4]
+        dAILPA2 = self.Ux2_0[5]
+        dAILPB = self.Ux2_0[6]
+        dAILSA1 = self.Ux2_0[7]
+        dAILSA2 = self.Ux2_0[8]
+        dAILSB = self.Ux2_0[9]
         
         # xi - Rollachse
         dAILPA1 += command_xi # bei positivem xi (Knueppel nach rechts) sollen die linken Querruder nach unten ausschlagen
@@ -41,9 +40,10 @@ class Efcs:
         dELEV2 -= command_eta
         
         # zeta - Gierachse
-        dRUDD -= command_zeta # bei negativem zeta (rechts treten) soll das Ruder nach rechts ausschlagen
+        dRUDD1 -= command_zeta # bei negativem zeta (rechts treten) soll das Ruder nach rechts ausschlagen
+        dRUDD2 -= command_zeta 
         
-        Ux2 = np.array([dRUDD, dELEV1, dELEV2, dAILPA1, dAILPA2, dAILPB, dAILSA1, dAILSA2, dAILSB])
+        Ux2 = np.array([dRUDD1, dRUDD2, dELEV1, dELEV2, dAILPA1, dAILPA2, dAILPB, dAILSA1, dAILSA2, dAILSB])
         
 #         violation_lower = Ux2 < self.Ux2_lower
 #         if np.any(violation_lower):
