@@ -104,9 +104,13 @@ class Common():
             Example: self.efcs.controller_init(np.dot(self.PHIcg_norm[3:6,3:6],np.dot(calc_drehmatrix_angular(float(self.trimcond_X[3,2]), float(self.trimcond_X[4,2]), float(self.trimcond_X[5,2])), np.array(self.trimcond_X[9:12,2], dtype='float'))), 'angular velocities')
             """
             if self.jcl.efcs['version'] in ['HAP']:
-                self.efcs.controller_init(command_0=X0[12+self.n_modes*2:12+self.n_modes*2+3], 
-                                          setpoint_q=float(self.trimcond_X[np.where(self.trimcond_X[:,0]=='q')[0][0], 2]),
-                                          setpoint_r=float(self.trimcond_X[np.where(self.trimcond_X[:,0]=='r')[0][0], 2]) )
+                self.efcs.controller_init(command_0=[X0[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]],
+                                                     X0[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], 
+                                                     X0[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]], 
+                                                     X0[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]], 
+                                          setpoint_v=float(self.trimcond_Y[np.where(self.trimcond_Y[:,0]=='Vtas')[0][0], 2]),
+                                          setpoint_h=-X0[np.where(self.trimcond_X[:,0]=='z')[0][0]],
+                                         )
             elif self.jcl.efcs['version'] in ['HAP_FMU']:
                 self.efcs.fmu_init( filename=self.jcl.efcs['filename_fmu'],
                                     command_0=[ X0[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]],

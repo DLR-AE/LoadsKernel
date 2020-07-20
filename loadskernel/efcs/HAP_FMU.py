@@ -70,10 +70,15 @@ class Efcs(HAP.Efcs):
         self.min_eta  = -10.0/180.0*np.pi
         self.max_zeta = +15.0/180.0*np.pi
         self.min_zeta = -15.0/180.0*np.pi
-        self.max_xi   = +15.0/180.0*np.pi
-        self.min_xi   = -15.0/180.0*np.pi
+        if tas2eas(setpoint_v, setpoint_h) > 15.0:
+            # limit xi to 1/3 for VNE
+            self.max_xi   = +5.0/180.0*np.pi
+            self.min_xi   = -5.0/180.0*np.pi
+        else:
+            self.max_xi   = +15.0/180.0*np.pi
+            self.min_xi   = -15.0/180.0*np.pi
         # for all actuators except thrust
-        self.max_actuator_speed = 30.0/180.0*np.pi # 30 rad/s entspricht ca. 5 Hz, Wert von Christian Weiser, 01.07.2020
+        self.max_actuator_speed = 3000.0/180.0*np.pi # 30 rad/s entspricht ca. 5 Hz, Wert von Christian Weiser, 01.07.2020
     
     def controller(self, t, feedback):
           
@@ -85,7 +90,7 @@ class Efcs(HAP.Efcs):
             self.fmi.set_real([self.reference_values['Sensors[2]']],[feedback['Vtas']])                             # Vtas
             self.fmi.set_real([self.reference_values['Sensors[3]']],[feedback['h']])                                # baro altitude [m]
             self.fmi.set_real([self.reference_values['Sensors[4]'], self.reference_values['Sensors[5]']],
-                              [feedback['alpha'], feedback['beta']])                                                # alpha, beta [rad]
+                              [feedback['alpha'],-feedback['beta']])                                                # alpha, beta [rad]
             self.fmi.set_real([self.reference_values['Sensors[6]'], self.reference_values['Sensors[7]'], self.reference_values['Sensors[8]']],
                               feedback['pqr'])                                                                      # pqr [rad/s]
             self.fmi.set_real([self.reference_values['Sensors[9]'], self.reference_values['Sensors[10]'], self.reference_values['Sensors[11]']],
@@ -136,11 +141,5 @@ class Efcs(HAP.Efcs):
 #         # assemble command derivatives in correct order for loads kernel
 #         dcommand = np.array([-command_dxi*0.0, -command_deta, command_dzeta, command_dthrust])
         return dcommand
-    
-    def apply_limit(self, value, upper, lower):
-        if value > upper:
-            value = upper
-        elif value < lower:
-            value = lower
-        return value  
+
     
