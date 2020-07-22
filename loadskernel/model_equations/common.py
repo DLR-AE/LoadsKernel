@@ -490,6 +490,7 @@ class Common():
         F1 = np.zeros(self.model.extragrid['n'])
         F2 = np.zeros(self.model.extragrid['n'])
         Fx = np.zeros(self.model.extragrid['n'])
+        My = np.zeros(self.model.extragrid['n'])
         p2 = np.zeros(self.model.extragrid['n'])
         dp2 = np.zeros(self.model.extragrid['n'])
         ddp2 = np.zeros(self.model.extragrid['n'])
@@ -542,17 +543,21 @@ class Common():
                 # loop over every landing gear
                 for i in range(self.model.extragrid['n']):
                     stroke = self.jcl.landinggear['para'][i]['r_tire'] - p1[i]
-                    if stroke > 0.0:
-                        Fz = stroke * self.jcl.landinggear['para'][i]['c1_tire']
+                    if (stroke > 0.0) and (self.simcase['landinggear_state'][i] == 'extended'):
+                        # Forces only apply with extended landing gear and tire on ground
+                        coeff_friction = 0.4 # landing skid on grass
+                        Fz_i = stroke * self.jcl.landinggear['para'][i]['c1_tire']
+                        Fx_i = coeff_friction*Fz_i
+                        My_i = -p1[i]*Fx_i
                     else:
-                        Fz = 0.0
-                    # in case of retracted landing gear no forces apply
-                    if self.simcase['landinggear_state'][i] == 'extended':
-                        F1[i]=(Fz)
-                        Fx[i]=(0.4*Fz) # landing skid
-                    else: 
-                        F1[i]=(0.0)
-                        Fx[i]=(0.0)
+                        # In case of retracted landing gear or tire is still in the air, no forces apply
+                        Fz_i = 0.0
+                        Fx_i = 0.0
+                        My_i = 0.0
+
+                    F1[i]=Fz_i
+                    Fx[i]=Fx_i
+                    My[i]=My_i
                 p2   = []
                 dp2  = []
                 ddp2 = []
@@ -560,6 +565,7 @@ class Common():
             # insert forces in 6dof vector Pextra
             Pextra[self.model.extragrid['set'][:,0]] = Fx 
             Pextra[self.model.extragrid['set'][:,2]] = F1
+            Pextra[self.model.extragrid['set'][:,4]] = My
             
         return Pextra, p2, dp2, np.array(ddp2), np.array(F1), np.array(F2)
     
