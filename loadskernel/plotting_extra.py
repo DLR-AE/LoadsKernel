@@ -90,156 +90,120 @@ class DetailedPlots(plotting_standard.StandardPlots):
             plt.show()
             
     def plot_time_data(self):
+        # Create all plots
+        fig1, (ax11, ax12) = plt.subplots(nrows=2, ncols=1, sharex=True,)
+        fig2, (ax21, ax22) = plt.subplots(nrows=2, ncols=1, sharex=True,)
+        fig3, (ax31, ax32) = plt.subplots(nrows=2, ncols=1, sharex=True,)
+        fig4, (ax41, ax42) = plt.subplots(nrows=2, ncols=1, sharex=True,)
+        fig5, (ax51, ax52) = plt.subplots(nrows=2, ncols=1, sharex=True,)
+        fig6, (ax61, ax62) = plt.subplots(nrows=2, ncols=1, sharex=True,)
+        if hasattr(self.jcl, 'landinggear'):
+            fig7, (ax71, ax72) = plt.subplots(nrows=2, ncols=1, sharex=True,)
+        
+        # Loop over responses and fill plots with data
         for i_response in range(len(self.jcl.trimcase)):
             response   = io_functions.specific_functions.load_next(self.responses)
             trimcase   = self.jcl.trimcase[response['i']]
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
-            Pb_gust = []
-            Pb_unsteady = []
-            Pb_aero = []
-            Pmac_c = []
-            A = self.jcl.general['A_ref']
-            AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
-            for i_step in range(len(response['t'])):        
-                Pb_gust.append(np.dot(self.model.Dkx1.T, response['Pk_gust'][i_step,:]))
-                Pb_unsteady.append(np.dot(self.model.Dkx1.T, response['Pk_unsteady'][i_step,:]))
-                Pb_aero.append(np.dot(self.model.Dkx1.T, response['Pk_aero'][i_step,:]))
-                Pmac_c.append(response['Pmac'][i_step,:]/response['q_dyn'][i_step,:]/A)
-            Pb_gust = np.array(Pb_gust)
-            Pb_unsteady = np.array(Pb_unsteady)
-            Pb_aero = np.array(Pb_aero)
-            Pmac_c = np.array(Pmac_c)
             
-            plt.figure(1)
-            plt.plot(response['t'], Pb_gust[:,2], 'b-')
-            plt.plot(response['t'], Pb_unsteady[:,2], 'r-')
-            plt.plot(response['t'], Pb_gust[:,2] + Pb_unsteady[:,2], 'b--')
-            plt.plot(response['t'], Pb_aero[:,2], 'g-')
-            plt.plot(response['t'], Pb_aero[:,2] - Pb_unsteady[:,2], 'k--')
-            plt.xlabel('t [sec]')
-            plt.ylabel('Pb [N]')
-            plt.grid(True)
-            plt.legend(['Pb_gust', 'Pb_unsteady', 'Pb_gust+unsteady', 'Pb_aero', 'Pb_aero-unsteady'])
+            Cl = response['Pmac'][:,2] / response['q_dyn'].T / self.jcl.general['A_ref']
+            ax11.plot(response['t'], response['Pmac'][:,2], 'b-')
+            ax12.plot(response['t'], Cl.T, 'b-')
+
+            ax21.plot(response['t'], response['q_dyn'], 'k-')
+            ax22.plot(response['t'], response['Nxyz'][:,2], 'b-')
+            ax22.plot(response['t'], response['alpha']/np.pi*180.0, 'r-')
+            ax22.plot(response['t'], response['beta']/np.pi*180.0, 'c-')
+
+            ax31.plot(response['t'], response['X'][:,0], 'b-')
+            ax31.plot(response['t'], response['X'][:,1], 'g-')
+            ax31.plot(response['t'], response['X'][:,2], 'r-')
+
+            ax32.plot(response['t'], response['X'][:,3]/np.pi*180.0, 'b-')
+            ax32.plot(response['t'], response['X'][:,4]/np.pi*180.0, 'g-')
+            ax32.plot(response['t'], response['X'][:,5]/np.pi*180.0, 'r-')
+
+            ax41.plot(response['t'], response['X'][:,6], 'b-')
+            ax41.plot(response['t'], response['X'][:,7], 'g-')
+            ax41.plot(response['t'], response['X'][:,8], 'r-')
+
+            ax42.plot(response['t'], response['X'][:,9]/np.pi*180.0, 'b-')
+            ax42.plot(response['t'], response['X'][:,10]/np.pi*180.0, 'g-')
+            ax42.plot(response['t'], response['X'][:,11]/np.pi*180.0, 'r-')
+
+            ax51.plot(response['t'], response['X'][:,-4]/np.pi*180.0, 'b-')
+            ax51.plot(response['t'], response['X'][:,-3]/np.pi*180.0, 'g-')
+            ax51.plot(response['t'], response['X'][:,-2]/np.pi*180.0, 'r-')
+
+            ax52.plot(response['t'], response['X'][:,-1], 'k-')
+
+            ax61.plot(response['t'], response['Uf'], 'b-')
+
+            ax62.plot(response['t'], response['d2Ucg_dt2'][:,0], 'b-')
+            ax62.plot(response['t'], response['d2Ucg_dt2'][:,1], 'g-')
+            ax62.plot(response['t'], response['d2Ucg_dt2'][:,2], 'r-')
             
-#             plt.figure(6)
-#             n_modes = self.model.mass['n_modes'][self.model.mass['key'].index(trimcase['mass'])]
-#             plt.subplot(2,1,1)
-#             plt.plot(response['t'], response['p1'])
-#             #plt.plot(response['t'], response['X'][:,12+n_modes*2+3:12+n_modes*2+3+self.model.extragrid['n']], '--')
-#             plt.legend(self.jcl.landinggear['key'], loc='best')
-#             plt.xlabel('t [s]')
-#             plt.ylabel('p1 [m]')
-#             plt.grid(True)
-#             plt.subplot(2,1,2)
-#             plt.plot(response['t'], response['F1'])
-#             #plt.plot(response['t'], response['F2'], '--')
-#             plt.legend(self.jcl.landinggear['key'], loc='best')
-#             plt.xlabel('t [s]')
-#             plt.ylabel('F1 [N]')
-#             plt.grid(True)
-#               
-#             plt.subplot(3,1,3)
-#             plt.plot(response['t'], response['dp1'])
-#             plt.plot(response['t'], response['X'][:,12+n_modes*2+3+self.model.lggrid['n']:12+n_modes*2+3+self.model.lggrid['n']*2], '--')
-#             plt.legend(('dp1 MLG1', 'dp1 MLG2', 'dp1 NLG', 'dp2 MLG1', 'dp2 MLG2', 'dp2 NLG'), loc='best')
-#             plt.xlabel('t [s]')
-#             plt.ylabel('dp1,2 [m/s]')
-#             plt.grid(True)
+            if hasattr(self.jcl, 'landinggear'):
+                ax71.plot(response['t'], response['p1'])
+                ax71.plot(response['t'], response['F1'])
+                
+        # Make plots nice
+        ax11.set_ylabel('Pb [N]')
+        ax11.grid(True)
+        ax12.set_xlabel('t [sec]')
+        ax12.set_ylabel('Cz [-]')
+        ax12.grid(True)
+        ax12.legend(['Cz'])
         
-            plt.figure(2)
-            plt.subplot(2,1,1)
-            plt.plot(response['t'], response['q_dyn'], 'k-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('[Pa]')
-            plt.grid(True)
-            plt.legend(['q_dyn'])
-            plt.subplot(2,1,2)
-            plt.plot(response['t'], response['Nxyz'][:,2], 'b-')
-            plt.plot(response['t'], response['alpha']/np.pi*180.0, 'r-')
-            plt.plot(response['t'], response['beta']/np.pi*180.0, 'c-')
-            plt.xlabel('t [sec]')
-            plt.legend(['Nz', 'alpha', 'beta'])
-            plt.grid(True)
-            plt.ylabel('[-]/[deg]')
+        ax21.set_ylabel('[Pa]')
+        ax21.grid(True)
+        ax21.legend(['q_dyn'])
+        ax22.set_xlabel('t [sec]')
+        ax22.legend(['Nz', 'alpha', 'beta'])
+        ax22.grid(True)
+        ax22.set_ylabel('[-]/[deg]')
+        
+        ax31.set_ylabel('[m]')
+        ax31.grid(True)
+        ax31.legend(['x', 'y', 'z'])
+        ax32.set_xlabel('t [sec]')
+        ax32.set_ylabel('[deg]')
+        ax32.grid(True)
+        ax32.legend(['phi', 'theta', 'psi'])
+        
+        ax41.set_ylabel('[m/s]')
+        ax41.grid(True)
+        ax41.legend(['u', 'v', 'w'])
+        ax42.set_xlabel('t [sec]')
+        ax42.set_ylabel('[deg/s]')
+        ax42.grid(True)
+        ax42.legend(['p', 'q', 'r'])
+        
+        ax51.set_ylabel('Inputs [deg]')
+        ax51.grid(True)
+        ax51.legend(['Xi', 'Eta', 'Zeta'])
+        ax52.set_xlabel('t [sec]')
+        ax52.set_ylabel('Inputs [N]')
+        ax52.grid(True)
+        ax52.legend(['Thrust'])
+        
+        ax61.set_ylabel('Uf')
+        ax61.grid(True)
+        ax62.set_xlabel('t [sec]')
+        ax62.set_ylabel('d2Ucg_dt2 [m/s^2]')
+        ax62.legend(['du', 'dv', 'dw'])
+        ax62.grid(True)
+        
+        if hasattr(self.jcl, 'landinggear'):
+            ax71.legend(self.jcl.landinggear['key'], loc='best')
+            ax71.ylabel('p1 [m]')
+            ax71.grid(True)
+            ax71.legend(self.jcl.landinggear['key'], loc='best')
+            ax71.xlabel('t [s]')
+            ax71.ylabel('F1 [N]')
+            ax71.grid(True)
             
-            
-            plt.figure(3)
-            plt.subplot(2,1,1)
-            plt.plot(response['t'], response['X'][:,0], 'b-')
-            plt.plot(response['t'], response['X'][:,1], 'g-')
-            plt.plot(response['t'], response['X'][:,2], 'r-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('[m]')
-            plt.grid(True)
-            plt.legend(['x', 'y', 'z'])
-            plt.subplot(2,1,2)
-            plt.plot(response['t'], response['X'][:,3]/np.pi*180.0, 'b-')
-            plt.plot(response['t'], response['X'][:,4]/np.pi*180.0, 'g-')
-            plt.plot(response['t'], response['X'][:,5]/np.pi*180.0, 'r-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('[deg]')
-            plt.grid(True)
-            plt.legend(['phi', 'theta', 'psi'])
-            
-            plt.figure(4)
-            plt.subplot(2,1,1)
-            plt.plot(response['t'], response['X'][:,6], 'b-')
-            plt.plot(response['t'], response['X'][:,7], 'g-')
-            plt.plot(response['t'], response['X'][:,8], 'r-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('[m/s]')
-            plt.grid(True)
-            plt.legend(['u', 'v', 'w'])
-            plt.subplot(2,1,2)
-            plt.plot(response['t'], response['X'][:,9]/np.pi*180.0, 'b-')
-            plt.plot(response['t'], response['X'][:,10]/np.pi*180.0, 'g-')
-            plt.plot(response['t'], response['X'][:,11]/np.pi*180.0, 'r-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('[deg/s]')
-            plt.grid(True)
-            plt.legend(['p', 'q', 'r'])
-            
-            
-            plt.figure(7)
-            plt.plot(response['t'], Pmac_c[:,2], 'b-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('Cz [-]')
-            plt.grid(True)
-            plt.legend(['Cz'])
-
-            plt.figure(8)
-            plt.subplot(2,1,1)
-            plt.plot(response['t'], response['X'][:,-4]/np.pi*180.0, 'b-')
-            plt.plot(response['t'], response['X'][:,-3]/np.pi*180.0, 'g-')
-            plt.plot(response['t'], response['X'][:,-2]/np.pi*180.0, 'r-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('Inputs [deg]')
-            plt.grid(True)
-            plt.legend(['Xi', 'Eta', 'Zeta'])
-            plt.subplot(2,1,2)
-            plt.plot(response['t'], response['X'][:,-1], 'k-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('Inputs [N]')
-            plt.grid(True)
-            plt.legend(['Thrust'])
-            
-            plt.figure(9)
-            plt.plot(response['t'], response['Uf'], 'b-')
-
-            plt.xlabel('t [sec]')
-            plt.ylabel('Uf')
-            plt.grid(True)
-            
-            plt.figure(10)
-            plt.plot(response['t'], response['d2Ucg_dt2'][:,0], 'b-')
-            plt.plot(response['t'], response['d2Ucg_dt2'][:,1], 'g-')
-            plt.plot(response['t'], response['d2Ucg_dt2'][:,2], 'r-')
-            plt.xlabel('t [sec]')
-            plt.ylabel('d2Ucg_dt2 [m/s^2]')
-            plt.legend(['du', 'dv', 'dw'])
-            plt.grid(True)
-            
-        # show time plots
+        # Show plots
         plt.show()
 
 class Animations(plotting_standard.StandardPlots):   
