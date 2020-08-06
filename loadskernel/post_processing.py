@@ -213,12 +213,11 @@ class post_processing:
         trimcase   = self.trimcase
         # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
         if len(response['t']) > 1:
-            response['Pmon_global'] = np.zeros((len(response['t']), 6*self.model.mongrid['n']))
             response['Pmon_local'] = np.zeros((len(response['t']), 6*self.model.mongrid['n']))  
             for i_step in range(len(response['t'])):
-                response['Pmon_global'][i_step,:] = self.model.PHIstrc_mon.T.dot(response['Pg'][i_step,:])
-                response['Pmon_local'][i_step,:] = force_trafo(self.model.mongrid, self.model.coord, response['Pmon_global'][i_step,:])
+                Pmon_global = self.model.PHIstrc_mon.T.dot(response['Pg'][i_step,:])
+                response['Pmon_local'][i_step,:] = force_trafo(self.model.mongrid, self.model.coord, Pmon_global)
         else:
-            response['Pmon_global'] = self.model.PHIstrc_mon.T.dot(response['Pg'])
-            response['Pmon_local'] = force_trafo(self.model.mongrid, self.model.coord, response['Pmon_global'])
+            Pmon_global = self.model.PHIstrc_mon.T.dot(response['Pg'])
+            response['Pmon_local'] = force_trafo(self.model.mongrid, self.model.coord, Pmon_global)
 

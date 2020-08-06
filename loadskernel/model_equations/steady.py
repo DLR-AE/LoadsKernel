@@ -78,7 +78,7 @@ class Steady(Common):
         
         if modus in ['trim', 'sim']:
             return Y
-        elif modus in ['trim_full_output', 'sim_full_output']:
+        elif modus in ['trim_full_output']:
             response = {'X': X, 
                         'Y': Y,
                         't': np.array([t]),
@@ -96,7 +96,28 @@ class Steady(Common):
                         'Pf': Pf,
                         'alpha': np.array([alpha]),
                         'beta': np.array([beta]),
-                        #'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
+                        'Ux2': Ux2,
+                        'dUcg_dt': dUcg_dt,
+                        'd2Ucg_dt2': d2Ucg_dt2,
+                        'Uf': Uf,
+                        'dUf_dt': dUf_dt,
+                        'd2Uf_dt2': d2Uf_dt2,
+                        'Nxyz': Nxyz,
+                        'g_cg': g_cg,
+                        'Pextra': Pextra,
+                       }
+            return response 
+        elif modus in ['sim_full_output']:
+            # For time domain simulations, typically not all results are required. To reduce the amount of data while maintaining compatibility with the trim, empty arrays are used.
+            response = {'X': X, 
+                        'Y': Y,
+                        't': np.array([t]),
+                        'Pk_aero': Pk_aero,
+                        'q_dyn': np.array([q_dyn]),
+                        'Pb': Pb,
+                        'Pmac': Pmac,
+                        'alpha': np.array([alpha]),
+                        'beta': np.array([beta]),
                         'Ux2': Ux2,
                         'dUcg_dt': dUcg_dt,
                         'd2Ucg_dt2': d2Ucg_dt2,

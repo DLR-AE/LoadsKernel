@@ -271,7 +271,7 @@ class Trim(TrimConditions):
             equations.eval_equations(self.response['X'], 0.0, modus='sim_full_output')
             for i_step in np.arange(0,len(t)):
                 response_step = equations.eval_equations(xt[i_step], t[i_step], modus='sim_full_output')
-                for key in self.response.keys():
+                for key in response_step.keys():
                     self.response[key] = np.vstack((self.response[key],response_step[key]))
                 self.successful = True
         else:
