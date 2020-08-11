@@ -224,7 +224,7 @@ class App:
             # Scenario 1: There are only static loads.
             print( '- {}: found static loads'.format(station))
             loads_string   = 'loads'
-            subcase_string = 'subcase'
+            subcase_string = 'subcases'
             t_string = 't'
         elif (np.size(self.datasets['dataset'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['dataset'][x][station].keys()) and (self.datasets['dataset'][x][station]['loads_dyn2stat'] != []):
             # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
@@ -246,18 +246,19 @@ class App:
                 for station in self.common_monstations:
                     if station not in new_dataset.keys():
                         # create (empty) entries for new monstation
-                        new_dataset[station] = {'CD': self.datasets['dataset'][x][station]['CD'],
-                                                'CP': self.datasets['dataset'][x][station]['CP'],
-                                                'offset': self.datasets['dataset'][x][station]['offset'],
-                                                'subcase': [],
+                        new_dataset[station] = {'CD': self.datasets['dataset'][x][station]['CD'][()],
+                                                'CP': self.datasets['dataset'][x][station]['CP'][()],
+                                                'offset': self.datasets['dataset'][x][station]['offset'][()],
+                                                'subcases': [],
                                                 'loads':[],
                                                 't':[],
                                                 }
                     loads_string, subcase_string, t_string = self.get_loads_string(x, station)
                     # Merge.   
-                    new_dataset[station]['loads']           += self.datasets['dataset'][x][station][loads_string]
-                    new_dataset[station]['subcase']         += self.datasets['dataset'][x][station][subcase_string]
-                    new_dataset[station]['t']               += self.datasets['dataset'][x][station][t_string]
+                    new_dataset[station]['loads']           += list(self.datasets['dataset'][x][station][loads_string][()])
+                    new_dataset[station]['subcases']        += list(self.datasets['dataset'][x][station][subcase_string][()])
+                    new_dataset[station]['t']               += list(self.datasets['dataset'][x][station][t_string][()])
+        
             # Save into data structure.
             self.datasets['ID'].append(self.datasets['n'])  
             self.datasets['dataset'].append(new_dataset)

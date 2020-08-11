@@ -129,10 +129,6 @@ class Merge:
                 new_monstations[station]['subcases']        += list(self.datasets['monstations'][x][station][subcase_string][()])
                 new_monstations[station]['t']               += list(self.datasets['monstations'][x][station][t_string][()])
 
-        # [()] at the end triggers reading/copying of the data directly. Now, close the files.
-        self.datasets['monstations'][x].close()
-        self.datasets['dyn2stat'][x].close()
-        
         # Save into existing data structure.
         self.new_dataset_id = self.datasets['n']
         self.datasets['ID'].append(self.new_dataset_id)  
