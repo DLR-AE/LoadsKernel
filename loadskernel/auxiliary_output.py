@@ -170,15 +170,15 @@ class AuxiliaryOutput:
         if dyn2stat:
             # This is quite a complicated sorting because the subcases from dyn2stat may contain non-numeric characters. 
             # A "normal" sorting returns an undesired sequence, leading IDs in a non-ascending sequence. This a not allowed by Nastran. 
-            subcases_ids = [self.dyn2stat_data['subcases_ID'][self.dyn2stat_data['subcases'].index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases) ]
+            subcases_ids = [self.dyn2stat_data['subcases_ID'][list(self.dyn2stat_data['subcases']).index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases) ]
             subcases_ids = np.sort(subcases_ids)
             with open(filename+'_Pg', 'w') as fid: 
                 for subcase_ID in subcases_ids:
-                    idx = self.dyn2stat_data['subcases_ID'].index(subcase_ID)
+                    idx = list(self.dyn2stat_data['subcases_ID']).index(subcase_ID)
                     io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx], self.dyn2stat_data['subcases_ID'][idx])
             with open(filename+'_subcases', 'w') as fid:  
                 for subcase_ID in subcases_ids:
-                    idx = self.dyn2stat_data['subcases_ID'].index(subcase_ID)
+                    idx = list(self.dyn2stat_data['subcases_ID']).index(subcase_ID)
                     io_functions.nastran_functions.write_subcases(fid, self.dyn2stat_data['subcases_ID'][idx], self.dyn2stat_data['subcases'][idx])
         else:
             crit_trimcases = self.crit_trimcases
@@ -200,14 +200,14 @@ class AuxiliaryOutput:
             crit_monstations[key]['CD'] = monstation['CD']
             crit_monstations[key]['CP'] = monstation['CP']
             crit_monstations[key]['offset'] = monstation['offset']
-            crit_monstations[key]['subcase'] = []
+            crit_monstations[key]['subcases'] = []
             crit_monstations[key]['loads'] = []
             crit_monstations[key]['t'] = []
             # copy only critical subcases into new monstation
-            for subcase_id in monstation['subcase']:
+            for subcase_id in monstation['subcases']:
                 if subcase_id in crit_trimcases:
-                    pos_to_copy = monstation['subcase'].index(subcase_id)
-                    crit_monstations[key]['subcase'] += [monstation['subcase'][pos_to_copy]]
+                    pos_to_copy = list(monstation['subcases']).index(subcase_id)
+                    crit_monstations[key]['subcases'] += [monstation['subcases'][pos_to_copy]]
                     crit_monstations[key]['loads'] += [monstation['loads'][pos_to_copy]]
                     crit_monstations[key]['t'] += [monstation['t'][pos_to_copy]]
         logging.info('saving critical monstation(s).')

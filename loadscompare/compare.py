@@ -53,7 +53,7 @@ class App:
             
         # define file options
         self.file_opt = {}
-        self.file_opt['filetypes']  = [('Loads Kernel files', 'monstation*.pickle'), ('all pickle files', '.pickle'), ('all files', '.*')]
+        self.file_opt['filetypes']  = [('HDF5 monitoring station files', 'monstation*.hdf5'), ('Pickle monitoring station files', 'monstation*.pickle'), ('all pickle files', '.pickle'), ('all files', '.*')]
         self.file_opt['initialdir'] = os.getcwd()
         self.file_opt['title']      = 'Load Monstations'
         
@@ -195,7 +195,7 @@ class App:
             color_sel   = [self.datasets['color'][i] for i in current_selection_reversed]
             desc_sel    = [self.datasets['desc'][i] for i in current_selection_reversed]
             mon_sel     = self.common_monstations[self.lb_mon.curselection()]
-            n_subcases = [dataset[mon_sel]['subcase'].__len__() for dataset in dataset_sel ]
+            n_subcases = [dataset[mon_sel]['subcases'].__len__() for dataset in dataset_sel ]
             try:
                 n_subcases_dyn2stat = [dataset[mon_sel]['subcases_dyn2stat'].__len__() for dataset in dataset_sel ]
             except:
@@ -308,8 +308,12 @@ class App:
         # open file dialog
         filename = filedialog.askopenfilename(**self.file_opt)
         if filename != '':
-            with open(filename, 'rb') as f:
-                dataset = io_functions.specific_functions.load_pickle(f)
+            if '.pickle' in filename:
+                with open(filename, 'rb') as f:
+                    dataset = io_functions.specific_functions.load_pickle(f)
+            elif '.hdf5' in filename:
+                dataset = io_functions.specific_functions.load_hdf5(filename)
+            
             # save into data structure
             self.datasets['ID'].append(self.datasets['n'])  
             self.datasets['dataset'].append(dataset)
@@ -325,9 +329,11 @@ class App:
             dataset_sel = self.datasets['dataset'][self.lb_dataset.curselection()[0]]
             # open file dialog
             filename = filedialog.asksaveasfilename(**self.file_opt)
-            if filename != '':
+            if filename != '' and '.pickle' in filename:
                 with open(filename, 'wb') as f:
                     io_functions.specific_functions.dump_pickle(dataset_sel, f)
+            if filename != '' and '.hdf5' in filename:
+                io_functions.specific_functions.dump_hdf5(filename, dataset_sel)
 
     def update_fields(self):
         self.lb_dataset.delete(0,tk.END)

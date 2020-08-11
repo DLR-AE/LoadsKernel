@@ -3,7 +3,7 @@ Created on Apr 9, 2019
 
 @author: voss_ar
 ''' 
-import pickle
+import pickle, h5py
 import time, imp, sys, os, psutil, logging, shutil, re, csv
 import numpy as np
   
@@ -23,6 +23,36 @@ def load_pickle(file_object):
     
 def dump_pickle(data, file_object):
     pickle.dump(data, file_object, pickle.HIGHEST_PROTOCOL)
+
+def load_hdf5(filename):
+    return h5py.File(filename, 'r')
+
+def dump_hdf5(filename, dic):
+    fid = h5py.File(filename, 'w')
+    recursively_save_dict_to_hdf5(fid, dic, path='')
+    fid.close()
+    return
+
+def recursively_save_dict_to_hdf5(fid, dic, path=''):
+    for key, item in dic.items():
+        if isinstance(item, dict):
+            recursively_save_dict_to_hdf5(fid, item, path=path+'/'+key)
+        elif isinstance(item, (np.ndarray, np.int64, np.float64)):
+            fid.create_dataset(path+'/'+key, data=item)
+        elif isinstance(item, (str, list)):
+            if isinstance(item, str) or any([isinstance(x, (str)) for x in item]):
+                # If there are string in a list, then convert the whole list. Note that the above condition also handles empty lists.
+                # Convert to an numpy array of objects
+                dt = h5py.special_dtype(vlen=str) 
+                fid.create_dataset(path+'/'+key, data=np.array(item, dtype=dt))
+                # Alternatively, convert to an numpy array of bytes
+                #fid.create_dataset(path+'/'+key, data=np.array(item, dtype='S'))
+            else:
+                fid.create_dataset(path+'/'+key, data=item)
+        else:
+            raise ValueError('Saving of data type %s not implemented!'%type(item))
+
+    return
     
 def load_jcl(job_name, path_input, jcl):
     if jcl == None:

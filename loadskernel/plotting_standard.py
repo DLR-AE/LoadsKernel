@@ -138,7 +138,7 @@ class StandardPlots():
         if np.size(self.monstations[station]['t'][0]) == 1:
             # Scenario 1: There are only static loads.
             loads_string = 'loads'
-            subcase_string = 'subcase'
+            subcase_string = 'subcases'
         elif (np.size(self.monstations[station]['t'][0]) > 1) and ('loads_dyn2stat' in self.monstations[station].keys()) and (self.monstations[station]['loads_dyn2stat'] != []):
             # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
             loads_string = 'loads_dyn2stat'
@@ -243,6 +243,7 @@ class StandardPlots():
     def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull=True, show_labels=False, show_minmax=False):
         loads_string, subcase_string = self.get_loads_strings(station)
         loads   = np.array(self.monstations[station][loads_string])
+        subcases = list(self.monstations[station][subcase_string]) # make sure this is a list
         points = np.vstack((loads[:,dof_xaxis], loads[:,dof_yaxis])).T
         self.subplot.scatter(points[:,0], points[:,1], color=color, label=desc, zorder=-2) # plot points
         
@@ -251,10 +252,10 @@ class StandardPlots():
                 hull = ConvexHull(points) # calculated convex hull from scattered points
                 for simplex in hull.simplices: # plot convex hull
                     self.subplot.plot(points[simplex,0], points[simplex,1], color=color, linewidth=2.0, linestyle='--')
-                crit_trimcases = [self.monstations[station][subcase_string][i] for i in hull.vertices]
+                crit_trimcases = [subcases[i] for i in hull.vertices]
                 if show_labels: 
                     for i_case in range(crit_trimcases.__len__()): 
-                        self.subplot.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(self.monstations[station][subcase_string][hull.vertices[i_case]]), fontsize=8)
+                        self.subplot.text(points[hull.vertices[i_case],0], points[hull.vertices[i_case],1], str(subcases[hull.vertices[i_case]]), fontsize=8)
             except:
                 crit_trimcases = []
         
@@ -263,15 +264,15 @@ class StandardPlots():
             pos_min_loads = np.argmin(points, 0)
             pos_minmax_loads = np.concatenate((pos_min_loads, pos_max_loads))
             self.subplot.scatter(points[pos_minmax_loads,0], points[pos_minmax_loads,1], color=(1,0,0), zorder=-2) # plot points
-            crit_trimcases = [self.monstations[station][subcase_string][i] for i in pos_minmax_loads]
+            crit_trimcases = [subcases[i] for i in pos_minmax_loads]
 
         else:
-            crit_trimcases = self.monstations[station][subcase_string][:]
+            crit_trimcases = subcases[:]
   
         if show_labels: 
             for crit_trimcase in crit_trimcases:
-                pos = self.monstations[station][subcase_string].index(crit_trimcase)
-                self.subplot.text(points[pos,0], points[pos,1], str(self.monstations[station][subcase_string][pos]), fontsize=8)
+                pos = subcases.index(crit_trimcase)
+                self.subplot.text(points[pos,0], points[pos,1], str(subcases[pos]), fontsize=8)
                         
         self.crit_trimcases += crit_trimcases
     
@@ -392,8 +393,8 @@ class StandardPlots():
             monstation = self.monstations[station]
             fig, ax = plt.subplots(6, sharex=True, figsize=(8,10) )
             for i_simcase in range(len(self.jcl.simcase)):
-                loads = np.array(monstation['loads'][i_simcase])
-                t = monstation['t'][i_simcase]
+                loads = monstation[str(i_simcase)]['loads']
+                t = monstation[str(i_simcase)]['t']
                 ax[0].plot(t, loads[:,0], 'k', zorder=-2)
                 ax[1].plot(t, loads[:,1], 'k', zorder=-2)
                 ax[2].plot(t, loads[:,2], 'k', zorder=-2)

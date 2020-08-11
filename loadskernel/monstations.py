@@ -19,12 +19,9 @@ class Monstations:
                                       'CD': self.model.mongrid['CD'][i_station],
                                       'CP': self.model.mongrid['CP'][i_station],
                                       'offset': self.model.mongrid['offset'][i_station],
-                                      'subcase': [],
+                                      'subcases': [],
                                       'loads':[],
                                       't':[],
-                                      'loads_dyn2stat':[],
-                                      'subcases_dyn2stat':[],
-                                      't_dyn2stat':[],
                                      }
         self.dyn2stat = {'Pg': [], 
                          'subcases': [],
@@ -39,29 +36,36 @@ class Monstations:
         return name
     
     def gather_monstations(self, trimcase, response):
-        logging.info('gathering information on monitoring stations from respone(s)...')
+        logging.info('gathering information on monitoring stations from response(s)...')
         for i_station in range(self.model.mongrid['n']):
             name = self.get_monstation_name(i_station)
-            self.monstations[name]['subcase'].append(str(trimcase['subcase']))
-            self.monstations[name]['t'].append(response['t'])
+            subcase = str(trimcase['subcase'])
             # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
             if len(response['t']) > 1:
-                self.monstations[name]['loads'].append(response['Pmon_local'][:,self.model.mongrid['set'][i_station,:]])
+                loads = response['Pmon_local'][:,self.model.mongrid['set'][i_station,:]]
+                # save time data per subcase
+                self.monstations[name][str(response['i'])] = {'subcase': subcase,
+                                                              'loads': loads,
+                                                              't': response['t'] }
             else:
-                self.monstations[name]['loads'].append(response['Pmon_local'][self.model.mongrid['set'][i_station,:]])
+                loads = response['Pmon_local'][self.model.mongrid['set'][i_station,:]]
+                self.monstations[name]['subcases'].append(subcase)
+                self.monstations[name]['loads'].append(loads)
+                self.monstations[name]['t'].append(response['t'])         
+           
 
-    
-    def gather_dyn2stat(self, i_case, response, mode='time-based'):
+    def gather_dyn2stat(self, response, mode='time-based'):
         """
         Schnittlasten an den Monitoring Stationen raus schreiben (z.B. zum Plotten)
         Knotenlasten raus schreiben (weiterverarbeitung z.B. als FORCE und MOMENT Karten fuer Nastran)
         """
         logging.info('searching min/max in time data at {} monitoring stations and gathering loads (dyn2stat)...'.format(len(self.monstations.keys())))
         if mode == 'time-based':
+            i_case = str(response['i'])
             timeslices_dyn2stat = np.array([],dtype=int)
             for key in self.monstations.keys():
-                pos_max_loads_over_time = np.argmax(self.monstations[key]['loads'][i_case], 0)
-                pos_min_loads_over_time = np.argmin(self.monstations[key]['loads'][i_case], 0)
+                pos_max_loads_over_time = np.argmax(self.monstations[key][i_case]['loads'], 0)
+                pos_min_loads_over_time = np.argmin(self.monstations[key][i_case]['loads'], 0)
                 """
                 Although the time-based approach considers all DoFs, it might lead to fewer time slices / snapshots
                 compared to Fz,min/max, Mx,min/max, ...,  because identical time slices are avoided.
@@ -72,7 +76,7 @@ class Monstations:
             for pos in timeslices_dyn2stat: 
                 # save nodal loads Pg for this time slice
                 self.dyn2stat['Pg'].append(response['Pg'][pos,:])
-                subcases_dyn2stat_string = str(self.monstations[key]['subcase'][i_case]) + '_t={:05.3f}'.format(self.monstations[key]['t'][i_case][pos,0])
+                subcases_dyn2stat_string = str(self.monstations[key][i_case]['subcase']) + '_t={:05.3f}'.format(self.monstations[key][i_case]['t'][pos,0])
                 self.dyn2stat['subcases'].append(subcases_dyn2stat_string)
                 """
                 Generate unique IDs for subcases:
@@ -82,11 +86,12 @@ class Monstations:
                 self.dyn2stat['subcases_ID'].append( int(subcases_dyn2stat_string.replace('_t=', '').replace('.', '')) )
                 # save section loads to monstations
                 for key in self.monstations.keys():
-                    self.monstations[key]['loads_dyn2stat'].append(self.monstations[key]['loads'][i_case][pos,:])
-                    self.monstations[key]['subcases_dyn2stat'].append(subcases_dyn2stat_string)
-                    self.monstations[key]['t_dyn2stat'].append(response['t'][pos,:])
+                    self.monstations[key]['subcases'].append(subcases_dyn2stat_string)
+                    self.monstations[key]['loads'].append(self.monstations[key][i_case]['loads'][pos,:])
+                    self.monstations[key]['t'].append(self.monstations[key][i_case]['t'][pos,:])
 
         elif mode == 'stat2stat':
+            i_case = response['i']
             self.dyn2stat['Pg'].append(response['Pg'])
             self.dyn2stat['subcases'].append(str(self.jcl.trimcase[i_case]['subcase']))
             self.dyn2stat['subcases_ID'].append(int(self.jcl.trimcase[i_case]['subcase']))

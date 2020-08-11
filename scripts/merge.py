@@ -33,12 +33,14 @@ class Merge:
         jcl = specific_io.load_jcl(job_name, self.path_input, jcl=None)
         
         logging.info( '--> Loading monstations(s).' )
-        with open(self.path_output + 'monstations_' + job_name + '.pickle', 'rb') as f:
-            monstations = specific_io.load_pickle(f)
+#         with open(self.path_output + 'monstations_' + job_name + '.pickle', 'rb') as f:
+#             monstations = specific_io.load_pickle(f)
+        monstations = specific_io.load_hdf5(self.path_output + 'monstations_' + job_name + '.hdf5')
 
         logging.info( '--> Loading dyn2stat.'  )
-        with open(self.path_output + 'dyn2stat_' + job_name + '.pickle', 'rb') as f:
-            dyn2stat_data = specific_io.load_pickle(f)
+#         with open(self.path_output + 'dyn2stat_' + job_name + '.pickle', 'rb') as f:
+#             dyn2stat_data = specific_io.load_pickle(f)
+        dyn2stat_data = specific_io.load_hdf5(self.path_output + 'dyn2stat_' + job_name + '.hdf5')
         
         # save into data structure
         self.datasets['ID'].append(self.datasets['n'])  
@@ -93,16 +95,16 @@ class Merge:
             for key in self.datasets['dyn2stat'][x].keys():
                 if key not in new_dyn2stat.keys():
                     new_dyn2stat[key] = []
-                new_dyn2stat[key] += self.datasets['dyn2stat'][x][key]
+                new_dyn2stat[key] += list(self.datasets['dyn2stat'][x][key][()])
                     
             # Handle monstations
             for station in self.common_monstations:
                 if station not in new_monstations:
                     # create (empty) entries for new monstation
-                    new_monstations[station] = {'CD': self.datasets['monstations'][x][station]['CD'],
-                                                'CP': self.datasets['monstations'][x][station]['CP'],
-                                                'offset': self.datasets['monstations'][x][station]['offset'],
-                                                'subcase': [],
+                    new_monstations[station] = {'CD': self.datasets['monstations'][x][station]['CD'][()],
+                                                'CP': self.datasets['monstations'][x][station]['CP'][()],
+                                                'offset': self.datasets['monstations'][x][station]['offset'][()],
+                                                'subcases': [],
                                                 'loads':[],
                                                 't':[],
                                                 }
@@ -110,7 +112,7 @@ class Merge:
                 if np.size(self.datasets['monstations'][x][station]['t'][0]) == 1:
                     # Scenario 1: There are only static loads.
                     loads_string   = 'loads'
-                    subcase_string = 'subcase'
+                    subcase_string = 'subcases'
                     t_string = 't'
                     logging.info('- {}: found {} static loads'.format(station, self.datasets['monstations'][x][station][subcase_string].__len__() ))
                 elif (np.size(self.datasets['monstations'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['monstations'][x][station].keys()) and (self.datasets['monstations'][x][station]['loads_dyn2stat'] != []):
@@ -123,9 +125,13 @@ class Merge:
                     # Scenario 3: There are only dynamic loads. 
                     return
                 # Merge.   
-                new_monstations[station]['loads']           += self.datasets['monstations'][x][station][loads_string]
-                new_monstations[station]['subcase']         += self.datasets['monstations'][x][station][subcase_string]
-                new_monstations[station]['t']               += self.datasets['monstations'][x][station][t_string]
+                new_monstations[station]['loads']           += list(self.datasets['monstations'][x][station][loads_string][()])
+                new_monstations[station]['subcases']        += list(self.datasets['monstations'][x][station][subcase_string][()])
+                new_monstations[station]['t']               += list(self.datasets['monstations'][x][station][t_string][()])
+
+        # [()] at the end triggers reading/copying of the data directly. Now, close the files.
+        self.datasets['monstations'][x].close()
+        self.datasets['dyn2stat'][x].close()
         
         # Save into existing data structure.
         self.new_dataset_id = self.datasets['n']
@@ -163,7 +169,7 @@ class Merge:
         aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name + '.pickle', dyn2stat=True) 
     
 if __name__ == "__main__":
-    jobs_to_merge = ['jcl_HAP-O2_maneuver', 'jcl_HAP-O2_gust_closedloop']
+    jobs_to_merge = ['jcl_HAP-O5-loop4_maneuver', 'jcl_HAP-O5-loop4_gust_unsteady', 'jcl_HAP-O5-loop4_landing', 'jcl_HAP-O5-loop4_prop']
     m = Merge(path_input='/scratch/HAP_workingcopy/JCLs', path_output='/scratch/HAP_LoadsKernel')
-    m.run_merge('jcl_HAP-O2_merged', jobs_to_merge)
+    m.run_merge('jcl_HAP-O5_merged_loop4', jobs_to_merge)
     
