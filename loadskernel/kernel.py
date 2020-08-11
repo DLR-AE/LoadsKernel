@@ -189,9 +189,9 @@ class Kernel():
             if response['successful']:
                 mon.gather_monstations(self.jcl.trimcase[i], response)
                 if 't_final' and 'dt' in self.jcl.simcase[i].keys():
-                    mon.gather_dyn2stat(-1, response, mode='time-based')
+                    mon.gather_dyn2stat(response, mode='time-based')
                 else:
-                    mon.gather_dyn2stat(i, response, mode='stat2stat')
+                    mon.gather_dyn2stat(response, mode='stat2stat')
 
                 logging.info('--> Saving response(s).')
                 io_functions.specific_functions.dump_pickle(response, f)
@@ -202,12 +202,17 @@ class Kernel():
         logging.info('--> Saving monstation(s).')
         with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(mon.monstations, f)
+        io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
+                                                  mon.monstations)
+        
         #with open(self.path_output + 'monstations_' + self.job_name + '.mat', 'wb') as f:
         #   io_functions.matlab_functions.save_mat(f, mon.monstations)
 
         logging.info('--> Saving dyn2stat.')
         with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(mon.dyn2stat, f)
+        io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
+                                                  mon.dyn2stat)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def run_main_parallel(self):
@@ -281,11 +286,15 @@ class Kernel():
                 logging.info('--> Saving monstation(s).')
                 with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'wb') as f:
                     io_functions.specific_functions.dump_pickle(mon.monstations, f)
+                io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
+                                                          mon.monstations)
                 # with open(path_output + 'monstations_' + job_name + '.mat', 'wb') as f:
                 #    io_matlab.save_mat(f, mon.monstations)
                 logging.info('--> Saving dyn2stat.')
                 with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'wb') as f:
                     io_functions.specific_functions.dump_pickle(mon.dyn2stat, f)
+                io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
+                                                  mon.dyn2stat)
                 q_output.task_done()
                 logging.info('--> Listener quit.')
                 break
@@ -293,9 +302,9 @@ class Kernel():
                 logging.info("--> Received response ('successful') from worker.")
                 mon.gather_monstations(self.jcl.trimcase[m['i']], m)
                 if 't_final' and 'dt' in self.jcl.simcase[m['i']].keys():
-                    mon.gather_dyn2stat(-1, m, mode='time-based')
+                    mon.gather_dyn2stat(m, mode='time-based')
                 else:
-                    mon.gather_dyn2stat(m['i'], m, mode='stat2stat')
+                    mon.gather_dyn2stat(m, mode='stat2stat')
             else:
                 # trim failed, no post processing, save 'None'
                 logging.info("--> Received response ('failed') from worker.")
@@ -354,10 +363,12 @@ class Kernel():
         logging.info('--> Loading monstations(s).') 
         with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'rb') as f:
             monstations = io_functions.specific_functions.load_pickle(f)
-
+#         monstations = io_functions.specific_functions.load_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5')
+            
         logging.info('--> Loading dyn2stat.')
         with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'rb') as f:
             dyn2stat_data = io_functions.specific_functions.load_pickle(f)
+#         dyn2stat_data = io_functions.specific_functions.load_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5')
 
         logging.info('--> Drawing some standard plots.')
         plt = plotting_standard.StandardPlots(self.jcl, model)
@@ -423,9 +434,19 @@ class Kernel():
         # place code to test here
 #         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
 #         responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
-#        from scripts import plot_flexdefo
-#        plot = plot_flexdefo.Flexdefo(self.jcl, model, responses)
-#        plot.plot_flexdefos_trim()
+#         with open(self.path_output + 'statespacemodel_' + self.job_name + '.pickle', 'wb') as fid:
+#             io_functions.specific_functions.dump_pickle(responses, fid)
+
+#         from scripts import plot_flexdefo
+#         plot = plot_flexdefo.Flexdefo(self.jcl, model, responses)
+#         plot.calc_flexdefos_trim()
+#         plot.save_flexdefo_trim(self.path_output + 'flexdefo_' + self.job_name + '.pickle')
+#         plot.plot_flexdefos_trim()
+#         plot.plot_flexdefos()
+
+#         from scripts import plot_lift_distribution
+#         plot = plot_lift_distribution.Liftdistribution(self.jcl, model, responses)
+#         plot.plot_aero_spanwise()
 
         return
 
