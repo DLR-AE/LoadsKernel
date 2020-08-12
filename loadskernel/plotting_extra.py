@@ -106,9 +106,21 @@ class DetailedPlots(plotting_standard.StandardPlots):
             trimcase   = self.jcl.trimcase[response['i']]
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
             
+            i_mass     = self.model.mass['key'].index(trimcase['mass'])
+            n_modes    = self.model.mass['n_modes'][i_mass] 
+            
             Cl = response['Pmac'][:,2] / response['q_dyn'].T / self.jcl.general['A_ref']
             ax11.plot(response['t'], response['Pmac'][:,2], 'b-')
             ax12.plot(response['t'], Cl.T, 'b-')
+            
+            if self.jcl.aero['method'] in ['mona_unsteady']:
+                Pb_gust = []
+                Pb_unsteady = []
+                for i_step in range(len(response['t'])):        
+                    Pb_gust.append(np.dot(self.model.Dkx1.T, response['Pk_gust'][i_step,:])[2])
+                    Pb_unsteady.append(np.dot(self.model.Dkx1.T, response['Pk_unsteady'][i_step,:])[2])
+                ax11.plot(response['t'], Pb_gust, 'k-')
+                ax11.plot(response['t'], Pb_unsteady, 'r-')
 
             ax21.plot(response['t'], response['q_dyn'], 'k-')
             ax22.plot(response['t'], response['Nxyz'][:,2], 'b-')
@@ -131,11 +143,11 @@ class DetailedPlots(plotting_standard.StandardPlots):
             ax42.plot(response['t'], response['X'][:,10]/np.pi*180.0, 'g-')
             ax42.plot(response['t'], response['X'][:,11]/np.pi*180.0, 'r-')
 
-            ax51.plot(response['t'], response['X'][:,-4]/np.pi*180.0, 'b-')
-            ax51.plot(response['t'], response['X'][:,-3]/np.pi*180.0, 'g-')
-            ax51.plot(response['t'], response['X'][:,-2]/np.pi*180.0, 'r-')
+            ax51.plot(response['t'], response['X'][:,12+2*n_modes+0]/np.pi*180.0, 'b-')
+            ax51.plot(response['t'], response['X'][:,12+2*n_modes+1]/np.pi*180.0, 'g-')
+            ax51.plot(response['t'], response['X'][:,12+2*n_modes+2]/np.pi*180.0, 'r-')
 
-            ax52.plot(response['t'], response['X'][:,-1], 'k-')
+            ax52.plot(response['t'], response['X'][:,12+2*n_modes+3], 'k-')
 
             ax61.plot(response['t'], response['Uf'], 'b-')
 
@@ -148,8 +160,10 @@ class DetailedPlots(plotting_standard.StandardPlots):
                 ax71.plot(response['t'], response['F1'])
                 
         # Make plots nice
-        ax11.set_ylabel('Pb [N]')
+        ax11.set_ylabel('Fz [N]')
         ax11.grid(True)
+        if self.jcl.aero['method'] in ['mona_unsteady']:
+            ax11.legend(['aero', 'gust', 'unsteady'])
         ax12.set_xlabel('t [sec]')
         ax12.set_ylabel('Cz [-]')
         ax12.grid(True)
