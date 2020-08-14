@@ -361,14 +361,10 @@ class Kernel():
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
 
         logging.info('--> Loading monstations(s).') 
-        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'rb') as f:
-            monstations = io_functions.specific_functions.load_pickle(f)
-#         monstations = io_functions.specific_functions.load_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5')
+        monstations = io_functions.specific_functions.load_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5')
             
         logging.info('--> Loading dyn2stat.')
-        with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'rb') as f:
-            dyn2stat_data = io_functions.specific_functions.load_pickle(f)
-#         dyn2stat_data = io_functions.specific_functions.load_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5')
+        dyn2stat_data = io_functions.specific_functions.load_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5')
 
         logging.info('--> Drawing some standard plots.')
         plt = plotting_standard.StandardPlots(self.jcl, model)
