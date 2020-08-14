@@ -98,7 +98,7 @@ class AuxiliaryOutput:
             Pmac_idrag = np.dot(self.model.Dkx1.T, response['Pk_idrag'])
             A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
             AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
-            Pmac_c = response['Pmac']/response['q_dyn']/A
+            Pmac_c = np.divide(response['Pmac'],response['q_dyn'])/A
             # um alpha drehen, um Cl und Cd zu erhalten
             Cl = Pmac_c[2]*np.cos(response['alpha'][0])+Pmac_c[0]*np.sin(response['alpha'][0])
             Cd = Pmac_c[2]*np.sin(response['alpha'][0])+Pmac_c[0]*np.cos(response['alpha'][0])
@@ -186,7 +186,7 @@ class AuxiliaryOutput:
             with open(filename+'_Pg', 'w') as fid: 
                 for i_case in range(len(self.jcl.trimcase)):
                     if str(self.jcl.trimcase[i_case]['subcase']) in crit_trimcases:
-                        io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_case]['Pg'], self.jcl.trimcase[i_case]['subcase'])
+                        io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_case]['Pg'][:], self.jcl.trimcase[i_case]['subcase'])
             with open(filename+'_subcases', 'w') as fid:         
                 for i_case in range(len(self.jcl.trimcase)):
                     if str(self.jcl.trimcase[i_case]['subcase']) in crit_trimcases:

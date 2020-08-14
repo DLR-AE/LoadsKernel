@@ -24,6 +24,17 @@ def load_pickle(file_object):
 def dump_pickle(data, file_object):
     pickle.dump(data, file_object, pickle.HIGHEST_PROTOCOL)
 
+def open_hdf5(filename):
+    return h5py.File(filename, 'w')
+
+def write_hdf5(fid, dic, path=''):
+    recursively_save_dict_to_hdf5(fid, dic, path)
+    return
+
+def close_hdf5(fid):
+    fid.close()
+    return
+
 def load_hdf5(filename):
     return h5py.File(filename, 'r')
 
@@ -37,7 +48,7 @@ def recursively_save_dict_to_hdf5(fid, dic, path=''):
     for key, item in dic.items():
         if isinstance(item, dict):
             recursively_save_dict_to_hdf5(fid, item, path=path+'/'+key)
-        elif isinstance(item, (np.ndarray, np.int64, np.float64)):
+        elif isinstance(item, (np.ndarray, int, np.int64, np.float64)):
             fid.create_dataset(path+'/'+key, data=item)
         elif isinstance(item, (str, list)):
             if isinstance(item, str) or any([isinstance(x, (str)) for x in item]):
@@ -53,6 +64,14 @@ def recursively_save_dict_to_hdf5(fid, dic, path=''):
             raise ValueError('Saving of data type %s not implemented!'%type(item))
 
     return
+
+def load_hdf5_responses(job_name, path_output):
+    logging.info( '--> Opening response(s).'  )
+    filename = path_output + 'response_' + job_name + '.hdf5'
+    fid = load_hdf5(filename)   
+    response = [fid[key] for key in sorted(fid.keys()) if fid[key]['successful']]
+
+    return response 
     
 def load_jcl(job_name, path_input, jcl):
     if jcl == None:

@@ -177,6 +177,7 @@ class Kernel():
             logging.info('Restart option: loading existing responses.')
             responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output, remove_failed=True)
         f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
+        fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
         for i in range(len(self.jcl.trimcase)):
             if self.restart and i in [response['i'] for response in responses]:
                 logging.info('Restart option: found existing response.')
@@ -195,9 +196,11 @@ class Kernel():
 
                 logging.info('--> Saving response(s).')
                 io_functions.specific_functions.dump_pickle(response, f)
-                #with open(self.path_output + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.mat', 'wb') as f2:
-                #   io_functions.matlab_functions.save_mat(f2, response)
+                io_functions.specific_functions.write_hdf5(fid, response, path='/'+str(response['i']))
+
         f.close()  # close response
+        io_functions.specific_functions.close_hdf5(fid)
+        
 
         logging.info('--> Saving monstation(s).')
         with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'wb') as f:
@@ -278,11 +281,13 @@ class Kernel():
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         mon = monstations_module.Monstations(self.jcl, model)
         f_response = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
+        fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
         logging.info('--> Listener ready.')
         while True:
             m = q_output.get()
             if m == 'finish':
                 f_response.close()  # close response
+                io_functions.specific_functions.close_hdf5(fid)
                 logging.info('--> Saving monstation(s).')
                 with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'wb') as f:
                     io_functions.specific_functions.dump_pickle(mon.monstations, f)
@@ -310,6 +315,7 @@ class Kernel():
                 logging.info("--> Received response ('failed') from worker.")
             logging.info('--> Saving response(s).')
             io_functions.specific_functions.dump_pickle(m, f_response)
+            io_functions.specific_functions.write_hdf5(fid, m, path='/'+str(m['i']))
             q_output.task_done()
         return  
 
@@ -382,7 +388,7 @@ class Kernel():
             aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf', dyn2stat=True) 
         else:
             # nur trim
-            aux_out.responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output, sorted=True)
+            aux_out.responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
             aux_out.write_trimresults(self.path_output + 'trim_results_' + self.job_name + '.csv')
             aux_out.write_successful_trimcases(self.path_output + 'successful_trimcases_' + self.job_name + '.csv') 
             aux_out.write_failed_trimcases(self.path_output + 'failed_trimcases_' + self.job_name + '.csv') 
@@ -393,26 +399,22 @@ class Kernel():
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
 #         logging.info( '--> Drawing some more detailed plots.')  
+#         responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
+#         
 #         plt = plotting_extra.DetailedPlots(self.jcl, model)
+#         plt.add_responses(responses)
 #         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
 #             # nur sim
-#             responses = io_functions.specific_functions.open_responses(self.job_name, self.path_output)
-#             plt.add_responses(responses)
 #             plt.plot_time_data()
 #         elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
-#             responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
-#             plt.add_responses(responses)
 #             plt.plot_fluttercurves()
 #         else:
 #             # nur trim
-#             responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
-#             plt.add_responses(responses)
 #             #plt.plot_pressure_distribution()
 #             plt.plot_forces_deformation_interactive()
-        
+#          
 #         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
 #             plt = plotting_extra.Animations(self.jcl, model)
-#             responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
 #             plt.add_responses(responses)
 #             plt.make_animation()
 #             #plt.make_movie(self.path_output, speedup_factor=1.0)
@@ -430,6 +432,7 @@ class Kernel():
         # place code to test here
 #         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
 #         responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
+#         responses_hdf5 = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
 #         with open(self.path_output + 'statespacemodel_' + self.job_name + '.pickle', 'wb') as fid:
 #             io_functions.specific_functions.dump_pickle(responses, fid)
 

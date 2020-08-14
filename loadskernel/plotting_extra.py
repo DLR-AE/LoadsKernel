@@ -75,9 +75,8 @@ class DetailedPlots(plotting_standard.StandardPlots):
         return ax
 
     def plot_pressure_distribution(self):
-        for i_response in range(len(self.responses)):
-            response   = self.responses[i_response]
-            trimcase   = self.jcl.trimcase[response['i']]
+        for response in self.responses:
+            trimcase   = self.jcl.trimcase[response['i'][()]]
             logging.info('interactive plotting of resulting pressure distributions for trim {:s}'.format(trimcase['desc']))
             Pk = response['Pk_aero'] #response['Pk_rbm'] + response['Pk_cam']
             i_atmo = self.model.atmo['key'].index(trimcase['altitude'])
@@ -101,15 +100,14 @@ class DetailedPlots(plotting_standard.StandardPlots):
             fig7, (ax71, ax72) = plt.subplots(nrows=2, ncols=1, sharex=True,)
         
         # Loop over responses and fill plots with data
-        for i_response in range(len(self.jcl.trimcase)):
-            response   = io_functions.specific_functions.load_next(self.responses)
-            trimcase   = self.jcl.trimcase[response['i']]
+        for response in self.responses:
+            trimcase   = self.jcl.trimcase[response['i'][()]]
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
             
             i_mass     = self.model.mass['key'].index(trimcase['mass'])
             n_modes    = self.model.mass['n_modes'][i_mass] 
             
-            Cl = response['Pmac'][:,2] / response['q_dyn'].T / self.jcl.general['A_ref']
+            Cl = response['Pmac'][:,2] / response['q_dyn'][:].T / self.jcl.general['A_ref']
             ax11.plot(response['t'], response['Pmac'][:,2], 'b-')
             ax12.plot(response['t'], Cl.T, 'b-')
             
@@ -124,8 +122,8 @@ class DetailedPlots(plotting_standard.StandardPlots):
 
             ax21.plot(response['t'], response['q_dyn'], 'k-')
             ax22.plot(response['t'], response['Nxyz'][:,2], 'b-')
-            ax22.plot(response['t'], response['alpha']/np.pi*180.0, 'r-')
-            ax22.plot(response['t'], response['beta']/np.pi*180.0, 'c-')
+            ax22.plot(response['t'], response['alpha'][:]/np.pi*180.0, 'r-')
+            ax22.plot(response['t'], response['beta'][:]/np.pi*180.0, 'c-')
 
             ax31.plot(response['t'], response['X'][:,0], 'b-')
             ax31.plot(response['t'], response['X'][:,1], 'g-')
@@ -157,7 +155,7 @@ class DetailedPlots(plotting_standard.StandardPlots):
             
             if hasattr(self.jcl, 'landinggear'):
                 ax71.plot(response['t'], response['p1'])
-                ax71.plot(response['t'], response['F1'])
+                ax72.plot(response['t'], response['F1'])
                 
         # Make plots nice
         ax11.set_ylabel('Fz [N]')
@@ -210,12 +208,12 @@ class DetailedPlots(plotting_standard.StandardPlots):
         
         if hasattr(self.jcl, 'landinggear'):
             ax71.legend(self.jcl.landinggear['key'], loc='best')
-            ax71.ylabel('p1 [m]')
+            ax71.set_ylabel('p1 [m]')
             ax71.grid(True)
-            ax71.legend(self.jcl.landinggear['key'], loc='best')
-            ax71.xlabel('t [s]')
-            ax71.ylabel('F1 [N]')
-            ax71.grid(True)
+            ax72.legend(self.jcl.landinggear['key'], loc='best')
+            ax72.set_xlabel('t [s]')
+            ax72.set_ylabel('F1 [N]')
+            ax72.grid(True)
             
         # Show plots
         plt.show()
@@ -223,19 +221,18 @@ class DetailedPlots(plotting_standard.StandardPlots):
 class Animations(plotting_standard.StandardPlots):   
                     
     def make_movie(self, path_output, speedup_factor=1.0):
-        for i_response in range(len(self.responses)):
-            self.plot_time_animation_3d(i_response, path_output, speedup_factor=speedup_factor, make_movie=True)
+        for response in self.responses:
+            self.plot_time_animation_3d(response, path_output, speedup_factor=speedup_factor, make_movie=True)
     
     def make_animation(self, speedup_factor=1.0):
-        for i_response in range(len(self.responses)):
-            self.plot_time_animation_3d(i_response, speedup_factor=speedup_factor)
+        for response in self.responses:
+            self.plot_time_animation_3d(response, speedup_factor=speedup_factor)
                   
-    def plot_time_animation_3d(self, i_response, path_output='./', speedup_factor=1.0, make_movie=False):
+    def plot_time_animation_3d(self, response, path_output='./', speedup_factor=1.0, make_movie=False):
         from mayavi import mlab
         from tvtk.api import tvtk
-        response   = self.responses[i_response]
-        trimcase   = self.jcl.trimcase[response['i']]
-        simcase    = self.jcl.simcase[response['i']] 
+        trimcase   = self.jcl.trimcase[response['i'][()]]
+        simcase    = self.jcl.simcase[response['i'][()]] 
         
         def update_timestep(self, i):
             self.fig.scene.disable_render = True
@@ -269,7 +266,7 @@ class Animations(plotting_standard.StandardPlots):
 
         self.vector_data = []
         def calc_vector_data(self, grid, set='', name='Pg_aero_global', exponent=0.33):
-            Pg = response[name]
+            Pg = response[name][:]
             # scaling to enhance small vectors
             uvw_t0 = np.linalg.norm(Pg[:,grid['set'+set][:,(0,1,2)]], axis=2)
             f_e = uvw_t0**exponent
@@ -376,10 +373,10 @@ class Animations(plotting_standard.StandardPlots):
         self.x = grid['offset'+set][:,0] + response['Ug'][:,grid['set'+set][:,0]]
         self.y = grid['offset'+set][:,1] + response['Ug'][:,grid['set'+set][:,1]]
         self.z = grid['offset'+set][:,2] + response['Ug'][:,grid['set'+set][:,2]]
-        self.color_scalar = np.linalg.norm(response['Ug_f'][:,grid['set'+set][:,(0,1,2)]], axis=2)
+        self.color_scalar = np.linalg.norm(response['Ug_f'][:][:,grid['set'+set][:,(0,1,2)]], axis=2)
         
         # get forces
-        names = ['Pg_aero_global', 'Pg_iner_global', ]# 'Pg_idrag_global', 'Pg_cs_global']
+        names = ['Pg_aero_global', 'Pg_iner_global', 'Pg_ext_global', ]# 'Pg_idrag_global', 'Pg_cs_global']
         colors = [(1,0,0), (0,1,1), (0,0,0), (0,0,1)] # red, cyan, black, blue
         for name in names:
             calc_vector_data(self, grid=grid, set=set, name=name)
