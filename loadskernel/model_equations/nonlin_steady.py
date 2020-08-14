@@ -105,7 +105,7 @@ class NonlinSteady(Steady):
                         'd2Uf_dt2': d2Uf_dt2,
                         'Nxyz': Nxyz,
                         'g_cg': g_cg,
-                        'Pextra': None,
+                        'Pextra': [],
                        }
             return response        
       
