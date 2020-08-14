@@ -170,15 +170,16 @@ class AuxiliaryOutput:
         if dyn2stat:
             # This is quite a complicated sorting because the subcases from dyn2stat may contain non-numeric characters. 
             # A "normal" sorting returns an undesired sequence, leading IDs in a non-ascending sequence. This a not allowed by Nastran. 
-            subcases_ids = [self.dyn2stat_data['subcases_ID'][list(self.dyn2stat_data['subcases']).index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases) ]
-            subcases_ids = np.sort(subcases_ids)
+            subcases_IDs = list(self.dyn2stat_data['subcases_ID'])
+            crit_ids = [self.dyn2stat_data['subcases_ID'][list(self.dyn2stat_data['subcases']).index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases) ]
+            crit_ids = np.sort(crit_ids)
             with open(filename+'_Pg', 'w') as fid: 
-                for subcase_ID in subcases_ids:
-                    idx = list(self.dyn2stat_data['subcases_ID']).index(subcase_ID)
+                for subcase_ID in crit_ids:
+                    idx = subcases_IDs.index(subcase_ID)
                     io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx], self.dyn2stat_data['subcases_ID'][idx])
             with open(filename+'_subcases', 'w') as fid:  
-                for subcase_ID in subcases_ids:
-                    idx = list(self.dyn2stat_data['subcases_ID']).index(subcase_ID)
+                for subcase_ID in crit_ids:
+                    idx = subcases_IDs.index(subcase_ID)
                     io_functions.nastran_functions.write_subcases(fid, self.dyn2stat_data['subcases_ID'][idx], self.dyn2stat_data['subcases'][idx])
         else:
             crit_trimcases = self.crit_trimcases

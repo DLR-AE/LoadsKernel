@@ -243,7 +243,7 @@ class StandardPlots():
     def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull=True, show_labels=False, show_minmax=False):
         loads_string, subcase_string = self.get_loads_strings(station)
         loads   = np.array(self.monstations[station][loads_string])
-        subcases = list(self.monstations[station][subcase_string]) # make sure this is a list
+        subcases = list(self.monstations[station][subcase_string][:]) # make sure this is a list
         points = np.vstack((loads[:,dof_xaxis], loads[:,dof_yaxis])).T
         self.subplot.scatter(points[:,0], points[:,1], color=color, label=desc, zorder=-2) # plot points
         
@@ -354,8 +354,8 @@ class StandardPlots():
         offsets = []
         for station in self.cuttingforces_wing:
             loads_string, subcase_string = self.get_loads_strings(station)
-            loads.append(self.monstations[station][loads_string])
-            offsets.append(self.monstations[station]['offset'])
+            loads.append(list(self.monstations[station][loads_string][:])) # trigger to read the data now with [:]
+            offsets.append(list(self.monstations[station]['offset'][:]))
         loads = np.array(loads)
         offsets = np.array(offsets)
         
@@ -363,7 +363,10 @@ class StandardPlots():
             i_max = np.argmax(loads[:,:,i_cuttingforce], 1)
             i_min = np.argmin(loads[:,:,i_cuttingforce], 1)
             self.subplot.cla()
-            self.subplot.plot(offsets[:,1],loads[:,:,i_cuttingforce], color='cornflowerblue', linestyle='-', marker='.', zorder=-2)
+            if len(self.jcl.trimcase) > 50:
+                logging.debug('plotting of every load case skipped due to large number (>50) of cases')
+            else:
+                self.subplot.plot(offsets[:,1],loads[:,:,i_cuttingforce], color='cornflowerblue', linestyle='-', marker='.', zorder=-2)
             for i_station in range(len(self.cuttingforces_wing)):
                 # verticalalignment or va 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
                 # max
