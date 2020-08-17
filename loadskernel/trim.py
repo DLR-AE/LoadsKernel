@@ -90,8 +90,8 @@ class Trim(TrimConditions):
         self.response['idx_B'] = idx_B
         self.response['idx_C'] = idx_C
         self.response['desc'] = self.trimcase['desc']
-            
-    def calc_derivatives(self):        
+        
+    def calc_rigid_derivatives(self):        
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = Steady(self)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
@@ -105,25 +105,74 @@ class Trim(TrimConditions):
         X0 = np.array(self.trimcond_X[:,2], dtype='float')
         response0 = equations.equations(X0, 0.0, 'trim_full_output')
         derivatives = []
-        logging.info('Calculating derivatives for ' + str(len(X0)) + ' variables...')
-        logging.info('MAC_ref = {}'.format(self.jcl.general['MAC_ref']))
-        logging.info('A_ref = {}'.format(self.jcl.general['A_ref']))
-        logging.info('b_ref = {}'.format(self.jcl.general['b_ref']))
-        logging.info('c_ref = {}'.format(self.jcl.general['c_ref']))
-        logging.info('')
-        logging.info('Derivatives given in body axis (aft-right-up):')
-        logging.info('--------------------------------------------------------------------------------------')
-        logging.info('                     Cx         Cy         Cz         Cmx        Cmy        Cmz')
+        logging.info('Calculating rigid derivatives...')
         for i in range(len(X0)):
             xi = copy.deepcopy(X0)
             xi[i] += delta
             response = equations.equations(xi, 0.0, 'trim_full_output')
             Pmac_c = (response['Pmac']-response0['Pmac'])/response['q_dyn']/A/delta
             derivatives.append([Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref']])
-            tmp = '{:>20} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g}'.format( self.trimcond_X[i,0], Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref'] )
+        self.response['rigid_derivatives'] = np.array(derivatives)
+        self.print_derivatives(self.trimcond_X[:,0], derivatives)
+    
+    def calc_flexible_derivatives(self):
+        if not self.trimcase['maneuver'] == 'derivatives':
+            logging.warning("Please set 'maneuver' to 'derivatives' in your trimcase.")
+        
+        # save response a baseline
+        response0 = self.response
+        trimcond_X0 = copy.deepcopy(self.trimcond_X)
+        
+        i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
+        vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
+        A = self.jcl.general['A_ref']
+        delta = 0.01   
+        parameters = ['theta', 'psi', 'p', 'q', 'r', 'command_xi', 'command_eta', 'command_zeta']
+        derivatives = []
+        logging.info('Calculating flexible derivatives...')
+        for parameter in parameters:
+            # modify selected parameter in trim conditions
+            new_value = float(self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == parameter))[0][0],2]) + delta            
+            self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == parameter))[0][0],2] = new_value
+            if parameter == 'theta':
+                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'u'))[0][0],2] = vtas*np.cos(new_value)
+                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'w'))[0][0],2] = vtas*np.sin(new_value)
+            elif parameter == 'psi':
+                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'u'))[0][0],2] = vtas*np.cos(new_value)
+                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'v'))[0][0],2] = vtas*np.sin(new_value)
+            # re-calculate new trim
+            self.exec_trim()
+            Pmac_c = (self.response['Pmac']-response0['Pmac'])/response0['q_dyn']/A/delta
+            derivatives.append([Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref']])
+            # restore trim condition for next loop 
+            self.trimcond_X = copy.deepcopy(trimcond_X0)
+        # save derivatives and restore original response
+        response0['flexible_derivatives'] = np.array(derivatives)
+        self.response = response0
+        self.print_derivatives(parameters, derivatives)
+    
+    def print_derivatives(self, parameters, derivatives):
+        """
+        Achtung beim Vergleichen mit Nastran: Bei Nick-, Roll- und Gierderivativa ist die Skalierung der Raten 
+        von Nastran sehr gewöhnungsbedürftig! Zum Beispiel:
+        q * c_ref / (2 * V) = PITCH
+        p * b_ref / (2 * V) = ROLL
+        r * b_ref / (2 * V) = YAW
+        """
+        # print some information
+        logging.info('Calculated derivatives for ' + str(len(parameters)) + ' variables.')
+        logging.info('MAC_ref = {}'.format(self.jcl.general['MAC_ref']))
+        logging.info('A_ref = {}'.format(self.jcl.general['A_ref']))
+        logging.info('b_ref = {}'.format(self.jcl.general['b_ref']))
+        logging.info('c_ref = {}'.format(self.jcl.general['c_ref']))
+        logging.info('q_dyn = {}'.format(self.response['q_dyn'][0]))
+        logging.info('Derivatives given in body axis (aft-right-up):')
+        logging.info('--------------------------------------------------------------------------------------')
+        logging.info('                     Cx         Cy         Cz         Cmx        Cmy        Cmz')
+        for parameter, derivative in zip(parameters, derivatives):
+            tmp = '{:>20} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g}'.format( parameter, derivative[0], derivative[1], derivative[2], derivative[3], derivative[4], derivative[5] )
             logging.info(tmp)
         logging.info('--------------------------------------------------------------------------------------')
-        self.response['derivatives'] = np.array(derivatives)
                             
     def exec_trim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'freq_dom']:
@@ -153,14 +202,14 @@ class Trim(TrimConditions):
         xfree_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]]
         
         if self.trimcase['maneuver'] == 'bypass':
-            logging.info('running bypass...')
+            logging.info('Running bypass...')
             self.response = equations.eval_equations(xfree_0, time=0.0, modus='trim_full_output')
             self.successful = True
         else:
-            logging.info('running trim for ' + str(len(xfree_0)) + ' variables...')
+            logging.info('Running trim for ' + str(len(xfree_0)) + ' variables...')
             xfree, info, status, msg= so.fsolve(equations.eval_equations, xfree_0, args=(0.0, 'trim'), full_output=True)
             logging.info(msg)
-            logging.info('function evaluations: ' + str(info['nfev']))
+            logging.debug('Function evaluations: ' + str(info['nfev']))
             
             # no errors, check trim status for success
             if status == 1:
@@ -245,7 +294,7 @@ class Trim(TrimConditions):
             equations = Landing(self, X0=self.response['X'], simcase=self.simcase)
         elif self.jcl.aero['method'] in [ 'mona_unsteady']:
             if 'disturbance' in self.simcase.keys():
-                logging.info('adding disturbance of {} to state(s) '.format(self.simcase['disturbance']))
+                logging.info('Adding disturbance of {} to state(s) '.format(self.simcase['disturbance']))
                 self.response['X'][11+self.simcase['disturbance_mode']] += self.simcase['disturbance']
             self.add_lagstates() # add lag states to system
             equations = Unsteady(self, X0=self.response['X'], simcase=self.simcase)
@@ -255,7 +304,7 @@ class Trim(TrimConditions):
         X0 = self.response['X']
         dt = self.simcase['dt']
         t_final = self.simcase['t_final']
-        logging.info('running time simulation for ' + str(t_final) + ' sec...')
+        logging.info('Running time simulation for ' + str(t_final) + ' sec...')
         integrator = self.select_integrator(equations, 'Adams-Bashforth')
         integrator.set_initial_value(X0, 0.0)
         xt = []
@@ -267,7 +316,7 @@ class Trim(TrimConditions):
             
         if integrator.successful():
             logging.info('Simulation finished.')
-            logging.info('running (again) with full outputs at selected time steps...')
+            logging.info('Running (again) with full outputs at selected time steps...')
             equations.eval_equations(self.response['X'], 0.0, modus='sim_full_output')
             for i_step in np.arange(0,len(t)):
                 response_step = equations.eval_equations(xt[i_step], t[i_step], modus='sim_full_output')

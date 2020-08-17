@@ -149,7 +149,7 @@ class Kernel():
         logging.info('========================================')
         trim_i = trim.Trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
         trim_i.set_trimcond()
-        # trim_i.calc_derivatives()
+        # trim_i.calc_rigid_derivatives()
         trim_i.exec_trim()
         # trim_i.iterative_trim()
         if trim_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
@@ -353,8 +353,9 @@ class Kernel():
             trim_i = trim.Trim(model, self.jcl, self.jcl.trimcase[i], self.jcl.simcase[i])
             trim_i.set_trimcond()
             trim_i.exec_trim()
-            trim_i.calc_jacobian()
-            trim_i.calc_derivatives()
+            #trim_i.calc_jacobian()
+            trim_i.calc_rigid_derivatives()
+            trim_i.calc_flexible_derivatives()
             trim_i.response['i'] = i
             logging.info('--> Saving response(s).')
             io_functions.specific_functions.dump_pickle(trim_i.response, f)

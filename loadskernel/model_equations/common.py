@@ -17,7 +17,7 @@ import loadskernel.efcs as efcs
 
 class Common():
     def __init__(self, trim, X0='', simcase=''):
-        logging.info('init model equations of type "{}"'.format(self.__class__.__name__))
+        logging.info('Init model equations of type "{}"'.format(self.__class__.__name__))
         self.model      = trim.model
         self.jcl        = trim.jcl
         self.trimcase   = trim.trimcase
