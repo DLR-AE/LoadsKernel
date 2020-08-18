@@ -112,8 +112,12 @@ class Trim(TrimConditions):
             response = equations.equations(xi, 0.0, 'trim_full_output')
             Pmac_c = (response['Pmac']-response0['Pmac'])/response['q_dyn']/A/delta
             derivatives.append([Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref']])
-        self.response['rigid_derivatives'] = np.array(derivatives)
-        self.print_derivatives(self.trimcond_X[:,0], derivatives)
+        # write back original response and store results
+        self.response = response0
+        self.response['rigid_parameters'] = self.trimcond_X[:,0].tolist()
+        self.response['rigid_derivatives'] = derivatives
+        self.calc_additional_derivatives()
+        self.print_derivatives('rigid')
     
     def calc_flexible_derivatives(self):
         if not self.trimcase['maneuver'] == 'derivatives':
@@ -146,12 +150,23 @@ class Trim(TrimConditions):
             derivatives.append([Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref']])
             # restore trim condition for next loop 
             self.trimcond_X = copy.deepcopy(trimcond_X0)
-        # save derivatives and restore original response
-        response0['flexible_derivatives'] = np.array(derivatives)
+        # write back original response and store results
         self.response = response0
-        self.print_derivatives(parameters, derivatives)
-    
-    def print_derivatives(self, parameters, derivatives):
+        self.response['flexible_parameters'] = parameters
+        self.response['flexible_derivatives'] = derivatives
+        self.calc_additional_derivatives()
+        self.print_derivatives('flexible')
+        self.calc_NP()
+        
+    def calc_NP(self):
+        pos = self.response['flexible_parameters'].index('theta')
+        self.response['NP_flex'] = np.zeros(3)
+        self.response['NP_flex'][0] = self.model.macgrid['offset'][0,0] - self.jcl.general['c_ref'] * self.response['flexible_derivatives'][pos][4] / self.response['flexible_derivatives'][pos][2]
+        self.response['NP_flex'][1] = self.model.macgrid['offset'][0,1] + self.jcl.general['b_ref'] * self.response['flexible_derivatives'][pos][3] / self.response['flexible_derivatives'][pos][2] 
+        logging.info('NP_flex (x,y) = {:0.4g},{:0.4g}'.format(self.response['NP_flex'][0], self.response['NP_flex'][1]))
+        logging.info('--------------------------------------------------------------------------------------')
+
+    def calc_additional_derivatives(self, key='rigid'):
         """
         Achtung beim Vergleichen mit Nastran: Bei Nick-, Roll- und Gierderivativa ist die Skalierung der Raten 
         von Nastran sehr gewöhnungsbedürftig! Zum Beispiel:
@@ -159,7 +174,18 @@ class Trim(TrimConditions):
         p * b_ref / (2 * V) = ROLL
         r * b_ref / (2 * V) = YAW
         """
+        i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
+        vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
+
+        self.response[key+'_parameters'] += ['p*', 'q*', 'r*']
+        self.response[key+'_derivatives'].append(list(np.array(self.response[key+'_derivatives'][self.response[key+'_parameters'].index('p')]) / self.jcl.general['b_ref'] * 2.0 * vtas))
+        self.response[key+'_derivatives'].append(list(np.array(self.response[key+'_derivatives'][self.response[key+'_parameters'].index('q')]) / self.jcl.general['c_ref'] * 2.0 * vtas))
+        self.response[key+'_derivatives'].append(list(np.array(self.response[key+'_derivatives'][self.response[key+'_parameters'].index('r')]) / self.jcl.general['b_ref'] * 2.0 * vtas))
+ 
+    def print_derivatives(self, key='rigid'):
         # print some information
+        parameters = self.response[key+'_parameters']
+        derivatives = self.response[key+'_derivatives']
         logging.info('Calculated derivatives for ' + str(len(parameters)) + ' variables.')
         logging.info('MAC_ref = {}'.format(self.jcl.general['MAC_ref']))
         logging.info('A_ref = {}'.format(self.jcl.general['A_ref']))
@@ -169,11 +195,11 @@ class Trim(TrimConditions):
         logging.info('Derivatives given in body axis (aft-right-up):')
         logging.info('--------------------------------------------------------------------------------------')
         logging.info('                     Cx         Cy         Cz         Cmx        Cmy        Cmz')
-        for parameter, derivative in zip(parameters, derivatives):
-            tmp = '{:>20} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g}'.format( parameter, derivative[0], derivative[1], derivative[2], derivative[3], derivative[4], derivative[5] )
+        for p, d in zip(parameters, derivatives):
+            tmp = '{:>20} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g}'.format( p, d[0], d[1], d[2], d[3], d[4], d[5] )
             logging.info(tmp)
         logging.info('--------------------------------------------------------------------------------------')
-                            
+                  
     def exec_trim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'freq_dom']:
             self.direct_trim()
