@@ -354,8 +354,7 @@ class Kernel():
             trim_i.set_trimcond()
             trim_i.exec_trim()
             #trim_i.calc_jacobian()
-            trim_i.calc_rigid_derivatives()
-            trim_i.calc_flexible_derivatives()
+            trim_i.calc_derivatives()
             trim_i.response['i'] = i
             logging.info('--> Saving response(s).')
             io_functions.specific_functions.dump_pickle(trim_i.response, f)

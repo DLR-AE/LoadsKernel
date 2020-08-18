@@ -91,6 +91,17 @@ class Trim(TrimConditions):
         self.response['idx_C'] = idx_C
         self.response['desc'] = self.trimcase['desc']
         
+    def calc_derivatives(self):
+        self.calc_rigid_derivatives()
+        self.calc_flexible_derivatives()
+        self.calc_additional_derivatives('rigid')
+        self.calc_additional_derivatives('flexible')
+        self.print_derivatives('rigid')
+        self.print_derivatives('flexible')
+        self.calc_NP()
+        self.calc_cs_effectiveness()
+        logging.info('--------------------------------------------------------------------------------------')
+        
     def calc_rigid_derivatives(self):        
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = Steady(self)
@@ -116,13 +127,12 @@ class Trim(TrimConditions):
         self.response = response0
         self.response['rigid_parameters'] = self.trimcond_X[:,0].tolist()
         self.response['rigid_derivatives'] = derivatives
-        self.calc_additional_derivatives()
-        self.print_derivatives('rigid')
     
     def calc_flexible_derivatives(self):
         if not self.trimcase['maneuver'] == 'derivatives':
             logging.warning("Please set 'maneuver' to 'derivatives' in your trimcase.")
-        
+        if np.any(self.model.camber_twist['cam_rad']!=0.0):
+            logging.warning("Camber and twist correction (W2GJ) must be Zero!")
         # save response a baseline
         response0 = self.response
         trimcond_X0 = copy.deepcopy(self.trimcond_X)
@@ -154,19 +164,30 @@ class Trim(TrimConditions):
         self.response = response0
         self.response['flexible_parameters'] = parameters
         self.response['flexible_derivatives'] = derivatives
-        self.calc_additional_derivatives()
-        self.print_derivatives('flexible')
-        self.calc_NP()
         
     def calc_NP(self):
         pos = self.response['flexible_parameters'].index('theta')
         self.response['NP_flex'] = np.zeros(3)
         self.response['NP_flex'][0] = self.model.macgrid['offset'][0,0] - self.jcl.general['c_ref'] * self.response['flexible_derivatives'][pos][4] / self.response['flexible_derivatives'][pos][2]
         self.response['NP_flex'][1] = self.model.macgrid['offset'][0,1] + self.jcl.general['b_ref'] * self.response['flexible_derivatives'][pos][3] / self.response['flexible_derivatives'][pos][2] 
-        logging.info('NP_flex (x,y) = {:0.4g},{:0.4g}'.format(self.response['NP_flex'][0], self.response['NP_flex'][1]))
         logging.info('--------------------------------------------------------------------------------------')
+        logging.info('Aeroelastic neutral point / aerodynamic center:')
+        logging.info('NP_flex (x,y) = {:0.4g},{:0.4g}'.format(self.response['NP_flex'][0], self.response['NP_flex'][1]))
+    
+    def calc_cs_effectiveness(self):
+        logging.info('--------------------------------------------------------------------------------------')
+        logging.info('Aeroelastic control surface effectiveness:')
+        logging.info('                     Cx         Cy         Cz         Cmx        Cmy        Cmz')
+        for p in ['command_xi', 'command_eta', 'command_zeta']:
+            pos_rigid = self.response['rigid_parameters'].index(p)
+            pos_flex = self.response['flexible_parameters'].index(p)
+            d = np.array(self.response['flexible_derivatives'][pos_flex]) / np.array(self.response['rigid_derivatives'][pos_rigid])
+            tmp = '{:>20} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g}'.format( p, d[0], d[1], d[2], d[3], d[4], d[5] )
+            logging.info(tmp)
+        
 
-    def calc_additional_derivatives(self, key='rigid'):
+    def calc_additional_derivatives(self, key):
+        # key: 'rigid' or 'flexible'
         """
         Achtung beim Vergleichen mit Nastran: Bei Nick-, Roll- und Gierderivativa ist die Skalierung der Raten 
         von Nastran sehr gewöhnungsbedürftig! Zum Beispiel:
@@ -182,23 +203,23 @@ class Trim(TrimConditions):
         self.response[key+'_derivatives'].append(list(np.array(self.response[key+'_derivatives'][self.response[key+'_parameters'].index('q')]) / self.jcl.general['c_ref'] * 2.0 * vtas))
         self.response[key+'_derivatives'].append(list(np.array(self.response[key+'_derivatives'][self.response[key+'_parameters'].index('r')]) / self.jcl.general['b_ref'] * 2.0 * vtas))
  
-    def print_derivatives(self, key='rigid'):
-        # print some information
+    def print_derivatives(self, key):
+        # print some information into log file
+        # key: 'rigid' or 'flexible'
         parameters = self.response[key+'_parameters']
         derivatives = self.response[key+'_derivatives']
-        logging.info('Calculated derivatives for ' + str(len(parameters)) + ' variables.')
+        logging.info('--------------------------------------------------------------------------------------')
+        logging.info('Calculated ' + key +' derivatives for ' + str(len(parameters)) + ' variables.')
         logging.info('MAC_ref = {}'.format(self.jcl.general['MAC_ref']))
         logging.info('A_ref = {}'.format(self.jcl.general['A_ref']))
         logging.info('b_ref = {}'.format(self.jcl.general['b_ref']))
         logging.info('c_ref = {}'.format(self.jcl.general['c_ref']))
         logging.info('q_dyn = {}'.format(self.response['q_dyn'][0]))
         logging.info('Derivatives given in body axis (aft-right-up):')
-        logging.info('--------------------------------------------------------------------------------------')
         logging.info('                     Cx         Cy         Cz         Cmx        Cmy        Cmz')
         for p, d in zip(parameters, derivatives):
             tmp = '{:>20} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g}'.format( p, d[0], d[1], d[2], d[3], d[4], d[5] )
             logging.info(tmp)
-        logging.info('--------------------------------------------------------------------------------------')
                   
     def exec_trim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'freq_dom']:
