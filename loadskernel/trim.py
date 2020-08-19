@@ -92,8 +92,8 @@ class Trim(TrimConditions):
         self.response['desc'] = self.trimcase['desc']
         
     def calc_derivatives(self):
-        self.calc_rigid_derivatives()
         self.calc_flexible_derivatives()
+        self.calc_rigid_derivatives()
         self.calc_additional_derivatives('rigid')
         self.calc_additional_derivatives('flexible')
         self.print_derivatives('rigid')
@@ -124,15 +124,12 @@ class Trim(TrimConditions):
             Pmac_c = (response['Pmac']-response0['Pmac'])/response['q_dyn']/A/delta
             derivatives.append([Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref']])
         # write back original response and store results
-        self.response = response0
         self.response['rigid_parameters'] = self.trimcond_X[:,0].tolist()
         self.response['rigid_derivatives'] = derivatives
     
     def calc_flexible_derivatives(self):
         if not self.trimcase['maneuver'] == 'derivatives':
             logging.warning("Please set 'maneuver' to 'derivatives' in your trimcase.")
-        if np.any(self.model.camber_twist['cam_rad']!=0.0):
-            logging.warning("Camber and twist correction (W2GJ) must be Zero!")
         # save response a baseline
         response0 = self.response
         trimcond_X0 = copy.deepcopy(self.trimcond_X)
