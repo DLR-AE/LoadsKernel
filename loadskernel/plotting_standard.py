@@ -11,7 +11,7 @@ plt.rcParams.update({'font.size': 16,
                      'savefig.dpi': 300,})
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.spatial import ConvexHull
-import logging, itertools
+import logging, itertools, os
 from loadskernel.units import tas2eas
 from loadskernel.units import eas2tas
 
@@ -29,7 +29,7 @@ class StandardPlots():
         self.potatos_mx_mz = [] # VTP
         self.potatos_my_mz = [] # FUS
         self.cuttingforces_wing = []
-        self.im = plt.imread('../graphics/LK_logo2.png')
+        self.im = plt.imread(os.path.dirname(__file__)+'/../graphics/LK_logo2.png')
         
         # Allegra
         if self.jcl.general['aircraft'] == 'ALLEGRA':

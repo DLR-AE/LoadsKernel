@@ -7,6 +7,7 @@ Created on Fri Feb 10 09:24:10 2017
 
 
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull
 
@@ -17,7 +18,7 @@ class Plotting(plotting_standard.StandardPlots):
         plt.rcParams.update({'font.size': 16,
                              'svg.fonttype':'none'})
         self.subplot = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
-        im = plt.imread('../graphics/LK_logo2.png')
+        im = plt.imread(os.path.dirname(__file__)+'/../graphics/LK_logo2.png')
         newax = fig.add_axes([0.04, 0.02, 0.10, 0.08])
         newax.imshow(im, interpolation='hanning')
         newax.axis('off')
