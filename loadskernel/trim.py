@@ -128,6 +128,12 @@ class Trim(TrimConditions):
         self.response['rigid_derivatives'] = derivatives
     
     def calc_flexible_derivatives(self):
+        """
+        The calculation of flexible derivatives is based on adding an increment (delta) to selected trim parameters 
+        in the trim condition. Then, the trim solution is calculated for the modified parameters and subtracted
+        from a baseline calculation (response0), leading to the flexible derivatives with respect to the modified parameter.
+        """
+        
         if not self.trimcase['maneuver'] == 'derivatives':
             logging.warning("Please set 'maneuver' to 'derivatives' in your trimcase.")
         # save response a baseline
@@ -143,14 +149,15 @@ class Trim(TrimConditions):
         logging.info('Calculating flexible derivatives...')
         for parameter in parameters:
             # modify selected parameter in trim conditions
-            new_value = float(self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == parameter))[0][0],2]) + delta            
-            self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == parameter))[0][0],2] = new_value
+            self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == parameter))[0][0],2] += delta
             if parameter == 'theta':
-                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'u'))[0][0],2] = vtas*np.cos(new_value)
-                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'w'))[0][0],2] = vtas*np.sin(new_value)
+                theta = self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == parameter))[0][0],2]
+                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'u'))[0][0],2] = vtas*np.cos(theta)
+                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'w'))[0][0],2] = vtas*np.sin(theta)
             elif parameter == 'psi':
-                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'u'))[0][0],2] = vtas*np.cos(new_value)
-                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'v'))[0][0],2] = vtas*np.sin(new_value)
+                psi = self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == parameter))[0][0],2]
+                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'u'))[0][0],2] = vtas*np.cos(psi)
+                self.trimcond_X[np.where((np.vstack((self.states , self.inputs))[:,0] == 'v'))[0][0],2] = vtas*np.sin(psi)
             # re-calculate new trim
             self.exec_trim()
             Pmac_c = (self.response['Pmac']-response0['Pmac'])/response0['q_dyn']/A/delta

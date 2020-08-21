@@ -63,6 +63,15 @@ class TrimConditions:
         self.idx_outputs            = list(range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_outputs))
 
     def set_defaults(self):
+        """
+        The trim condition is a mix of strings and numeric values. This is possible with np.array of 'object' type.
+        However, object-arrays have some disadvantages, such as lack of compatibility with mathematical operations 
+        such as np.cross() or HDF5 files, but present the trim conditions in a nice and compact form. For the model 
+        equations, the numerical values are converted into np.arrays of 'float' type. 
+        (This is much better than the old methods of converting the numerical values to 'string' type arrays.)
+
+        Requirement for a determined trim condition: 'free' parameters in trimcond_X == 'target' parameters in trimcond_Y
+        """
         # init
         i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
@@ -76,8 +85,7 @@ class TrimConditions:
         # ---------------
         # --- default --- 
         # ---------------
-        # Bedingung: free parameters in trimcond_X == target parameters in trimcond_Y
-        # inputs
+        # right hand side
         self.states = np.array([
             ['x',        'fix',    0.0,],
             ['y',        'fix',    0.0,],
@@ -91,20 +99,20 @@ class TrimConditions:
             ['p',        'fix',    self.trimcase['p'],],
             ['q',        'fix',    self.trimcase['q'],],
             ['r',        'fix',    self.trimcase['r'],],
-            ], dtype='<U18')
+            ], dtype=object)
         for i_mode in range(n_modes):
-            self.states = np.vstack((self.states ,  ['Uf'+str(i_mode), 'free', 0.0]))
+            self.states = np.vstack((self.states ,  np.array(['Uf'+str(i_mode), 'free', 0.0], dtype=object)))
         for i_mode in range(n_modes):
-            self.states = np.vstack((self.states ,  ['dUf_dt'+str(i_mode), 'free', 0.0]))
-        
+            self.states = np.vstack((self.states ,  np.array(['dUf_dt'+str(i_mode), 'fix', 0.0], dtype=object)))
+
         self.inputs = np.array([
             ['command_xi',   'free', 0.0,],  
             ['command_eta',  'free',  0.0,], 
             ['command_zeta', 'free',  0.0,],
             ['thrust',  'fix', 0.0]
-            ], dtype='<U18')
+            ], dtype=object)
         
-        # outputs
+        # left hand side
         self.state_derivatives = np.array([ 
             ['dx',       'target',   vtas,], # dx = vtas if dz = 0
             ['dy',       'free',   0.0,],
@@ -118,25 +126,25 @@ class TrimConditions:
             ['dp',       'target', self.trimcase['pdot'],],
             ['dq',       'target', self.trimcase['qdot'],],
             ['dr',       'target', self.trimcase['rdot'],],
-            ], dtype='<U18')
+            ], dtype=object)
             
         for i_mode in range(n_modes):
-            self.state_derivatives = np.vstack((self.state_derivatives ,  ['dUf_dt'+str(i_mode), 'target', 0.0]))
+            self.state_derivatives = np.vstack((self.state_derivatives ,  np.array(['dUf_dt'+str(i_mode), 'fix', 0.0], dtype=object)))
         for i_mode in range(n_modes):
-            self.state_derivatives = np.vstack((self.state_derivatives ,  ['d2Uf_d2t'+str(i_mode), 'target', 0.0]))
+            self.state_derivatives = np.vstack((self.state_derivatives ,  np.array(['d2Uf_d2t'+str(i_mode), 'target', 0.0], dtype=object)))
         
         self.input_derivatives = np.array([
             ['dcommand_xi',    'fix',  0.0,],
             ['dcommand_eta',   'fix',  0.0,],
             ['dcommand_zeta',  'fix',  0.0,],
             ['dthrust',        'fix',  0.0,],
-            ], dtype='<U18')
+            ], dtype=object)
 
         self.outputs = np.array([
             ['Nz',       'target',  self.trimcase['Nz']],
             ['Vtas',     'free',    vtas,],
             ['beta',     'free',    0.0]
-            ], dtype='<U18')
+            ], dtype=object)
     
     def set_maneuver(self):
         # ------------------
