@@ -29,6 +29,7 @@ class StandardPlots():
         self.potatos_mx_mz = [] # VTP
         self.potatos_my_mz = [] # FUS
         self.cuttingforces_wing = []
+        self.im = plt.imread('../graphics/LK_logo2.png')
         
         # Allegra
         if self.jcl.general['aircraft'] == 'ALLEGRA':
@@ -147,7 +148,17 @@ class StandardPlots():
             # Scenario 3: There are only dynamic loads. 
             logging.error('Dynamic loads need to be converted to static loads (dyn2stat).')
         return loads_string, subcase_string
-        
+    
+    def create_axes(self, logo=True):
+        fig = plt.figure()
+        ax = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
+        if logo:
+            newax = fig.add_axes([0.04, 0.02, 0.10, 0.08])
+            newax.imshow(self.im, interpolation='hanning', zorder=-2)
+            newax.axis('off')
+            newax.set_rasterization_zorder(-1)
+        return ax
+    
     def plot_forces_deformation_interactive(self):
         from mayavi import mlab
                 
@@ -300,8 +311,7 @@ class StandardPlots():
             
     def potato_plots(self):
         logging.info('start potato-plotting...')
-        fig = plt.figure()
-        self.subplot = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
+        self.subplot = self.create_axes()
         
         potato = np.sort(np.unique(self.potatos_fz_mx + self.potatos_mx_my + self.potatos_fz_my + self.potatos_fy_mx + self.potatos_mx_mz + self.potatos_my_mz))
         self.crit_trimcases = []
@@ -342,12 +352,11 @@ class StandardPlots():
                 dof_xaxis=4
                 dof_yaxis=5
                 self.potato_plot_nicely(station, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
-        plt.close(fig)
+        plt.close()
           
     def cuttingforces_along_wing_plots(self):
         logging.info('start plotting cutting forces along wing...')
-        fig = plt.figure()
-        self.subplot = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
+        self.subplot = self.create_axes()
         cuttingforces = ['Fx [N]', 'Fy [N]', 'Fz [N]', 'Mx [Nm]', 'My [Nm]', 'Mz [Nm]']
         loads = []
         offsets = []
@@ -369,11 +378,11 @@ class StandardPlots():
             for i_station in range(len(self.cuttingforces_wing)):
                 # verticalalignment or va 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
                 # max
-                plt.scatter(offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], color='r')
-                plt.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(self.monstations[list(self.monstations)[0]][subcase_string][i_max[i_station]]), fontsize=4, verticalalignment='bottom' )
+                self.subplot.scatter(offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], color='r')
+                self.subplot.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(self.monstations[list(self.monstations)[0]][subcase_string][i_max[i_station]]), fontsize=4, verticalalignment='bottom' )
                 # min
-                plt.scatter(offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], color='r')
-                plt.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(self.monstations[list(self.monstations)[0]][subcase_string][i_min[i_station]]), fontsize=4, verticalalignment='top' )
+                self.subplot.scatter(offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], color='r')
+                self.subplot.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(self.monstations[list(self.monstations)[0]][subcase_string][i_min[i_station]]), fontsize=4, verticalalignment='top' )
 
             self.subplot.set_title('Wing')        
             self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
@@ -385,7 +394,7 @@ class StandardPlots():
             self.subplot.set_ylabel(cuttingforces[i_cuttingforce])
             self.subplot.set_rasterization_zorder(-1)
             self.pp.savefig()
-        plt.close(fig)
+        plt.close()
               
     def plot_monstations_time(self, filename_pdf):
         logging.info('start plotting cutting forces over time ...')

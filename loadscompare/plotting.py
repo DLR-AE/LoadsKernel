@@ -17,6 +17,10 @@ class Plotting(plotting_standard.StandardPlots):
         plt.rcParams.update({'font.size': 16,
                              'svg.fonttype':'none'})
         self.subplot = fig.add_axes([0.2, 0.15, 0.7, 0.75]) # List is [left, bottom, width, height]
+        im = plt.imread('../graphics/LK_logo2.png')
+        newax = fig.add_axes([0.04, 0.02, 0.10, 0.08])
+        newax.imshow(im, interpolation='hanning')
+        newax.axis('off')
         
     def plot_nothing(self):
         self.subplot.cla()
