@@ -262,6 +262,10 @@ class AuxiliaryOutput:
             
         
     def save_cpacs(self, filename):
+        """
+        This function requires the tixiwrapper.py, which is supplied with TIXI.
+        The file is not part of the repository and needs to be put in a place from where it can be imported.
+        """
         logging.info( 'saving nodal loads and monitoring stations as CPACS...')
         from tixiwrapper import Tixi
         self.tixi = Tixi()
