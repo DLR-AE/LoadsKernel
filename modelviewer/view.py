@@ -370,17 +370,14 @@ class Modelviewer():
 
         fileMenu = mainMenu.addMenu('View')
         # Add view buttons
-        bt_view_high_left_above = QtGui.QAction('High Left Above', self.window)
-        bt_view_high_left_above.triggered.connect(self.plotting.set_view_high_left_above)
-        fileMenu.addAction(bt_view_high_left_above)
 
         bt_view_left_above = QtGui.QAction('Left Above', self.window)
         bt_view_left_above.triggered.connect(self.plotting.set_view_left_above)
         fileMenu.addAction(bt_view_left_above)
 
-        bt_view_right_above = QtGui.QAction('Right Above', self.window)
-        bt_view_right_above.triggered.connect(self.plotting.set_view_right_above)
-        fileMenu.addAction(bt_view_right_above)
+        bt_view_top = QtGui.QAction('Top', self.window)
+        bt_view_top.triggered.connect(self.plotting.set_view_top)
+        fileMenu.addAction(bt_view_top)
 
         bt_view_back = QtGui.QAction('Back', self.window)
         bt_view_back.triggered.connect(self.plotting.set_view_back)

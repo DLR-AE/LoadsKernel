@@ -51,22 +51,10 @@ class Plotting:
     def calc_focalpoint(self):
         self.focalpoint = (self.strcgrid['offset'].min(axis=0) + self.strcgrid['offset'].max(axis=0))/2.0
     
-    def set_view_high_left_above(self):
-        self.azimuth   =  60.0
-        self.elevation = -30.0
-        self.roll      =  35.0
-        self.set_view()
-    
     def set_view_left_above(self):
         self.azimuth   =  60.0
         self.elevation = -65.0
         self.roll      =  55.0
-        self.set_view()
-        
-    def set_view_right_above(self):
-        self.azimuth   = 120.0
-        self.elevation = -65.0
-        self.roll      = -55.0
         self.set_view()
         
     def set_view_back(self):
@@ -80,6 +68,14 @@ class Plotting:
         self.elevation = -90.0
         self.roll      =   0.0
         self.set_view()
+        
+    def set_view_top(self):
+        self.azimuth   = 180.0
+        self.elevation = 0.0
+        self.roll      = 0.0
+        self.distance *= 1.5 # zoom out more
+        self.set_view()
+        self.calc_distance() # rest zoom
 
     def set_view(self):
         mlab.view(azimuth=self.azimuth, elevation=self.elevation, roll=self.roll,  distance=self.distance, focalpoint=self.focalpoint)
