@@ -1,29 +1,26 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Feb  9 17:45:02 2017
-
-@author: voss_ar
-"""
 
 
-import tkinter as tk
-import tkinter.ttk as ttk
-import tkinter.filedialog as filedialog
-import matplotlib as mpl
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from PyQt5 import QtCore
+from PyQt5.QtWidgets import (QApplication, QWidget, QTabWidget, QSizePolicy, QGridLayout, QMainWindow, QAction, QListWidget, QListWidgetItem, 
+                             QAbstractItemView, QFileDialog, QComboBox, QCheckBox, QLabel)
+
+import matplotlib
+matplotlib.use('Qt5Agg')
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.backend_bases import key_press_handler # implement the default mpl key bindings
+from matplotlib.figure import Figure
+
 import numpy as np
-import pickle, os, copy
+import os, copy
 
 from loadscompare import plotting
 import loadskernel.io_functions as io_functions
 import loadskernel.io_functions.specific_functions
+   
 
-class App:
-    
-    def __init__(self, root):
-        # --- init data structure ---
-        self.root = root
+class Compare():
+    def __init__(self):
         self.datasets = {   'ID':[], 
                             'dataset':[],
                             'desc': [],
@@ -32,169 +29,182 @@ class App:
                         }
         self.common_monstations = np.array([])
         self.colors = ['cornflowerblue', 'limegreen', 'violet', 'darkviolet', 'turquoise', 'orange', 'tomato','darkgrey', 'black']
-        self.var_color = tk.StringVar()
-        self.var_desc  = tk.StringVar()
-        
-        # mapping of Fxyz and Mxyz to dof
-        self.var_xaxis = tk.StringVar()
-        self.var_xaxis.set('Fz [N]')
-
-        self.var_yaxis = tk.StringVar()
-        self.var_yaxis.set('Mx [Nm]')
-        
-        self.dof = {
-            'Fx [N]':  0,
-            'Fy [N]':  1,
-            'Fz [N]':  2,
-            'Mx [Nm]': 3,
-            'My [Nm]': 4,
-            'Mz [Nm]': 5,
-            }
+        self.dof = [ 'Fx [N]', 'Fy [N]', 'Fz [N]', 'Mx [Nm]', 'My [Nm]', 'Mz [Nm]']
             
         # define file options
         self.file_opt = {}
-        self.file_opt['filetypes']  = [('HDF5 monitoring station files', 'monstation*.hdf5'), ('Pickle monitoring station files', 'monstation*.pickle'), ('all pickle files', '.pickle'), ('all files', '.*')]
+        self.file_opt['filters']  = "HDF5 monitoring station files (monstation*.hdf5);;Pickle monitoring station files (monstation*.pickle);;all files (*.*)"
         self.file_opt['initialdir'] = os.getcwd()
         self.file_opt['title']      = 'Load Monstations'
-        
-        # --- init GUI ---
+    
+    def run(self):
+        self.initApplication()
+    
+    def initApplication(self):
+        app = QApplication([])
+        self.container = QWidget()
 
-        # init menu
-        root.option_add('*tearOff', tk.FALSE)        
-        menubar = tk.Menu(self.root)
-        menu_file = tk.Menu(menubar)
-        menu_file.add_command(label='Load Monstations', command=self.load_monstation)
-        menu_file.add_command(label='Close', command=self.close_app)
-        menubar.add_cascade(menu=menu_file, label='File')
-        menu_action = tk.Menu(menubar)
-        menu_action.add_command(label='Merge Monstations', command=self.merge_monstation)
-        menu_action.add_command(label='Superpose Monstations (by subcase)', command=self.superpose_monstation_by_subcase)
-        menu_action.add_command(label='Save Monstations', command=self.save_monstation)
-        menubar.add_cascade(menu=menu_action, label='Action')
-        root['menu'] = menubar
-        
-        # init frames
-        # frame left side
-        frame_left_top = ttk.Frame(root)
-        frame_left_top.grid(row=0, column=0,)
-        frame_left_bot = ttk.Frame(root)
-        frame_left_bot.grid(row=1, column=0)
-        # frame center
-        frame_center = ttk.Frame(root)
-        frame_center.grid(row=0, column=1, rowspan=2)
-        # frame rigth side
-        frame_right = ttk.Frame(root)
-        frame_right.grid(row=0, column=2, rowspan=2, sticky=(tk.N,tk.W,tk.E,tk.S))
-        # resize only the bottom and the right frame --> plot area is resized
-        root.grid_columnconfigure(2, weight=1)
-        root.grid_rowconfigure(1, weight=1)
+        self.initMatplotlibFigure()
+        self.initTabs()
+        self.initWindow()
 
-        # ListBox to select several datasets 
-        self.lb_dataset = tk.Listbox(frame_left_top, height=20, selectmode=tk.EXTENDED, exportselection=False)
-        self.lb_dataset.grid(row=0, column=0, sticky=(tk.N,tk.W,tk.E,tk.S))
-        self.lb_dataset.bind('<<ListboxSelect>>', self.show_choice)
-        s_dataset = ttk.Scrollbar(frame_left_top, orient=tk.VERTICAL, command=self.lb_dataset.yview)
-        s_dataset.grid(row=0, column=1, sticky=(tk.N,tk.S))
-        # attach listbox to scrollbar
-        self.lb_dataset.config(yscrollcommand=s_dataset.set)
-        s_dataset.config(command=self.lb_dataset.yview)
-        
-        # change desc
-        self.en_desc = ttk.Entry(frame_left_top, textvariable=self.var_desc, state='disabled', exportselection=False)
-        self.en_desc.grid(row = 1, column =0, columnspan=2, sticky=(tk.W,tk.E))
-        #self.en_desc.bind('<<Change>>', self.update_desc ) 
-        self.var_desc.trace('w', self.update_desc)        
-        
-        # color selector
-        self.cb_color = ttk.Combobox(frame_left_top, textvariable=self.var_color, values=self.colors, state='disabled')
-        self.cb_color.grid(row = 2, column =0, columnspan=2, sticky=(tk.W,tk.E))
-        self.cb_color.bind('<<ComboboxSelected>>', self.update_color )        
+        # layout container 
+        layout = QGridLayout(self.container)
+        # Notation: layout.addWidget(widget, row, column, rowSpan, columnSpan)
+        layout.addWidget(self.tabs_widget, 0, 0, 2, 1)
+        layout.addWidget(self.canvas, 1, 1)
+        layout.addWidget(self.toolbar, 0, 1)
 
-        # ListBox to select monstations 
-        self.lb_mon = tk.Listbox(frame_left_top, height=20, selectmode=tk.SINGLE, exportselection=False)
-        self.lb_mon.grid(row=0, column=2, rowspan=8, sticky=(tk.N,tk.W,tk.E,tk.S))
-        self.lb_mon.bind('<<ListboxSelect>>', self.show_choice)
-        s_mon = ttk.Scrollbar(frame_left_top, orient=tk.VERTICAL, command=self.lb_mon.yview)
-        s_mon.grid(row=0, column=3, rowspan=8, sticky=(tk.N,tk.S))
-        # attach listbox to scrollbar
-        self.lb_mon.config(yscrollcommand=s_mon.set)
-        s_mon.config(command=self.lb_mon.yview)
+        # Start the main event loop.
+        app.exec_()
+    
+    def initTabs(self):
+        # Configure tabs widget
+        self.tabs_widget = QTabWidget()
+        # configure sizing, limit width of tabs widget in favor of plotting area
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.tabs_widget.setSizePolicy(sizePolicy)
+        self.tabs_widget.setMinimumWidth(300)
+        self.tabs_widget.setMaximumWidth(450)
 
-        # Eintraege hinzufuegen mit self.l.insert('end', 'Line 1')
-        # abfrage der Werte mit self.l.curselection()
+        # Add tabs
+        self.initLoadsTab()
 
-        # x- and y-axis
-        cb_xaxis = ttk.Combobox(frame_left_top, textvariable=self.var_xaxis, values=list(self.dof), state='readonly')
-        cb_xaxis.grid(row = 3, column =0, columnspan=2, sticky=(tk.W,tk.E))
-        cb_xaxis.bind('<<ComboboxSelected>>', self.show_choice )
+    def initLoadsTab(self):
+        tab_loads = QWidget()
+        self.tabs_widget.addTab(tab_loads, 'Section Loads')
+        # Elements of loads tab
+        self.lb_dataset = QListWidget()
+        self.lb_dataset.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.lb_dataset.itemSelectionChanged.connect(self.show_choice)
+        self.lb_dataset.itemChanged.connect(self.update_desc)
         
-        cb_yaxis = ttk.Combobox(frame_left_top, textvariable=self.var_yaxis, values=list(self.dof), state='readonly')
-        cb_yaxis.grid(row = 4, column =0, columnspan=2, sticky=(tk.W,tk.E))
-        cb_yaxis.bind('<<ComboboxSelected>>', self.show_choice )
+        self.lb_mon = QListWidget()
+        self.lb_mon.itemSelectionChanged.connect(self.show_choice)
         
-        # options / check boxes
-        self.show_hull = tk.BooleanVar()
-        cb_hull = ttk.Checkbutton( frame_left_top, text="show convex hull", variable=self.show_hull,  onvalue=tk.TRUE, offvalue=tk.FALSE, command=self.update_plot )        
-        cb_hull.grid(row = 5, column =0, columnspan=2, sticky=(tk.W,tk.E))
+        self.cb_color = QComboBox()
+        self.cb_color.addItems(self.colors)
+        self.cb_color.activated[str].connect(self.update_color)
         
-        self.show_labels = tk.BooleanVar()
-        cb_labels = ttk.Checkbutton( frame_left_top, text="show labels", variable=self.show_labels,  onvalue=tk.TRUE, offvalue=tk.FALSE, command=self.update_plot )        
-        cb_labels.grid(row = 6, column =0, columnspan=2, sticky=(tk.W,tk.E))
+        self.cb_xaxis = QComboBox()
+        self.cb_xaxis.addItems(self.dof)
+        self.cb_xaxis.setCurrentIndex(3)
+        self.cb_xaxis.activated.connect(self.show_choice)
         
-        self.show_minmax = tk.BooleanVar()
-        cb_minmax = ttk.Checkbutton( frame_left_top, text="show min/max", variable=self.show_minmax,  onvalue=tk.TRUE, offvalue=tk.FALSE, command=self.update_plot )        
-        cb_minmax.grid(row = 7, column =0, columnspan=2, sticky=(tk.W,tk.E))
-
-        self.label_n_loadcases =tk.Label(frame_left_top, anchor='w', justify='left', padx=0, text='') 
-        self.label_n_loadcases.grid(row=8, column=0, columnspan=2)
+        self.cb_yaxis = QComboBox()
+        self.cb_yaxis.addItems(self.dof)
+        self.cb_yaxis.setCurrentIndex(4)
+        self.cb_yaxis.activated.connect(self.show_choice)
         
+        self.cb_hull = QCheckBox("show convex hull")
+        self.cb_hull.setChecked(False)
+        self.cb_hull.stateChanged.connect(self.show_choice)
+        
+        self.cb_labels = QCheckBox("show labels")
+        self.cb_labels.setChecked(False)
+        self.cb_labels.stateChanged.connect(self.show_choice)
+        
+        self.cb_minmax = QCheckBox("show min/max")
+        self.cb_minmax.setChecked(False)
+        self.cb_minmax.stateChanged.connect(self.show_choice)
+        
+        self.label_n_loadcases = QLabel()
+        
+        
+        layout = QGridLayout(tab_loads)
+        # Notation: layout.addWidget(widget, row, column, rowSpan, columnSpan)
+        # side-by-side
+        layout.addWidget(self.lb_dataset,   0,0,1,1)
+        layout.addWidget(self.lb_mon,       0,1,1,1)
+        # one after the other
+        layout.addWidget(self.cb_color,     1,0,1,2) 
+        layout.addWidget(self.cb_xaxis,     2,0,1,2)
+        layout.addWidget(self.cb_yaxis,     3,0,1,2)
+        layout.addWidget(self.cb_hull,      4,0,1,2)
+        layout.addWidget(self.cb_labels,    5,0,1,2)
+        layout.addWidget(self.cb_minmax,    6,0,1,2)
+        layout.addWidget(self.label_n_loadcases, 7,0,1,2)
+        
+    
+    def initMatplotlibFigure(self):
         # init Matplotlib Plot
-        fig1 = mpl.figure.Figure()
+        fig1 = Figure()
         # hand over subplot to plotting class
         self.plotting = plotting.Plotting(fig1)
         # embed figure
-        self.canvas = FigureCanvasTkAgg(fig1, master=frame_right)
+        self.canvas = FigureCanvasQTAgg(fig1)
         self.canvas.draw()
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        toolbar = NavigationToolbar2Tk(self.canvas, frame_right)
-        toolbar.update()
-        self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)     
+        # configure sizing, set minimum size
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.canvas.setSizePolicy(sizePolicy)
+        self.canvas.setMinimumWidth(800)
+        self.canvas.setMinimumHeight(600)
+        
+        self.toolbar = NavigationToolbar2QT(self.canvas, self.container)
+        self.toolbar.update()
     
+    def initWindow(self):
+        # Set up window and menu 
+        self.window = QMainWindow()
+        mainMenu = self.window.menuBar()
+        # Add Menu to window
+        fileMenu = mainMenu.addMenu('File')
+        # Add load button
+        action = QAction('Load Monstations', self.window)
+        action.setShortcut('Ctrl+L')
+        action.triggered.connect(self.load_monstation)
+        fileMenu.addAction(action)
+
+        # Add Action buttons
+        action = QAction('Merge Monstations', self.window)
+        action.setShortcut('Ctrl+M')
+        action.triggered.connect(self.merge_monstation)
+        fileMenu.addAction(action)
+        
+        action = QAction('Save Monstations', self.window)
+        action.setShortcut('Ctrl+S')
+        action.triggered.connect(self.save_monstation)
+        fileMenu.addAction(action)
+        
+        # Add exit button
+        action = QAction('Exit', self.window)
+        action.setShortcut('Ctrl+Q')
+        action.triggered.connect(self.window.close)
+        fileMenu.addAction(action)
+
+        self.window.setCentralWidget(self.container)
+        self.window.setWindowTitle("Loads Compare")
+        self.window.show()
+    
+        
     def show_choice(self, *args):
         # called on change in listbox, combobox, etc
         # discard extra variables
-        self.update_plot()
-        if len(self.lb_dataset.curselection()) == 1:
-            self.var_color.set(self.datasets['color'][self.lb_dataset.curselection()[0]])
-            self.cb_color.config(state='readonly')
-            self.var_desc.set(self.datasets['desc'][self.lb_dataset.curselection()[0]])
-            self.en_desc.config(state='ensabled')
+        if len(self.lb_dataset.selectedItems()) == 1:
+            self.cb_color.setCurrentText(self.datasets['color'][self.lb_dataset.currentRow()])
+            self.cb_color.setEnabled(True)
         else:
-            self.cb_color.config(state='disabled')
-            self.en_desc.config(state='disabled')
+            self.cb_color.setDisabled(True)
+        self.update_plot()
             
-    def update_color(self, *args):
-        self.datasets['color'][self.lb_dataset.curselection()[0]] = self.var_color.get() 
+    def update_color(self, color):
+        self.datasets['color'][self.lb_dataset.currentRow()] = color
         self.update_plot()
         
     def update_desc(self, *args):
-        i = copy.deepcopy(self.lb_dataset.curselection()[0])
-        self.datasets['desc'][i] = self.var_desc.get() 
-        #self.update_fields()
-        self.lb_dataset.delete(i)
-        self.lb_dataset.insert(i,  self.datasets['desc'][i])
-        self.lb_dataset.select_set(i)
+        self.datasets['desc'][self.lb_dataset.currentRow()] = self.lb_dataset.currentItem().text()
         self.update_plot()
             
     def update_plot(self):
-        if self.lb_dataset.curselection() != () and self.lb_mon.curselection() != ():
+        if self.lb_dataset.currentItem() is not None and self.lb_mon.currentItem() is not None:
             # Reverse current selection of datasets for plotting. The dataset added/created last is plotted first.
             # This is useful for example after merging different datasets. The resulting dataset would obscure the view if plotted last. 
-            current_selection_reversed = list(reversed(self.lb_dataset.curselection()))
-            dataset_sel = [self.datasets['dataset'][i] for i in current_selection_reversed]
-            color_sel   = [self.datasets['color'][i] for i in current_selection_reversed]
-            desc_sel    = [self.datasets['desc'][i] for i in current_selection_reversed]
-            mon_sel     = self.common_monstations[self.lb_mon.curselection()]
+            current_selection = [item.row() for item in self.lb_dataset.selectedIndexes()]
+            current_selection.reverse()
+            dataset_sel = [self.datasets['dataset'][i] for i in current_selection]
+            color_sel   = [self.datasets['color'][i] for i in current_selection]
+            desc_sel    = [self.datasets['desc'][i] for i in current_selection]
+            mon_sel     = self.common_monstations[self.lb_mon.currentRow()]
             n_subcases = [dataset[mon_sel]['subcases'].__len__() for dataset in dataset_sel ]
             try:
                 n_subcases_dyn2stat = [dataset[mon_sel]['subcases_dyn2stat'].__len__() for dataset in dataset_sel ]
@@ -205,15 +215,15 @@ class App:
                                         mon_sel, 
                                         desc_sel, 
                                         color_sel, 
-                                        self.dof[self.var_xaxis.get()], 
-                                        self.dof[self.var_yaxis.get()], 
-                                        self.var_xaxis.get(),
-                                        self.var_yaxis.get(),
-                                        self.show_hull.get(),
-                                        self.show_labels.get(),
-                                        self.show_minmax.get(),
+                                        self.cb_xaxis.currentIndex(), 
+                                        self.cb_yaxis.currentIndex(),
+                                        self.cb_xaxis.currentText(), 
+                                        self.cb_yaxis.currentText(),
+                                        self.cb_hull.isChecked(),
+                                        self.cb_labels.isChecked(),
+                                        self.cb_minmax.isChecked(),
                                       )
-            self.label_n_loadcases.config(text='Selected load case: {} \nDyn2Stat: {}'.format(np.sum(n_subcases), np.sum(n_subcases_dyn2stat)))
+            self.label_n_loadcases.setText('Selected load case: {} \nDyn2Stat: {}'.format(np.sum(n_subcases), np.sum(n_subcases_dyn2stat)))
         else:    
             self.plotting.plot_nothing()
         self.canvas.draw()
@@ -238,10 +248,10 @@ class App:
         return loads_string, subcase_string, t_string
 
     def merge_monstation(self):
-        if len(self.lb_dataset.curselection()) > 1:
+        if len(self.lb_dataset.selectedItems()) > 1:
             # Init new dataset.
             new_dataset = {}
-            for x in self.lb_dataset.curselection():
+            for x in [item.row() for item in self.lb_dataset.selectedIndexes()]:
                 print ('Working on {} ...'.format(self.datasets['desc'][x]))
                 for station in self.common_monstations:
                     if station not in new_dataset.keys():
@@ -268,46 +278,9 @@ class App:
             # Update fields.
             self.update_fields()
     
-    def superpose_monstation_by_subcase(self):
-        if len(self.lb_dataset.curselection()) > 1:
-            # Init new dataset.
-            new_dataset = {}
-            for x in self.lb_dataset.curselection():
-                print( 'Working on {} ...'.format(self.datasets['desc'][x]))
-                for station in self.common_monstations:
-                    loads_string, subcase_string, t_string = self.get_loads_string(x, station)
-                    
-                    n = len(self.datasets['dataset'][x][station][t_string])
-                    if station not in new_dataset.keys():
-                        # create (empty) entries for new monstation
-                        new_dataset[station] = {'CD': self.datasets['dataset'][x][station]['CD'],
-                                                'CP': self.datasets['dataset'][x][station]['CP'],
-                                                'offset': self.datasets['dataset'][x][station]['offset'],
-                                                'subcase': self.datasets['dataset'][x][station]['subcase'],
-                                                'loads':[np.array([0.0,0.0,0.0,0.0,0.0,0.0,])]*n,
-                                                't':self.datasets['dataset'][x][station]['t'],
-                                                }
-                    # Superpose subcases. 
-                    for i_case in range(n): 
-                        subcase = self.datasets['dataset'][x][station][subcase_string][i_case]
-                        if subcase in new_dataset[station]['subcase']:
-                            pos = new_dataset[station]['subcase'].index(subcase)
-                            new_dataset[station][loads_string][pos] = new_dataset[station][loads_string][pos] + self.datasets['dataset'][x][station][loads_string][i_case]
-                        else:
-                            print( '- {}: found no match for subcases {}. Superposition not possible'.format(station, subcase ))                            
-                    
-            # Save into data structure.
-            self.datasets['ID'].append(self.datasets['n'])  
-            self.datasets['dataset'].append(new_dataset)
-            self.datasets['color'].append(self.colors[self.datasets['n']])
-            self.datasets['desc'].append('dataset '+ str(self.datasets['n']))
-            self.datasets['n'] += 1
-            # Update fields.
-            self.update_fields()
-    
     def load_monstation(self):
         # open file dialog
-        filename = filedialog.askopenfilename(**self.file_opt)
+        filename = QFileDialog.getOpenFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'], self.file_opt['filters'])[0]
         if filename != '':
             if '.pickle' in filename:
                 with open(filename, 'rb') as f:
@@ -326,10 +299,13 @@ class App:
             self.file_opt['initialdir'] = os.path.split(filename)[0]
     
     def save_monstation(self):
-        if self.lb_dataset.curselection() != () and len(self.lb_dataset.curselection()) == 1:
-            dataset_sel = self.datasets['dataset'][self.lb_dataset.curselection()[0]]
+        """
+        Saving an HDF5 file to HDF5 does not work (yet).
+        """
+        if self.lb_dataset.currentItem() is not None and len(self.lb_dataset.selectedItems()) == 1:
+            dataset_sel = self.datasets['dataset'][self.lb_dataset.currentRow()]
             # open file dialog
-            filename = filedialog.asksaveasfilename(**self.file_opt)
+            filename = QFileDialog.getSaveFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'], self.file_opt['filters'])[0]
             if filename != '' and '.pickle' in filename:
                 with open(filename, 'wb') as f:
                     io_functions.specific_functions.dump_pickle(dataset_sel, f)
@@ -337,35 +313,18 @@ class App:
                 io_functions.specific_functions.dump_hdf5(filename, dataset_sel)
 
     def update_fields(self):
-        self.lb_dataset.delete(0,tk.END)
-        for i in range(self.datasets['n']):
-            self.lb_dataset.insert('end', self.datasets['desc'][i])
+        self.lb_dataset.clear()
+        for desc in self.datasets['desc']:
+            item = QListWidgetItem(desc)
+            item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
+            self.lb_dataset.addItem(item)
 
         keys = [list(dataset) for dataset in self.datasets['dataset']]
         self.common_monstations = np.unique(keys)
-        self.lb_mon.delete(0,tk.END)
+        self.lb_mon.clear()
         for x in self.common_monstations:
-            self.lb_mon.insert('end', x)
-    
-    def close_app(self):  
-        self.root.quit()
-        self.root.destroy()
-
-class Compare():
-    def __init__(self):
-        pass
-    
-    def run(self):
-        root = tk.Tk()
-        root.title("Loads Compare")
-        root.resizable(True, True)
-                
-        style = ttk.Style()
-        style.theme_use('clam')
-        app = App(root)
-        root.mainloop()
-    
-    
+            self.lb_mon.addItem(QListWidgetItem(x))
+        
 if __name__ == "__main__":
     c = Compare()
     c.run()
