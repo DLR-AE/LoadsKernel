@@ -216,7 +216,7 @@ class Common():
                 Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
             elif self.hingeline == 'z':
                 Ujx2 = np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
-            wj += np.sum(self.model.aerogrid['N'][:] * np.cross(Ujx2[self.model.aerogrid['set_j'][:,(3,4,5)]], np.array([-1.,0.,0.])),axis=1)
+            wj += self.model.x2grid['eff'][i_x2] * np.sum(self.model.aerogrid['N'][:] * np.cross(Ujx2[self.model.aerogrid['set_j'][:,(3,4,5)]], np.array([-1.,0.,0.])),axis=1)
         Pk = self.calc_Pk(q_dyn, wj)
         return Pk, wj
     
