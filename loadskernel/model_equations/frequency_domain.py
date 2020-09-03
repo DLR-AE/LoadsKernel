@@ -381,13 +381,31 @@ class PKMethod(KMethod):
         eigenvalues = eigenvalue[idx_pos][idx_sort]
         eigenvectors = eigenvector[:, idx_pos][:, idx_sort]
         return eigenvalues, eigenvectors
-
+    
+    def calc_Qhh_1(self, Qjj_unsteady):
+        return self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1)))
+    
+    def calc_Qhh_2(self, Qjj_unsteady):
+        return self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2)))
+    
     def build_AIC_interpolators(self):
         # do some pre-multiplications first, then the interpolation
         Qhh_1 = []; Qhh_2 = []
-        for Qjj_unsteady in self.model.aero['Qjj_unsteady'][self.i_aero]:
-            Qhh_1.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1))) )
-            Qhh_2.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2))) )
+        if self.jcl.aero['method'] in ['freq_dom']:
+            for Qjj_unsteady in self.model.aero['Qjj_unsteady'][self.i_aero]:
+                Qhh_1.append(self.calc_Qhh_1(Qjj_unsteady))
+                Qhh_2.append(self.calc_Qhh_2(Qjj_unsteady))
+        elif self.jcl.aero['method'] in ['mona_unsteady']:
+            ABCD = self.model.aero['ABCD'][self.i_aero]
+            for k_red in self.model.aero['k_red']:
+                D = np.zeros((self.model.aerogrid['n'], self.model.aerogrid['n']), dtype='complex')
+                j = 1j # imaginary number
+                for i_pole, beta in zip(np.arange(0,self.model.aero['n_poles']), self.model.aero['betas']):                
+                    D += ABCD[3+i_pole,:,:] * j*k_red / (j*k_red + beta)
+                Qjj_unsteady = ABCD[0,:,:] + ABCD[1,:,:]*j*k_red + ABCD[2,:,:]*(j*k_red)**2 + D
+                Qhh_1.append(self.calc_Qhh_1(Qjj_unsteady))
+                Qhh_2.append(self.calc_Qhh_2(Qjj_unsteady))
+            
         self.Qhh_1_interp = interp1d( self.model.aero['k_red'], Qhh_1, kind='slinear', axis=0, fill_value="extrapolate")
         self.Qhh_2_interp = interp1d( self.model.aero['k_red'], Qhh_2, kind='slinear', axis=0, fill_value="extrapolate")
     
