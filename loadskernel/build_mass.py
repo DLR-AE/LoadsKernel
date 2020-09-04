@@ -169,7 +169,7 @@ class BuildMass:
         for x in x_dec:
             binstring = np.binary_repr(x, width=32)
             bitpos = binstring.index('1')+1 # +1 as python starts counting with 0
-            if bitpos==31: # 'S'
+            if bitpos in [31, 30, 25]: # 'S', 'O' and 'A'
                 self.pos_f.append(i)
             elif bitpos==22: # 'SB'
                 self.pos_s.append(i)
