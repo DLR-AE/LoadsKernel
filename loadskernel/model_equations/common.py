@@ -154,7 +154,12 @@ class Common():
         Pl[self.model.aerogrid['set_l'][:,0]] = fl[0,:]
         Pl[self.model.aerogrid['set_l'][:,1]] = fl[1,:]
         Pl[self.model.aerogrid['set_l'][:,2]] = fl[2,:]
-        Pk = self.model.PHIlk.T.dot(Pl)
+        if self.trimcase['Ma'] >= 1.0:
+            # supersonic aero with NP at 50% (ZONA51)
+            Pk = Pl
+        else:
+            # subsonic aero with NP at 25% (VLM/DLM)
+            Pk = self.model.PHIlk.T.dot(Pl)
         return Pk
 
     def rbm_nonlin(self, dUcg_dt, alpha, Vtas):
