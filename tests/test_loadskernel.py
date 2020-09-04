@@ -84,13 +84,6 @@ class TestDiscus2c(HelperFunctions):
             reference_lines = f.readlines()
         assert self.compare_lists(lines, reference_lines), "crit_trimcases do NOT match reference"
          
-        logging.info('Comparing nodalloads with reference')
-        with open(_initTestDir + 'nodalloads_' + self.job_name + '.bdf_Pg', 'r') as f:
-            lines = f.readlines()
-        with open(self.path_reference + 'nodalloads_' + self.job_name + '.bdf_Pg', 'r') as f:
-            reference_lines = f.readlines()
-        assert self.compare_lists(lines, reference_lines), "nodalloads do NOT match reference"
-         
         logging.info('Comparing subcases with reference')
         with open(_initTestDir + 'nodalloads_' + self.job_name + '.bdf_subcases', 'r') as f:
             lines = f.readlines()
@@ -112,22 +105,6 @@ class TestAllegraTimedom(TestDiscus2c):
     job_name = 'jcl_ALLEGRA_timedom'
     path_input = '/work/voss_ar/loads-kernel-examples/Allegra/JCLs/'
     path_reference='/work/voss_ar/loads-kernel-examples/Allegra/reference_output/'
-        
-    def test_postprocessing_results(self, _initTestDir):     
-        # do comparisons
-        logging.info('Comparing crit_trimcases with reference')
-        with open(_initTestDir + 'crit_trimcases_' + self.job_name + '.csv', 'r') as f:
-            lines = f.readlines()
-        with open(self.path_reference + 'crit_trimcases_' + self.job_name + '.csv', 'r') as f:
-            reference_lines = f.readlines()
-        assert self.compare_lists(lines, reference_lines), "crit_trimcases do NOT match reference"
-
-        logging.info('Comparing subcases with reference')
-        with open(_initTestDir + 'nodalloads_' + self.job_name + '.bdf_subcases', 'r') as f:
-            lines = f.readlines()
-        with open(self.path_reference + 'nodalloads_' + self.job_name + '.bdf_subcases', 'r') as f:
-            reference_lines = f.readlines()
-        assert self.compare_lists(lines, reference_lines), "subcases do NOT match reference"
         
 class TestAllegraFreqdom(TestAllegraTimedom):
     job_name = 'jcl_ALLEGRA_freqdom'
