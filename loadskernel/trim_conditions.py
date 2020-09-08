@@ -106,10 +106,12 @@ class TrimConditions:
             self.states = np.vstack((self.states ,  np.array(['dUf_dt'+str(i_mode), 'fix', 0.0], dtype=object)))
 
         self.inputs = np.array([
-            ['command_xi',   'free', 0.0,],  
-            ['command_eta',  'free',  0.0,], 
-            ['command_zeta', 'free',  0.0,],
-            ['thrust',  'fix', 0.0]
+            ['command_xi',   'free',    0.0],  
+            ['command_eta',  'free',    0.0], 
+            ['command_zeta', 'free',    0.0],
+            ['thrust',       'fix',     0.0], 
+            ['stabilizer',   'fix',     0.0],
+            ['flap_setting', 'fix',     0.0],
             ], dtype=object)
         
         # left hand side
@@ -134,10 +136,12 @@ class TrimConditions:
             self.state_derivatives = np.vstack((self.state_derivatives ,  np.array(['d2Uf_d2t'+str(i_mode), 'target', 0.0], dtype=object)))
         
         self.input_derivatives = np.array([
-            ['dcommand_xi',    'fix',  0.0,],
-            ['dcommand_eta',   'fix',  0.0,],
-            ['dcommand_zeta',  'fix',  0.0,],
-            ['dthrust',        'fix',  0.0,],
+            ['dcommand_xi',    'fix',  0.0],
+            ['dcommand_eta',   'fix',  0.0],
+            ['dcommand_zeta',  'fix',  0.0],
+            ['dthrust',        'fix',  0.0],
+            ['dstabilizer',    'fix',  0.0],
+            ['dflap_setting',  'fix',  0.0],
             ], dtype=object)
 
         self.outputs = np.array([

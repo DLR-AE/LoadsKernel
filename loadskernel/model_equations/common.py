@@ -769,7 +769,7 @@ class Common():
     
     def get_Ux2(self, X):
         # Steuerflaechenausschlaege vom efcs holen
-        Ux2 = self.efcs.cs_mapping(X[np.where(self.trimcond_X[:,0]=='command_xi')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_eta')[0][0]], X[np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])
+        Ux2 = self.efcs.cs_mapping(X[self.trim.idx_inputs])
         return Ux2
     
     def rigid_EoM(self, dUcg_dt, Pb, g_cg, modus):
