@@ -84,8 +84,10 @@ class AuxiliaryOutput:
             trimresult['command_eta [deg]']  = response['X'][13+2*n_modes]/np.pi*180.0
             trimresult['command_zeta [deg]'] = response['X'][14+2*n_modes]/np.pi*180.0
             trimresult['thrust per engine [N]'] = response['X'][15+2*n_modes]
-            trimresult['Nz'] = response['Y'][12+2*n_modes+4]
-            trimresult['Vtas'] = response['Y'][12+2*n_modes+5]
+            trimresult['stabilizer [deg]'] = response['X'][16+2*n_modes]/np.pi*180.0
+            trimresult['flap setting [deg]'] = response['X'][17+2*n_modes]/np.pi*180.0
+            trimresult['Nz'] = response['Y'][18+2*n_modes]
+            trimresult['Vtas'] = response['Y'][19+2*n_modes]
             trimresult['q_dyn'] = response['q_dyn'][0]
             trimresult['alpha [deg]'] = response['alpha'][0]/np.pi*180.0
             trimresult['beta [deg]'] = response['beta'][0]/np.pi*180.0
