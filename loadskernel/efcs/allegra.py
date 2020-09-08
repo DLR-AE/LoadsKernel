@@ -16,7 +16,10 @@ class Efcs:
         self.alpha_lower = -4.0/180*np.pi
         self.alpha_upper = 6.0/180*np.pi
                 
-    def cs_mapping(self, command_xi, command_eta, command_zeta):
+    def cs_mapping(self, commands):
+        
+        command_eta = commands[1]
+        command_zeta = commands[2]
 
         # Ausgangsposition
         delta_ELEV1 = self.Ux2_0[0]
