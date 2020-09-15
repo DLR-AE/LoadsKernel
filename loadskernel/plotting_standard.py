@@ -64,7 +64,7 @@ class StandardPlots():
             self.f_scale = 0.1 # vectors
             self.p_scale = 0.05 # points
         # FLEXOP
-        elif self.jcl.general['aircraft'] in ['FLEXOP', 'fs35', 'Openclass']:
+        elif self.jcl.general['aircraft'] in ['FLEXOP', 'fs35', 'Openclass', 'D150']:
             self.potatos_fz_mx = ['MON1']
             self.potatos_mx_my = ['MON1']
             self.potatos_fz_my = ['MON1']

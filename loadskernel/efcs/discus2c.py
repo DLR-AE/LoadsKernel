@@ -73,7 +73,11 @@ class Efcs:
         dcommand = self.k * (self.sollwerte - ist_werte)
         return dcommand
 
-    def cs_mapping(self, command_xi, command_eta, command_zeta):
+    def cs_mapping(self, commands):
+        
+        command_xi = commands[0] 
+        command_eta = commands[1]
+        command_zeta = commands[2]
 
         # Ausgangsposition
         delta_AIL_Rin = self.Ux2_0[0]

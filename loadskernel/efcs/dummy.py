@@ -11,5 +11,14 @@ class Efcs:
         self.keys = ['dummy']
         self.Ux2 = np.array([0.0])
                 
-    def cs_mapping(self, command_xi, command_eta, command_zeta):
+    def cs_mapping(self, commands):
+        """
+        Do nothing in particular, this is just a dummy EFCS.
+        command_xi = commands[0] 
+        command_eta = commands[1]
+        command_zeta = commands[2]
+        ...
+        """
+        
+        
         return self.Ux2
