@@ -14,7 +14,11 @@ class Efcs:
         self.keys = ['RUDD1', 'RUDD2', 'ELEV1', 'ELEV2', 'AIL-P-A1', 'AIL-P-A2', 'AIL-P-B', 'AIL-S-A1', 'AIL-S-A2', 'AIL-S-B']
         self.Ux2_0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
                 
-    def cs_mapping(self, command_xi, command_eta, command_zeta):
+    def cs_mapping(self, commands):
+        
+        command_xi = commands[0] 
+        command_eta = commands[1]
+        command_zeta = commands[2]
 
         # Ausgangsposition
         dRUDD1  = self.Ux2_0[0]
