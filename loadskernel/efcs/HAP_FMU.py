@@ -17,7 +17,7 @@ class Efcs(HAP.Efcs):
         # Load the FMU
         # log_levels: Warnings=3, All=7, Nothing=0
         self.fmi = FMUModelCS2(filename_fmu, log_level=3)
-        logging.info('init FMU {}, Version {}, {}'.format(self.fmi.get_name(), self.fmi.get_model_version().decode("utf-8") , self.fmi.get_generation_date_and_time().decode("utf-8") ))
+        logging.info('init FMU {}, Version {}, {}'.format(self.fmi.get_name(), self.fmi.get_model_version() , self.fmi.get_generation_date_and_time() ))
         modelvariables = self.fmi.get_model_variables() # all inputs, outputs and other modal parameters
         self.reference_values = {}
         logging.debug('Found the following model variables:')
