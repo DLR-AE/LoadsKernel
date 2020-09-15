@@ -17,16 +17,11 @@ class Efcs(HAP.Efcs):
         # Load the FMU
         # log_levels: Warnings=3, All=7, Nothing=0
         self.fmi = FMUModelCS2(filename_fmu, log_level=3)
-        logging.info('init FMU {}, Version {}, {}'.format(self.fmi.get_name(), self.fmi.get_model_version(), self.fmi.get_generation_date_and_time()))
-        inputs = self.fmi.get_input_list()
-        outputs = self.fmi.get_output_list()
+        logging.info('init FMU {}, Version {}, {}'.format(self.fmi.get_name(), self.fmi.get_model_version().decode("utf-8") , self.fmi.get_generation_date_and_time().decode("utf-8") ))
+        modelvariables = self.fmi.get_model_variables() # all inputs, outputs and other modal parameters
         self.reference_values = {}
-        logging.debug('Found the following inputs:')
-        for k, v in inputs.items():
-            logging.debug(' - '+k)
-            self.reference_values[k] = v.value_reference
-        logging.debug('Found the following outputs:')
-        for k, v in outputs.items():
+        logging.debug('Found the following model variables:')
+        for k, v in modelvariables.items():
             logging.debug(' - '+k)
             self.reference_values[k] = v.value_reference
             
@@ -60,24 +55,24 @@ class Efcs(HAP.Efcs):
         self.last_time = 0.0
         
         # set up actuator
-        self.eta_actuator    = PID.PID_ideal(Kp = 100.0, Ki = 0.0, Kd = 0.0, t=0.0)
-        self.zeta_actuator   = PID.PID_ideal(Kp = 0.5, Ki = 0.0, Kd = 0.0, t=0.0)
-        self.xi_actuator     = PID.PID_ideal(Kp = 100.0, Ki = 0.0, Kd = 0.0, t=0.0)
-        self.thrust_actuator = PID.PID_ideal(Kp = 0.1, Ki = 0.0, Kd = 0.0, t=0.0)
+        self.eta_actuator    = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
+        self.zeta_actuator   = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
+        self.xi_actuator     = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
+        self.thrust_actuator = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
         
         # set up limits
-        self.max_eta  = +20.0/180.0*np.pi
-        self.min_eta  = -10.0/180.0*np.pi
-        self.max_zeta = +15.0/180.0*np.pi
-        self.min_zeta = -15.0/180.0*np.pi
-        if tas2eas(setpoint_v, setpoint_h) > 15.0:
-            # limit xi to 1/3 for VNE
-            self.max_xi   = +5.0/180.0*np.pi
-            self.min_xi   = -5.0/180.0*np.pi
-        else:
-            self.max_xi   = +15.0/180.0*np.pi
-            self.min_xi   = -15.0/180.0*np.pi
-        # for all actuators except thrust
+#         self.max_eta  = +20.0/180.0*np.pi
+#         self.min_eta  = -10.0/180.0*np.pi
+#         self.max_zeta = +15.0/180.0*np.pi
+#         self.min_zeta = -15.0/180.0*np.pi
+#         if tas2eas(setpoint_v, setpoint_h) > 15.0:
+#             # limit xi to 1/3 for VNE
+#             self.max_xi   = +5.0/180.0*np.pi
+#             self.min_xi   = -5.0/180.0*np.pi
+#         else:
+#             self.max_xi   = +15.0/180.0*np.pi
+#             self.min_xi   = -15.0/180.0*np.pi
+#         # for all actuators except thrust
         self.max_actuator_speed = 3000.0/180.0*np.pi # 30 rad/s entspricht ca. 5 Hz, Wert von Christian Weiser, 01.07.2020
     
     def controller(self, t, feedback):
@@ -90,7 +85,7 @@ class Efcs(HAP.Efcs):
             self.fmi.set_real([self.reference_values['Sensors[2]']],[feedback['Vtas']])                             # Vtas
             self.fmi.set_real([self.reference_values['Sensors[3]']],[feedback['h']])                                # baro altitude [m]
             self.fmi.set_real([self.reference_values['Sensors[4]'], self.reference_values['Sensors[5]']],
-                              [feedback['alpha'],-feedback['beta']])                                                # alpha, beta [rad]
+                              [feedback['alpha'], feedback['beta']])                                                # alpha, beta [rad]
             self.fmi.set_real([self.reference_values['Sensors[6]'], self.reference_values['Sensors[7]'], self.reference_values['Sensors[8]']],
                               feedback['pqr'])                                                                      # pqr [rad/s]
             self.fmi.set_real([self.reference_values['Sensors[9]'], self.reference_values['Sensors[10]'], self.reference_values['Sensors[11]']],
@@ -106,9 +101,12 @@ class Efcs(HAP.Efcs):
                                                                                        self.reference_values['y_out[3]'], self.reference_values['y_out[4]'],
                                                                                        self.reference_values['y_out[5]']])       
         # Add the trim commands (unknown to the FMU), adjust sign conventions, apply limits.
-        command_xi   = self.apply_limit(-command_xi + self.command_0[0], self.max_xi, self.min_xi) 
-        command_eta  = self.apply_limit(-command_eta  + self.command_0[1], self.max_eta, self.min_eta)
-        command_zeta = self.apply_limit( command_zeta + self.command_0[2], self.max_zeta, self.min_zeta) 
+#         command_xi   = self.apply_limit( command_xi + self.command_0[0], self.max_xi, self.min_xi) 
+#         command_eta  = self.apply_limit(-command_eta  + self.command_0[1], self.max_eta, self.min_eta)
+#         command_zeta = self.apply_limit(-command_zeta + self.command_0[2], self.max_zeta, self.min_zeta) 
+        command_xi   =  command_xi   + self.command_0[0]
+        command_eta  = -command_eta  + self.command_0[1]
+        command_zeta = -command_zeta + self.command_0[2]
         # The FMU distinguishes left and right engine but there is (currently) only one thrust command in loads kernel.
         # For now, take a mean value for both engines.
         thrust_l, thrust_r = self.fmi.get_real([self.reference_values['y_out[3]'], self.reference_values['y_out[4]']])
