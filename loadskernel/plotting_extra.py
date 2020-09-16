@@ -94,7 +94,7 @@ class DetailedPlots(plotting_standard.StandardPlots):
         fig2, (ax21, ax22) = plt.subplots(nrows=2, ncols=1, sharex=True,)
         fig3, (ax31, ax32) = plt.subplots(nrows=2, ncols=1, sharex=True,)
         fig4, (ax41, ax42) = plt.subplots(nrows=2, ncols=1, sharex=True,)
-        fig5, (ax51, ax52) = plt.subplots(nrows=2, ncols=1, sharex=True,)
+        fig5, (ax51, ax52, ax53) = plt.subplots(nrows=3, ncols=1, sharex=True,)
         fig6, (ax61, ax62) = plt.subplots(nrows=2, ncols=1, sharex=True,)
         if hasattr(self.jcl, 'landinggear'):
             fig7, (ax71, ax72) = plt.subplots(nrows=2, ncols=1, sharex=True,)
@@ -146,6 +146,9 @@ class DetailedPlots(plotting_standard.StandardPlots):
             ax51.plot(response['t'], response['X'][:,12+2*n_modes+2]/np.pi*180.0, 'r-')
 
             ax52.plot(response['t'], response['X'][:,12+2*n_modes+3], 'k-')
+            
+            ax53.plot(response['t'], response['X'][:,12+2*n_modes+4], 'b-')
+            ax53.plot(response['t'], response['X'][:,12+2*n_modes+5], 'g-')
 
             ax61.plot(response['t'], response['Uf'], 'b-')
 
@@ -194,10 +197,13 @@ class DetailedPlots(plotting_standard.StandardPlots):
         ax51.set_ylabel('Inputs [deg]')
         ax51.grid(True)
         ax51.legend(['Xi', 'Eta', 'Zeta'])
-        ax52.set_xlabel('t [sec]')
         ax52.set_ylabel('Inputs [N]')
         ax52.grid(True)
         ax52.legend(['Thrust'])
+        ax53.set_xlabel('t [sec]')
+        ax53.set_ylabel('Inputs [deg]')
+        ax53.grid(True)
+        ax53.legend(['stabilizer', 'flap setting'])
         
         ax61.set_ylabel('Uf')
         ax61.grid(True)
