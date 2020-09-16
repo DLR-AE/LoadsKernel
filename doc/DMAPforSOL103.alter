@@ -26,7 +26,6 @@ METHOD=100
 ECHO=NONE
 $
 BEGIN BULK
-PARAM    BAILOUT -1
 PARAM    GRDPNT   0
 $------><------><------><------><------><------><------><------><------>
 EIGRL   100                          100
