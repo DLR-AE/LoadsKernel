@@ -61,12 +61,12 @@ class Trim(TrimConditions):
             return jac
         
         logging.info('Calculating jacobian for ' + str(len(X0)) + ' variables...')
-        jac = approx_jacobian(X0=X0, func=equations.equations, epsilon=0.001, dt=1.0) # epsilon sollte klein sein, dt sollte 1.0s sein
-        X = self.response['X']
-        Y = self.response['Y']
-        self.response.clear()
-        self.response['X'] = X
-        self.response['Y'] = Y
+        jac = approx_jacobian(X0=X0, func=equations.equations, epsilon=0.01, dt=1.0) # epsilon sollte klein sein, dt sollte 1.0s sein
+#         X = self.response['X']
+#         Y = self.response['Y']
+#         self.response.clear()
+#         self.response['X'] = X
+#         self.response['Y'] = Y
         self.response['X0'] = X0 # Linearisierungspunkt
         self.response['Y0'] = equations.equations(X0, t=0.0, modus='trim')
         self.response['jac'] = jac
@@ -79,10 +79,12 @@ class Trim(TrimConditions):
         # Y = [drbm, dflex, dcommand_cs, dlag_states, outputs]
         # [Y] = [A B] * [X]
         #       [C D]   
+        idx_9dof = self.idx_states[3:12]
         idx_A = self.idx_states+self.idx_lag_states
         idx_B = self.idx_inputs
         idx_C = self.idx_outputs
-        self.response['A'] = jac[idx_A,:][:,idx_A] # aircraft itself
+        self.response['9DOF'] = jac[idx_9dof,:][:,idx_9dof] # rigid body motion only
+        self.response['A'] = jac[idx_A,:][:,idx_A] # aircraft itself, including elastic states
         self.response['B'] = jac[idx_A,:][:,idx_B] # reaction of aircraft on external excitation
         self.response['C'] = jac[idx_C,:][:,idx_A] # sensors
         self.response['D'] = jac[idx_C,:][:,idx_B] # reaction of sensors on external excitation
