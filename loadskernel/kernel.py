@@ -353,7 +353,7 @@ class Kernel():
             trim_i = trim.Trim(model, self.jcl, self.jcl.trimcase[i], self.jcl.simcase[i])
             trim_i.set_trimcond()
             trim_i.exec_trim()
-            #trim_i.calc_jacobian()
+            trim_i.calc_jacobian()
             trim_i.calc_derivatives()
             trim_i.response['i'] = i
             logging.info('--> Saving response(s).')
@@ -419,19 +419,13 @@ class Kernel():
 #             plt.make_animation()
 #             #plt.make_movie(self.path_output, speedup_factor=1.0)
 
-#         logging.info( '--> statespace analysis.')
-#         import statespace_analysis
-#         statespace_analysis = statespace_analysis.analysis(self.jcl, model, responses)
-#         #statespace_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
-#         #statespace_analysis.plot_state_space_matrices()
-#         statespace_analysis.analyse_eigenvalues(self.path_output + 'analyse_of_eigenvalues_' + self.job_name + '.pdf')
            
         return
 
     def run_test(self):
         # place code to test here
-#         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-#         responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
 #         responses_hdf5 = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
 #         with open(self.path_output + 'statespacemodel_' + self.job_name + '.pickle', 'wb') as fid:
 #             io_functions.specific_functions.dump_pickle(responses, fid)
@@ -446,6 +440,13 @@ class Kernel():
 #         from scripts import plot_lift_distribution
 #         plot = plot_lift_distribution.Liftdistribution(self.jcl, model, responses)
 #         plot.plot_aero_spanwise()
+
+        logging.info( '--> statespace analysis.')
+        from loadskernel import statespace_analysis
+        statespace_analysis = statespace_analysis.analysis(self.jcl, model, responses)
+        #statespace_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
+        #statespace_analysis.plot_state_space_matrices()
+        statespace_analysis.analyse_eigenvalues(self.path_output + 'analyse_of_eigenvalues_' + self.job_name + '.pdf')
 
         return
 
