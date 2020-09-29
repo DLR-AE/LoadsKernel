@@ -3,6 +3,7 @@ import logging, copy
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 import itertools
 from scipy.optimize import curve_fit
 from scipy import signal
@@ -204,9 +205,13 @@ class analysis:
         #eigenvalue, eigenvector = linalg.eigs(response['A'], k=modes.size * 2, which='LI') 
         #idx_pos = np.where(eigenvalue.imag / 2.0 / np.pi >= 0.1)[0]  # nur oszillierende Eigenbewegungen
         # calculate all eigenvalues
+#         eigenvalue, eigenvector = eig(response['9DOF'])
+#         label_states = ['phi', 'theta', 'psi', 'u', 'v', 'w', 'p', 'q', 'r']
         eigenvalue, eigenvector = eig(response['A'])
+        label_states = [str(x) for x in response['states']]
         bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
-        idx_pos = np.where(np.logical_and(eigenvalue.__abs__() / bandbreite >= 0.001, eigenvalue.imag >= 0.0))[0]  # nur oszillierende Eigenbewegungen
+        idx_pos = np.where(np.logical_and(eigenvalue.__abs__() / bandbreite >= 1e-6, eigenvalue.imag >= 0.0))[0]  # nur oszillierende Eigenbewegungen
+#         idx_pos = np.arange(len(eigenvalue))
         n_eigenvalues = idx_pos.__len__()
         idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
         eigenvalue = eigenvalue[idx_pos][idx_sort]
@@ -251,10 +256,12 @@ class analysis:
             logging.info(response['freqs'])
 
         # set up plotting and logging
+        eigenvalues = np.array([self.responses[i]['eigenvalues'] for i in range(len(self.responses))])
+        eigenvectors = np.array([self.responses[i]['eigenvectors'] for i in range(len(self.responses))])
         freqs = np.array([self.responses[i]['freqs'] for i in range(len(self.responses))])
         damping = np.array([self.responses[i]['damping'] for i in range(len(self.responses))])
         Ma = np.array([trimcase['Ma'] for trimcase in self.jcl.trimcase])
-        colors = itertools.cycle(( plt.cm.jet(np.linspace(0, 1, 11)) ))
+        colors = itertools.cycle(( plt.cm.tab20c(np.linspace(0, 1, 20)) ))
         markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
         desc = [str(mode) for mode in range(n_eigenvalues)]
         
@@ -266,6 +273,11 @@ class analysis:
         ax2 = fig2.add_axes([0.15, 0.15, 0.5, 0.75]) # List is [left, bottom, width, height]
         fig3 = plt.figure()
         ax3 = fig3.add_axes([0.15, 0.15, 0.5, 0.75]) # List is [left, bottom, width, height]
+        fig4 = plt.figure()
+        ax4 = fig4.add_axes([0.15, 0.15, 0.5, 0.75]) # List is [left, bottom, width, height]
+        
+        fig5, ax5 = plt.subplots()
+        im = ax5.imshow(eigenvectors[0].__abs__(), cmap='hot_r', aspect='auto', origin='upper', vmin=0.0, vmax=1.0)
         
         for j in range(freqs.shape[1]): 
             marker = next(markers)
@@ -273,6 +285,8 @@ class analysis:
             ax1.plot(Ma, freqs[:, j], marker=marker, c=color, linewidth=2.0, label=desc[j])
             ax2.plot(Ma, damping[:, j], marker=marker, c=color, linewidth=2.0, label=desc[j])
             ax3.plot(damping[:, j], freqs[:, j], marker=marker, c=color, linewidth=2.0, label=desc[j])
+            ax4.plot(eigenvalues[:, j].real, eigenvalues[:, j].imag, marker=marker, c=color, linewidth=2.0, label=desc[j])
+            ax5.plot(j,label_states.__len__(), marker=marker, c=color,)
         
         ax1.set_xlabel('Ma')
         ax1.set_ylabel('f [Hz]')
@@ -283,17 +297,34 @@ class analysis:
         ax3.set_xlabel('Damping ratio zeta')
         ax3.set_ylabel('f [Hz]')
         
-        for ax in [ax1, ax2, ax3]:
+        ax4.set_xlabel('real')
+        ax4.set_ylabel('imag')
+        
+        for ax in [ax1, ax2, ax3, ax4]:
             yax = ax.get_yaxis()
             yax.set_label_coords(x=-0.18, y=0.5)
             ax.grid(b=True, which='both', axis='both')
             #ax3.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
             #ax3.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             lgd = ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2, fontsize=10)
+
+        ax5.yaxis.set_ticks(np.arange(0,label_states.__len__(),1))
+        ax5.yaxis.set_ticklabels(label_states)
+        ax5.yaxis.set_tick_params(rotation=0)
+        ax5.xaxis.set_ticks(np.arange(0,n_eigenvalues,1))
+        ax5.xaxis.set_ticklabels(np.arange(0,n_eigenvalues,1))
+        
+        ax_divider = make_axes_locatable(ax5)
+        cax = ax_divider.append_axes("top", size="7%", pad="1%")
+        cb = fig5.colorbar(im, cax=cax, orientation="horizontal")
+        # change tick position to top. Tick position defaults to bottom and overlaps the image.
+        cax.xaxis.set_ticks_position("top")
         
         pp.savefig(fig1)
         pp.savefig(fig2)
         pp.savefig(fig3)
+        pp.savefig(fig4)
+        pp.savefig(fig5)
         pp.close()
         
         plt.show()
