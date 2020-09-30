@@ -100,9 +100,9 @@ class TrimConditions:
             ['q',        'fix',    self.trimcase['q'],],
             ['r',        'fix',    self.trimcase['r'],],
             ], dtype=object)
-        for i_mode in range(n_modes):
+        for i_mode in range(1, n_modes+1):
             self.states = np.vstack((self.states ,  np.array(['Uf'+str(i_mode), 'free', 0.0], dtype=object)))
-        for i_mode in range(n_modes):
+        for i_mode in range(1, n_modes+1):
             self.states = np.vstack((self.states ,  np.array(['dUf_dt'+str(i_mode), 'fix', 0.0], dtype=object)))
 
         self.inputs = np.array([
@@ -130,9 +130,9 @@ class TrimConditions:
             ['dr',       'target', self.trimcase['rdot'],],
             ], dtype=object)
             
-        for i_mode in range(n_modes):
+        for i_mode in range(1, n_modes+1):
             self.state_derivatives = np.vstack((self.state_derivatives ,  np.array(['dUf_dt'+str(i_mode), 'fix', 0.0], dtype=object)))
-        for i_mode in range(n_modes):
+        for i_mode in range(1, n_modes+1):
             self.state_derivatives = np.vstack((self.state_derivatives ,  np.array(['d2Uf_d2t'+str(i_mode), 'target', 0.0], dtype=object)))
         
         self.input_derivatives = np.array([

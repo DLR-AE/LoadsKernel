@@ -120,7 +120,7 @@ class Common():
         # convergence parameter for iterative evaluation
         self.defo_old = 0.0    
         
-        if self.jcl.aero['method'] in ['mona_unsteady', 'freq_dom']:
+        if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'freq_dom']:
             self.Djf_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat'].dot(self.model.mass['PHIjf'][self.i_mass]))
             self.Djf_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjf'][self.i_mass])* -1.0
             self.Djh_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat'].dot(self.model.mass['PHIjh'][self.i_mass]))
