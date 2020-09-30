@@ -20,7 +20,7 @@ class Kernel():
 
     def __init__(self,
                  job_name, pre=False, main=False, post=False,
-                 main_debug=False, test=False, statespace=False,
+                 debug=False, test=False,
                  path_input='../input/',
                  path_output='../output/',
                  jcl=None,
@@ -32,11 +32,10 @@ class Kernel():
         self.main = main                # True/False
         self.post = post                # True/False
         # debug options
-        self.main_debug = main_debug    # True/False
+        self.debug = debug              # True/False
         self.restart = restart          # True/False
         # advanced options
         self.test = test                # True/False
-        self.statespace = statespace    # True/False
         # job control options
         self.job_name = job_name        # string
         self.path_input = path_input    # path
@@ -68,8 +67,6 @@ class Kernel():
             self.run_main_parallel()
         if self.main and not self.parallel:
             self.run_main_sequential()
-        if self.statespace:
-            self.run_statespace()
         if self.post:
             self.run_post()
         if self.test:
@@ -149,13 +146,15 @@ class Kernel():
         logging.info('========================================')
         trim_i = trim.Trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
         trim_i.set_trimcond()
-        # trim_i.calc_rigid_derivatives()
         trim_i.exec_trim()
         # trim_i.iterative_trim()
         if trim_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
             trim_i.exec_sim()
         elif trim_i.successful and 'flutter' in jcl.simcase[i] and jcl.simcase[i]['flutter']:
             trim_i.exec_flutter()
+        elif trim_i.successful and 'derivatives' in jcl.simcase[i] and jcl.simcase[i]['derivatives']:
+            trim_i.calc_jacobian()
+            trim_i.calc_derivatives()
         response = trim_i.response
         response['i'] = i
         response['successful'] = trim_i.successful
@@ -219,6 +218,11 @@ class Kernel():
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def run_main_parallel(self):
+        """
+        This function organizes the parallel computation of multiple load cases on one machine.
+        Parallelization is achieved using a worker/listener concept. 
+        The worker and the listener communicate via the output queue.
+        """
         logging.info('--> Starting Main in parallel mode for %d trimcase(s).' % len(self.jcl.trimcase))
         t_start = time.time()
         manager = multiprocessing.Manager()
@@ -320,6 +324,9 @@ class Kernel():
         return  
 
     def run_main_single(self, i):
+        """
+        This function calculates one single load case, e.g. using CFD with mpi hosts on a cluster.
+        """
         logging.info('--> Starting Main in single mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
@@ -334,33 +341,6 @@ class Kernel():
         path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
         with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb')  as f:
             io_functions.specific_functions.dump_pickle(response, f)
-        logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
-
-    def run_statespace(self):
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-
-        logging.info('--> Starting State Space Matrix generation for %d trimcase(s).' % len(self.jcl.trimcase))
-        t_start = time.time()
-        f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
-        for i in range(len(self.jcl.trimcase)):
-            logging.info('')
-            logging.info('========================================')
-            logging.info('trimcase: ' + self.jcl.trimcase[i]['desc'])
-            logging.info('subcase: ' + str(self.jcl.trimcase[i]['subcase']))
-            logging.info('(case ' + str(i + 1) + ' of ' + str(len(self.jcl.trimcase)) + ')')
-            logging.info('========================================')
-            
-            trim_i = trim.Trim(model, self.jcl, self.jcl.trimcase[i], self.jcl.simcase[i])
-            trim_i.set_trimcond()
-            trim_i.exec_trim()
-            trim_i.calc_jacobian()
-            trim_i.calc_derivatives()
-            trim_i.response['i'] = i
-            logging.info('--> Saving response(s).')
-            io_functions.specific_functions.dump_pickle(trim_i.response, f)
-
-            del trim_i
-        f.close()  # close response
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def run_post(self):
@@ -505,8 +485,12 @@ class Kernel():
             console.set_name('logfile')
             formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
             logfile.setFormatter(formatter)
+            # set logging level
+            if self.debug:
+                logger.setLevel(logging.DEBUG)
+            else:                
+                logger.setLevel(logging.INFO) 
             # add the handler(s) to the root logger
-            logger.setLevel(logging.INFO) # set individual logging levels with logfile.setLevel(logging.INFO)
             logger.addHandler(console)
             logger.addHandler(logfile)
 
