@@ -69,7 +69,7 @@ def load_hdf5_responses(job_name, path_output):
     logging.info( '--> Opening response(s).'  )
     filename = path_output + 'response_' + job_name + '.hdf5'
     fid = load_hdf5(filename)   
-    response = [fid[key] for key in sorted(fid.keys()) if fid[key]['successful']]
+    response = [fid[key] for key in sorted(fid.keys(), key=int) if fid[key]['successful']]
 
     return response 
     
