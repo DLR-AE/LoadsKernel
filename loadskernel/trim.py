@@ -58,7 +58,7 @@ class Trim(TrimConditions):
 
         # flight condition
         X0 = self.response['X']
-        # X0 = copy.deepcopy(self.trimcond_X)
+        #X0 = np.array(self.trimcond_X[:,2], dtype='float')
         logging.info('Calculating jacobian for ' + str(len(X0)) + ' variables...')
         jac = self.approx_jacobian(X0=X0, func=equations.equations, epsilon=0.01, dt=1.0) # epsilon sollte klein sein, dt sollte 1.0s sein
         self.response['X0'] = X0 # Linearisierungspunkt
