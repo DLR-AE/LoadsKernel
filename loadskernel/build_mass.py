@@ -295,8 +295,8 @@ class BuildMass:
     
     def calc_rbm_modes(self):
         eigenvalues = np.zeros(5)
-        rules = spline_rules.rules_point(self.cggrid, self.strcgrid)
-        PHIstrc_cg = spline_functions.spline_rb(self.cggrid, '', self.strcgrid, '', rules, self.coord)
+        rules = spline_rules.rules_point(self.cggrid_norm, self.strcgrid)
+        PHIstrc_cg = spline_functions.spline_rb(self.cggrid_norm, '', self.strcgrid, '', rules, self.coord)
         return eigenvalues, PHIstrc_cg[:,1:]
     
     def calc_damping(self, eigenvalues):
