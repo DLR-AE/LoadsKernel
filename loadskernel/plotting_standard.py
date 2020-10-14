@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Oct 27 11:26:27 2015
 
-@author: voss_ar
-"""
 import numpy as np
 from  matplotlib import pyplot as plt
 plt.rcParams.update({'font.size': 16,
                      'svg.fonttype':'none',
                      'savefig.dpi': 300,})
 from matplotlib.backends.backend_pdf import PdfPages
+from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 from scipy.spatial import ConvexHull
 import logging, itertools, os
 from loadskernel.units import tas2eas
@@ -479,6 +476,8 @@ class StandardPlots():
 
     def plot_fluttercurves(self):
         logging.info('start plotting flutter curves...')
+        fig, ax = plt.subplots(2, sharex=True, figsize=(8,10))
+        ax_vtas = ax[1].twiny()
         for response in self.responses:
             trimcase   = self.jcl.trimcase[response['i'][()]]
             i_mass     = self.model.mass['key'].index(trimcase['mass'])
@@ -496,7 +495,7 @@ class StandardPlots():
             colors = itertools.cycle(( plt.cm.tab20c(np.linspace(0, 1, 20)) ))
             markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
             
-            fig, ax = plt.subplots(2, sharex=True )
+            ax[0].cla(); ax[1].cla(); ax_vtas.cla()
             for j in range(response['freqs'].shape[1]): 
                 marker = next(markers)
                 color = next(colors)
@@ -521,7 +520,7 @@ class StandardPlots():
             ax[1].set_xlabel('$V_{eas} [m/s]$')
             
             # additional axis for Vtas
-            ax_vtas = ax[1].twiny()
+            
             ax_vtas.set_position([0.15, 0.15, 0.75, 0.35])
             ax_vtas.xaxis.set_ticks_position('bottom') # set the position of the second x-axis to bottom
             ax_vtas.xaxis.set_label_position('bottom') # set the position of the second x-axis to bottom
@@ -531,4 +530,66 @@ class StandardPlots():
             ax_vtas.minorticks_on()
             ax_vtas.set_xlabel('$V_{tas} [m/s]$')
 
-        plt.show()
+            self.pp.savefig()
+        
+    def plot_eigenvalues(self):
+        logging.info('start plotting eigenvalues and -vectors...')
+        fig, ax = plt.subplots(1, 2, figsize=(16,9))
+        ax_divider = make_axes_locatable(ax[1])
+        ax_cbar = ax_divider.append_axes("top", size="4%", pad="1%")
+        for response in self.responses:
+            trimcase   = self.jcl.trimcase[response['i'][()]]
+            i_mass     = self.model.mass['key'].index(trimcase['mass'])
+            i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
+            
+            for i in range(response['Vtas'].shape[0]): 
+                colors = itertools.cycle(( plt.cm.tab20c(np.linspace(0, 1, 20)) ))
+                markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
+                desc = [str(mode) for mode in range(response['eigenvalues'].shape[1])]
+                
+                ax[0].cla(); ax[1].cla(); ax_cbar.cla() # clear all axes for next plot
+                # plot eigenvector
+                im_eig = ax[1].imshow(response['eigenvectors'][i].__abs__(), cmap='hot_r', aspect='auto', origin='upper', vmin=0.0, vmax=1.0)
+                # add colorbar to plot
+                fig.colorbar(im_eig, cax=ax_cbar, orientation="horizontal")
+                # plot eigenvalues
+                for j in range(response['eigenvalues'].shape[1]): 
+                    marker = next(markers)
+                    color = next(colors)
+                    ax[0].plot(response['eigenvalues'][i,j].real, response['eigenvalues'][i,j].imag,   marker=marker, markersize=8.0, color=color, label=desc[j])
+                    ax[1].plot(j,response['states'].__len__(), marker=marker, markersize=8.0, c=color)
+                
+                # make plots nice
+                ax[0].set_position([0.15, 0.1, 0.30, 0.8])
+                
+                ax[0].title.set_text('{}, Veas={:.2f} m/s, Vtas={:.2f} m/s'.format(trimcase['desc'],
+                                                                  tas2eas(response['Vtas'][i,0], self.model.atmo['h'][i_atmo]), 
+                                                                  response['Vtas'][i,0]) )
+                ax[0].title.set_fontsize(16)
+                ax[0].set_xlabel('real')
+                ax[0].set_ylabel('imag')
+                ax[0].get_yaxis().set_label_coords(x=-0.13, y=0.5)
+                ax[0].grid(b=True, which='major', axis='both')
+                ax[0].minorticks_on()
+                ax[0].legend(loc='upper right', fontsize=10)
+                
+                ax[1].set_position([0.60, 0.1, 0.30, 0.8])
+                ax[1].yaxis.set_ticks(np.arange(0,response['states'].__len__(),1))
+                ax[1].yaxis.set_ticklabels(response['states'], fontsize=10)
+                ax[1].yaxis.set_tick_params(rotation=0)
+                ax[1].xaxis.set_ticks(np.arange(0,response['eigenvalues'].shape[1],1))
+                ax[1].xaxis.set_ticklabels(np.arange(0,response['eigenvalues'].shape[1],1), fontsize=10)
+                ax[1].grid(b=True, which='major', axis='both')
+                
+                
+                ax_cbar.xaxis.set_ticks_position("top") # change tick position to top. Tick position defaults to bottom and overlaps the image.
+                
+
+                self.pp.savefig()
+    
+    def plot_stability(self, filename_pdf):
+        self.pp = PdfPages(filename_pdf)
+        self.plot_fluttercurves()
+        self.plot_eigenvalues()
+        self.pp.close()
+        logging.info('plots saved as ' + filename_pdf)

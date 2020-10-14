@@ -57,59 +57,7 @@ class StateSpaceAnalysis(PKMethod):
                     'states': states,
                    }
         return response 
-        
-#         colors = itertools.cycle(( plt.cm.tab20c(np.linspace(0, 1, 20)) ))
-#         markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
-#         desc = [str(mode) for mode in range(n_eigenvalues)]
-#         label_states = ['y', 'z', 'phi', 'theta', 'psi', 'Uf1', 'Uf2', 'Uf3', 'Uf4',
-#                         'v', 'w', 'p', 'q', 'r', 'dUf1', 'dUf2','dUf3', 'dUf4']
-#         
-# 
-#         fig4 = plt.figure()
-#         ax4 = fig4.add_axes([0.15, 0.15, 0.5, 0.75]) # List is [left, bottom, width, height]
-#         
-#         fig5, ax5 = plt.subplots()
-#         im = ax5.imshow(eigenvector.__abs__(), cmap='hot_r', aspect='auto', origin='upper', vmin=0.0, vmax=1.0)
-#         
-#         for j in range(n_eigenvalues): 
-#             marker = next(markers)
-#             color = next(colors)
-#             ax4.plot(eigenvalue[j].real, eigenvalue[j].imag, marker=marker, c=color, linewidth=2.0, label=desc[j])
-#             ax5.plot(j,label_states.__len__(), marker=marker, c=color,)
-#         
-#         ax4.set_xlabel('real')
-#         ax4.set_ylabel('imag')
-#         
-#         for ax in [ax4]:
-#             yax = ax.get_yaxis()
-#             yax.set_label_coords(x=-0.18, y=0.5)
-#             ax.grid(b=True, which='both', axis='both')
-#             #ax3.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
-#             #ax3.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-#             lgd = ax.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0., ncol=2, fontsize=10)
-# 
-#         ax5.yaxis.set_ticks(np.arange(0,label_states.__len__(),1))
-#         ax5.yaxis.set_ticklabels(label_states)
-#         ax5.yaxis.set_tick_params(rotation=0)
-#         ax5.xaxis.set_ticks(np.arange(0,n_eigenvalues,1))
-#         ax5.xaxis.set_ticklabels(np.arange(0,n_eigenvalues,1))
-#         
-#         ax_divider = make_axes_locatable(ax5)
-#         cax = ax_divider.append_axes("top", size="7%", pad="1%")
-#         cb = fig5.colorbar(im, cax=cax, orientation="horizontal")
-#         # change tick position to top. Tick position defaults to bottom and overlaps the image.
-#         cax.xaxis.set_ticks_position("top")
-#         plt.show()
-#         
-#         
-#         response = {'freqs':np.array(freqs).T,
-#                     'damping':np.array(damping).T,
-#                     'Vtas':np.array(Vtas).T,
-#                    }
-#         return response    
-            
 
-    
     def calc_Qhh_1(self, Qjj):
         return self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj).dot(self.Djh_1)))
     

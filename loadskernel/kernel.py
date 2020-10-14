@@ -378,20 +378,20 @@ class Kernel():
             # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
-#         logging.info( '--> Drawing some more detailed plots.')  
-#         responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
-#         
-#         plt = plotting_extra.DetailedPlots(self.jcl, model)
-#         plt.add_responses(responses)
-#         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-#             # nur sim
-#             plt.plot_time_data()
-#         elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
-#             plt.plot_fluttercurves()
-#         else:
-#             # nur trim
-#             #plt.plot_pressure_distribution()
-#             plt.plot_forces_deformation_interactive()
+        logging.info( '--> Drawing some more detailed plots.')  
+        responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
+         
+        plt = plotting_extra.DetailedPlots(self.jcl, model)
+        plt.add_responses(responses)
+        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+            # nur sim
+            plt.plot_time_data()
+        elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
+            plt.plot_stability(self.path_output + 'stability_' + self.job_name + '.pdf')
+        else:
+            # nur trim
+            #plt.plot_pressure_distribution()
+            plt.plot_forces_deformation_interactive()
 #          
 #         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
 #             plt = plotting_extra.Animations(self.jcl, model)
