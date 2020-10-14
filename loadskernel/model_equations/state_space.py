@@ -17,14 +17,6 @@ class StateSpaceAnalysis(PKMethod):
         
         logging.info('building systems') 
         self.build_AICs()
-        states = ['y', 'z', 'phi', 'alpha', 'beta',]
-        for i_mode in range(1, self.n_modes_f+1):
-            states += ['Uf'+str(i_mode)]
-        states += ['v', 'w', 'p', 'q', 'r']
-        for i_mode in range(1, self.n_modes_f+1):
-            states += ['dUf_dt'+str(i_mode)]
-
-
         eigenvalue, eigenvector = linalg.eig(self.system(self.Vvec[0]))
         
         bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
@@ -54,7 +46,7 @@ class StateSpaceAnalysis(PKMethod):
                     'freqs':np.array(freqs),
                     'damping':np.array(damping),
                     'Vtas':np.array(Vtas),
-                    'states': states,
+                    'states': self.states,
                    }
         return response 
 
