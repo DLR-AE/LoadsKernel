@@ -539,8 +539,21 @@ class StandardPlots():
         ax_cbar = ax_divider.append_axes("top", size="4%", pad="1%")
         for response in self.responses:
             trimcase   = self.jcl.trimcase[response['i'][()]]
+            simcase    = self.jcl.simcase[response['i'][()]]
+            
+            # this kind of plot is only feasible for methods which iterate over Vtas, e.g. not the K- or KE-methods
+            if simcase['flutter_para']['method'] not in ['pk', 'statespace']:
+                logging.warning('skip plotting of eigenvalues and -vectors for {}'.format(trimcase['desc']))
+                break
+            
             i_mass     = self.model.mass['key'].index(trimcase['mass'])
             i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
+            
+             #Plot boundaries
+            rmax = np.ceil(response['eigenvalues'][:].real.max())
+            rmin = np.floor(response['eigenvalues'][:].real.min())
+            imax = np.ceil(response['eigenvalues'][:].imag.max())
+            imin = -0.5
             
             for i in range(response['Vtas'].shape[0]): 
                 colors = itertools.cycle(( plt.cm.tab20c(np.linspace(0, 1, 20)) ))
@@ -556,6 +569,7 @@ class StandardPlots():
                 for j in range(response['eigenvalues'].shape[1]): 
                     marker = next(markers)
                     color = next(colors)
+                    ax[0].plot(response['eigenvalues'][:,j].real, response['eigenvalues'][:,j].imag, color=color, linestyle='--')
                     ax[0].plot(response['eigenvalues'][i,j].real, response['eigenvalues'][i,j].imag,   marker=marker, markersize=8.0, color=color, label=desc[j])
                     ax[1].plot(j,response['states'].__len__(), marker=marker, markersize=8.0, c=color)
                 
@@ -571,7 +585,8 @@ class StandardPlots():
                 ax[0].get_yaxis().set_label_coords(x=-0.13, y=0.5)
                 ax[0].grid(b=True, which='major', axis='both')
                 ax[0].minorticks_on()
-                ax[0].legend(loc='upper right', fontsize=10)
+                ax[0].axis([rmin, rmax, imin, imax])
+                ax[0].legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.0, fontsize=10)
                 
                 ax[1].set_position([0.60, 0.1, 0.30, 0.8])
                 ax[1].yaxis.set_ticks(np.arange(0,response['states'].__len__(),1))
@@ -581,10 +596,8 @@ class StandardPlots():
                 ax[1].xaxis.set_ticklabels(np.arange(0,response['eigenvalues'].shape[1],1), fontsize=10)
                 ax[1].grid(b=True, which='major', axis='both')
                 
-                
                 ax_cbar.xaxis.set_ticks_position("top") # change tick position to top. Tick position defaults to bottom and overlaps the image.
                 
-
                 self.pp.savefig()
     
     def plot_stability(self, filename_pdf):
