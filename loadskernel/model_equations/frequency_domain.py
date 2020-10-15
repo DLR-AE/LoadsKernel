@@ -388,11 +388,31 @@ class PKMethod(KMethod):
         #idx_pos = np.where(eigenvalue.imag >= 0.0)[0]  # nur oszillierende Eigenbewegungen
         #idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
         MAC = BuildMass.calc_MAC(BuildMass, eigenvector_old, eigenvector, plot=False)
-        idx_pos = [MAC[x,:].argmax() for x in range(MAC.shape[0])]
+        idx_pos = self.get_best_match(MAC)
         eigenvalues = eigenvalue[idx_pos]#[idx_sort]
         eigenvectors = eigenvector[:,idx_pos]#[:, idx_sort]
         return eigenvalues, eigenvectors
     
+    def get_best_match(selfself, MAC):
+        """
+        Before: idx_pos = [MAC[x,:].argmax() for x in range(MAC.shape[0])]
+        With purely real eigenvalues it happens that the selection (only) by highest MAC value does not work.
+        The result is that from two different eigenvalues one is take twice. The solution is to keep record 
+        of the matches that are still available so that, if the bets match is already taken, the second best match is selected.
+        """
+        possible_matches = [True]*MAC.shape[0]
+        possible_idx = np.arange(MAC.shape[0])
+        idx_pos = []
+        for x in range(MAC.shape[0]):
+            # the highest MAC value indicates the best match
+            best_match=MAC[x,possible_matches].argmax()
+            # reconstruct the corresponding index
+            idx_pos.append(possible_idx[possible_matches][best_match])
+            # remove the best match from the list of candidates
+            possible_matches[possible_idx[possible_matches][best_match]]=False
+        return idx_pos
+        
+        
     def calc_Qhh_1(self, Qjj_unsteady):
         return self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1)))
     
