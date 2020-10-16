@@ -20,7 +20,7 @@ class StateSpaceAnalysis(PKMethod):
         eigenvalue, eigenvector = linalg.eig(self.system(self.Vvec[0]))
         
         bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
-        idx_pos = np.where(np.logical_and(eigenvalue.__abs__() / bandbreite >= 1e-6, eigenvalue.imag >= 0.0))[0]  # no zero eigenvalues
+        idx_pos = np.where(eigenvalue.__abs__() / bandbreite >= 1e-3)[0]  # no zero eigenvalues
         idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
         eigenvalues0 = eigenvalue[idx_pos][idx_sort]
         eigenvectors0 = eigenvector[:, idx_pos][:, idx_sort]
@@ -36,7 +36,7 @@ class StateSpaceAnalysis(PKMethod):
             eigenvalues.append(eigenvalues_i)
             eigenvectors.append(eigenvectors_i)
             freqs.append(eigenvalues_i.imag /2.0/np.pi)
-            damping.append(2.0 * eigenvalues_i.real / eigenvalues_i.imag)
+            damping.append(eigenvalues_i.real / np.abs(eigenvalues_i))
             Vtas.append([Vtas_i]*len(eigenvalues_i))
             
             eigenvectors_old = eigenvectors_i

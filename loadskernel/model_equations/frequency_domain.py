@@ -330,13 +330,13 @@ class PKMethod(KMethod):
         
         logging.info('building systems') 
         self.build_AIC_interpolators() # unsteady
-        logging.info('starting iterations for {} modes to match k_red with Vtas and omega'.format(self.n_modes)) 
+        logging.info('starting p-k iterations to match k_red with Vtas and omega') 
         # compute initial guess at k_red=0.0 and first flight speed
         self.Vtas = self.Vvec[0]
         eigenvalue, eigenvector = linalg.eig(self.system(k_red=0.0).real)
         bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
-        idx_pos = np.where(np.logical_and(eigenvalue.__abs__() / bandbreite >= 1e-6, eigenvalue.imag >= 0.0))[0]  # no zero eigenvalues
-        idx_sort = np.argsort(eigenvalue.imag[idx_pos])  # sort result by eigenvalue
+        idx_pos = np.where(eigenvalue.__abs__() / bandbreite >= 1e-3)[0]  # no zero eigenvalues
+        idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
         eigenvalues0 = eigenvalue[idx_pos][idx_sort]
         eigenvectors0 = eigenvector[:, idx_pos][:, idx_sort]
         k0 = eigenvalues0.imag*self.model.macgrid['c_ref']/2.0/self.Vtas
@@ -353,14 +353,18 @@ class PKMethod(KMethod):
                 self.Vtas = self.Vvec[i_V]
                 e = 1.0; n_iter = 0
                 # iteration to match k_red with Vtas and omega of the mode under investigation
-                while e >= 1e-4:
+                while e >= 1e-3:
                     eigenvalues_new, eigenvectors_new = self.calc_eigenvalues(self.system(k_old).real, eigenvectors_old)
-                    k_new = eigenvalues_new[i_mode].imag*self.model.macgrid['c_ref']/2.0/self.Vtas
+                    k_now = np.abs(eigenvalues_new[i_mode].imag)*self.model.macgrid['c_ref']/2.0/self.Vtas
+                    # Use relaxation for improved convergence, which helps in some cases to avoid oscillations of the iterative solution.
+                    k_new = k_old + 0.8*(k_now-k_old)
                     e = np.abs(k_new - k_old)
                     k_old = k_new
                     n_iter += 1
+                    if n_iter > 80:
+                        logging.warning('poor convergence for mode {} at Vtas={:.2f} with k_red={:.5f} and e={:.5f}'.format(i_mode+1, self.Vvec[i_V], k_new, e))
                     if n_iter > 100:
-                        logging.warning('PK-Iteration did NOT converge for mode {} at Vtas={} with k_red={}. The residual k_red is e={}'.format(i_mode+1, self.Vvec[i_V], k_new, e))
+                        logging.warning('p-k iteration NOT converged after 100 loops.')
                         break
                 eigenvectors_old = eigenvectors_new
                 eigenvalues_per_mode.append(eigenvalues_new[i_mode])
@@ -370,8 +374,7 @@ class PKMethod(KMethod):
             eigenvalues.append(eigenvalues_per_mode)
             eigenvectors.append(np.array(eigenvectors_per_mode).T)
             freqs.append(eigenvalues_per_mode.imag /2.0/np.pi)
-            #damping.append(eigenvalues_per_mode.real / np.abs(eigenvalues_per_mode))
-            damping.append(2.0 * eigenvalues_per_mode.real / eigenvalues_per_mode.imag)
+            damping.append(eigenvalues_per_mode.real / np.abs(eigenvalues_per_mode))
             Vtas.append(self.Vvec)
             
         response = {'eigenvalues':np.array(eigenvalues).T,
@@ -400,8 +403,8 @@ class PKMethod(KMethod):
         The result is that from two different eigenvalues one is take twice. The solution is to keep record 
         of the matches that are still available so that, if the bets match is already taken, the second best match is selected.
         """
-        possible_matches = [True]*MAC.shape[0]
-        possible_idx = np.arange(MAC.shape[0])
+        possible_matches = [True]*MAC.shape[1]
+        possible_idx = np.arange(MAC.shape[1])
         idx_pos = []
         for x in range(MAC.shape[0]):
             # the highest MAC value indicates the best match
@@ -411,8 +414,7 @@ class PKMethod(KMethod):
             # remove the best match from the list of candidates
             possible_matches[possible_idx[possible_matches][best_match]]=False
         return idx_pos
-        
-        
+                
     def calc_Qhh_1(self, Qjj_unsteady):
         return self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1)))
     
