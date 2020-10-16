@@ -494,7 +494,7 @@ class StandardPlots():
             colors = itertools.cycle(( plt.cm.tab20c(np.linspace(0, 1, 20)) ))
             markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
             
-            ax[0].cla(); ax[1].cla(); ax_vtas.cla()
+            ax[0].cla(); ax[1].cla(); ax[2].cla(); ax_vtas.cla()
             for j in range(response['freqs'].shape[1]): 
                 marker = next(markers)
                 color = next(colors)
@@ -503,22 +503,23 @@ class StandardPlots():
                 ax[2].plot(tas2eas(response['Vtas'][:, j], self.model.atmo['h'][i_atmo]), response['damping'][:, j], marker=marker, markersize=4.0, linewidth=1.0, color=color)
             
             # make plots nice
+            fig.suptitle(trimcase['desc'], fontsize=16)
+            
             ax[0].set_position([0.15, 0.55, 0.75, 0.35])
-            ax[0].title.set_text(trimcase['desc'])
-            ax[0].title.set_fontsize(16)
             ax[0].set_ylabel('f [Hz]')
             ax[0].get_yaxis().set_label_coords(x=-0.13, y=0.5)
             ax[0].grid(b=True, which='major', axis='both')
             ax[0].minorticks_on()
             ax[0].axis([Vmin, Vmax, fmin, fmax])
-            ax[1].set_position([0.15, 0.35, 0.75, 0.15])
+            
+            ax[1].set_position([0.15, 0.35, 0.75, 0.18])
             ax[1].set_ylabel('d [-]')
             ax[1].get_yaxis().set_label_coords(x=-0.13, y=0.5)
             ax[1].grid(b=True, which='major', axis='both')
             ax[1].minorticks_on()
             ax[1].axis([Vmin, Vmax, gmin, gmax])
             
-            ax[2].set_position([0.15, 0.15, 0.75, 0.15])
+            ax[2].set_position([0.15, 0.15, 0.75, 0.18])
             ax[2].set_ylabel('d [-]')
             ax[2].get_yaxis().set_label_coords(x=-0.13, y=0.5)
             ax[2].grid(b=True, which='major', axis='both')
@@ -528,7 +529,7 @@ class StandardPlots():
             
             # additional axis for Vtas
             
-            ax_vtas.set_position([0.15, 0.15, 0.75, 0.15])
+            ax_vtas.set_position([0.15, 0.15, 0.75, 0.18])
             ax_vtas.xaxis.set_ticks_position('bottom') # set the position of the second x-axis to bottom
             ax_vtas.xaxis.set_label_position('bottom') # set the position of the second x-axis to bottom
             ax_vtas.spines['bottom'].set_position(('outward', 60))
@@ -541,8 +542,8 @@ class StandardPlots():
         
     def plot_eigenvalues(self):
         logging.info('start plotting eigenvalues and -vectors...')
-        fig, ax = plt.subplots(1, 2, figsize=(16,9))
-        ax_divider = make_axes_locatable(ax[1])
+        fig, ax = plt.subplots(1, 3, figsize=(16,9))
+        ax_divider = make_axes_locatable(ax[2])
         ax_cbar = ax_divider.append_axes("top", size="4%", pad="1%")
         for response in self.responses:
             trimcase   = self.jcl.trimcase[response['i'][()]]
@@ -567,9 +568,9 @@ class StandardPlots():
                 markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
                 desc = [str(mode) for mode in range(response['eigenvalues'].shape[1])]
                 
-                ax[0].cla(); ax[1].cla(); ax_cbar.cla() # clear all axes for next plot
+                ax[0].cla(); ax[1].cla(); ax[2].cla(); ax_cbar.cla() # clear all axes for next plot
                 # plot eigenvector
-                im_eig = ax[1].imshow(response['eigenvectors'][i].__abs__(), cmap='hot_r', aspect='auto', origin='upper', vmin=0.0, vmax=1.0)
+                im_eig = ax[2].imshow(response['eigenvectors'][i].__abs__(), cmap='hot_r', aspect='auto', origin='upper', vmin=0.0, vmax=1.0)
                 # add colorbar to plot
                 fig.colorbar(im_eig, cax=ax_cbar, orientation="horizontal")
                 # plot eigenvalues
@@ -578,30 +579,43 @@ class StandardPlots():
                     color = next(colors)
                     ax[0].plot(response['eigenvalues'][:,j].real, response['eigenvalues'][:,j].imag, color=color, linestyle='--')
                     ax[0].plot(response['eigenvalues'][i,j].real, response['eigenvalues'][i,j].imag,   marker=marker, markersize=8.0, color=color, label=desc[j])
-                    ax[1].plot(j,response['states'].__len__(), marker=marker, markersize=8.0, c=color)
+                    ax[1].plot(response['eigenvalues'][:,j].real, response['eigenvalues'][:,j].imag, color=color, linestyle='--')
+                    ax[1].plot(response['eigenvalues'][i,j].real, response['eigenvalues'][i,j].imag,   marker=marker, markersize=8.0, color=color, label=desc[j])
+                    ax[2].plot(j,response['states'].__len__(), marker=marker, markersize=8.0, c=color)
                 
                 # make plots nice
-                ax[0].set_position([0.1, 0.1, 0.35, 0.8])
-                
-                ax[0].title.set_text('{}, Veas={:.2f} m/s, Vtas={:.2f} m/s'.format(trimcase['desc'],
+                fig.suptitle(t='{}, Veas={:.2f} m/s, Vtas={:.2f} m/s'.format(trimcase['desc'],
                                                                   tas2eas(response['Vtas'][i,0], self.model.atmo['h'][i_atmo]), 
-                                                                  response['Vtas'][i,0]) )
-                ax[0].title.set_fontsize(16)
+                                                                  response['Vtas'][i,0]),
+                             fontsize=16)
+                ax[0].set_position([0.08, 0.1, 0.25, 0.8])
                 ax[0].set_xlabel('real')
                 ax[0].set_ylabel('imag')
                 ax[0].get_yaxis().set_label_coords(x=-0.13, y=0.5)
                 ax[0].grid(b=True, which='major', axis='both')
                 ax[0].minorticks_on()
                 ax[0].axis([rmin, rmax, imin, imax])
-                ax[0].legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.0, fontsize=10)
-                
-                ax[1].set_position([0.60, 0.1, 0.35, 0.8])
-                ax[1].yaxis.set_ticks(np.arange(0,response['states'].__len__(),1))
-                ax[1].yaxis.set_ticklabels(response['states'], fontsize=10)
-                ax[1].yaxis.set_tick_params(rotation=0)
-                ax[1].xaxis.set_ticks(np.arange(0,response['eigenvalues'].shape[1],1))
-                ax[1].xaxis.set_ticklabels(np.arange(0,response['eigenvalues'].shape[1],1), fontsize=10)
+
+                ax[1].set_position([0.35, 0.1, 0.1, 0.8])
+                ax[1].set_xlabel('real')
                 ax[1].grid(b=True, which='major', axis='both')
+                ax[1].minorticks_on()
+                ax[1].axis([-1.0, 1.0, imin, imax])
+                # connect with y-axis from left hand plot
+                ax[0].get_shared_y_axes().join(ax[0], ax[1])
+                ax[1].yaxis.set_tick_params(which='both', labelleft=False, labelright=False)
+                ax[1].yaxis.offsetText.set_visible(False)
+                # add legend
+                ax[1].legend(bbox_to_anchor=(1.10, 1), loc='upper left', borderaxespad=0.0, fontsize=10)
+                
+                
+                ax[2].set_position([0.60, 0.1, 0.35, 0.8])
+                ax[2].yaxis.set_ticks(np.arange(0,response['states'].__len__(),1))
+                ax[2].yaxis.set_ticklabels(response['states'], fontsize=10)
+                ax[2].yaxis.set_tick_params(rotation=0)
+                ax[2].xaxis.set_ticks(np.arange(0,response['eigenvalues'].shape[1],1))
+                ax[2].xaxis.set_ticklabels(np.arange(0,response['eigenvalues'].shape[1],1), fontsize=10)
+                ax[2].grid(b=True, which='major', axis='both')
                 
                 ax_cbar.xaxis.set_ticks_position("top") # change tick position to top. Tick position defaults to bottom and overlaps the image.
                 
