@@ -488,8 +488,8 @@ class StandardPlots():
             fmax = 2 * np.ceil(response['freqs'][:].max() / 2)
             Vmin = 0
             Vmax = 2 * np.ceil(tas2eas(response['Vtas'][:].max(), self.model.atmo['h'][i_atmo]) / 2)
-            gmin = -0.1
-            gmax = 0.1
+            gmin = -0.11
+            gmax = 0.11
             
             colors = itertools.cycle(( plt.cm.tab20c(np.linspace(0, 1, 20)) ))
             markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
@@ -506,25 +506,25 @@ class StandardPlots():
             fig.suptitle(trimcase['desc'], fontsize=16)
             
             ax[0].set_position([0.15, 0.55, 0.75, 0.35])
-            ax[0].set_ylabel('f [Hz]')
+            ax[0].set_ylabel('Frequency [Hz]')
             ax[0].get_yaxis().set_label_coords(x=-0.13, y=0.5)
             ax[0].grid(b=True, which='major', axis='both')
             ax[0].minorticks_on()
             ax[0].axis([Vmin, Vmax, fmin, fmax])
             
             ax[1].set_position([0.15, 0.35, 0.75, 0.18])
-            ax[1].set_ylabel('d [-]')
+            ax[1].set_ylabel('Damping (zoom)')
             ax[1].get_yaxis().set_label_coords(x=-0.13, y=0.5)
             ax[1].grid(b=True, which='major', axis='both')
             ax[1].minorticks_on()
             ax[1].axis([Vmin, Vmax, gmin, gmax])
             
             ax[2].set_position([0.15, 0.15, 0.75, 0.18])
-            ax[2].set_ylabel('d [-]')
+            ax[2].set_ylabel('Damping')
             ax[2].get_yaxis().set_label_coords(x=-0.13, y=0.5)
             ax[2].grid(b=True, which='major', axis='both')
             ax[2].minorticks_on()
-            ax[2].axis([Vmin, Vmax, -1+gmin, 1+gmax])
+            ax[2].axis([Vmin, Vmax, -1.1, 1.1])
             ax[2].set_xlabel('$V_{eas} [m/s]$')
             
             # additional axis for Vtas
@@ -543,6 +543,7 @@ class StandardPlots():
     def plot_eigenvalues(self):
         logging.info('start plotting eigenvalues and -vectors...')
         fig, ax = plt.subplots(1, 3, figsize=(16,9))
+        ax_freq = ax[0].twinx()
         ax_divider = make_axes_locatable(ax[2])
         ax_cbar = ax_divider.append_axes("top", size="4%", pad="1%")
         for response in self.responses:
@@ -568,7 +569,7 @@ class StandardPlots():
                 markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
                 desc = [str(mode) for mode in range(response['eigenvalues'].shape[1])]
                 
-                ax[0].cla(); ax[1].cla(); ax[2].cla(); ax_cbar.cla() # clear all axes for next plot
+                ax[0].cla(); ax[1].cla(); ax[2].cla(); ax_cbar.cla(), ax_freq.cla() # clear all axes for next plot
                 # plot eigenvector
                 im_eig = ax[2].imshow(response['eigenvectors'][i].__abs__(), cmap='hot_r', aspect='auto', origin='upper', vmin=0.0, vmax=1.0)
                 # add colorbar to plot
@@ -588,16 +589,25 @@ class StandardPlots():
                                                                   tas2eas(response['Vtas'][i,0], self.model.atmo['h'][i_atmo]), 
                                                                   response['Vtas'][i,0]),
                              fontsize=16)
-                ax[0].set_position([0.08, 0.1, 0.25, 0.8])
-                ax[0].set_xlabel('real')
-                ax[0].set_ylabel('imag')
+                ax[0].set_position([0.12, 0.1, 0.25, 0.8])
+                ax[0].set_xlabel('Real')
+                ax[0].set_ylabel('Imag')
                 ax[0].get_yaxis().set_label_coords(x=-0.13, y=0.5)
                 ax[0].grid(b=True, which='major', axis='both')
                 ax[0].minorticks_on()
                 ax[0].axis([rmin, rmax, imin, imax])
+                
+                # additional axis for frequency
+                ax_freq.yaxis.set_ticks_position('left') # set the position of the second y-axis to left
+                ax_freq.yaxis.set_label_position('left') # set the position of the second y-axis to left
+                ax_freq.spines['left'].set_position(('outward', 60))
+                y1, y2 = ax[0].get_ylim()
+                ax_freq.set_ylim(( y1/2.0/np.pi, y2/2.0/np.pi ))
+                ax_freq.minorticks_on()
+                ax_freq.set_ylabel('Frequency [Hz]')
 
-                ax[1].set_position([0.35, 0.1, 0.1, 0.8])
-                ax[1].set_xlabel('real')
+                ax[1].set_position([0.40, 0.1, 0.1, 0.8])
+                ax[1].set_xlabel('Real (zoom)')
                 ax[1].grid(b=True, which='major', axis='both')
                 ax[1].minorticks_on()
                 ax[1].axis([-1.0, 1.0, imin, imax])
