@@ -20,7 +20,7 @@ class Kernel():
 
     def __init__(self,
                  job_name, pre=False, main=False, post=False,
-                 main_debug=False, test=False, statespace=False,
+                 debug=False, test=False,
                  path_input='../input/',
                  path_output='../output/',
                  jcl=None,
@@ -32,11 +32,10 @@ class Kernel():
         self.main = main                # True/False
         self.post = post                # True/False
         # debug options
-        self.main_debug = main_debug    # True/False
+        self.debug = debug              # True/False
         self.restart = restart          # True/False
         # advanced options
         self.test = test                # True/False
-        self.statespace = statespace    # True/False
         # job control options
         self.job_name = job_name        # string
         self.path_input = path_input    # path
@@ -68,8 +67,6 @@ class Kernel():
             self.run_main_parallel()
         if self.main and not self.parallel:
             self.run_main_sequential()
-        if self.statespace:
-            self.run_statespace()
         if self.post:
             self.run_post()
         if self.test:
@@ -149,13 +146,15 @@ class Kernel():
         logging.info('========================================')
         trim_i = trim.Trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
         trim_i.set_trimcond()
-        # trim_i.calc_rigid_derivatives()
         trim_i.exec_trim()
         # trim_i.iterative_trim()
         if trim_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
             trim_i.exec_sim()
         elif trim_i.successful and 'flutter' in jcl.simcase[i] and jcl.simcase[i]['flutter']:
             trim_i.exec_flutter()
+        elif trim_i.successful and 'derivatives' in jcl.simcase[i] and jcl.simcase[i]['derivatives']:
+            trim_i.calc_jacobian()
+            trim_i.calc_derivatives()
         response = trim_i.response
         response['i'] = i
         response['successful'] = trim_i.successful
@@ -219,6 +218,11 @@ class Kernel():
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def run_main_parallel(self):
+        """
+        This function organizes the parallel computation of multiple load cases on one machine.
+        Parallelization is achieved using a worker/listener concept. 
+        The worker and the listener communicate via the output queue.
+        """
         logging.info('--> Starting Main in parallel mode for %d trimcase(s).' % len(self.jcl.trimcase))
         t_start = time.time()
         manager = multiprocessing.Manager()
@@ -320,6 +324,9 @@ class Kernel():
         return  
 
     def run_main_single(self, i):
+        """
+        This function calculates one single load case, e.g. using CFD with mpi hosts on a cluster.
+        """
         logging.info('--> Starting Main in single mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
@@ -334,33 +341,6 @@ class Kernel():
         path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
         with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb')  as f:
             io_functions.specific_functions.dump_pickle(response, f)
-        logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
-
-    def run_statespace(self):
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-
-        logging.info('--> Starting State Space Matrix generation for %d trimcase(s).' % len(self.jcl.trimcase))
-        t_start = time.time()
-        f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
-        for i in range(len(self.jcl.trimcase)):
-            logging.info('')
-            logging.info('========================================')
-            logging.info('trimcase: ' + self.jcl.trimcase[i]['desc'])
-            logging.info('subcase: ' + str(self.jcl.trimcase[i]['subcase']))
-            logging.info('(case ' + str(i + 1) + ' of ' + str(len(self.jcl.trimcase)) + ')')
-            logging.info('========================================')
-            
-            trim_i = trim.Trim(model, self.jcl, self.jcl.trimcase[i], self.jcl.simcase[i])
-            trim_i.set_trimcond()
-            trim_i.exec_trim()
-            #trim_i.calc_jacobian()
-            trim_i.calc_derivatives()
-            trim_i.response['i'] = i
-            logging.info('--> Saving response(s).')
-            io_functions.specific_functions.dump_pickle(trim_i.response, f)
-
-            del trim_i
-        f.close()  # close response
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def run_post(self):
@@ -398,20 +378,23 @@ class Kernel():
             # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
-#         logging.info( '--> Drawing some more detailed plots.')  
-#         responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
-#         
-#         plt = plotting_extra.DetailedPlots(self.jcl, model)
-#         plt.add_responses(responses)
-#         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-#             # nur sim
-#             plt.plot_time_data()
-#         elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
-#             plt.plot_fluttercurves()
-#         else:
-#             # nur trim
-#             #plt.plot_pressure_distribution()
-#             plt.plot_forces_deformation_interactive()
+        logging.info( '--> Drawing some more detailed plots.')  
+        responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
+         
+        plt = plotting_extra.DetailedPlots(self.jcl, model)
+        plt.add_responses(responses)
+        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+            # nur sim
+            plt.plot_time_data()
+        elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
+            plt.plot_fluttercurves_to_pdf(self.path_output + 'fluttercurves_' + self.job_name + '.pdf')
+            plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
+        elif 'derivatives' in self.jcl.simcase[0] and self.jcl.simcase[0]['derivatives']:
+            plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
+        else:
+            # nur trim
+            #plt.plot_pressure_distribution()
+            plt.plot_forces_deformation_interactive()
 #          
 #         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
 #             plt = plotting_extra.Animations(self.jcl, model)
@@ -419,19 +402,13 @@ class Kernel():
 #             plt.make_animation()
 #             #plt.make_movie(self.path_output, speedup_factor=1.0)
 
-#         logging.info( '--> statespace analysis.')
-#         import statespace_analysis
-#         statespace_analysis = statespace_analysis.analysis(self.jcl, model, responses)
-#         #statespace_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
-#         #statespace_analysis.plot_state_space_matrices()
-#         statespace_analysis.analyse_eigenvalues(self.path_output + 'analyse_of_eigenvalues_' + self.job_name + '.pdf')
            
         return
 
     def run_test(self):
         # place code to test here
-#         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-#         responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output)
 #         responses_hdf5 = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
 #         with open(self.path_output + 'statespacemodel_' + self.job_name + '.pickle', 'wb') as fid:
 #             io_functions.specific_functions.dump_pickle(responses, fid)
@@ -504,8 +481,12 @@ class Kernel():
             console.set_name('logfile')
             formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
             logfile.setFormatter(formatter)
+            # set logging level
+            if self.debug:
+                logger.setLevel(logging.DEBUG)
+            else:                
+                logger.setLevel(logging.INFO) 
             # add the handler(s) to the root logger
-            logger.setLevel(logging.INFO) # set individual logging levels with logfile.setLevel(logging.INFO)
             logger.addHandler(console)
             logger.addHandler(logfile)
 

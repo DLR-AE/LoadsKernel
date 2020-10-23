@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Oct 27 11:26:27 2015
 
-@author: voss_ar
-"""
 import numpy as np
 from  matplotlib import pyplot as plt
 plt.rcParams.update({'font.size': 16,
                      'svg.fonttype':'none',
                      'savefig.dpi': 300,})
 from matplotlib.backends.backend_pdf import PdfPages
+from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 from scipy.spatial import ConvexHull
 import logging, itertools, os
 from loadskernel.units import tas2eas
@@ -479,50 +476,60 @@ class StandardPlots():
 
     def plot_fluttercurves(self):
         logging.info('start plotting flutter curves...')
+        fig, ax = plt.subplots(3, sharex=True, figsize=(8,10))
+        ax_vtas = ax[2].twiny()
         for response in self.responses:
             trimcase   = self.jcl.trimcase[response['i'][()]]
             i_mass     = self.model.mass['key'].index(trimcase['mass'])
             i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
             #Plot boundaries
             freqs = np.real(self.model.mass['Khh'][i_mass].diagonal())**0.5 /2/np.pi
-            fmin = 0
-            fmax = 5 * np.ceil(freqs.max() / 5)
-            Vtrim = tas2eas(self.model.atmo['a'][i_atmo] * trimcase['Ma'], self.model.atmo['h'][i_atmo])
+            fmin = 2 * np.floor(response['freqs'][:].min() / 2)
+            fmax = 2 * np.ceil(response['freqs'][:].max() / 2)
             Vmin = 0
-            Vmax = 5 * np.ceil(Vtrim*2.0 / 5)
-            gmin = -0.1
-            gmax = 0.1
-
+            Vmax = 2 * np.ceil(tas2eas(response['Vtas'][:].max(), self.model.atmo['h'][i_atmo]) / 2)
+            gmin = -0.11
+            gmax = 0.11
+            
             colors = itertools.cycle(( plt.cm.tab20c(np.linspace(0, 1, 20)) ))
             markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
             
-            fig, ax = plt.subplots(2, sharex=True )
+            ax[0].cla(); ax[1].cla(); ax[2].cla(); ax_vtas.cla()
             for j in range(response['freqs'].shape[1]): 
                 marker = next(markers)
                 color = next(colors)
                 ax[0].plot(tas2eas(response['Vtas'][:, j], self.model.atmo['h'][i_atmo]), response['freqs'][:, j],   marker=marker, markersize=4.0, linewidth=1.0, color=color)
                 ax[1].plot(tas2eas(response['Vtas'][:, j], self.model.atmo['h'][i_atmo]), response['damping'][:, j], marker=marker, markersize=4.0, linewidth=1.0, color=color)
+                ax[2].plot(tas2eas(response['Vtas'][:, j], self.model.atmo['h'][i_atmo]), response['damping'][:, j], marker=marker, markersize=4.0, linewidth=1.0, color=color)
             
             # make plots nice
+            fig.suptitle(trimcase['desc'], fontsize=16)
+            
             ax[0].set_position([0.15, 0.55, 0.75, 0.35])
-            ax[0].title.set_text(trimcase['desc'])
-            ax[0].title.set_fontsize(16)
-            ax[0].set_ylabel('f [Hz]')
+            ax[0].set_ylabel('Frequency [Hz]')
             ax[0].get_yaxis().set_label_coords(x=-0.13, y=0.5)
             ax[0].grid(b=True, which='major', axis='both')
             ax[0].minorticks_on()
             ax[0].axis([Vmin, Vmax, fmin, fmax])
-            ax[1].set_position([0.15, 0.15, 0.75, 0.35])
-            ax[1].set_ylabel('g [-]')
+            
+            ax[1].set_position([0.15, 0.35, 0.75, 0.18])
+            ax[1].set_ylabel('Damping (zoom)')
             ax[1].get_yaxis().set_label_coords(x=-0.13, y=0.5)
             ax[1].grid(b=True, which='major', axis='both')
             ax[1].minorticks_on()
             ax[1].axis([Vmin, Vmax, gmin, gmax])
-            ax[1].set_xlabel('$V_{eas} [m/s]$')
+            
+            ax[2].set_position([0.15, 0.15, 0.75, 0.18])
+            ax[2].set_ylabel('Damping')
+            ax[2].get_yaxis().set_label_coords(x=-0.13, y=0.5)
+            ax[2].grid(b=True, which='major', axis='both')
+            ax[2].minorticks_on()
+            ax[2].axis([Vmin, Vmax, -1.1, 1.1])
+            ax[2].set_xlabel('$V_{eas} [m/s]$')
             
             # additional axis for Vtas
-            ax_vtas = ax[1].twiny()
-            ax_vtas.set_position([0.15, 0.15, 0.75, 0.35])
+            
+            ax_vtas.set_position([0.15, 0.15, 0.75, 0.18])
             ax_vtas.xaxis.set_ticks_position('bottom') # set the position of the second x-axis to bottom
             ax_vtas.xaxis.set_label_position('bottom') # set the position of the second x-axis to bottom
             ax_vtas.spines['bottom'].set_position(('outward', 60))
@@ -531,4 +538,107 @@ class StandardPlots():
             ax_vtas.minorticks_on()
             ax_vtas.set_xlabel('$V_{tas} [m/s]$')
 
-        plt.show()
+            self.pp.savefig()
+        
+    def plot_eigenvalues(self):
+        logging.info('start plotting eigenvalues and -vectors...')
+        fig, ax = plt.subplots(1, 3, figsize=(16,9))
+        ax_freq = ax[0].twinx()
+        ax_divider = make_axes_locatable(ax[2])
+        ax_cbar = ax_divider.append_axes("top", size="4%", pad="1%")
+        for response in self.responses:
+            trimcase   = self.jcl.trimcase[response['i'][()]]
+            simcase    = self.jcl.simcase[response['i'][()]]
+            
+            # this kind of plot is only feasible for methods which iterate over Vtas, e.g. not the K- or KE-methods
+            if 'flutter' in simcase and simcase['flutter_para']['method'] not in ['pk', 'statespace']:
+                logging.warning('skip plotting of eigenvalues and -vectors for {}'.format(trimcase['desc']))
+                break
+            
+            i_mass     = self.model.mass['key'].index(trimcase['mass'])
+            i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
+            
+             #Plot boundaries
+            rmax = np.ceil(response['eigenvalues'][:].real.max())
+            rmin = np.floor(response['eigenvalues'][:].real.min())
+            imax = np.ceil(response['eigenvalues'][:].imag.max())
+            imin = np.floor(response['eigenvalues'][:].imag.min())
+            
+            for i in range(response['Vtas'].shape[0]): 
+                colors = itertools.cycle(( plt.cm.tab20c(np.linspace(0, 1, 20)) ))
+                markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
+                desc = [str(mode) for mode in range(response['eigenvalues'].shape[1])]
+                
+                ax[0].cla(); ax[1].cla(); ax[2].cla(); ax_cbar.cla(), ax_freq.cla() # clear all axes for next plot
+                # plot eigenvector
+                im_eig = ax[2].imshow(response['eigenvectors'][i].__abs__(), cmap='hot_r', aspect='auto', origin='upper', vmin=0.0, vmax=1.0)
+                # add colorbar to plot
+                fig.colorbar(im_eig, cax=ax_cbar, orientation="horizontal")
+                # plot eigenvalues
+                for j in range(response['eigenvalues'].shape[1]): 
+                    marker = next(markers)
+                    color = next(colors)
+                    ax[0].plot(response['eigenvalues'][:,j].real, response['eigenvalues'][:,j].imag, color=color, linestyle='--')
+                    ax[0].plot(response['eigenvalues'][i,j].real, response['eigenvalues'][i,j].imag,   marker=marker, markersize=8.0, color=color, label=desc[j])
+                    ax[1].plot(response['eigenvalues'][:,j].real, response['eigenvalues'][:,j].imag, color=color, linestyle='--')
+                    ax[1].plot(response['eigenvalues'][i,j].real, response['eigenvalues'][i,j].imag,   marker=marker, markersize=8.0, color=color, label=desc[j])
+                    ax[2].plot(j,response['states'].__len__(), marker=marker, markersize=8.0, c=color)
+                
+                # make plots nice
+                fig.suptitle(t='{}, Veas={:.2f} m/s, Vtas={:.2f} m/s'.format(trimcase['desc'],
+                                                                  tas2eas(response['Vtas'][i,0], self.model.atmo['h'][i_atmo]), 
+                                                                  response['Vtas'][i,0]),
+                             fontsize=16)
+                ax[0].set_position([0.12, 0.1, 0.25, 0.8])
+                ax[0].set_xlabel('Real')
+                ax[0].set_ylabel('Imag')
+                ax[0].get_yaxis().set_label_coords(x=-0.13, y=0.5)
+                ax[0].grid(b=True, which='major', axis='both')
+                ax[0].minorticks_on()
+                ax[0].axis([rmin, rmax, imin, imax])
+                
+                # additional axis for frequency
+                ax_freq.yaxis.set_ticks_position('left') # set the position of the second y-axis to left
+                ax_freq.yaxis.set_label_position('left') # set the position of the second y-axis to left
+                ax_freq.spines['left'].set_position(('outward', 60))
+                y1, y2 = ax[0].get_ylim()
+                ax_freq.set_ylim(( y1/2.0/np.pi, y2/2.0/np.pi ))
+                ax_freq.minorticks_on()
+                ax_freq.set_ylabel('Frequency [Hz]')
+
+                ax[1].set_position([0.40, 0.1, 0.1, 0.8])
+                ax[1].set_xlabel('Real (zoom)')
+                ax[1].grid(b=True, which='major', axis='both')
+                ax[1].minorticks_on()
+                ax[1].axis([-1.0, 1.0, imin, imax])
+                # connect with y-axis from left hand plot
+                ax[0].get_shared_y_axes().join(ax[0], ax[1])
+                ax[1].yaxis.set_tick_params(which='both', labelleft=False, labelright=False)
+                ax[1].yaxis.offsetText.set_visible(False)
+                # add legend
+                ax[1].legend(bbox_to_anchor=(1.10, 1), loc='upper left', borderaxespad=0.0, fontsize=10)
+                
+                
+                ax[2].set_position([0.60, 0.1, 0.35, 0.8])
+                ax[2].yaxis.set_ticks(np.arange(0,response['states'].__len__(),1))
+                ax[2].yaxis.set_ticklabels(response['states'], fontsize=10)
+                ax[2].yaxis.set_tick_params(rotation=0)
+                ax[2].xaxis.set_ticks(np.arange(0,response['eigenvalues'].shape[1],1))
+                ax[2].xaxis.set_ticklabels(np.arange(0,response['eigenvalues'].shape[1],1), fontsize=10)
+                ax[2].grid(b=True, which='major', axis='both')
+                
+                ax_cbar.xaxis.set_ticks_position("top") # change tick position to top. Tick position defaults to bottom and overlaps the image.
+                
+                self.pp.savefig()
+    
+    def plot_fluttercurves_to_pdf(self, filename_pdf):
+        self.pp = PdfPages(filename_pdf)
+        self.plot_fluttercurves()
+        self.pp.close()
+        logging.info('plots saved as ' + filename_pdf)
+        
+    def plot_eigenvalues_to_pdf(self, filename_pdf):
+        self.pp = PdfPages(filename_pdf)
+        self.plot_eigenvalues()
+        self.pp.close()
+        logging.info('plots saved as ' + filename_pdf)

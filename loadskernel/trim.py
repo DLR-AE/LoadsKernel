@@ -21,68 +21,65 @@ from loadskernel.model_equations.frequency_domain import GustExcitation
 from loadskernel.model_equations.frequency_domain import KMethod
 from loadskernel.model_equations.frequency_domain import KEMethod
 from loadskernel.model_equations.frequency_domain import PKMethod
+from loadskernel.model_equations.state_space import StateSpaceAnalysis
+from loadskernel.model_equations.state_space import JacobiAnalysis
 
 from loadskernel.trim_conditions import TrimConditions
 
 class Trim(TrimConditions):
+    
+    def approx_jacobian(self, X0,func,epsilon,dt):
+        """
+        Approximate the Jacobian matrix of callable function func
+        x       - The state vector at which the Jacobian matrix is desired
+        func    - A vector-valued function of the form f(x,*args)
+        epsilon - The peturbation used to determine the partial derivatives
+        """
+        X0 = np.asfarray(X0)
+        jac = np.zeros([len(func(*(X0,0.0, 'sim'))),len(X0)])
+        dX = np.zeros(len(X0))
+        for i in range(len(X0)):
+            f0 = func(*(X0,0.0, 'sim'))
+            dX[i] = epsilon
+            fi = func(*(X0+dX,0.0+dt, 'sim'))
+            jac[:,i] = (fi - f0)/epsilon
+            dX[i] = 0.0
+        return jac
+    
     def calc_jacobian(self):
-        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid']:
+        """
+        The Jacobian matrix is computed about the trimmed flight condition. 
+        Alternatively, it may be computed about the trim condition specified in the JCL with: X0 = np.array(self.trimcond_X[:,2], dtype='float')
+        """
+        
+        if self.jcl.aero['method'] in ['mona_steady']:
             equations = Steady(self)
-            """
-            The Jacobian matrix is computed about the trimmed flight condition. 
-            Alternatively, it may be computed about the trim condition specified in the JCL with: X0 = np.array(self.trimcond_X[:,2], dtype='float')
-            """
-            X0 = self.response['X']
-            self.idx_lag_states = []
-        elif self.jcl.aero['method'] in [ 'mona_unsteady']:
-            self.add_lagstates()
-            equations = Unsteady(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
-            
-        
-        def approx_jacobian(X0,func,epsilon,dt):
-            """Approximate the Jacobian matrix of callable function func
-               * Parameters
-                 x       - The state vector at which the Jacobian matrix is desired
-                 func    - A vector-valued function of the form f(x,*args)
-                 epsilon - The peturbation used to determine the partial derivatives
-                 *args   - Additional arguments passed to func
-            """
-            X0 = np.asfarray(X0)
-            jac = np.zeros([len(func(*(X0,0.0, 'sim'))),len(X0)])
-            dX = np.zeros(len(X0))
-            for i in range(len(X0)):
-                f0 = func(*(X0,0.0, 'sim'))
-                dX[i] = epsilon
-                fi = func(*(X0+dX,0.0+dt, 'sim'))
-                jac[:,i] = (fi - f0)/epsilon
-                dX[i] = 0.0
-            return jac
-        
+
+        # flight condition
+        X0 = self.response['X']
+        #X0 = np.array(self.trimcond_X[:,2], dtype='float')
         logging.info('Calculating jacobian for ' + str(len(X0)) + ' variables...')
-        jac = approx_jacobian(X0=X0, func=equations.equations, epsilon=0.001, dt=1.0) # epsilon sollte klein sein, dt sollte 1.0s sein
-        X = self.response['X']
-        Y = self.response['Y']
-        self.response.clear()
-        self.response['X'] = X
-        self.response['Y'] = Y
+        jac = self.approx_jacobian(X0=X0, func=equations.equations, epsilon=0.01, dt=1.0) # epsilon sollte klein sein, dt sollte 1.0s sein
         self.response['X0'] = X0 # Linearisierungspunkt
         self.response['Y0'] = equations.equations(X0, t=0.0, modus='trim')
         self.response['jac'] = jac
-        self.response['states'] = self.states[:,0]
-        self.response['state_derivatives'] = self.state_derivatives[:,0]
-        self.response['inputs'] = self.inputs[:,0]
-        self.response['outputs'] = self.outputs[:,0]
+        self.response['states'] = self.states[:,0].tolist()
+        self.response['state_derivatives'] = self.state_derivatives[:,0].tolist()
+        self.response['inputs'] = self.inputs[:,0].tolist()
+        self.response['outputs'] = self.outputs[:,0].tolist()
         # States need to be reordered into ABCD matrices!
         # X = [ rbm,  flex,  command_cs,  lag_states ]
         # Y = [drbm, dflex, dcommand_cs, dlag_states, outputs]
         # [Y] = [A B] * [X]
         #       [C D]   
-        idx_A = self.idx_states+self.idx_lag_states
+        idx_9dof = self.idx_states[3:12]
+        idx_A = self.idx_states
         idx_B = self.idx_inputs
         idx_C = self.idx_outputs
-        self.response['A'] = jac[idx_A,:][:,idx_A] # aircraft itself
+        self.response['9DOF'] = jac[idx_9dof,:][:,idx_9dof] # rigid body motion only
+        self.response['A'] = jac[idx_A,:][:,idx_A] # aircraft itself, including elastic states
         self.response['B'] = jac[idx_A,:][:,idx_B] # reaction of aircraft on external excitation
         self.response['C'] = jac[idx_C,:][:,idx_A] # sensors
         self.response['D'] = jac[idx_C,:][:,idx_B] # reaction of sensors on external excitation
@@ -90,6 +87,10 @@ class Trim(TrimConditions):
         self.response['idx_B'] = idx_B
         self.response['idx_C'] = idx_C
         self.response['desc'] = self.trimcase['desc']
+        
+        # perform analysis on jacobian matrix
+        equations = JacobiAnalysis(self.response)
+        equations.eval_equations()
         
     def calc_derivatives(self):
         self.calc_flexible_derivatives()
@@ -414,6 +415,8 @@ class Trim(TrimConditions):
             equations = KEMethod(self, X0=self.response['X'], simcase=self.simcase)
         elif self.simcase['flutter_para']['method'] == 'pk':
             equations = PKMethod(self, X0=self.response['X'], simcase=self.simcase)
+        elif self.simcase['flutter_para']['method'] == 'statespace':
+            equations = StateSpaceAnalysis(self, X0=self.response['X'], simcase=self.simcase)
         response_flutter = equations.eval_equations()
         logging.info('Flutter analysis finished.')
         for key in response_flutter.keys():
