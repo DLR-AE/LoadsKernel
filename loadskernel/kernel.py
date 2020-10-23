@@ -387,7 +387,10 @@ class Kernel():
             # nur sim
             plt.plot_time_data()
         elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
-            plt.plot_stability(self.path_output + 'stability_' + self.job_name + '.pdf')
+            plt.plot_fluttercurves_to_pdf(self.path_output + 'fluttercurves_' + self.job_name + '.pdf')
+            plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
+        elif 'derivatives' in self.jcl.simcase[0] and self.jcl.simcase[0]['derivatives']:
+            plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
         else:
             # nur trim
             #plt.plot_pressure_distribution()
@@ -420,13 +423,6 @@ class Kernel():
 #         from scripts import plot_lift_distribution
 #         plot = plot_lift_distribution.Liftdistribution(self.jcl, model, responses)
 #         plot.plot_aero_spanwise()
-
-        logging.info( '--> statespace analysis.')
-        from loadskernel import statespace_analysis
-        statespace_analysis = statespace_analysis.analysis(self.jcl, model, responses)
-        #statespace_analysis.analyse_states(path_output + 'analyse_of_states_' + job_name + '.pdf')
-        #statespace_analysis.plot_state_space_matrices()
-        statespace_analysis.analyse_eigenvalues(self.path_output + 'analyse_of_eigenvalues_' + self.job_name + '.pdf')
 
         return
 
