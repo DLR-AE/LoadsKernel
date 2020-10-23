@@ -80,4 +80,33 @@ class StateSpaceAnalysis(PKMethod):
         lower_part = np.concatenate(( -Mhh_inv.dot(self.Khh - rho/2.0*Vtas**2.0*self.Qhh_1), -Mhh_inv.dot(self.Dhh - rho/2.0*Vtas*self.Qhh_2)), axis=1)
         A = np.concatenate((upper_part, lower_part))
         
-        return A 
+        return A
+
+class JacobiAnalysis(PKMethod):
+    
+    def __init__(self, response):
+        self.response = response      
+        
+    def eval_equations(self):
+        dxyz = self.response['X'][6:9]
+        Vtas = sum(dxyz**2)**0.5
+
+        eigenvalue, eigenvector = linalg.eig(self.system())
+        
+        bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
+        idx_pos = np.where(eigenvalue.__abs__() / bandbreite >= 1e-3)[0]  # no zero eigenvalues
+        idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
+        eigenvalues = eigenvalue[idx_pos][idx_sort]
+        eigenvectors = eigenvector[:, idx_pos][:, idx_sort]
+        
+        # store 
+        self.response['eigenvalues'] = np.array(eigenvalues, ndmin=2)
+        self.response['eigenvectors'] = np.array(eigenvectors, ndmin=3)
+        self.response['freqs'] = np.array(eigenvalues.imag /2.0/np.pi, ndmin=2)
+        self.response['damping'] = np.array(eigenvalues.real / np.abs(eigenvalues), ndmin=2)
+        self.response['Vtas'] = np.array([Vtas]*len(eigenvalues), ndmin=2)
+    
+    def system(self):
+        A = self.response['A']        
+        return A
+     
