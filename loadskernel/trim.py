@@ -22,6 +22,7 @@ from loadskernel.model_equations.frequency_domain import KMethod
 from loadskernel.model_equations.frequency_domain import KEMethod
 from loadskernel.model_equations.frequency_domain import PKMethod
 from loadskernel.model_equations.state_space import StateSpaceAnalysis
+from loadskernel.model_equations.state_space import JacobiAnalysis
 
 from loadskernel.trim_conditions import TrimConditions
 
@@ -86,6 +87,10 @@ class Trim(TrimConditions):
         self.response['idx_B'] = idx_B
         self.response['idx_C'] = idx_C
         self.response['desc'] = self.trimcase['desc']
+        
+        # perform analysis on jacobian matrix
+        equations = JacobiAnalysis(self.response)
+        equations.eval_equations()
         
     def calc_derivatives(self):
         self.calc_flexible_derivatives()
