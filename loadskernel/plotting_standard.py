@@ -551,7 +551,7 @@ class StandardPlots():
             simcase    = self.jcl.simcase[response['i'][()]]
             
             # this kind of plot is only feasible for methods which iterate over Vtas, e.g. not the K- or KE-methods
-            if simcase['flutter_para']['method'] not in ['pk', 'statespace']:
+            if 'flutter' in simcase and simcase['flutter_para']['method'] not in ['pk', 'statespace']:
                 logging.warning('skip plotting of eigenvalues and -vectors for {}'.format(trimcase['desc']))
                 break
             
@@ -631,9 +631,14 @@ class StandardPlots():
                 
                 self.pp.savefig()
     
-    def plot_stability(self, filename_pdf):
+    def plot_fluttercurves_to_pdf(self, filename_pdf):
         self.pp = PdfPages(filename_pdf)
         self.plot_fluttercurves()
+        self.pp.close()
+        logging.info('plots saved as ' + filename_pdf)
+        
+    def plot_eigenvalues_to_pdf(self, filename_pdf):
+        self.pp = PdfPages(filename_pdf)
         self.plot_eigenvalues()
         self.pp.close()
         logging.info('plots saved as ' + filename_pdf)
