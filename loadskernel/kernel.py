@@ -351,13 +351,21 @@ class Kernel():
             
         logging.info('--> Loading dyn2stat.')
         dyn2stat_data = io_functions.specific_functions.load_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5')
+        
+        responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
 
         logging.info('--> Drawing some standard plots.')
         plt = plotting_standard.StandardPlots(self.jcl, model)
         plt.add_monstations(monstations)
+        plt.add_responses(responses)
         plt.plot_monstations(self.path_output + 'monstations_' + self.job_name + '.pdf')
         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
             plt.plot_monstations_time(self.path_output + 'monstations_time_' + self.job_name + '.pdf') # nur sim
+        elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
+            plt.plot_fluttercurves_to_pdf(self.path_output + 'fluttercurves_' + self.job_name + '.pdf')
+            plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
+        elif 'derivatives' in self.jcl.simcase[0] and self.jcl.simcase[0]['derivatives']:
+            plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
 
         logging.info('--> Saving auxiliary output data.')
         aux_out = auxiliary_output.AuxiliaryOutput(self.jcl, model, self.jcl.trimcase)
@@ -378,24 +386,17 @@ class Kernel():
             # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
-        logging.info( '--> Drawing some more detailed plots.')  
-        responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
-         
-        plt = plotting_extra.DetailedPlots(self.jcl, model)
-        plt.add_responses(responses)
-        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-            # nur sim
-            plt.plot_time_data()
-        elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
-            plt.plot_fluttercurves_to_pdf(self.path_output + 'fluttercurves_' + self.job_name + '.pdf')
-            plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
-        elif 'derivatives' in self.jcl.simcase[0] and self.jcl.simcase[0]['derivatives']:
-            plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
-        else:
-            # nur trim
-            #plt.plot_pressure_distribution()
-            plt.plot_forces_deformation_interactive()
-#          
+#         logging.info( '--> Drawing some more detailed plots.')         
+#         plt = plotting_extra.DetailedPlots(self.jcl, model)
+#         plt.add_responses(responses)
+#         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+#             # nur sim
+#             plt.plot_time_data()
+#         else:
+#             # nur trim
+#             #plt.plot_pressure_distribution()
+#             plt.plot_forces_deformation_interactive()
+#           
 #         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
 #             plt = plotting_extra.Animations(self.jcl, model)
 #             plt.add_responses(responses)
