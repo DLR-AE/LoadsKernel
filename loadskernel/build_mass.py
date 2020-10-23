@@ -62,6 +62,7 @@ class BuildMass:
         Mb[3:6,3:6] = inertia #np.array([[1,-1,-1],[-1,1,-1],[-1,-1,1]]) * inertia
 
         self.cggrid = cggrid # store for later internal use
+        self.cggrid_norm = cggrid_norm # store for later internal use
   
         return Mb, cggrid, cggrid_norm 
 
