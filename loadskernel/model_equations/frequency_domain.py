@@ -316,10 +316,10 @@ class PKMethod(KMethod):
         self.n_modes_f = self.model.mass['n_modes'][self.i_mass]
         self.n_modes = self.n_modes_f + self.n_modes_rbm
         
-        self.states = ['y', 'z', 'phi', 'theta', 'psi',]
+        self.states = ["y'", "z'", "phi'", "theta'", "psi'",]
         for i_mode in range(1, self.n_modes_f+1):
             self.states += ['Uf'+str(i_mode)]
-        self.states += ['v', 'w', 'p', 'q', 'r']
+        self.states += ["v'", "w'", "p'", "q'", "r'"]
         for i_mode in range(1, self.n_modes_f+1):
             self.states += ['dUf_dt'+str(i_mode)]
             
