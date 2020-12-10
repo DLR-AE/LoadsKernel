@@ -4,7 +4,7 @@ Created on Aug 2, 2019
 @author: voss_ar
 '''
 import numpy as np
-import logging
+import logging, copy
 
 class Efcs:
     def __init__(self):
@@ -27,7 +27,11 @@ class Efcs:
         self.alpha_lower = -10.0/180*np.pi
         self.alpha_upper =  10.0/180*np.pi
                 
-    def cs_mapping(self, command_xi, command_eta, command_zeta):
+    def cs_mapping(self, commands):
+        
+        command_xi = commands[0] 
+        command_eta = commands[1]
+        command_zeta = commands[2]
         
         # Ausgangsposition
         Ux2 = copy.deepcopy(self.Ux2_0)            

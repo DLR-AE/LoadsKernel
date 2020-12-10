@@ -18,6 +18,7 @@ from loadskernel.model_equations.nonlin_steady import NonlinSteady
 from loadskernel.model_equations.unsteady   import Unsteady
 from loadskernel.model_equations.landing    import Landing
 from loadskernel.model_equations.frequency_domain import GustExcitation
+from loadskernel.model_equations.frequency_domain import TurbulenceExcitation
 from loadskernel.model_equations.frequency_domain import KMethod
 from loadskernel.model_equations.frequency_domain import KEMethod
 from loadskernel.model_equations.frequency_domain import PKMethod
@@ -332,6 +333,8 @@ class Trim(TrimConditions):
             self.exec_sim_time_dom()
         elif self.jcl.aero['method'] in ['freq_dom'] and self.simcase['gust']:
             self.exec_sim_freq_dom()
+        elif self.jcl.aero['method'] in ['freq_dom'] and self.simcase['turbulence']:
+            self.exec_turbulence()
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -404,6 +407,13 @@ class Trim(TrimConditions):
         response_sim = equations.eval_equations()
         for key in response_sim.keys():
             response_sim[key] += self.response[key]
+        self.response = response_sim
+        logging.info('Frequency domain simulation finished.')
+        self.successful = True
+    
+    def exec_turbulence(self):
+        equations = TurbulenceExcitation(self, X0=self.response['X'], simcase=self.simcase)
+        response_sim = equations.eval_equations()
         self.response = response_sim
         logging.info('Frequency domain simulation finished.')
         self.successful = True
