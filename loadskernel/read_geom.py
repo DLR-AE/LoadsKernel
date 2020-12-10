@@ -386,8 +386,13 @@ def check_bigmat(n_row):
 
 def read_op4_header(fid):
     read_string = fid.readline()
-    n_col = nastran_number_converter(read_string[0:8], 'int')
-    n_row = nastran_number_converter(read_string[8:16], 'int')
+    """
+    Note: some Nastran versions put a minus sign in front of the matrix dimension. 
+    So far, I haven't found an explanation or its meaning in any documentation. 
+    Until we have further information on this, I assume this to be a bug of Nastran, which is ignored but using abs().  
+    """
+    n_col = abs(nastran_number_converter(read_string[0:8], 'int'))
+    n_row = abs(nastran_number_converter(read_string[8:16], 'int'))
     # Assumptions:
     # - real values: 16 characters for one value --> five values per line 
     # - complex values: 16 characters for real and complex part each --> five values in two line
@@ -422,9 +427,9 @@ def read_op4_column(fid, data, i_col, i_row, n_lines, n_items, type_real):
             row = row[32:]
     return data
 
-def read_op4_sparse(fid, data, n_col, type_real, type_double):
+def read_op4_sparse(fid, data, n_col, n_row, type_real, type_double):
 
-    bigmat = check_bigmat(n_col)
+    bigmat = check_bigmat(n_row)
     while True:    
         # read header of data block
         read_string = fid.readline()
@@ -503,7 +508,7 @@ def nastran_op4(filename, sparse_output=False, sparse_format=False ):
             empty_matrix = sp.lil_matrix((n_col, n_row), dtype=complex)
             
         if sparse_format:
-            data = read_op4_sparse(fid, empty_matrix,  n_col, type_real, type_double)
+            data = read_op4_sparse(fid, empty_matrix,  n_col, n_row, type_real, type_double)
         else:
             data = read_op4_dense(fid, empty_matrix, n_col, type_real)
                 
