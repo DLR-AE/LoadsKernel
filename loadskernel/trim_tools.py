@@ -33,7 +33,7 @@ def gravitation_on_earth(PHInorm_cg, Tgeo2body):
     return g_cg
 
 def design_gust_cs_25_341(gust_gradient, altitude, rho, V, Z_mo, V_D, MLW, MTOW, MZFW):
-    # Gust Calculation from CS 25.341
+    # Gust Calculation from CS 25.341 (a)
     # adapted from matlab-script by Vega Handojo, DLR-AE-LAE, 2015
     
     # convert (possible) integer to float
@@ -42,25 +42,14 @@ def design_gust_cs_25_341(gust_gradient, altitude, rho, V, Z_mo, V_D, MLW, MTOW,
     rho = np.float(rho)     # Air density
     V = np.float(V)         # Speed
     Z_mo = np.float(Z_mo)   # Maximum operating altitude
-    V_D = np.float(V_D)     # Design speed
+    V_D = np.float(V_D)     # Design Dive speed
     MLW = np.float(MLW)     # Maximum Landing Weight
     MTOW = np.float(MTOW)   # Maximum Take-Off Weight
     MZFW = np.float(MZFW)   # Maximum Zero Fuel Weight
 
     p0, rho0, T0, a0 = atmo_isa(0.0)
-    R1 = MLW/MTOW
-    R2 = MZFW/MTOW
-    f_gm = (R2*np.tan(np.pi*R1/4))**0.5
-    f_gz = 1-Z_mo/76200.0
     
-    # flight profile alleviation factor
-    fg_sl = 0.5*(f_gz+f_gm) # at sea level
-    if altitude == 0:
-        fg = fg_sl
-    elif altitude == Z_mo:    # at maximum flight-level F_g = 1
-        fg = 1.0
-    else:                 # between SL and Z_mo increases linearily to 1
-        fg = fg_sl + (1-fg_sl)*altitude/Z_mo
+    fg = calc_fg(altitude, Z_mo, MLW, MTOW, MZFW)
         
     # reference gust velocity (EAS) [m/s]
     if altitude <= 4572:
@@ -78,3 +67,51 @@ def design_gust_cs_25_341(gust_gradient, altitude, rho, V, Z_mo, V_D, MLW, MTOW,
     WG_TAS = v_gust/V #TAS/TAS
     
     return WG_TAS, u_ds, v_gust
+
+def turbulence_cs_25_341(altitude, Z_mo, V, V_C, V_D, MLW, MTOW, MZFW):
+    # Turbulence Calculation from CS 25.341 (b)
+    
+    # convert (possible) integers to floats
+    altitude = np.float(altitude)     # Altitude
+    Z_mo = np.float(Z_mo)   # Maximum operating altitude
+    V = np.float(V)         # Speed
+    V_C = np.float(V_C)     # Design Cruise speed
+    V_D = np.float(V_D)     # Design Dive speed
+    MLW = np.float(MLW)     # Maximum Landing Weight
+    MTOW = np.float(MTOW)   # Maximum Take-Off Weight
+    MZFW = np.float(MZFW)   # Maximum Zero Fuel Weight
+    
+    fg = calc_fg(altitude, Z_mo, MLW, MTOW, MZFW)
+    
+    # reference turbulence intensity (TAS) [m/s]
+    # CS 25.341 (b)(3): U_sigma_ref is the reference turbulence intensity that...
+    if altitude <= 7315.0:
+        # ...varies linearly with altitude from 27.43m/s (90 ft/s) (TAS) at sea level to 24.08 m/s (79 ft/s) (TAS) at 7315 m (24000 ft) 
+        u_ref = 27.43-(27.43-24.08)*altitude/7315.0
+    else:
+        # ...and is then constant at 24.08 m/s (79 ft/s) (TAS) up to the altitude of 18288 m (60000 ft)
+        u_ref = 24.08
+    
+    # limit turbulence intensity (TAS) [m/s]
+    u_sigma = u_ref * fg 
+    
+    # At speed VD: U_sigma is equal to 1/2 the values and
+    # At speeds between VC and VD: U_sigma is equal to a value obtained by linear interpolation.
+    if V > V_C:
+        u_sigma = u_sigma * (1.0 - 0.5*(V-V_C)/(V_D-V_C))
+    
+    return u_sigma
+
+def calc_fg(altitude, Z_mo, MLW, MTOW, MZFW):
+    # calculate the flight profile alleviation factor as given in CS 25.341 (a)(6)
+    
+    R1 = MLW/MTOW
+    R2 = MZFW/MTOW
+    f_gm = (R2*np.tan(np.pi*R1/4))**0.5
+    f_gz = 1.0-Z_mo/76200.0
+    # At sea level, the flight profile alleviation factor is determined by
+    fg_sl = 0.5*(f_gz+f_gm) 
+    # The flight profile alleviation factor, Fg, must be increased linearly from the sea level value to a value of 1.0 at the maximum operating altitude
+    fg = fg_sl + (1.0-fg_sl)*altitude/Z_mo
+    
+    return fg
