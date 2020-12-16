@@ -188,9 +188,9 @@ class TurbulenceExcitation(GustExcitation):
         rms_gust = self.rms_gust # RSM gust velocity [m/s]
         L = 762.0/self.Vtas # normalized turbulence scale [s], 2500.0 ft = 762.0 m
         psd_karman = 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*freqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*freqs)**2.0)**(11.0/6.0)
-        # Apply a scaling, such that the results don't change with dt and t_final (as proposed by Vega).
+        # Apply a scaling in the frequency domain to achieve the correct amplitude in the time domain.
         # Then, CS-25 wants us to take the square root.
-        psd_scaled = rms_gust * (psd_karman * len(freqs) )**0.5 #* self.fmax
+        psd_scaled = rms_gust * (psd_karman * len(freqs) )**0.5
 
         # generate a random phase
         random_phases = np.random.random_sample(len(freqs)) * 2.0*np.pi
@@ -264,6 +264,9 @@ class TurbulenceExcitation(GustExcitation):
         plt.xlabel('Time [s]')
         plt.legend(loc='upper right')
         plt.grid(True)
+        
+        self.WG_TAS*self.Vtas
+        
         """
 
 class KMethod(GustExcitation):
