@@ -184,12 +184,13 @@ class TurbulenceExcitation(GustExcitation):
     
     def calc_gust_excitation(self, freqs, t):
         # calculate turbulence excitation by von Karman power spectral density according to CS-25.341 b)
-        rms_gust = 1.0 # RSM gust velocity [m/s], unit amplitude
+        #rms_gust = 1.0 # RSM gust velocity [m/s], unit amplitude
+        rms_gust = self.rms_gust # RSM gust velocity [m/s]
         L = 762.0/self.Vtas # normalized turbulence scale [s], 2500.0 ft = 762.0 m
-        psd_karman = rms_gust**2.0 * 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*freqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*freqs)**2.0)**(11.0/6.0)
+        psd_karman = 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*freqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*freqs)**2.0)**(11.0/6.0)
         # Apply a scaling, such that the results don't change with dt and t_final (as proposed by Vega).
         # Then, CS-25 wants us to take the square root.
-        psd_scaled = (psd_karman * len(freqs) * self.fmax)**0.5
+        psd_scaled = rms_gust * (psd_karman * len(freqs) )**0.5 #* self.fmax
 
         # generate a random phase
         random_phases = np.random.random_sample(len(freqs)) * 2.0*np.pi
@@ -212,6 +213,7 @@ class TurbulenceExcitation(GustExcitation):
         """
         Checks:
         print('PSD integral (must be close to 1.0): {}'.format(np.trapz(psd_karman, freqs)))
+        print('PSD integral (must be close to 1.0): {}'.format(np.trapz(psd_scaled, freqs)))
         
         psd_dryden = 2.0*L * (1.0+3.0*(L*2.0*np.pi*freqs)**2.0)          /(1.0+(L*2.0*np.pi*freqs)**2.0)**(2.0)
         from matplotlib import pyplot as plt
