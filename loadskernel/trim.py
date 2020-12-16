@@ -331,13 +331,10 @@ class Trim(TrimConditions):
     def exec_sim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady']:
             self.exec_sim_time_dom()
-        elif self.jcl.aero['method'] in ['freq_dom'] and self.simcase['gust']:
+        elif self.jcl.aero['method'] in ['freq_dom']:
             self.exec_sim_freq_dom()
-        elif self.jcl.aero['method'] in ['freq_dom'] and self.simcase['turbulence']:
-            self.exec_turbulence()
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
-        
         
     def exec_sim_time_dom(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
@@ -403,17 +400,13 @@ class Trim(TrimConditions):
         return integrator
             
     def exec_sim_freq_dom(self):
-        equations = GustExcitation(self, X0=self.response['X'], simcase=self.simcase)
+        if self.simcase['gust']:
+            equations = GustExcitation(self, X0=self.response['X'], simcase=self.simcase)
+        elif self.simcase['turbulence']:
+            equations = TurbulenceExcitation(self, X0=self.response['X'], simcase=self.simcase)
         response_sim = equations.eval_equations()
         for key in response_sim.keys():
             response_sim[key] += self.response[key]
-        self.response = response_sim
-        logging.info('Frequency domain simulation finished.')
-        self.successful = True
-    
-    def exec_turbulence(self):
-        equations = TurbulenceExcitation(self, X0=self.response['X'], simcase=self.simcase)
-        response_sim = equations.eval_equations()
         self.response = response_sim
         logging.info('Frequency domain simulation finished.')
         self.successful = True
