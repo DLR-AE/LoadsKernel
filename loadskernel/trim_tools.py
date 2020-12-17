@@ -111,7 +111,12 @@ def calc_fg(altitude, Z_mo, MLW, MTOW, MZFW):
     f_gz = 1.0-Z_mo/76200.0
     # At sea level, the flight profile alleviation factor is determined by
     fg_sl = 0.5*(f_gz+f_gm) 
-    # The flight profile alleviation factor, Fg, must be increased linearly from the sea level value to a value of 1.0 at the maximum operating altitude
-    fg = fg_sl + (1.0-fg_sl)*altitude/Z_mo
+    # The flight profile alleviation factor, Fg, must be increased linearly from the sea level value to a value of 1.0 at the maximum operating altitude    
+    if altitude == 0.0:
+        fg = fg_sl
+    elif altitude == Z_mo:
+        fg = 1.0
+    else:
+        fg = fg_sl + (1.0-fg_sl)*altitude/Z_mo
     
     return fg
