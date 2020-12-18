@@ -59,57 +59,57 @@ class AuxiliaryOutput:
             n_modes = self.model.mass['n_modes'][i_mass]
 
             # get trimmed states
-            trimresult['x'] = response['X'][0]
-            trimresult['y'] = response['X'][1]
-            trimresult['z'] = response['X'][2]
-            trimresult['phi [deg]']   = response['X'][3]/np.pi*180.0
-            trimresult['theta [deg]'] = response['X'][4]/np.pi*180.0
-            trimresult['psi [deg]']   = response['X'][5]/np.pi*180.0
-            trimresult['dx'] = response['Y'][0]
-            trimresult['dy'] = response['Y'][1]
-            trimresult['dz'] = response['Y'][2]
-            trimresult['u'] = response['X'][6]
-            trimresult['v'] = response['X'][7]
-            trimresult['w'] = response['X'][8]
-            trimresult['p'] = response['X'][9]
-            trimresult['q'] = response['X'][10]
-            trimresult['r'] = response['X'][11]
-            trimresult['du'] = response['Y'][6]
-            trimresult['dv'] = response['Y'][7]
-            trimresult['dw'] = response['Y'][8]
-            trimresult['dp'] = response['Y'][9]
-            trimresult['dq'] = response['Y'][10]
-            trimresult['dr'] = response['Y'][11]
-            trimresult['command_xi [deg]']   = response['X'][12+2*n_modes]/np.pi*180.0
-            trimresult['command_eta [deg]']  = response['X'][13+2*n_modes]/np.pi*180.0
-            trimresult['command_zeta [deg]'] = response['X'][14+2*n_modes]/np.pi*180.0
-            trimresult['thrust per engine [N]'] = response['X'][15+2*n_modes]
-            trimresult['stabilizer [deg]'] = response['X'][16+2*n_modes]/np.pi*180.0
-            trimresult['flap setting [deg]'] = response['X'][17+2*n_modes]/np.pi*180.0
-            trimresult['Nz'] = response['Y'][18+2*n_modes]
-            trimresult['Vtas'] = response['Y'][19+2*n_modes]
-            trimresult['q_dyn'] = response['q_dyn'][0]
-            trimresult['alpha [deg]'] = response['alpha'][0]/np.pi*180.0
-            trimresult['beta [deg]'] = response['beta'][0]/np.pi*180.0
+            trimresult['x'] = response['X'][0,0]
+            trimresult['y'] = response['X'][0,1]
+            trimresult['z'] = response['X'][0,2]
+            trimresult['phi [deg]']   = response['X'][0,3]/np.pi*180.0
+            trimresult['theta [deg]'] = response['X'][0,4]/np.pi*180.0
+            trimresult['psi [deg]']   = response['X'][0,5]/np.pi*180.0
+            trimresult['dx'] = response['Y'][0,0]
+            trimresult['dy'] = response['Y'][0,1]
+            trimresult['dz'] = response['Y'][0,2]
+            trimresult['u'] = response['X'][0,6]
+            trimresult['v'] = response['X'][0,7]
+            trimresult['w'] = response['X'][0,8]
+            trimresult['p'] = response['X'][0,9]
+            trimresult['q'] = response['X'][0,10]
+            trimresult['r'] = response['X'][0,11]
+            trimresult['du'] = response['Y'][0,6]
+            trimresult['dv'] = response['Y'][0,7]
+            trimresult['dw'] = response['Y'][0,8]
+            trimresult['dp'] = response['Y'][0,9]
+            trimresult['dq'] = response['Y'][0,10]
+            trimresult['dr'] = response['Y'][0,11]
+            trimresult['command_xi [deg]']   = response['X'][0,12+2*n_modes]/np.pi*180.0
+            trimresult['command_eta [deg]']  = response['X'][0,13+2*n_modes]/np.pi*180.0
+            trimresult['command_zeta [deg]'] = response['X'][0,14+2*n_modes]/np.pi*180.0
+            trimresult['thrust per engine [N]'] = response['X'][0,15+2*n_modes]
+            trimresult['stabilizer [deg]'] = response['X'][0,16+2*n_modes]/np.pi*180.0
+            trimresult['flap setting [deg]'] = response['X'][0,17+2*n_modes]/np.pi*180.0
+            trimresult['Nz'] = response['Nxyz'][0,2]
+            trimresult['Vtas'] = response['Y'][0,-2]
+            trimresult['q_dyn'] = response['q_dyn'][0,0]
+            trimresult['alpha [deg]'] = response['alpha'][0,0]/np.pi*180.0
+            trimresult['beta [deg]'] = response['beta'][0,0]/np.pi*180.0
             
             # calculate additional aero coefficients
-            Pmac_rbm  = np.dot(self.model.Dkx1.T, response['Pk_rbm'])
-            Pmac_cam  = np.dot(self.model.Dkx1.T, response['Pk_cam'])
-            Pmac_cs   = np.dot(self.model.Dkx1.T, response['Pk_cs'])
-            Pmac_f    = np.dot(self.model.Dkx1.T, response['Pk_f'])
-            Pmac_idrag = np.dot(self.model.Dkx1.T, response['Pk_idrag'])
+            Pmac_rbm  = np.dot(self.model.Dkx1.T, response['Pk_rbm'][0,:])
+            Pmac_cam  = np.dot(self.model.Dkx1.T, response['Pk_cam'][0,:])
+            Pmac_cs   = np.dot(self.model.Dkx1.T, response['Pk_cs'][0,:])
+            Pmac_f    = np.dot(self.model.Dkx1.T, response['Pk_f'][0,:])
+            Pmac_idrag = np.dot(self.model.Dkx1.T, response['Pk_idrag'][0,:])
             A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
             AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
-            Pmac_c = np.divide(response['Pmac'],response['q_dyn'])/A
+            Pmac_c = np.divide(response['Pmac'][0,:],response['q_dyn'][0])/A
             # um alpha drehen, um Cl und Cd zu erhalten
-            Cl = Pmac_c[2]*np.cos(response['alpha'][0])+Pmac_c[0]*np.sin(response['alpha'][0])
-            Cd = Pmac_c[2]*np.sin(response['alpha'][0])+Pmac_c[0]*np.cos(response['alpha'][0])
+            Cl = Pmac_c[2]*np.cos(response['alpha'][0,0])+Pmac_c[0]*np.sin(response['alpha'][0,0])
+            Cd = Pmac_c[2]*np.sin(response['alpha'][0,0])+Pmac_c[0]*np.cos(response['alpha'][0,0])
             Cd_ind_theo = Cl**2.0/np.pi/AR
             
-            trimresult['Cz_rbm'] = Pmac_rbm[2]/response['q_dyn'][0]/A
-            trimresult['Cz_cam'] = Pmac_cam[2]/response['q_dyn'][0]/A
-            trimresult['Cz_cs'] = Pmac_cs[2]/response['q_dyn'][0]/A
-            trimresult['Cz_f'] = Pmac_f[2]/response['q_dyn'][0]/A
+            trimresult['Cz_rbm'] = Pmac_rbm[2]/response['q_dyn'][0,0]/A
+            trimresult['Cz_cam'] = Pmac_cam[2]/response['q_dyn'][0,0]/A
+            trimresult['Cz_cs'] = Pmac_cs[2]/response['q_dyn'][0,0]/A
+            trimresult['Cz_f'] = Pmac_f[2]/response['q_dyn'][0,0]/A
             trimresult['Cx'] = Pmac_c[0]
             trimresult['Cy'] = Pmac_c[1]
             trimresult['Cz'] = Pmac_c[2]
@@ -119,9 +119,9 @@ class AuxiliaryOutput:
             trimresult['Cl'] = Cl
             trimresult['Cd'] = Cd
             trimresult['E'] = Cl/Cd
-            trimresult['Cd_ind'] = Pmac_idrag[0]/response['q_dyn'][0]/A
-            trimresult['Cmz_ind'] = Pmac_idrag[5]/response['q_dyn'][0]/A/self.model.macgrid['b_ref']
-            trimresult['e'] = Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn'][0]/A)
+            trimresult['Cd_ind'] = Pmac_idrag[0]/response['q_dyn'][0,0]/A
+            trimresult['Cmz_ind'] = Pmac_idrag[5]/response['q_dyn'][0,0]/A/self.model.macgrid['b_ref']
+            trimresult['e'] = Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn'][0,0]/A)
         else:
             trimresult = False
         return trimresult   
@@ -146,56 +146,39 @@ class AuxiliaryOutput:
         logging.info('writing failed trimcases cases to: ' + filename_csv)
         io_functions.specific_functions.write_list_of_dictionaries(failed_trimcases_info, filename_csv)
     
-    def write_critical_trimcases(self, filename_csv, dyn2stat=False):
+    def write_critical_trimcases(self, filename_csv):
         # eigentlich gehoert diese Funtion eher zum post-processing als zum
         # plotten, kann aber erst nach dem plotten ausgefuehrt werden...
-        if dyn2stat:
-            crit_trimcases = list(set([crit_trimcase.split('_')[0] for crit_trimcase in self.crit_trimcases])) # extract original subcase number
-        else: 
-            crit_trimcases = self.crit_trimcases
+        crit_trimcases = list(set([crit_trimcase.split('_')[0] for crit_trimcase in self.crit_trimcases])) # extract original subcase number
+
         crit_trimcases_info = []
         for i_case in range(len(self.jcl.trimcase)):
             if str(self.jcl.trimcase[i_case]['subcase']) in crit_trimcases:
                 trimcase = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
                             'desc':     self.jcl.trimcase[i_case]['desc'],}
-#                 does not work if maneuver and time simulations are handled simultaneously
-#                 trimcase = copy.deepcopy(self.jcl.trimcase[i_case])
-#                 if dyn2stat:
-#                     trimcase.update(self.jcl.simcase[i_case]) # merge infos from simcase with trimcase
                 crit_trimcases_info.append(trimcase)
                 
         logging.info('writing critical trimcases cases to: ' + filename_csv)
         io_functions.specific_functions.write_list_of_dictionaries(crit_trimcases_info, filename_csv)
     
-    def write_critical_nodalloads(self, filename, dyn2stat=False): 
+    def write_critical_nodalloads(self, filename): 
         logging.info( 'saving critical nodal loads as Nastarn cards...')
-        if dyn2stat:
-            # This is quite a complicated sorting because the subcases from dyn2stat may contain non-numeric characters. 
-            # A "normal" sorting returns an undesired sequence, leading IDs in a non-ascending sequence. This a not allowed by Nastran. 
-            subcases_IDs = self.dyn2stat_data['subcases_ID'][:].tolist()
-            subcases = self.dyn2stat_data['subcases'][:].tolist()
-            crit_ids = [subcases_IDs[subcases.index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases) ]
-            crit_ids = np.sort(crit_ids)
-            with open(filename+'_Pg', 'w') as fid: 
-                for subcase_ID in crit_ids:
-                    idx = subcases_IDs.index(subcase_ID)
-                    io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx][:], subcases_IDs[idx])
-            with open(filename+'_subcases', 'w') as fid:  
-                for subcase_ID in crit_ids:
-                    idx = subcases_IDs.index(subcase_ID)
-                    io_functions.nastran_functions.write_subcases(fid, subcases_IDs[idx], subcases[idx])
-        else:
-            crit_trimcases = self.crit_trimcases
-            with open(filename+'_Pg', 'w') as fid: 
-                for i_case in range(len(self.jcl.trimcase)):
-                    if str(self.jcl.trimcase[i_case]['subcase']) in crit_trimcases:
-                        io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_case]['Pg'][:], self.jcl.trimcase[i_case]['subcase'])
-            with open(filename+'_subcases', 'w') as fid:         
-                for i_case in range(len(self.jcl.trimcase)):
-                    if str(self.jcl.trimcase[i_case]['subcase']) in crit_trimcases:
-                        io_functions.nastran_functions.write_subcases(fid, self.jcl.trimcase[i_case]['subcase'], self.jcl.trimcase[i_case]['desc'])
+        # This is quite a complicated sorting because the subcases from dyn2stat may contain non-numeric characters. 
+        # A "normal" sorting returns an undesired sequence, leading IDs in a non-ascending sequence. This a not allowed by Nastran. 
+        subcases_IDs = self.dyn2stat_data['subcases_ID'][:].tolist()
+        subcases = self.dyn2stat_data['subcases'][:].tolist()
+        crit_ids = [subcases_IDs[subcases.index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases) ]
+        crit_ids = np.sort(crit_ids)
+        with open(filename+'_Pg', 'w') as fid: 
+            for subcase_ID in crit_ids:
+                idx = subcases_IDs.index(subcase_ID)
+                io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx][:], subcases_IDs[idx])
+        with open(filename+'_subcases', 'w') as fid:  
+            for subcase_ID in crit_ids:
+                idx = subcases_IDs.index(subcase_ID)
+                io_functions.nastran_functions.write_subcases(fid, subcases_IDs[idx], subcases[idx])
     
-    def write_critical_sectionloads(self, filename, dyn2stat=False): 
+    def write_critical_sectionloads(self, filename): 
         crit_trimcases = np.unique(self.crit_trimcases)
         crit_monstations = {}
         for key, monstation in self.monstations.items():

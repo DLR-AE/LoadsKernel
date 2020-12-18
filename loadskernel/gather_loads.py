@@ -2,7 +2,7 @@
 import numpy as np
 import logging
 
-class Monstations:
+class GatherLoads:
     #===========================================================================
     # In this class actually no calculation is done, it merely gathers data.
     # From the response, the monstations are assembled in a more convenient order and format.
@@ -30,7 +30,7 @@ class Monstations:
         
     def get_monstation_name(self, i_station):
         if not 'name' in self.model.mongrid:
-                name = 'MON{:s}'.format(str(int(self.model.mongrid['ID'][i_station]))) # make up a name
+            name = 'MON{:s}'.format(str(int(self.model.mongrid['ID'][i_station]))) # make up a name
         else:
             name = self.model.mongrid['name'][i_station] # take name from mongrid
         return name
@@ -48,10 +48,10 @@ class Monstations:
                                                               'loads': loads,
                                                               't': response['t'] }
             else:
-                loads = response['Pmon_local'][self.model.mongrid['set'][i_station,:]]
+                loads = response['Pmon_local'][0,self.model.mongrid['set'][i_station,:]]
                 self.monstations[name]['subcases'].append(subcase)
                 self.monstations[name]['loads'].append(loads)
-                self.monstations[name]['t'].append(response['t'])         
+                self.monstations[name]['t'].append(response['t'][0])         
            
 
     def gather_dyn2stat(self, response, mode='time-based'):
@@ -92,7 +92,7 @@ class Monstations:
 
         elif mode == 'stat2stat':
             i_case = response['i']
-            self.dyn2stat['Pg'].append(response['Pg'])
+            self.dyn2stat['Pg'].append(response['Pg'][0,:])
             self.dyn2stat['subcases'].append(str(self.jcl.trimcase[i_case]['subcase']))
             self.dyn2stat['subcases_ID'].append(int(self.jcl.trimcase[i_case]['subcase']))
                 
