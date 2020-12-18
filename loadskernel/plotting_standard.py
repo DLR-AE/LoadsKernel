@@ -469,9 +469,15 @@ class StandardPlots():
             #Plot boundaries
             freqs = np.real(self.model.mass['Khh'][i_mass].diagonal())**0.5 /2/np.pi
             fmin = 2 * np.floor(response['freqs'][:].min() / 2)
+            if fmin < -50.0 or np.isnan(fmin): 
+                fmin = -50.0
             fmax = 2 * np.ceil(response['freqs'][:].max() / 2)
+            if fmax > 50.0 or np.isnan(fmax): 
+                fmax = 50.0
             Vmin = 0
             Vmax = 2 * np.ceil(tas2eas(response['Vtas'][:].max(), self.model.atmo['h'][i_atmo]) / 2)
+            if Vmax > 500.0 or np.isnan(Vmax): 
+                Vmax = 500.0
             gmin = -0.11
             gmax = 0.11
             
