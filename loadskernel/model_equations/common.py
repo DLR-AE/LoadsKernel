@@ -93,11 +93,11 @@ class Common():
         elif self.simcase and self.simcase['turbulence']:
             V_C = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MC']
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD'] 
-            if 'rms_gust' not in self.simcase.keys():
-                self.rms_gust = turbulence_cs_25_341(self.model.atmo['h'][self.i_atmo], self.simcase['gust_para']['Z_mo'], Vtas, V_C, V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
+            if 'u_sigma' not in self.simcase.keys():
+                self.u_sigma = turbulence_cs_25_341(self.model.atmo['h'][self.i_atmo], self.simcase['gust_para']['Z_mo'], Vtas, V_C, V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
             else:
-                self.rms_gust = self.simcase['rms_gust']
-            logging.info('Turbulence set up with initial Vtas = {} and rms_gust = {}'.format(Vtas, self.rms_gust))
+                self.u_sigma = self.simcase['u_sigma']
+            logging.info('Turbulence set up with initial Vtas = {} and u_sigma = {}'.format(Vtas, self.u_sigma))
         
         # init cs_signal
         if self.simcase and self.simcase['cs_signal']:
