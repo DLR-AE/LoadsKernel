@@ -271,29 +271,6 @@ class TurbulenceExcitation(GustExcitation):
         self.WG_TAS*self.Vtas
         
         """
-    
-    def calc_gust_excitation(self, freqs, t):
-        # calculate turbulence excitation by von Karman power spectral density according to CS-25.341 b)
-        #rms_gust = 1.0 # RSM gust velocity [m/s], unit amplitude
-        L = 762.0/self.Vtas # normalized turbulence scale [s], 2500.0 ft = 762.0 m
-        psd_karman = 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*freqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*freqs)**2.0)**(11.0/6.0)
-        # set psd to zero for f=0.0 to achieve y_mean = 0.0 
-        psd_karman[0] = 0.0
-        
-        # apply to all panels with phase delay according to geometrical position
-        time_delay = self.model.aerogrid['offset_j'][:,0]/self.Vtas # time delay of every panel in [s]
-        phase_delay = -np.tile(time_delay, (len(freqs), 1)).T * 2.0*np.pi * freqs # phase delay of every panel and frequency in [rad]
-        # Ausrichtung der Boe fehlt noch
-        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
-        # Notation: [n_panels, n_freq]
-        wj_gust_f = psd_scaled * np.exp(1j*(phase_delay)) * gust_direction_vector[:,None] /self.Vtas
-
-        Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
-        Pk_fourier = np.zeros((self.model.aerogrid['n']*6, len(freqs)), dtype='complex128')
-        for i_f in range(len(freqs)):
-            Ph_fourier[:,i_f], Pk_fourier[:,i_f] = self.calc_P_fourier(freqs[i_f], wj_gust_f[:,i_f])
-        
-        return Ph_fourier, Pk_fourier
 
 class KMethod(GustExcitation):
     
