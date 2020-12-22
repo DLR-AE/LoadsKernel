@@ -272,41 +272,6 @@ class TurbulenceExcitation(GustExcitation):
         
         """
     
-    def eval_equations(self):
-        self.setup_frequence_parameters()
-        
-        logging.info('building transfer functions') 
-        self.build_AIC_interpolators() # unsteady
-        # Notation: [Antwort, Anregung, Frequenz]
-        positiv_TFs = self.build_transfer_functions(self.positiv_fftfreqs)
-
-        logging.info('calculating gust excitation (this may take considerable time and memory)')
-        Ph_gust_fourier, Pk_gust_fourier = self.calc_gust_excitation(self.positiv_fftfreqs, self.t)
-        
-        logging.info('calculating responses')
-        # MDM: p = K*u
-        temp = self.model.PHIstrc_mon.T[self.model.mongrid['set'][126,2],:].dot( self.model.KGG.dot(self.model.mass['PHIh_strc'][self.i_mass].T) )
-        Uh_fourier = positiv_TFs * Ph_gust_fourier # [Antwort, Anregung, Frequenz]
-        Uh = Uh_fourier.sum(axis=1)
-        bla = temp.dot(Uh)
-        
-        from matplotlib import pyplot as plt
-        fig, (ax1, ax2) = plt.subplots(2,1, sharex=True)
-        ax1.scatter(self.positiv_fftfreqs, bla.real, marker='s')
-        ax2.scatter(self.positiv_fftfreqs, bla.imag, marker='s')
-        ax1.set_ylabel('real')
-        ax2.set_ylabel('imag')
-        ax2.set_xlabel('freq')
-        #ax1.legend(loc='upper right')
-        ax1.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
-        ax2.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
-        ax1.grid(True)
-        ax2.grid(True)
-        
-        Uh_fourier = self.u_sigma * A
-        
-        return   
-    
     def calc_gust_excitation(self, freqs, t):
         # calculate turbulence excitation by von Karman power spectral density according to CS-25.341 b)
         #rms_gust = 1.0 # RSM gust velocity [m/s], unit amplitude
