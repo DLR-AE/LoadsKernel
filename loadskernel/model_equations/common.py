@@ -90,7 +90,7 @@ class Common():
             else:
                 self.WG_TAS = self.simcase['WG_TAS']
             logging.info('Gust set up with initial Vtas = {}, t1 = {}, WG_tas = {}'.format(Vtas, self.simcase['gust_para']['T1'], self.WG_TAS))
-        elif self.simcase and self.simcase['turbulence']:
+        elif self.simcase and (self.simcase['turbulence'] or self.simcase['limit_turbulence']):
             V_C = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MC']
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD'] 
             if 'u_sigma' not in self.simcase.keys():

@@ -415,6 +415,23 @@ class Kernel():
 #         from scripts import plot_lift_distribution
 #         plot = plot_lift_distribution.Liftdistribution(self.jcl, model, responses)
 #         plot.plot_aero_spanwise()
+        
+        response = responses[0]
+        pos_mx=model.mongrid['set'][126,3]
+        pos_my=model.mongrid['set'][126,4]
+
+        from matplotlib import pyplot as plt
+        fig, (ax1) = plt.subplots(1,1)
+        ax1.scatter(response['Pmon_local'][0,pos_mx], response['Pmon_local'][0,pos_my], label='1g')
+        ax1.scatter(response['Pmon_local'][0,pos_mx]+response['Pmon_turb'][0,pos_mx], response['Pmon_local'][0,pos_my]+response['Pmon_turb'][0,pos_my], label='1g+Pturb')
+        ax1.scatter(response['Pmon_local'][0,pos_mx]-response['Pmon_turb'][0,pos_mx], response['Pmon_local'][0,pos_my]-response['Pmon_turb'][0,pos_my], label='1g-Pturb')
+        ax1.ticklabel_format(style='sci', axis='x', scilimits=(-2,2))
+        ax1.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
+        ax1.set_xlabel('Mx')
+        ax1.set_ylabel('My')
+        ax1.grid(True)
+        ax1.legend(loc='best')
+        plt.show()
 
         return
 
