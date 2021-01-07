@@ -36,7 +36,7 @@ class AuxiliaryOutput:
         logging.info( 'saving all nodal loads as Nastarn cards...')
         with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
-                io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_trimcase]['Pg'][:], self.jcl.trimcase[i_trimcase]['subcase'])
+                io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_trimcase]['Pg'][0,:], self.jcl.trimcase[i_trimcase]['subcase'])
         with open(filename+'_subcases', 'w') as fid:         
             for i_trimcase in range(len(self.jcl.trimcase)):
                 io_functions.nastran_functions.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
