@@ -234,6 +234,12 @@ class Trim(TrimConditions):
             self.iterative_trim()
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
+        if self.successful:
+            # To align the trim results with the time/frequency simulations, we expand the response by one dimension. 
+            # Notation: (n_timesteps, n_dof) --> the trim results can be considered as the solution at time step zero. 
+            # This saves a significant amount of lines of additional code in the post processing.
+            for key in self.response.keys():
+                self.response[key] = np.expand_dims(self.response[key], axis=0)
         
     def direct_trim(self):
         # The purpose of HYBRD is to find a zero of a system of N non-
@@ -329,15 +335,16 @@ class Trim(TrimConditions):
                     return
 
     def exec_sim(self):
+        # decrease dimension to simplify indexing (undo what has been done in the last lines of exec_trim() ) 
+        self.response['X'] = self.response['X'][0,:]
+        self.response['Y'] = self.response['Y'][0,:]
+        # select solution sequence
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady']:
             self.exec_sim_time_dom()
-        elif self.jcl.aero['method'] in ['freq_dom'] and self.simcase['gust']:
+        elif self.jcl.aero['method'] in ['freq_dom']:
             self.exec_sim_freq_dom()
-        elif self.jcl.aero['method'] in ['freq_dom'] and self.simcase['turbulence']:
-            self.exec_turbulence()
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
-        
         
     def exec_sim_time_dom(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
@@ -377,7 +384,7 @@ class Trim(TrimConditions):
                 response_step = equations.eval_equations(xt[i_step], t[i_step], modus='sim_full_output')
                 for key in response_step.keys():
                     self.response[key] = np.vstack((self.response[key],response_step[key]))
-                self.successful = True
+            self.successful = True
         else:
             self.response = {}
             self.successful = False
@@ -403,30 +410,26 @@ class Trim(TrimConditions):
         return integrator
             
     def exec_sim_freq_dom(self):
-        equations = GustExcitation(self, X0=self.response['X'], simcase=self.simcase)
+        if self.simcase['gust']:
+            equations = GustExcitation(self, X0=self.response['X'], simcase=self.simcase)
+        elif self.simcase['turbulence']:
+            equations = TurbulenceExcitation(self, X0=self.response['X'], simcase=self.simcase)
         response_sim = equations.eval_equations()
         for key in response_sim.keys():
-            response_sim[key] += self.response[key]
-        self.response = response_sim
-        logging.info('Frequency domain simulation finished.')
-        self.successful = True
-    
-    def exec_turbulence(self):
-        equations = TurbulenceExcitation(self, X0=self.response['X'], simcase=self.simcase)
-        response_sim = equations.eval_equations()
-        self.response = response_sim
+            self.response[key] = response_sim[key] + self.response[key]
         logging.info('Frequency domain simulation finished.')
         self.successful = True
     
     def exec_flutter(self):
+        # select solution sequence
         if self.simcase['flutter_para']['method'] == 'k':
-            equations = KMethod(self, X0=self.response['X'], simcase=self.simcase)
+            equations = KMethod(self, X0=self.response['X'][0,:], simcase=self.simcase)
         elif self.simcase['flutter_para']['method'] == 'ke':
-            equations = KEMethod(self, X0=self.response['X'], simcase=self.simcase)
+            equations = KEMethod(self, X0=self.response['X'][0,:], simcase=self.simcase)
         elif self.simcase['flutter_para']['method'] == 'pk':
-            equations = PKMethod(self, X0=self.response['X'], simcase=self.simcase)
+            equations = PKMethod(self, X0=self.response['X'][0,:], simcase=self.simcase)
         elif self.simcase['flutter_para']['method'] == 'statespace':
-            equations = StateSpaceAnalysis(self, X0=self.response['X'], simcase=self.simcase)
+            equations = StateSpaceAnalysis(self, X0=self.response['X'][0,:], simcase=self.simcase)
         response_flutter = equations.eval_equations()
         logging.info('Flutter analysis finished.')
         for key in response_flutter.keys():

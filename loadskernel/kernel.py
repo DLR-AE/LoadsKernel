@@ -10,7 +10,7 @@ from loadskernel import io_functions
 from loadskernel.io_functions import matlab_functions, specific_functions
 import loadskernel.trim as trim
 import loadskernel.post_processing as post_processing
-import loadskernel.monstations as monstations_module
+import loadskernel.gather_loads as gather_modul
 import loadskernel.auxiliary_output as auxiliary_output
 import loadskernel.plotting_standard as plotting_standard
 import loadskernel.plotting_extra as plotting_extra
@@ -97,7 +97,7 @@ class Kernel():
         self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         responses = io_functions.specific_functions.gather_responses(self.job_name, io_functions.specific_functions.check_path(self.path_output+'responses'))
-        mon = monstations_module.Monstations(self.jcl, model)
+        mon = gather_modul.GatherLoads(self.jcl, model)
         f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
         for i in range(len(self.jcl.trimcase)):
             response = responses[[response['i'] for response in responses].index(i)]
@@ -160,7 +160,7 @@ class Kernel():
         response['successful'] = trim_i.successful
         del trim_i
         if response['successful']:
-            post_processing_i = post_processing.post_processing(jcl, model, jcl.trimcase[i], response)
+            post_processing_i = post_processing.PostProcessing(jcl, model, jcl.trimcase[i], response)
             post_processing_i.force_summation_method()
             post_processing_i.euler_transformation()
             post_processing_i.cuttingforces()
@@ -171,7 +171,7 @@ class Kernel():
         logging.info('--> Starting Main in sequential mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        mon = monstations_module.Monstations(self.jcl, model)
+        mon = gather_modul.GatherLoads(self.jcl, model)
         if self.restart:
             logging.info('Restart option: loading existing responses.')
             responses = io_functions.specific_functions.load_responses(self.job_name, self.path_output, remove_failed=True)
@@ -283,7 +283,7 @@ class Kernel():
 
     def main_listener(self, q_output):
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        mon = monstations_module.Monstations(self.jcl, model)
+        mon = gather_modul.GatherLoads(self.jcl, model)
         f_response = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
         fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
         logging.info('--> Listener ready.')
@@ -370,18 +370,17 @@ class Kernel():
         logging.info('--> Saving auxiliary output data.')
         aux_out = auxiliary_output.AuxiliaryOutput(self.jcl, model, self.jcl.trimcase)
         aux_out.crit_trimcases = plt.crit_trimcases
+        aux_out.dyn2stat_data = dyn2stat_data
+        aux_out.responses = responses
         if ('t_final' and 'dt' in self.jcl.simcase[0].keys()): 
-            aux_out.dyn2stat_data = dyn2stat_data
-            aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + self.job_name + '.csv', dyn2stat=True) 
-            aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf', dyn2stat=True) 
+            aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + self.job_name + '.csv') 
+            aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf') 
         else:
-            # nur trim
-            aux_out.responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
             aux_out.write_trimresults(self.path_output + 'trim_results_' + self.job_name + '.csv')
             aux_out.write_successful_trimcases(self.path_output + 'successful_trimcases_' + self.job_name + '.csv') 
             aux_out.write_failed_trimcases(self.path_output + 'failed_trimcases_' + self.job_name + '.csv') 
-            aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + self.job_name + '.csv', dyn2stat=False) 
-            aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf', dyn2stat=False) 
+            aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + self.job_name + '.csv') 
+            aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf') 
             # aux_out.write_all_nodalloads(self.path_output + 'nodalloads_all_' + self.job_name + '.bdf')
             # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
             # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')

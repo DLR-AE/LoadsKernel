@@ -138,20 +138,6 @@ class StandardPlots():
     
     def add_monstations(self, monstations):
         self.monstations = monstations
-        
-    def get_loads_strings(self, station):
-        if np.size(self.monstations[station]['t'][0]) == 1:
-            # Scenario 1: There are only static loads.
-            loads_string = 'loads'
-            subcase_string = 'subcases'
-        elif (np.size(self.monstations[station]['t'][0]) > 1) and ('loads_dyn2stat' in self.monstations[station].keys()) and (self.monstations[station]['loads_dyn2stat'] != []):
-            # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
-            loads_string = 'loads_dyn2stat'
-            subcase_string = 'subcases_dyn2stat'
-        else:
-            # Scenario 3: There are only dynamic loads. 
-            logging.error('Dynamic loads need to be converted to static loads (dyn2stat).')
-        return loads_string, subcase_string
     
     def create_axes(self, logo=True):
         fig = plt.figure()
@@ -255,9 +241,8 @@ class StandardPlots():
         logging.info('plots saved as ' + filename_pdf)
     
     def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull=True, show_labels=False, show_minmax=False):
-        loads_string, subcase_string = self.get_loads_strings(station)
-        loads   = np.array(self.monstations[station][loads_string])
-        subcases = list(self.monstations[station][subcase_string][:]) # make sure this is a list
+        loads   = np.array(self.monstations[station]['loads'])
+        subcases = list(self.monstations[station]['subcases'][:]) # make sure this is a list
         points = np.vstack((loads[:,dof_xaxis], loads[:,dof_yaxis])).T
         self.subplot.scatter(points[:,0], points[:,1], color=color, label=desc, zorder=-2) # plot points
         
@@ -365,8 +350,7 @@ class StandardPlots():
         loads = []
         offsets = []
         for station in self.cuttingforces_wing:
-            loads_string, subcase_string = self.get_loads_strings(station)
-            loads.append(list(self.monstations[station][loads_string][:])) # trigger to read the data now with [:]
+            loads.append(list(self.monstations[station]['loads'][:])) # trigger to read the data now with [:]
             offsets.append(list(self.monstations[station]['offset'][:]))
         loads = np.array(loads)
         offsets = np.array(offsets)
@@ -383,10 +367,10 @@ class StandardPlots():
                 # verticalalignment or va 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
                 # max
                 self.subplot.scatter(offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], color='r')
-                self.subplot.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(self.monstations[list(self.monstations)[0]][subcase_string][i_max[i_station]]), fontsize=4, verticalalignment='bottom' )
+                self.subplot.text(   offsets[i_station,1],loads[i_station,i_max[i_station],i_cuttingforce], str(self.monstations[list(self.monstations)[0]]['subcases'][i_max[i_station]]), fontsize=4, verticalalignment='bottom' )
                 # min
                 self.subplot.scatter(offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], color='r')
-                self.subplot.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(self.monstations[list(self.monstations)[0]][subcase_string][i_min[i_station]]), fontsize=4, verticalalignment='top' )
+                self.subplot.text(   offsets[i_station,1],loads[i_station,i_min[i_station],i_cuttingforce], str(self.monstations[list(self.monstations)[0]]['subcases'][i_min[i_station]]), fontsize=4, verticalalignment='top' )
 
             self.subplot.set_title('Wing')        
             self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
@@ -485,9 +469,15 @@ class StandardPlots():
             #Plot boundaries
             freqs = np.real(self.model.mass['Khh'][i_mass].diagonal())**0.5 /2/np.pi
             fmin = 2 * np.floor(response['freqs'][:].min() / 2)
+            if fmin < -50.0 or np.isnan(fmin): 
+                fmin = -50.0
             fmax = 2 * np.ceil(response['freqs'][:].max() / 2)
+            if fmax > 50.0 or np.isnan(fmax): 
+                fmax = 50.0
             Vmin = 0
             Vmax = 2 * np.ceil(tas2eas(response['Vtas'][:].max(), self.model.atmo['h'][i_atmo]) / 2)
+            if Vmax > 500.0 or np.isnan(Vmax): 
+                Vmax = 500.0
             gmin = -0.11
             gmax = 0.11
             

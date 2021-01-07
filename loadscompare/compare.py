@@ -206,10 +206,6 @@ class Compare():
             desc_sel    = [self.datasets['desc'][i] for i in current_selection]
             mon_sel     = self.common_monstations[self.lb_mon.currentRow()]
             n_subcases = [dataset[mon_sel]['subcases'].__len__() for dataset in dataset_sel ]
-            try:
-                n_subcases_dyn2stat = [dataset[mon_sel]['subcases_dyn2stat'].__len__() for dataset in dataset_sel ]
-            except:
-                n_subcases_dyn2stat = [0]
             
             self.plotting.potato_plots( dataset_sel, 
                                         mon_sel, 
@@ -223,29 +219,10 @@ class Compare():
                                         self.cb_labels.isChecked(),
                                         self.cb_minmax.isChecked(),
                                       )
-            self.label_n_loadcases.setText('Selected load case: {} \nDyn2Stat: {}'.format(np.sum(n_subcases), np.sum(n_subcases_dyn2stat)))
+            self.label_n_loadcases.setText('Selected load case: {}'.format(np.sum(n_subcases)))
         else:    
             self.plotting.plot_nothing()
         self.canvas.draw()
-    
-    def get_loads_string(self, x, station):
-        # Check for dynamic loads.
-        if np.size(self.datasets['dataset'][x][station]['t'][0]) == 1:
-            # Scenario 1: There are only static loads.
-            print( '- {}: found static loads'.format(station))
-            loads_string   = 'loads'
-            subcase_string = 'subcases'
-            t_string = 't'
-        elif (np.size(self.datasets['dataset'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['dataset'][x][station].keys()) and (self.datasets['dataset'][x][station]['loads_dyn2stat'] != []):
-            # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
-            print( '- {}: found dyn2stat loads -> discarding dynamic loads'.format(station))
-            loads_string   = 'loads_dyn2stat'
-            subcase_string = 'subcases_dyn2stat'
-            t_string = 't_dyn2stat'
-        else:
-            # Scenario 3: There are only dynamic loads. 
-            print( '- {}: found dynamic loads -> please convert to static first (dyn2stat)'.format(station))
-        return loads_string, subcase_string, t_string
 
     def merge_monstation(self):
         if len(self.lb_dataset.selectedItems()) > 1:
@@ -263,11 +240,10 @@ class Compare():
                                                 'loads':[],
                                                 't':[],
                                                 }
-                    loads_string, subcase_string, t_string = self.get_loads_string(x, station)
                     # Merge.   
-                    new_dataset[station]['loads']           += list(self.datasets['dataset'][x][station][loads_string][()])
-                    new_dataset[station]['subcases']        += list(self.datasets['dataset'][x][station][subcase_string][()])
-                    new_dataset[station]['t']               += list(self.datasets['dataset'][x][station][t_string][()])
+                    new_dataset[station]['loads']           += list(self.datasets['dataset'][x][station]['loads'][()])
+                    new_dataset[station]['subcases']        += list(self.datasets['dataset'][x][station]['subcases'][()])
+                    new_dataset[station]['t']               += list(self.datasets['dataset'][x][station]['t'][()])
         
             # Save into data structure.
             self.datasets['ID'].append(self.datasets['n'])  
