@@ -36,7 +36,7 @@ class AuxiliaryOutput:
         logging.info( 'saving all nodal loads as Nastarn cards...')
         with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
-                io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_trimcase]['Pg'], self.jcl.trimcase[i_trimcase]['subcase'])
+                io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_trimcase]['Pg'][:], self.jcl.trimcase[i_trimcase]['subcase'])
         with open(filename+'_subcases', 'w') as fid:         
             for i_trimcase in range(len(self.jcl.trimcase)):
                 io_functions.nastran_functions.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
@@ -218,7 +218,6 @@ class AuxiliaryOutput:
         with open(filename, 'wb') as f:
             io_functions.specific_functions.dump_pickle(crit_monstations, f)
         
-    
     def save_cpacs_header(self):
         
         self.cf.add_elem('/cpacs/header', 'name', self.jcl.general['aircraft'], 'text')
@@ -262,8 +261,7 @@ class AuxiliaryOutput:
         path_cut_load_integration_points = '/cpacs/vehicles/aircraft/model/wings/wing/dynamicAircraftModel/cutLoadIntegrationPoints'
         self.cf.write_cpacs_grid(path_cut_load_integration_points, self.model.mongrid)
         #self.cf.write_cpacs_grid_orientation(path_CutLoadIntegrationPoints, self.model.mongrid, self.model.coord)
-            
-        
+                  
     def save_cpacs(self, filename):
         """
         This function requires the tixiwrapper.py, which is supplied with TIXI.
