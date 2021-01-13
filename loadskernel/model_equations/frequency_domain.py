@@ -7,6 +7,7 @@ import numpy as np
 from scipy import linalg
 from scipy.fftpack import fft, ifft, fftfreq
 from scipy.interpolate import interp1d 
+from scipy.stats import norm
 import logging, itertools, copy
 
 from loadskernel.trim_tools import * 
@@ -112,10 +113,10 @@ class GustExcitation(Common):
     def build_transfer_functions(self, freqs):
         TFs = np.zeros((self.n_modes, self.n_modes, len(freqs)), dtype='complex128') # [Antwort, Anregung, Frequenz]
         for i_f in range(len(freqs)):
-            TFs[:,:,i_f] = self.transfer_function(freqs[i_f], n=0)
+            TFs[:,:,i_f] = self.transfer_function(freqs[i_f])
         return TFs
 
-    def transfer_function(self, f, n=0):
+    def transfer_function(self, f):
         omega = 2.0*np.pi*f
         Qhh_1 = self.Qhh_1_interp(self.f2k(f))
         Qhh_2 = self.Qhh_2_interp(self.f2k(f))
@@ -183,19 +184,31 @@ class TurbulenceExcitation(GustExcitation):
     All functionalities are inherited from the GustExcitation class, only the excitation itself is replaced.  
     """
     
+    def calc_sigma(self, n_samples):
+        """
+        Calculate sigma so that U_sigma,ref has the probability to occur once per n_samples.
+        Formula as given in: https://de.wikipedia.org/wiki/Normalverteilung, compare with values of 'z sigma' in the first column of the table.
+        Explanations on using the percent point function (ppf) from scipy: https://stackoverflow.com/questions/60699836/how-to-use-norm-ppf
+        """
+        p = 1.0 - 1.0/n_samples
+        sigma = norm.ppf((p+1.0)/2.0, loc=0.0, scale=1.0)
+        return sigma
+
     def calc_gust_excitation(self, freqs, t):
-        # calculate turbulence excitation by von Karman power spectral density according to CS-25.341 b)
-        #rms_gust = 1.0 # RSM gust velocity [m/s], unit amplitude
-        u_sigma = self.u_sigma # turbulence gust intensity [m/s]
+        # Calculate turbulence excitation by von Karman power spectral density according to CS-25.341(b)
+        # For calculation of limit loads in the time domain, scale u_sigma such that it has the probability to occur once during the simulation time.
+        sigma = self.calc_sigma(self.n_freqs)
+        u_sigma = self.u_sigma / sigma # turbulence gust intensity [m/s]
+        logging.info("Using RMS turbulence intensity u_sigma = {:.4f} m/s, sigma = {:.4f}.".format(u_sigma, sigma))
         L = 762.0/self.Vtas # normalized turbulence scale [s], 2500.0 ft = 762.0 m
-        psd_karman = 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*freqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*freqs)**2.0)**(11.0/6.0)
+        psd_karman = u_sigma**2.0 * 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*freqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*freqs)**2.0)**(11.0/6.0)
         # set psd to zero for f=0.0 to achieve y_mean = 0.0 
         psd_karman[0] = 0.0
         # Apply a scaling in the frequency domain to achieve the correct amplitude in the time domain.
         # Then, CS-25 wants us to take the square root.
-        psd_scaled = u_sigma * (psd_karman * len(freqs) )**0.5
-
+        psd_scaled = (psd_karman * len(freqs) * self.fmax)**0.5
         # generate a random phase
+        np.random.seed() # create a new seed for the random numbers, so that when using multiprocessing, every worker gets a new seed
         random_phases = np.random.random_sample(len(freqs)) * 2.0*np.pi
         
         # apply to all panels with phase delay according to geometrical position
@@ -214,10 +227,8 @@ class TurbulenceExcitation(GustExcitation):
         return Ph_fourier, Pk_fourier
     
         """
-        Checks:
-        print('PSD integral (must be close to 1.0): {}'.format(np.trapz(psd_karman, freqs)))
-        print('PSD integral (must be close to 1.0): {}'.format(np.trapz(psd_scaled, freqs)))
-        
+        Checks:       
+        psd_karman = 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*freqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*freqs)**2.0)**(11.0/6.0)
         psd_dryden = 2.0*L * (1.0+3.0*(L*2.0*np.pi*freqs)**2.0)          /(1.0+(L*2.0*np.pi*freqs)**2.0)**(2.0)
         from matplotlib import pyplot as plt
         plt.figure()
@@ -229,45 +240,42 @@ class TurbulenceExcitation(GustExcitation):
         plt.grid(True)
         plt.show()
         
-        w_turb_f = psd_karman*np.exp(1j*random_phases)
-        print('The amplitude may not change after adding a random phase: {}'.format(np.allclose(np.abs(w_turb_f), psd_karman)))
+        print('RMS of PSD input (must be close to u_sigma): {:.4f}'.format(np.trapz(psd_karman, freqs)**0.5))
+        print('RMS in freq. dom: {:.4f}'.format(np.trapz(psd_scaled, freqs)**0.5))
+        
+        w_turb_f = psd_scaled*np.exp(1j*random_phases)
+        print('The amplitude may not change after adding a random phase: {}'.format(np.allclose(np.abs(w_turb_f), psd_scaled)))
         
         # calculate mean and rms values
-        fouriersamples_mirrored = self.mirror_fouriersamples_even(wj_gust_f)
+        fouriersamples_mirrored = self.mirror_fouriersamples_even(w_turb_f[None,:])
         
-        y = ifft(fouriersamples_mirrored)*self.Vtas
-        n_freqs = len(freqs)
-        y_mean = 1.0/n_freqs * np.sum(y, axis=1)
-        y_rms = (1.0/n_freqs * np.sum(y**2.0, axis=1))**0.5
         print('--- Time signals ---')
-        print('Mean: {}'.format(y_mean))
-        print('RMS: {}'.format(y_rms))
+        y = ifft(fouriersamples_mirrored)
+        print('Mean: {:.4f}'.format(np.mean(y)))
+        print('RMS: {:.4f}'.format(np.mean(np.abs(y)**2.0)**0.5))
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.plot(self.t, y[0,:])
+        plt.ylabel('$U_{turbulence} [m/s]$')
+        plt.xlabel('Time [s]')
+        plt.grid(True)
+        plt.show()
+        
         
         # compare frequency content
         y_fourier = fft(y)
+        from matplotlib import pyplot as plt
         fig, (ax1, ax2) = plt.subplots(2,1, sharex=True)
         ax1.scatter(self.fftomega, fouriersamples_mirrored[0,:].real, marker='s', label='original')
         ax1.scatter(self.fftomega, y_fourier[0,:].real, marker='.', label='freq -> time -> freq, no delay')
-        ax1.scatter(self.fftomega, y_fourier[-1,:].real, marker='s', label='with delay freq domain')
         ax2.scatter(self.fftomega, fouriersamples_mirrored[0,:].imag, marker='s', label='original')
-        ax2.scatter(self.fftomega, y_fourier[0,:].imag, marker='.', label='no delay')
-        ax2.scatter(self.fftomega, y_fourier[-1,:].imag, marker='s', label='with delay freq domain')
+        ax2.scatter(self.fftomega, y_fourier[0,:].imag, marker='.', label='freq -> time -> freq, no delay')
         ax1.set_ylabel('real')
         ax2.set_ylabel('imag')
         ax2.set_xlabel('freq')
         ax1.legend(loc='upper right')
         ax1.grid(True)
         ax2.grid(True)
-        
-        # compare time delay between first and last panel
-        plt.figure()
-        plt.plot(self.t, y[0,:], label='no delay')
-        plt.plot(self.t, y[-1,:], label='with delay freq domain')
-        plt.ylabel('V_gust')
-        plt.xlabel('Time [s]')
-        plt.legend(loc='upper right')
-        plt.grid(True)
-        
         """
         
 class LimitTurbulenceExcitation(GustExcitation):
@@ -288,10 +296,18 @@ class LimitTurbulenceExcitation(GustExcitation):
         PHIh_mon = self.model.PHIstrc_mon.T.dot( self.model.KGG.dot(self.model.mass['PHIh_strc'][self.i_mass].T) )
         # TFs: [Antwort, Anregung, Frequenz]
         H = PHIh_mon.dot(np.sum(positiv_TFs * Ph_gust_fourier, axis=1))
-        A = np.trapz(np.abs(H)**2.0, self.positiv_fftfreqs) ** 0.5
+        A = np.trapz(np.real(H * H.conj()), self.positiv_fftfreqs) ** 0.5
         Pmon = self.u_sigma * A
         
-        response = {'Pmon_turb': np.expand_dims(Pmon, axis=0)
+        correlations = np.trapz(np.real(H[:,None,:] * H.conj()[None,:,:]), self.positiv_fftfreqs) / (A * A[:,None])
+        
+#         pos_mx=self.model.mongrid['set'][126,3]
+#         pos_my=self.model.mongrid['set'][126,4]
+#         np.trapz(np.real(H[pos_mx,:] * H[pos_my,:].conj()), self.positiv_fftfreqs) / (A[pos_mx]*A[pos_my])
+#         correlations[pos_mx, pos_my]
+        
+        response = {'Pmon_turb': np.expand_dims(Pmon, axis=0),
+                    'correlations': correlations,
                     }
         return response
     
@@ -302,6 +318,8 @@ class LimitTurbulenceExcitation(GustExcitation):
         psd_karman = 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*freqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*freqs)**2.0)**(11.0/6.0)
         # set psd to zero for f=0.0 to achieve y_mean = 0.0 
         psd_karman[0] = 0.0
+        # Take the root of the PSD, as it will be square again later, together with the TFs
+        psd_karman = psd_karman**0.5
         
         # apply to all panels with phase delay according to geometrical position
         time_delay = self.model.aerogrid['offset_j'][:,0]/self.Vtas # time delay of every panel in [s]

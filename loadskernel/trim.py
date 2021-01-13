@@ -417,6 +417,7 @@ class Trim(TrimConditions):
         elif self.simcase['limit_turbulence']:
             equations = LimitTurbulenceExcitation(self, X0=self.response['X'], simcase=self.simcase)
             self.response['Pmon_turb'] = 0.0
+            self.response['correlations'] = 0.0
             self.response['X'] = np.expand_dims(self.response['X'], axis=0)
             self.response['Y'] = np.expand_dims(self.response['Y'], axis=0)
         response_sim = equations.eval_equations()
