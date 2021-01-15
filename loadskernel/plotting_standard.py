@@ -632,3 +632,101 @@ class StandardPlots():
         self.plot_eigenvalues()
         self.pp.close()
         logging.info('plots saved as ' + filename_pdf)
+
+class TurbulencePlots(StandardPlots):
+    
+    def plot_monstations(self, filename_pdf):
+
+        # launch plotting
+        self.pp = PdfPages(filename_pdf)
+        self.potato_plots()
+        self.pp.close()
+        logging.info('plots saved as ' + filename_pdf)
+
+    def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull=True, show_labels=False, show_minmax=False):
+        loads = np.array(self.monstations[station]['loads'])      
+        subcases = list(self.monstations[station]['subcases'][:]) # make sure this is a list
+        turbulence_loads   = np.array(self.monstations[station]['turbulence_loads'])
+        correlations = np.array(self.monstations[station]['correlations'])
+        
+        X0 = loads[:,dof_xaxis]
+        Y0 = loads[:,dof_yaxis]
+
+        tangent_pos = loads.T + turbulence_loads.T * correlations.T 
+        tangent_neg = loads.T - turbulence_loads.T * correlations.T 
+        
+        AB_pos = loads.T + turbulence_loads.T * ((1.0 - correlations.T)/2.0)**0.5
+        AB_neg = loads.T - turbulence_loads.T * ((1.0 - correlations.T)/2.0)**0.5
+        
+        CD_pos = loads.T + turbulence_loads.T * ((1.0 + correlations.T)/2.0)**0.5
+        CD_neg = loads.T - turbulence_loads.T * ((1.0 + correlations.T)/2.0)**0.5
+        
+        X = np.vstack(( tangent_pos[dof_xaxis,dof_xaxis, :],
+                        tangent_neg[dof_xaxis,dof_xaxis, :],
+                        tangent_pos[dof_yaxis,dof_xaxis, :],
+                        tangent_neg[dof_yaxis,dof_xaxis, :],
+                        AB_pos[dof_yaxis,dof_xaxis, :],
+                        AB_neg[dof_yaxis,dof_xaxis, :],
+                        CD_pos[dof_yaxis,dof_xaxis, :],
+                        CD_neg[dof_yaxis,dof_xaxis, :],
+                        )).T
+        Y = np.vstack(( tangent_pos[dof_xaxis,dof_yaxis, :],
+                        tangent_neg[dof_xaxis,dof_yaxis, :],
+                        tangent_pos[dof_yaxis,dof_yaxis, :],
+                        tangent_neg[dof_yaxis,dof_yaxis, :],
+                        AB_neg[dof_xaxis,dof_yaxis, :],
+                        AB_pos[dof_xaxis,dof_yaxis, :],
+                        CD_pos[dof_xaxis,dof_yaxis, :],
+                        CD_neg[dof_xaxis,dof_yaxis, :],
+                        )).T
+        self.subplot.scatter(X0, Y0, color=color, label=desc, zorder=-2)
+        self.subplot.scatter(X.ravel(), Y.ravel(), color=color, zorder=-2)
+        
+        if show_hull:
+            for i_subcase in range(len(subcases)):
+                self.fit_ellipse(X0[i_subcase], Y0[i_subcase], X[i_subcase,:], Y[i_subcase,:], color)
+#             elif show_minmax:
+#                 pos_max_loads = np.argmax(points, 0)
+#                 pos_min_loads = np.argmin(points, 0)
+#                 pos_minmax_loads = np.concatenate((pos_min_loads, pos_max_loads))
+#                 self.subplot.scatter(points[pos_minmax_loads,0], points[pos_minmax_loads,1], color=(1,0,0), zorder=-2) # plot points
+  
+        if show_labels: 
+            labels = []
+            for subcase in subcases:
+                for point in ['_T1', '_T2', '_T3', '_T4', '_AB', '_EF', '_CD', '_GH']:
+                    labels.append(subcase+point)
+            for x, y, label in zip(X.ravel(), Y.ravel(), labels):
+                self.subplot.text(x, y, label, fontsize=8)
+            
+            
+    def fit_ellipse(self, X0, Y0, X, Y, color):
+        # Formulate and solve the least squares problem ||Ax - b ||^2
+        A = np.vstack([(X-X0)**2, 2.0*(X-X0)*(Y-Y0), (Y-Y0)**2]).T
+        b = np.ones_like(X)
+        x = np.linalg.lstsq(A, b, rcond=None)[0].squeeze()
+        
+        # Print the equation of the ellipse in standard form
+        logging.debug('The ellipse is given by {0:.3}x^2 + {1:.3}*2xy+{2:.3}y^2 = 1'.format(x[0], x[1], x[2]))
+        
+        # Calculate the parameters of the ellipse 
+        alpha = -0.5*np.arctan(2*x[1]/(x[2]-x[0]))
+        eta = x[0]+x[2]
+        zeta = (x[2]-x[0])/np.cos(2*alpha)
+        major = (2.0/(eta-zeta))**0.5
+        minor = (2.0/(eta+zeta))**0.5
+        
+        logging.debug('Major axis = {:.3f}'.format(major))
+        logging.debug('Minor axis = {:.3f}'.format(minor))
+        logging.debug('Rotation = {:.3f} deg'.format(alpha/np.pi*180.0))
+        
+        # Plot the given samples
+        #self.subplot.scatter(X, Y, label='Data Points')
+        
+        X, Y = self.ellipse_polar(major, minor, alpha)
+        self.subplot.plot(X+X0, Y+Y0, color=color, linewidth=2.0, linestyle='--')
+        
+    def ellipse_polar(self, major, minor, alpha, phi=np.linspace(0, 2.0*np.pi, 360)):
+        X = 0.0 + major*np.cos(phi)*np.cos(alpha) - minor*np.sin(phi)*np.sin(alpha)
+        Y = 0.0 + major*np.cos(phi)*np.sin(alpha) + minor*np.sin(phi)*np.cos(alpha)
+        return X, Y

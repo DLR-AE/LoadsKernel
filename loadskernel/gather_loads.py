@@ -22,6 +22,8 @@ class GatherLoads:
                                       'subcases': [],
                                       'loads':[],
                                       't':[],
+                                      'turbulence_loads':[],
+                                      'correlations':[],
                                      }
         self.dyn2stat = {'Pg': [], 
                          'subcases': [],
@@ -51,7 +53,16 @@ class GatherLoads:
                 loads = response['Pmon_local'][0,self.model.mongrid['set'][i_station,:]]
                 self.monstations[name]['subcases'].append(subcase)
                 self.monstations[name]['loads'].append(loads)
-                self.monstations[name]['t'].append(response['t'][0])         
+                self.monstations[name]['t'].append(response['t'][0])
+
+            if 'Pmon_turb' in response:
+                # Check if there are any limit turbulence loads available in the response.
+                # If yes, map them into the monstations.
+                loads = response['Pmon_turb'][0,self.model.mongrid['set'][i_station,:]]
+                correlations = response['correlations'][self.model.mongrid['set'][i_station,:],:][:,self.model.mongrid['set'][i_station,:]]
+
+                self.monstations[name]['turbulence_loads'].append(loads)
+                self.monstations[name]['correlations'].append(correlations)     
            
 
     def gather_dyn2stat(self, response):

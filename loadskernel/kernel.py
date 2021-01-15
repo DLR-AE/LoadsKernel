@@ -351,13 +351,18 @@ class Kernel():
         plt.add_monstations(monstations)
         plt.add_responses(responses)
         plt.plot_monstations(self.path_output + 'monstations_' + self.job_name + '.pdf')
-        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+        if any([x in self.jcl.simcase[0] and self.jcl.simcase[0][x] for x in ['gust', 'turbulence', 'cs_signal', 'controller']]):
             plt.plot_monstations_time(self.path_output + 'monstations_time_' + self.job_name + '.pdf') # nur sim
         elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
             plt.plot_fluttercurves_to_pdf(self.path_output + 'fluttercurves_' + self.job_name + '.pdf')
             plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
         elif 'derivatives' in self.jcl.simcase[0] and self.jcl.simcase[0]['derivatives']:
             plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
+        elif 'limit_turbulence' in self.jcl.simcase[0] and self.jcl.simcase[0]['limit_turbulence']:
+            plt = plotting_standard.TurbulencePlots(self.jcl, model)
+            plt.add_monstations(monstations)
+            plt.plot_monstations(self.path_output + 'monstations_turbulence_' + self.job_name + '.pdf')
+            
 
         logging.info('--> Saving auxiliary output data.')
         aux_out = auxiliary_output.AuxiliaryOutput(self.jcl, model, self.jcl.trimcase)
@@ -416,22 +421,7 @@ class Kernel():
 #         plot = plot_lift_distribution.Liftdistribution(self.jcl, model, responses)
 #         plot.plot_aero_spanwise()
         
-        response = responses[0]
-        pos_mx=model.mongrid['set'][126,3]
-        pos_my=model.mongrid['set'][126,4]
-
-        from matplotlib import pyplot as plt
-        fig, (ax1) = plt.subplots(1,1)
-        ax1.scatter(response['Pmon_local'][0,pos_mx], response['Pmon_local'][0,pos_my], label='1g')
-        ax1.scatter(response['Pmon_local'][0,pos_mx]+response['Pmon_turb'][0,pos_mx], response['Pmon_local'][0,pos_my]+response['Pmon_turb'][0,pos_my], label='1g+Pturb')
-        ax1.scatter(response['Pmon_local'][0,pos_mx]-response['Pmon_turb'][0,pos_mx], response['Pmon_local'][0,pos_my]-response['Pmon_turb'][0,pos_my], label='1g-Pturb')
-        ax1.ticklabel_format(style='sci', axis='x', scilimits=(-2,2))
-        ax1.ticklabel_format(style='sci', axis='y', scilimits=(-2,2))
-        ax1.set_xlabel('Mx')
-        ax1.set_ylabel('My')
-        ax1.grid(True)
-        ax1.legend(loc='best')
-        plt.show()
+        
 
         return
 
