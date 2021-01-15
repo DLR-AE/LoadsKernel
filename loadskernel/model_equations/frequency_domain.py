@@ -26,7 +26,7 @@ class GustExcitation(Common):
         for i_mode in range(self.n_modes):
             TFs[:,i_mode,:] = self.mirror_fouriersamples_even(positiv_TFs[:,i_mode,:])
         
-        logging.info('calculating gust excitation (this may take considerable time and memory)')
+        logging.info('calculating gust excitation (in physical coordinates, this may take considerable time and memory)')
         Ph_gust_fourier, Pk_gust_fourier = self.calc_gust_excitation(self.positiv_fftfreqs, self.t)
         Ph_gust_fourier = self.mirror_fouriersamples_even(Ph_gust_fourier)
         Pk_gust_fourier = self.mirror_fouriersamples_even(Pk_gust_fourier)
@@ -37,7 +37,7 @@ class GustExcitation(Common):
         dUh_dt   = ifft( np.array((Uh_fourier)*(1j*self.fftomega)**1).sum(axis=1) )
         d2Uh_dt2 = ifft( np.array((Uh_fourier)*(1j*self.fftomega)**2).sum(axis=1) )
         
-        logging.info('reconstructing aerodynamic forces in physical coordinates')
+        logging.info('reconstructing aerodynamic forces (in physical coordinates, this may take considerable time and memory)')
         Ph_aero_fourier, Pk_aero_fourier = self.calc_aero_response(self.positiv_fftfreqs,
                                                                    np.array((Uh_fourier)*(1j*self.fftomega)**0).sum(axis=1)[:,:self.n_freqs//2+1], 
                                                                    np.array((Uh_fourier)*(1j*self.fftomega)**1).sum(axis=1)[:,:self.n_freqs//2+1], )
@@ -127,12 +127,14 @@ class GustExcitation(Common):
         # interpolation of physical AIC
         self.Qjj_interp = interp1d( self.model.aero['k_red'], self.model.aero['Qjj_unsteady'][self.i_aero], axis=0, fill_value="extrapolate")
         # do some pre-multiplications first, then the interpolation
-        Qhh_1 = []; Qhh_2 = []
+        Qhh_1 = []; Qhh_2 = []; Qhj = []
         for Qjj_unsteady in self.model.aero['Qjj_unsteady'][self.i_aero]:
             Qhh_1.append(self.q_dyn * self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1))) )
             Qhh_2.append(self.q_dyn * self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2 / self.Vtas ))) )
+            Qhj.append(  self.q_dyn * self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady))) )
         self.Qhh_1_interp = interp1d( self.model.aero['k_red'], Qhh_1, axis=0, fill_value="extrapolate")
         self.Qhh_2_interp = interp1d( self.model.aero['k_red'], Qhh_2, axis=0, fill_value="extrapolate")
+        self.Qhj_interp   = interp1d( self.model.aero['k_red'], Qhj,   axis=0, fill_value="extrapolate")
     
     def calc_aero_response(self, freqs, Uh, dUh_dt):
         # Notation: [n_panels, timesteps]
@@ -153,6 +155,7 @@ class GustExcitation(Common):
         return Ph_fourier, Pk_fourier
     
     def calc_P_fourier(self,f, wj):
+        # The interpolation of Qjj is computationally very expensive, especially for a large number of frequencies. 
         Qjj = self.Qjj_interp(self.f2k(f))
         Pk = self.q_dyn * self.model.PHIlk.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj.dot(wj))))
         Ph = self.PHIkh.T.dot(Pk)
@@ -278,7 +281,7 @@ class TurbulenceExcitation(GustExcitation):
         ax2.grid(True)
         """
         
-class LimitTurbulenceExcitation(GustExcitation):
+class LimitTurbulence(GustExcitation):
     
     def eval_equations(self):
         self.setup_frequence_parameters()
@@ -288,8 +291,8 @@ class LimitTurbulenceExcitation(GustExcitation):
         # Notation: [Antwort, Anregung, Frequenz]
         positiv_TFs = self.build_transfer_functions(self.positiv_fftfreqs)
 
-        logging.info('calculating gust excitation (this may take considerable time and memory)')
-        Ph_gust_fourier, Pk_gust_fourier = self.calc_gust_excitation(self.positiv_fftfreqs, self.t)
+        logging.info('calculating gust excitation')
+        Ph_gust_fourier = self.calc_gust_excitation(self.positiv_fftfreqs, self.t)
         
         logging.info('calculating responses')
         # MDM: p = K*u
@@ -299,6 +302,7 @@ class LimitTurbulenceExcitation(GustExcitation):
         A = np.trapz(np.real(H * H.conj()), self.positiv_fftfreqs) ** 0.5
         Pmon = self.u_sigma * A
         
+        logging.info('calculating correlations')
         correlations = np.trapz(np.real(H[:,None,:] * H.conj()[None,:,:]), self.positiv_fftfreqs) / (A * A[:,None])
         
 #         pos_mx=self.model.mongrid['set'][126,3]
@@ -330,11 +334,16 @@ class LimitTurbulenceExcitation(GustExcitation):
         wj_gust_f = psd_karman * np.exp(1j*(phase_delay)) * gust_direction_vector[:,None] /self.Vtas
 
         Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
-        Pk_fourier = np.zeros((self.model.aerogrid['n']*6, len(freqs)), dtype='complex128')
         for i_f in range(len(freqs)):
-            Ph_fourier[:,i_f], Pk_fourier[:,i_f] = self.calc_P_fourier(freqs[i_f], wj_gust_f[:,i_f])
+            Ph_fourier[:,i_f] = self.calc_Ph_fourier(freqs[i_f], wj_gust_f[:,i_f])
         
-        return Ph_fourier, Pk_fourier
+        return Ph_fourier
+    
+    def calc_Ph_fourier(self,f, wj):
+        # The interpolation of Qhj instead of Qjj is computationally less expensive.
+        Qhj = self.Qhj_interp(self.f2k(f))
+        Ph = Qhj.dot(wj)
+        return Ph
 
 class KMethod(GustExcitation):
     

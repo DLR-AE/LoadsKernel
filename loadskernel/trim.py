@@ -18,7 +18,7 @@ from loadskernel.model_equations.nonlin_steady import NonlinSteady
 from loadskernel.model_equations.unsteady   import Unsteady
 from loadskernel.model_equations.landing    import Landing
 from loadskernel.model_equations.frequency_domain import GustExcitation
-from loadskernel.model_equations.frequency_domain import TurbulenceExcitation, LimitTurbulenceExcitation
+from loadskernel.model_equations.frequency_domain import TurbulenceExcitation, LimitTurbulence
 from loadskernel.model_equations.frequency_domain import KMethod
 from loadskernel.model_equations.frequency_domain import KEMethod
 from loadskernel.model_equations.frequency_domain import PKMethod
@@ -415,7 +415,7 @@ class Trim(TrimConditions):
         elif self.simcase['turbulence']:
             equations = TurbulenceExcitation(self, X0=self.response['X'], simcase=self.simcase)
         elif self.simcase['limit_turbulence']:
-            equations = LimitTurbulenceExcitation(self, X0=self.response['X'], simcase=self.simcase)
+            equations = LimitTurbulence(self, X0=self.response['X'], simcase=self.simcase)
             self.response['Pmon_turb'] = 0.0
             self.response['correlations'] = 0.0
             self.response['X'] = np.expand_dims(self.response['X'], axis=0)
