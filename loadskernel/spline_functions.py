@@ -10,6 +10,7 @@ import scipy.sparse as sp
 import time, string, logging
 
 from loadskernel.read_geom import nastran_number_converter
+from loadskernel import grid_trafo
 
 def spline_nastran(filename, strcgrid, aerogrid):
     logging.info('Read Nastran spline (PARAM    OPGTKG   1) from {}'.format(filename))
@@ -235,28 +236,14 @@ def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='',
     offset_dest_d = np.array(offset_dest_d)
        
     # T_i and T_d are the translation matrices that do the projection to the coordinate systems of gird_i and grid_d
-    #T_i = np.zeros((dimensions_i,dimensions_i))    
-    T_i = sp.lil_matrix((dimensions_i,dimensions_i))
-    for i_i in range(len(grid_i['ID'])):
-        pos_coord_i = coord['ID'].index(grid_i['CP'][i_i])
-        T_i = sparse_insert( T_i, coord['dircos'][pos_coord_i], grid_i['set'+set_i][i_i,0:3], grid_i['set'+set_i][i_i,0:3] )
-        T_i = sparse_insert( T_i, coord['dircos'][pos_coord_i], grid_i['set'+set_i][i_i,3:6], grid_i['set'+set_i][i_i,3:6] )
-        #T_i[np.ix_(grid_i['set'+set_i][i_i,0:3], grid_i['set'+set_i][i_i,0:3])] = coord['dircos'][pos_coord_i]
-        #T_i[np.ix_(grid_i['set'+set_i][i_i,3:6], grid_i['set'+set_i][i_i,3:6])] = coord['dircos'][pos_coord_i]
-        
-    #T_d = np.zeros((dimensions_d,dimensions_d))    
-    T_d = sp.lil_matrix((dimensions_d,dimensions_d))
-    for i_d in range(len(grid_d['ID'])):
-        pos_coord_d = coord['ID'].index(grid_d['CP'][i_d])
-        T_d = sparse_insert( T_d, coord['dircos'][pos_coord_d], grid_d['set'+set_d][i_d,0:3], grid_d['set'+set_d][i_d,0:3] )
-        T_d = sparse_insert( T_d, coord['dircos'][pos_coord_d], grid_d['set'+set_d][i_d,3:6], grid_d['set'+set_d][i_d,3:6] )
-        #T_d[np.ix_(grid_d['set'+set_d][i_d,0:3], grid_d['set'+set_d][i_d,0:3])] = coord['dircos'][pos_coord_d]
-        #T_d[np.ix_(grid_d['set'+set_d][i_d,3:6], grid_d['set'+set_d][i_d,3:6])] = coord['dircos'][pos_coord_d]
+    T_i, T_d = grid_trafo.calc_transformation_matrix(coord, 
+                                                     grid_i, set_i, 'CP',
+                                                     grid_d, set_d, 'CP', 
+                                                     dimensions)
     
     # In matrix T_di the actual splining of gird_d to grid_i according as defined in splinerules is done.
     # Actually, this is the part that implements the rigid body spline
     # The part above should be generic for different splines and could/should be moved to a different function   
-    #T_di = np.zeros( (dimensions_d, dimensions_i) )    
     T_di = sp.lil_matrix( (dimensions_d, dimensions_i) )
     for i_i in range(len(splinerules['ID_i'])):
         for i_d in range(len(splinerules['ID_d'][i_i])):

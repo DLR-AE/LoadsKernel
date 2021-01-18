@@ -126,15 +126,10 @@ class PostProcessing:
             response['Pg_cfd_global'][i_step,:]  = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_cfd'][i_step,:])
             #response['Pg_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'][i_step,:])
             response['Ug'][i_step,:] = response['Ug_r'][i_step,:] + response['Ug_f'][i_step,:]
-                
- 
+
     def cuttingforces(self):
         logging.info('calculating cutting forces & moments...')
         response   = self.response
-
         response['Pmon_local'] = np.zeros((len(response['t']), 6*self.model.mongrid['n']))  
         for i_step in range(len(response['t'])):
-            Pmon_global = self.model.PHIstrc_mon.T.dot(response['Pg'][i_step,:])
-            response['Pmon_local'][i_step,:] = force_trafo(self.model.mongrid, self.model.coord, Pmon_global)
-
-
+            response['Pmon_local'][i_step,:] = self.model.PHIstrc_mon.T.dot(response['Pg'][i_step,:])
