@@ -313,8 +313,14 @@ class LimitTurbulence(GustExcitation):
         Pmon = self.u_sigma * A
         
         logging.info('calculating correlations')
-        correlations = np.trapz(np.real(H[:,None,:] * H.conj()[None,:,:])*psd_karman, self.positiv_fftfreqs) / (A * A[:,None])
-        
+        # Using H[:,None,:] * H.conj()[None,:,:] to calculate all coefficients at once would be nice but requires much memory.
+        # Looping over all rows is more memory efficient and even slightly faster. 
+        # Once the integral is done, the matrix is much smaller. 
+        correlations = np.zeros((self.model.mongrid['n']*6, self.model.mongrid['n']*6))
+        for i_row in range(6*self.model.mongrid['n']):
+            correlations[i_row,:] = np.trapz(np.real(H[i_row,:].conj() * H)*psd_karman, self.positiv_fftfreqs)
+        correlations /= (A * A[:,None])
+
         response = {'Pmon_turb': np.expand_dims(Pmon, axis=0),
                     'correlations': correlations,
                     }
