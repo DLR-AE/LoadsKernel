@@ -65,6 +65,24 @@ class PostProcessing:
                 response['Pg_ext'][i_step,self.model.extragrid['set_strcgrid']] = response['Pextra'][i_step,self.model.extragrid['set']]
             response['Pg'][i_step,:] = response['Pg_aero'][i_step,:] + response['Pg_iner'][i_step,:] + response['Pg_ext'][i_step,:] + response['Pg_cfd'][i_step,:]
             response['d2Ug_dt2'][i_step,:] = d2Ug_dt2_r + d2Ug_dt2_f
+    
+    def modal_displacement_method(self):
+        logging.info('calculating forces & moments on structural set (modal displacement method)...')
+        logging.warning('using the modal displacement method is not recommended, use force summation method instead.')
+        response   = self.response
+        trimcase   = self.trimcase
+        
+        i_mass     = self.model.mass['key'].index(trimcase['mass'])
+        Kgg        = self.model.KGG
+        PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
+        n_modes    = self.model.mass['n_modes'][i_mass]
+
+        response['Pg'] = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
+        for i_step in range(len(response['t'])):
+            Uf = response['X'][i_step,:][12:12+n_modes]
+            Ug_f_body = PHIf_strc.T.dot(Uf)
+            # MDM: p = K*u
+            response['Pg'][i_step,:] = Kgg.dot(Ug_f_body)
 
     def euler_transformation(self):
         logging.info('apply euler angles...')
