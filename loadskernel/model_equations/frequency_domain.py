@@ -8,9 +8,9 @@ from scipy import linalg
 from scipy.fftpack import fft, ifft, fftfreq
 from scipy.interpolate import interp1d 
 from scipy.stats import norm
-import logging, itertools, copy
+import logging, copy
 
-from loadskernel.trim_tools import * 
+from loadskernel import trim_tools
 from loadskernel.build_mass import BuildMass
 from loadskernel.model_equations.common import Common
 
@@ -170,7 +170,7 @@ class GustExcitation(Common):
         wj_gust[np.where(s_gust <= 0.0)] = 0.0
         wj_gust[np.where(s_gust > 2*self.simcase['gust_gradient'])] = 0.0
         # Ausrichtung der Boe fehlt noch
-        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
+        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), trim_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
         wj = wj_gust *  np.array([gust_direction_vector]*t.__len__()).T
         return wj
     
@@ -218,7 +218,7 @@ class TurbulenceExcitation(GustExcitation):
         time_delay = self.model.aerogrid['offset_j'][:,0]/self.Vtas # time delay of every panel in [s]
         phase_delay = -np.tile(time_delay, (len(freqs), 1)).T * 2.0*np.pi * freqs # phase delay of every panel and frequency in [rad]
         # Ausrichtung der Boe fehlt noch
-        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
+        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), trim_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
         # Notation: [n_panels, n_freq]
         wj_gust_f = psd_scaled * np.exp(1j*(random_phases+phase_delay)) * gust_direction_vector[:,None] /self.Vtas
 
@@ -292,46 +292,44 @@ class LimitTurbulence(GustExcitation):
         positiv_TFs = self.build_transfer_functions(self.positiv_fftfreqs)
 
         logging.info('calculating gust excitation')
-        Ph_gust_fourier = self.calc_gust_excitation(self.positiv_fftfreqs, self.t)
+        Ph_fourier = self.calc_white_noise_excitation(self.positiv_fftfreqs, self.t)
         
+        # calculate turbulence excitation by von Karman power spectral density according to CS-25.341 b)
+        L = 762.0/self.Vtas # normalized turbulence scale [s], 2500.0 ft = 762.0 m
+        psd_karman = 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*self.positiv_fftfreqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*self.positiv_fftfreqs)**2.0)**(11.0/6.0)
+        # set psd to zero for f=0.0 to achieve y_mean = 0.0 
+        psd_karman[0] = 0.0
+        # Calculate the RMS value for cross-checking. Exclude first frequency with f=0.0
+        logging.info('RMS of PSD input (should be close to 1.0): {:.4f}'.format(np.trapz(psd_karman[1:], self.positiv_fftfreqs[1:])**0.5))
+
         logging.info('calculating responses')
-        # MDM: p = K*u
-        PHIh_mon = self.model.PHIstrc_mon.T.dot( self.model.KGG.dot(self.model.mass['PHIh_strc'][self.i_mass].T) )
+        # MDM: p = K*u, with u only from the flexible modes 'f', not 'h'(!)
+        PHIh_mon = np.zeros((self.model.mongrid['n']*6, self.n_modes))
+        PHIh_mon[:,5:] = self.model.PHIstrc_mon.T.dot( self.model.KGG.dot(self.model.mass['PHIf_strc'][self.i_mass].T) )
+        
         # TFs: [Antwort, Anregung, Frequenz]
-        H = PHIh_mon.dot(np.sum(positiv_TFs * Ph_gust_fourier, axis=1))
-        A = np.trapz(np.real(H * H.conj()), self.positiv_fftfreqs) ** 0.5
+        H = PHIh_mon.dot(np.sum(positiv_TFs * Ph_fourier, axis=1))
+        A = np.trapz(np.real(H * H.conj())*psd_karman, self.positiv_fftfreqs) ** 0.5
         Pmon = self.u_sigma * A
         
         logging.info('calculating correlations')
-        correlations = np.trapz(np.real(H[:,None,:] * H.conj()[None,:,:]), self.positiv_fftfreqs) / (A * A[:,None])
-        
-#         pos_mx=self.model.mongrid['set'][126,3]
-#         pos_my=self.model.mongrid['set'][126,4]
-#         np.trapz(np.real(H[pos_mx,:] * H[pos_my,:].conj()), self.positiv_fftfreqs) / (A[pos_mx]*A[pos_my])
-#         correlations[pos_mx, pos_my]
+        correlations = np.trapz(np.real(H[:,None,:] * H.conj()[None,:,:])*psd_karman, self.positiv_fftfreqs) / (A * A[:,None])
         
         response = {'Pmon_turb': np.expand_dims(Pmon, axis=0),
                     'correlations': correlations,
                     }
         return response
     
-    def calc_gust_excitation(self, freqs, t):
-        # calculate turbulence excitation by von Karman power spectral density according to CS-25.341 b)
-        #rms_gust = 1.0 # RSM gust velocity [m/s], unit amplitude
-        L = 762.0/self.Vtas # normalized turbulence scale [s], 2500.0 ft = 762.0 m
-        psd_karman = 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*freqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*freqs)**2.0)**(11.0/6.0)
-        # set psd to zero for f=0.0 to achieve y_mean = 0.0 
-        psd_karman[0] = 0.0
-        # Take the root of the PSD, as it will be square again later, together with the TFs
-        psd_karman = psd_karman**0.5
-        
+    def calc_white_noise_excitation(self, freqs, t):
+        # white noise with constant amplitude for all frequencies
+        white_noise = np.ones_like(freqs)
         # apply to all panels with phase delay according to geometrical position
         time_delay = self.model.aerogrid['offset_j'][:,0]/self.Vtas # time delay of every panel in [s]
         phase_delay = -np.tile(time_delay, (len(freqs), 1)).T * 2.0*np.pi * freqs # phase delay of every panel and frequency in [rad]
         # Ausrichtung der Boe fehlt noch
-        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
+        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), trim_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
         # Notation: [n_panels, n_freq]
-        wj_gust_f = psd_karman * np.exp(1j*(phase_delay)) * gust_direction_vector[:,None] /self.Vtas
+        wj_gust_f = white_noise * np.exp(1j*(phase_delay)) * gust_direction_vector[:,None] /self.Vtas
 
         Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
         for i_f in range(len(freqs)):
