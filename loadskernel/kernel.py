@@ -103,10 +103,7 @@ class Kernel():
             response = responses[[response['i'] for response in responses].index(i)]
             if response['successful']:
                 mon.gather_monstations(self.jcl.trimcase[i], response)
-                if 't_final' and 'dt' in self.jcl.simcase[i].keys():
-                    mon.gather_dyn2stat(-1, response, mode='time-based')
-                else:
-                    mon.gather_dyn2stat(i, response, mode='stat2stat')
+                mon.gather_dyn2stat(response)
 
             logging.info('--> Saving response(s).')
             io_functions.specific_functions.dump_pickle(response, f)
@@ -188,10 +185,7 @@ class Kernel():
                 response = self.main_common(model, jcl, i)
             if response['successful']:
                 mon.gather_monstations(self.jcl.trimcase[i], response)
-                if 't_final' and 'dt' in self.jcl.simcase[i].keys():
-                    mon.gather_dyn2stat(response, mode='time-based')
-                else:
-                    mon.gather_dyn2stat(response, mode='stat2stat')
+                mon.gather_dyn2stat(response)
 
                 logging.info('--> Saving response(s).')
                 io_functions.specific_functions.dump_pickle(response, f)
@@ -310,10 +304,8 @@ class Kernel():
             elif m['successful']:
                 logging.info("--> Received response ('successful') from worker.")
                 mon.gather_monstations(self.jcl.trimcase[m['i']], m)
-                if 't_final' and 'dt' in self.jcl.simcase[m['i']].keys():
-                    mon.gather_dyn2stat(m, mode='time-based')
-                else:
-                    mon.gather_dyn2stat(m, mode='stat2stat')
+                mon.gather_dyn2stat(m)
+                
             else:
                 # trim failed, no post processing, save 'None'
                 logging.info("--> Received response ('failed') from worker.")
@@ -359,13 +351,18 @@ class Kernel():
         plt.add_monstations(monstations)
         plt.add_responses(responses)
         plt.plot_monstations(self.path_output + 'monstations_' + self.job_name + '.pdf')
-        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+        if any([x in self.jcl.simcase[0] and self.jcl.simcase[0][x] for x in ['gust', 'turbulence', 'cs_signal', 'controller']]):
             plt.plot_monstations_time(self.path_output + 'monstations_time_' + self.job_name + '.pdf') # nur sim
         elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
             plt.plot_fluttercurves_to_pdf(self.path_output + 'fluttercurves_' + self.job_name + '.pdf')
             plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
         elif 'derivatives' in self.jcl.simcase[0] and self.jcl.simcase[0]['derivatives']:
             plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
+        elif 'limit_turbulence' in self.jcl.simcase[0] and self.jcl.simcase[0]['limit_turbulence']:
+            plt = plotting_standard.TurbulencePlots(self.jcl, model)
+            plt.add_monstations(monstations)
+            plt.plot_monstations(self.path_output + 'monstations_turbulence_' + self.job_name + '.pdf')
+            
 
         logging.info('--> Saving auxiliary output data.')
         aux_out = auxiliary_output.AuxiliaryOutput(self.jcl, model, self.jcl.trimcase)
@@ -423,6 +420,8 @@ class Kernel():
 #         from scripts import plot_lift_distribution
 #         plot = plot_lift_distribution.Liftdistribution(self.jcl, model, responses)
 #         plot.plot_aero_spanwise()
+        
+        
 
         return
 

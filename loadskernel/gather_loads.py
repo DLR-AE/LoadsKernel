@@ -22,6 +22,8 @@ class GatherLoads:
                                       'subcases': [],
                                       'loads':[],
                                       't':[],
+                                      'turbulence_loads':[],
+                                      'correlations':[],
                                      }
         self.dyn2stat = {'Pg': [], 
                          'subcases': [],
@@ -51,16 +53,25 @@ class GatherLoads:
                 loads = response['Pmon_local'][0,self.model.mongrid['set'][i_station,:]]
                 self.monstations[name]['subcases'].append(subcase)
                 self.monstations[name]['loads'].append(loads)
-                self.monstations[name]['t'].append(response['t'][0])         
+                self.monstations[name]['t'].append(response['t'][0])
+
+            if 'Pmon_turb' in response:
+                # Check if there are any limit turbulence loads available in the response.
+                # If yes, map them into the monstations.
+                loads = response['Pmon_turb'][0,self.model.mongrid['set'][i_station,:]]
+                correlations = response['correlations'][self.model.mongrid['set'][i_station,:],:][:,self.model.mongrid['set'][i_station,:]]
+
+                self.monstations[name]['turbulence_loads'].append(loads)
+                self.monstations[name]['correlations'].append(correlations)     
            
 
-    def gather_dyn2stat(self, response, mode='time-based'):
+    def gather_dyn2stat(self, response):
         """
         Schnittlasten an den Monitoring Stationen raus schreiben (z.B. zum Plotten)
         Knotenlasten raus schreiben (weiterverarbeitung z.B. als FORCE und MOMENT Karten fuer Nastran)
         """
         logging.info('searching min/max in time data at {} monitoring stations and gathering loads (dyn2stat)...'.format(len(self.monstations.keys())))
-        if mode == 'time-based':
+        if len(response['t']) > 1:
             i_case = str(response['i'])
             timeslices_dyn2stat = np.array([],dtype=int)
             for key in self.monstations.keys():
@@ -90,7 +101,7 @@ class GatherLoads:
                     self.monstations[key]['loads'].append(self.monstations[key][i_case]['loads'][pos,:])
                     self.monstations[key]['t'].append(self.monstations[key][i_case]['t'][pos,:])
 
-        elif mode == 'stat2stat':
+        else:
             i_case = response['i']
             self.dyn2stat['Pg'].append(response['Pg'][0,:])
             self.dyn2stat['subcases'].append(str(self.jcl.trimcase[i_case]['subcase']))

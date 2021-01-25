@@ -11,7 +11,7 @@ import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
 import loadskernel.read_geom as read_geom
 import loadskernel.read_cfdgrids as read_cfdgrids
-from loadskernel.grid_trafo import grid_trafo as grid_trafo
+from loadskernel import grid_trafo
 from loadskernel.atmosphere import isa as atmo_isa
 import loadskernel.VLM as VLM
 import loadskernel.DLM as DLM
@@ -77,7 +77,7 @@ class Model:
             self.strcgrid['offset'] = self.strcgrid['offset'][sort_vector,:]
             
             # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
-            grid_trafo(self.strcgrid, self.coord, 0)
+            grid_trafo.grid_trafo(self.strcgrid, self.coord, 0)
             logging.info('The structural model consists of {} grid points and {} coordinate systems.'.format(self.strcgrid['n'], len(self.coord['ID']) ))
             if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
                 self.KGG = read_geom.nastran_op4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
@@ -125,17 +125,24 @@ class Model:
                 self.mongrid['name'] = [ 'MON{:s}'.format(str(ID)) for ID in self.mongrid['ID'] ]
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_moncoord'], self.coord)
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
-                self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
-                self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
+                
             elif 'filename_monpnt' in self.jcl.geom and not self.jcl.geom['filename_monpnt'] == '':
                 logging.info( 'Reading Monitoring Stations from MONPNTs...')
                 self.mongrid = read_geom.Nastran_MONPNT1(self.jcl.geom['filename_monpnt']) 
                 self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_monpnt'], self.coord)
                 rules = spline_rules.monstations_from_aecomp(self.mongrid, self.jcl.geom['filename_monpnt'])
-                self.PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
-                self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
             else: 
-                logging.warning( 'No Monitoring Stations are created!')
+                logging.error( 'No Monitoring Stations are created!')
+            PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
+            # The line above gives the loads coordinate system 'CP' (mostly in global coordinates). 
+            # Next, make sure that PHIstrc_mon maps the loads in the local coordinate system given in 'CD'.
+            # Previously, step this has been accomplished in the post-processing. However, using matrix operations
+            # and incorporating the coordinate transformation in the pre-processing is much more convenient. 
+            T_i, T_d = grid_trafo.calc_transformation_matrix(self.coord, 
+                                                             self.mongrid, '', 'CP',
+                                                             self.mongrid, '', 'CD',)
+            self.PHIstrc_mon = T_d.T.dot(T_i).dot(PHIstrc_mon.T).T
+            self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
         
     def build_extragrid(self):
         if hasattr(self.jcl, 'landinggear'):
