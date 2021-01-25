@@ -13,6 +13,7 @@ import logging, copy
 from loadskernel import trim_tools
 from loadskernel.build_mass import BuildMass
 from loadskernel.model_equations.common import Common
+from loadskernel.interpolate import MatrixInterpolation
 
 class GustExcitation(Common):
     
@@ -125,14 +126,14 @@ class GustExcitation(Common):
 
     def build_AIC_interpolators(self):
         # interpolation of physical AIC
-        self.Qjj_interp = interp1d( self.model.aero['k_red'], self.model.aero['Qjj_unsteady'][self.i_aero], axis=0, fill_value="extrapolate")
+        self.Qjj_interp = MatrixInterpolation( self.model.aero['k_red'], self.model.aero['Qjj_unsteady'][self.i_aero])
         # do some pre-multiplications first, then the interpolation
         Qhh_1 = []; Qhh_2 = []
         for Qjj_unsteady in self.model.aero['Qjj_unsteady'][self.i_aero]:
             Qhh_1.append(self.q_dyn * self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1))) )
             Qhh_2.append(self.q_dyn * self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2 / self.Vtas ))) )
-        self.Qhh_1_interp = interp1d( self.model.aero['k_red'], Qhh_1, axis=0, fill_value="extrapolate")
-        self.Qhh_2_interp = interp1d( self.model.aero['k_red'], Qhh_2, axis=0, fill_value="extrapolate")
+        self.Qhh_1_interp = MatrixInterpolation( self.model.aero['k_red'], Qhh_1)
+        self.Qhh_2_interp = MatrixInterpolation( self.model.aero['k_red'], Qhh_2)
     
     def calc_aero_response(self, freqs, Uh, dUh_dt):
         # Notation: [n_panels, timesteps]
@@ -609,8 +610,8 @@ class PKMethod(KMethod):
                 Qhh_1.append(self.calc_Qhh_1(Qjj_unsteady))
                 Qhh_2.append(self.calc_Qhh_2(Qjj_unsteady))
             
-        self.Qhh_1_interp = interp1d( self.model.aero['k_red'], Qhh_1, kind='slinear', axis=0, fill_value="extrapolate")
-        self.Qhh_2_interp = interp1d( self.model.aero['k_red'], Qhh_2, kind='slinear', axis=0, fill_value="extrapolate")
+        self.Qhh_1_interp = MatrixInterpolation( self.model.aero['k_red'], Qhh_1)
+        self.Qhh_2_interp = MatrixInterpolation( self.model.aero['k_red'], Qhh_2)
     
     def system(self, k_red):
         rho = self.model.atmo['rho'][self.i_atmo]
