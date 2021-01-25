@@ -127,39 +127,34 @@ class GustExcitation(Common):
         # interpolation of physical AIC
         self.Qjj_interp = interp1d( self.model.aero['k_red'], self.model.aero['Qjj_unsteady'][self.i_aero], axis=0, fill_value="extrapolate")
         # do some pre-multiplications first, then the interpolation
-        Qhh_1 = []; Qhh_2 = []; Qhj = []
+        Qhh_1 = []; Qhh_2 = []
         for Qjj_unsteady in self.model.aero['Qjj_unsteady'][self.i_aero]:
             Qhh_1.append(self.q_dyn * self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1))) )
             Qhh_2.append(self.q_dyn * self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2 / self.Vtas ))) )
-            Qhj.append(  self.q_dyn * self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady))) )
         self.Qhh_1_interp = interp1d( self.model.aero['k_red'], Qhh_1, axis=0, fill_value="extrapolate")
         self.Qhh_2_interp = interp1d( self.model.aero['k_red'], Qhh_2, axis=0, fill_value="extrapolate")
-        self.Qhj_interp   = interp1d( self.model.aero['k_red'], Qhj,   axis=0, fill_value="extrapolate")
     
     def calc_aero_response(self, freqs, Uh, dUh_dt):
         # Notation: [n_panels, timesteps]
         wj_fourier = self.Djh_1.dot(Uh) + self.Djh_2.dot(dUh_dt) / self.Vtas
-        Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
-        Pk_fourier = np.zeros((self.model.aerogrid['n']*6, len(freqs)), dtype='complex128')
-        for i_f in range(len(freqs)):
-            Ph_fourier[:,i_f], Pk_fourier[:,i_f] = self.calc_P_fourier(freqs[i_f], wj_fourier[:,i_f])
+        Ph_fourier, Pk_fourier = self.calc_P_fourier(freqs, wj_fourier)
         return Ph_fourier, Pk_fourier
     
     def calc_gust_excitation(self, freqs, t):
         # Notation: [n_panels, timesteps]
         wj_gust_f = fft(self.wj_gust(t)) # Eventuell muss wj_gust_f noch skaliert werden mit 2.0/N * np.abs(wj_gust_f[:,0:N//2])
+        Ph_fourier, Pk_fourier = self.calc_P_fourier(freqs, wj_gust_f)
+        return Ph_fourier, Pk_fourier
+    
+    def calc_P_fourier(self, freqs, wj):
         Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
         Pk_fourier = np.zeros((self.model.aerogrid['n']*6, len(freqs)), dtype='complex128')
         for i_f in range(len(freqs)):
-            Ph_fourier[:,i_f], Pk_fourier[:,i_f] = self.calc_P_fourier(freqs[i_f], wj_gust_f[:,i_f])
+            # The interpolation of Qjj is computationally very expensive, especially for a large number of frequencies. 
+            Qjj = self.Qjj_interp(self.f2k(freqs[i_f]))
+            Pk_fourier[:,i_f] = self.q_dyn * self.model.PHIlk.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj.dot(wj[:,i_f]))))
+            Ph_fourier[:,i_f] = self.PHIkh.T.dot(Pk_fourier[:,i_f])
         return Ph_fourier, Pk_fourier
-    
-    def calc_P_fourier(self,f, wj):
-        # The interpolation of Qjj is computationally very expensive, especially for a large number of frequencies. 
-        Qjj = self.Qjj_interp(self.f2k(f))
-        Pk = self.q_dyn * self.model.PHIlk.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj.dot(wj))))
-        Ph = self.PHIkh.T.dot(Pk)
-        return Ph, Pk
     
     def wj_gust(self, t):
         ac_position = np.array([t * self.Vtas]*self.model.aerogrid['n'])
@@ -196,20 +191,29 @@ class TurbulenceExcitation(GustExcitation):
         p = 1.0 - 1.0/n_samples
         sigma = norm.ppf((p+1.0)/2.0, loc=0.0, scale=1.0)
         return sigma
-
+    
+    def calc_psd_vonKarman(self, freqs):
+        # calculate turbulence excitation by von Karman power spectral density according to CS-25.341 b)
+        L = 762.0/self.Vtas # normalized turbulence scale [s], 2500.0 ft = 762.0 m
+        psd_karman = 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*freqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*freqs)**2.0)**(11.0/6.0)
+        # set psd to zero for f=0.0 to achieve y_mean = 0.0 
+        if freqs[0] == 0.0:
+            psd_karman[0] = 0.0
+        # Calculate the RMS value for cross-checking. Exclude first frequency with f=0.0 from the integral.
+        logging.info('RMS of PSD input (should approach 1.0): {:.4f}'.format(np.trapz(psd_karman[1:], freqs[1:])**0.5))
+        return psd_karman
+    
     def calc_gust_excitation(self, freqs, t):
         # Calculate turbulence excitation by von Karman power spectral density according to CS-25.341(b)
         # For calculation of limit loads in the time domain, scale u_sigma such that it has the probability to occur once during the simulation time.
         sigma = self.calc_sigma(self.n_freqs)
         u_sigma = self.u_sigma / sigma # turbulence gust intensity [m/s]
         logging.info("Using RMS turbulence intensity u_sigma = {:.4f} m/s, sigma = {:.4f}.".format(u_sigma, sigma))
-        L = 762.0/self.Vtas # normalized turbulence scale [s], 2500.0 ft = 762.0 m
-        psd_karman = u_sigma**2.0 * 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*freqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*freqs)**2.0)**(11.0/6.0)
-        # set psd to zero for f=0.0 to achieve y_mean = 0.0 
-        psd_karman[0] = 0.0
+        
+        psd_karman = self.calc_psd_vonKarman(freqs)
         # Apply a scaling in the frequency domain to achieve the correct amplitude in the time domain.
         # Then, CS-25 wants us to take the square root.
-        psd_scaled = (psd_karman * len(freqs) * self.fmax)**0.5
+        psd_scaled = u_sigma * (psd_karman * len(freqs) * self.fmax)**0.5
         # generate a random phase
         np.random.seed() # create a new seed for the random numbers, so that when using multiprocessing, every worker gets a new seed
         random_phases = np.random.random_sample(len(freqs)) * 2.0*np.pi
@@ -221,11 +225,7 @@ class TurbulenceExcitation(GustExcitation):
         gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), trim_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
         # Notation: [n_panels, n_freq]
         wj_gust_f = psd_scaled * np.exp(1j*(random_phases+phase_delay)) * gust_direction_vector[:,None] /self.Vtas
-
-        Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
-        Pk_fourier = np.zeros((self.model.aerogrid['n']*6, len(freqs)), dtype='complex128')
-        for i_f in range(len(freqs)):
-            Ph_fourier[:,i_f], Pk_fourier[:,i_f] = self.calc_P_fourier(freqs[i_f], wj_gust_f[:,i_f])
+        Ph_fourier, Pk_fourier = self.calc_P_fourier(freqs, wj_gust_f)
         
         return Ph_fourier, Pk_fourier
     
@@ -281,7 +281,7 @@ class TurbulenceExcitation(GustExcitation):
         ax2.grid(True)
         """
         
-class LimitTurbulence(GustExcitation):
+class LimitTurbulence(TurbulenceExcitation):
     
     def eval_equations(self):
         self.setup_frequence_parameters()
@@ -291,24 +291,28 @@ class LimitTurbulence(GustExcitation):
         # Notation: [Antwort, Anregung, Frequenz]
         positiv_TFs = self.build_transfer_functions(self.positiv_fftfreqs)
 
-        logging.info('calculating gust excitation')
-        Ph_fourier = self.calc_white_noise_excitation(self.positiv_fftfreqs, self.t)
+        logging.info('calculating gust excitation (in physical coordinates, this may take considerable time and memory)')
+        Ph_gust, Pk_gust = self.calc_white_noise_excitation(self.positiv_fftfreqs)
         
-        # calculate turbulence excitation by von Karman power spectral density according to CS-25.341 b)
-        L = 762.0/self.Vtas # normalized turbulence scale [s], 2500.0 ft = 762.0 m
-        psd_karman = 2.0*L * (1.0+8.0/3.0*(1.339*L*2.0*np.pi*self.positiv_fftfreqs)**2.0)/(1.0+(1.339*L*2.0*np.pi*self.positiv_fftfreqs)**2.0)**(11.0/6.0)
-        # set psd to zero for f=0.0 to achieve y_mean = 0.0 
-        psd_karman[0] = 0.0
-        # Calculate the RMS value for cross-checking. Exclude first frequency with f=0.0
-        logging.info('RMS of PSD input (should be close to 1.0): {:.4f}'.format(np.trapz(psd_karman[1:], self.positiv_fftfreqs[1:])**0.5))
+        psd_karman = self.calc_psd_vonKarman(self.positiv_fftfreqs)
+        
+        logging.info('calculating responses')        
+        Hdisp = np.sum(positiv_TFs * Ph_gust, axis=1)
+        
+        logging.info('reconstructing aerodynamic forces (in physical coordinates, this may take considerable time and memory)')
+        # Aerodynamic forces due to the elastic reaction of the aircraft 
+        wj_aero= self.Djh_1.dot(Hdisp) + self.Djh_2.dot(Hdisp*(1j*self.positiv_fftomega)**1) / self.Vtas
+        Ph_aero, Pk_aero = self.calc_P_fourier(self.positiv_fftfreqs, wj_aero)
+        Haero = self.model.PHIstrc_mon.T.dot(self.model.PHIk_strc.T.dot(Pk_aero))
+        # Aerodynamic forces due to the gust / turbulence
+        Hgust = self.model.PHIstrc_mon.T.dot(self.model.PHIk_strc.T.dot(Pk_gust))
+        # Inertial forces due to the elastic reation of the aircraft
+        Hiner = self.model.PHIstrc_mon.T.dot( -self.model.mass['MGG'][self.i_mass].dot(
+            self.model.mass['PHIh_strc'][self.i_mass].T).dot(Hdisp*(1j*self.positiv_fftomega)**2))
 
-        logging.info('calculating responses')
-        # MDM: p = K*u, with u only from the flexible modes 'f', not 'h'(!)
-        PHIh_mon = np.zeros((self.model.mongrid['n']*6, self.n_modes))
-        PHIh_mon[:,5:] = self.model.PHIstrc_mon.T.dot( self.model.KGG.dot(self.model.mass['PHIf_strc'][self.i_mass].T) )
+        # Force Summation Method: P = Pext + Piner
+        H = Haero + Hgust + Hiner
         
-        # TFs: [Antwort, Anregung, Frequenz]
-        H = PHIh_mon.dot(np.sum(positiv_TFs * Ph_fourier, axis=1))
         A = np.trapz(np.real(H * H.conj())*psd_karman, self.positiv_fftfreqs) ** 0.5
         Pmon = self.u_sigma * A
         
@@ -326,7 +330,7 @@ class LimitTurbulence(GustExcitation):
                     }
         return response
     
-    def calc_white_noise_excitation(self, freqs, t):
+    def calc_white_noise_excitation(self, freqs):
         # white noise with constant amplitude for all frequencies
         white_noise = np.ones_like(freqs)
         # apply to all panels with phase delay according to geometrical position
@@ -336,18 +340,9 @@ class LimitTurbulence(GustExcitation):
         gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), trim_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
         # Notation: [n_panels, n_freq]
         wj_gust_f = white_noise * np.exp(1j*(phase_delay)) * gust_direction_vector[:,None] /self.Vtas
-
-        Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
-        for i_f in range(len(freqs)):
-            Ph_fourier[:,i_f] = self.calc_Ph_fourier(freqs[i_f], wj_gust_f[:,i_f])
+        Ph_fourier, Pk_fourier = self.calc_P_fourier(freqs, wj_gust_f)
         
-        return Ph_fourier
-    
-    def calc_Ph_fourier(self,f, wj):
-        # The interpolation of Qhj instead of Qjj is computationally less expensive.
-        Qhj = self.Qhj_interp(self.f2k(f))
-        Ph = Qhj.dot(wj)
-        return Ph
+        return Ph_fourier, Pk_fourier
 
 class KMethod(GustExcitation):
     
