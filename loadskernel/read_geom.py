@@ -321,7 +321,7 @@ def nastran_number_converter(string_in, type, default=0):
                 else:
                     out = float(string_in.replace('+', 'E+'))
             elif string_in == '':
-                logging.warning("Could not interpret the following number: '" + string_in + "' -> setting value to zero.")
+                logging.warning("Could not interpret the following number: '" + string_in + "' -> setting value to "+str(default))
                 out = float(default)
             else: 
                 logging.error("Could not interpret the following number: " + string_in)
@@ -600,27 +600,27 @@ def Nastran_AEFACT(filename):
     # AEFACTs have the same nomenklatur as SET1s
     # Thus, reuse the Nastran_SET1() function with a different keyword
     # However, AEFACTs are mostly used with float numbers.
-    return Nastran_SET1(filename, keyword='AEFACT', type='float')
+    return Nastran_SET1(filename, keyword='AEFACT', type='float', default=999)
 
 def Modgen_AELIST(filename):
     # AELISTs have the same nomenklatur as SET1s
     # Thus, reuse the Nastran_SET1() function with a different keyword
     return Nastran_SET1(filename, keyword='AELIST')
 
-def Nastran_SET1(filename, keyword='SET1', type='int'):
+def Nastran_SET1(filename, keyword='SET1', type='int', default=0):
     
     sets = {'ID':[], 'values':[]}
     next_line = False
     with open(filename, 'r') as fid:
         while True:
             read_string = fid.readline()
-            if str.find(read_string[:8], keyword) !=-1 and read_string[-2:-1] == '+' and read_string[:1] != '$':
+            if str.find(read_string[:8], keyword) !=-1 and '+' in read_string[-9:] and read_string[:1] != '$':
                 # this is the first line
-                row = read_string[8:-2]
+                row = read_string[8:]
                 next_line = True
-            elif next_line and read_string[:1] == '+' and read_string[-2:-1] == '+':
+            elif next_line and read_string[:1] == '+' and '+' in read_string[-9:]:
                 # these are the middle lines
-                row += read_string[8:-2]
+                row += read_string[8:]
             elif np.all(next_line and read_string[:1] == '+') or np.all(str.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
                 if np.all(str.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
                     # this is the first AND the last line, no more IDs to come
@@ -628,26 +628,28 @@ def Nastran_SET1(filename, keyword='SET1', type='int'):
                 else:
                     # this is the last line, no more IDs to come
                     row += read_string[8:]
-                for c in ['\n', '\r']: row = row.strip(c)
+                for c in ['\n', '\r', '+']: row = row.replace(c, '')
                 next_line = False
                 # start conversion from string to list containing ID values
-                sets['ID'].append(nastran_number_converter(row[:8], 'int'))
+                sets['ID'].append(nastran_number_converter(row[:8], 'int', default))
                 row = row[8:]
                 
                 values = []
                 while len(row)>0:
                     if str.replace(row[:8], ' ', '') == 'THRU':
                         startvalue = values[-1]+1
-                        stoppvalue = nastran_number_converter(row[8:16], type)
+                        stoppvalue = nastran_number_converter(row[8:16], type, default)
                         values += list(range(startvalue, stoppvalue+1) )
                         row = row[16:]
                     else:
-                        values.append(nastran_number_converter(row[:8], type))
+                        values.append(nastran_number_converter(row[:8], type, default))
                         row = row[8:]
                 if keyword in ['SET1', 'AELIST']:
                     # SET cards give ranges of grid points with ID >= 1. 
                     # Blank fields are interpreted as 0 and need to be sorted out.
                     sets['values'].append( np.array([x for x in values if x != 0]) )
+                elif keyword in ['AEFACT']:
+                    sets['values'].append( np.array([x for x in values if x != 999]) )
                 else:
                     sets['values'].append(values)
             if read_string == '':
