@@ -61,7 +61,7 @@ class StandardPlots():
             self.f_scale = 0.1 # vectors
             self.p_scale = 0.05 # points
         # FLEXOP
-        elif self.jcl.general['aircraft'] in ['FLEXOP', 'fs35', 'Openclass', 'D150']:
+        elif self.jcl.general['aircraft'] in ['FLEXOP', 'fs35', 'Openclass', 'D150', 'FFD']:
             self.potatos_fz_mx = ['MON1']
             self.potatos_mx_my = ['MON1']
             self.potatos_fz_my = ['MON1']
@@ -122,13 +122,6 @@ class StandardPlots():
                                        '64031', '64032', '64033', '64034', '64035', '64036', '64037', '64038']
             self.f_scale = 0.1 # vectors
             self.p_scale = 0.3 # points
-        elif self.jcl.general['aircraft'] in ['FFD']:
-            self.potatos_fz_mx = ['cW640001']
-            self.potatos_mx_my = ['cW640001']
-            self.potatos_fz_my = ['cW640001']
-            self.cuttingforces_wing = ['cW640001']
-            self.f_scale = 0.002 # vectors
-            self.p_scale = 0.4 # points
         else:
             logging.error('Unknown aircraft: ' + str(self.jcl.general['aircraft']))
             return

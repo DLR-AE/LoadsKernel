@@ -1,26 +1,40 @@
-'''
-Created on Aug 2, 2019
-
-@author: voss_ar
-'''
 import numpy as np
-import logging
 
 class Efcs:
     def __init__(self):
-        self.keys = ['R11FLP', 'R12AIL', 'L11FLP', 'L12AIL', 'R31RUD', 'L31RUD', 'STAB', 'L-STAB',]
-        self.Ux2_0 = np.array([0.0, 0.0])
+        self.keys = ['ELEVL1', 'ELEVL2', 'ELEVR1', 'ELEVR2', 'RUDDL1', 'RUDDR1']
+        self.Ux2_0 = np.array([0.0]*6)
                 
-    def cs_mapping(self, command_xi, command_eta, command_zeta):
+    def cs_mapping(self, commands):
+        
+        command_xi = commands[0] 
+        command_eta = commands[1]
+        command_zeta = commands[2]
 
         # Ausgangsposition
-        delta_STAB = self.Ux2_0[0]
-        delta_LSTAB = self.Ux2_0[1]
+        delta_ELEVL1 = self.Ux2_0[0]
+        delta_ELEVL2 = self.Ux2_0[1]
+        delta_ELEVR1 = self.Ux2_0[2]
+        delta_ELEVR2 = self.Ux2_0[3]
+        delta_RUDDL1 = self.Ux2_0[4]
+        delta_RUDDR1 = self.Ux2_0[5]
         
         # eta - Nickachse
-        delta_STAB -= command_eta
-        delta_LSTAB -= command_eta
+        delta_ELEVL1 -= command_eta
+        delta_ELEVL2 -= command_eta
+        delta_ELEVR1 -= command_eta
+        delta_ELEVR2 -= command_eta
         
-        Ux2 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, delta_STAB, delta_LSTAB])
+        # xi - Rollachse
+        delta_ELEVL1 += command_xi 
+        delta_ELEVL2 += command_xi
+        delta_ELEVR1 -= command_xi
+        delta_ELEVR2 -= command_xi
+        
+        # zeta - Gierachse
+        delta_RUDDL1 += command_zeta
+        delta_RUDDR1 += command_zeta
+        
+        Ux2 = np.array([delta_ELEVL1, delta_ELEVL2, delta_ELEVR1, delta_ELEVR2, delta_RUDDL1, delta_RUDDR1])
         
         return Ux2
