@@ -124,8 +124,7 @@ class Compare():
         layout.addWidget(self.cb_labels,    5,0,1,2)
         layout.addWidget(self.cb_minmax,    6,0,1,2)
         layout.addWidget(self.label_n_loadcases, 7,0,1,2)
-        
-    
+
     def initMatplotlibFigure(self):
         # init Matplotlib Plot
         fig1 = Figure()
@@ -176,7 +175,6 @@ class Compare():
         self.window.setWindowTitle("Loads Compare")
         self.window.show()
     
-        
     def show_choice(self, *args):
         # called on change in listbox, combobox, etc
         # discard extra variables
@@ -200,7 +198,6 @@ class Compare():
             # Reverse current selection of datasets for plotting. The dataset added/created last is plotted first.
             # This is useful for example after merging different datasets. The resulting dataset would obscure the view if plotted last. 
             current_selection = [item.row() for item in self.lb_dataset.selectedIndexes()]
-            current_selection.reverse()
             dataset_sel = [self.datasets['dataset'][i] for i in current_selection]
             color_sel   = [self.datasets['color'][i] for i in current_selection]
             desc_sel    = [self.datasets['desc'][i] for i in current_selection]
