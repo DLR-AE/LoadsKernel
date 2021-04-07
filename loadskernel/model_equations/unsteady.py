@@ -17,7 +17,7 @@ class Unsteady(Common):
         dUcg_dt, Uf, dUf_dt     = self.recover_states(X)
         Vtas, q_dyn             = self.recover_Vtas(self.X0)
         onflow                  = self.recover_onflow(X)
-        alpha, beta, gamma      = self.windsensor(X, Vtas)
+        alpha, beta, gamma      = self.windsensor(X, Vtas, Uf, dUf_dt)
         Ux2 = self.get_Ux2(X)        
         # --------------------   
         # --- aerodynamics ---   

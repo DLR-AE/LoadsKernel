@@ -274,7 +274,7 @@ class Common():
         Pk = self.calc_Pk(q_dyn, wj)
         return Pk, wj
     
-    def windsensor(self, X, Vtas):
+    def windsensor(self, X, Vtas, Uf, dUf_dt):
         """
         Definitions
         alpha positiv = w positiv, wind from below
@@ -284,7 +284,17 @@ class Common():
             # calculate aircraft motion at sensor location
             i_wind = self.jcl.sensor['key'].index('wind')
             PHIsensor_cg = self.model.mass['PHIsensor_cg'][self.i_mass]
-            u, v, w = self.PHInorm_cg.dot(PHIsensor_cg.dot(X[6:12].dot(self.PHInorm_cg))[self.model.sensorgrid['set'][i_wind,:]])[0:3] # velocity sensor attachment point
+            PHIf_sensor = self.model.mass['PHIf_sensor'][self.i_mass]
+            # rigid
+            u, v, w = PHIsensor_cg.dot(X[6:12])[self.model.sensorgrid['set'][i_wind,0:3]] # velocity sensor attachment point
+            # additional wind from flexible deformation
+            uf_1, vf_1, wf_1 = np.cross(PHIf_sensor.T.dot(Uf)[self.model.sensorgrid['set'][i_wind,(3,4,5)]], X[6:9]).dot(self.PHIcg_norm[:3,:3])
+            # additional wind from flexible velocity
+            uf_2, vf_2, wf_2 = PHIf_sensor.T.dot(dUf_dt)[self.model.sensorgrid['set'][i_wind,0:3]].dot(self.PHIcg_norm[:3,:3])
+            
+            v += vf_1 + vf_2
+            w += wf_1 + wf_2
+
             if self.simcase and self.simcase['gust']:
                 # Eintauchtiefe in die Boe berechnen, analog zu gust()
                 s_gust = (X[0] - self.model.sensorgrid['offset'][i_wind,0] - self.s0)
