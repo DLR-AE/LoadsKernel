@@ -33,13 +33,9 @@ class Merge:
         jcl = specific_io.load_jcl(job_name, self.path_input, jcl=None)
         
         logging.info( '--> Loading monstations(s).' )
-#         with open(self.path_output + 'monstations_' + job_name + '.pickle', 'rb') as f:
-#             monstations = specific_io.load_pickle(f)
         monstations = specific_io.load_hdf5(self.path_output + 'monstations_' + job_name + '.hdf5')
 
         logging.info( '--> Loading dyn2stat.'  )
-#         with open(self.path_output + 'dyn2stat_' + job_name + '.pickle', 'rb') as f:
-#             dyn2stat_data = specific_io.load_pickle(f)
         dyn2stat_data = specific_io.load_hdf5(self.path_output + 'dyn2stat_' + job_name + '.hdf5')
         
         # save into data structure
@@ -108,26 +104,10 @@ class Merge:
                                                 'loads':[],
                                                 't':[],
                                                 }
-                # Check for dynamic loads.
-                if np.size(self.datasets['monstations'][x][station]['t'][0]) == 1:
-                    # Scenario 1: There are only static loads.
-                    loads_string   = 'loads'
-                    subcase_string = 'subcases'
-                    t_string = 't'
-                    logging.info('- {}: found {} static loads'.format(station, self.datasets['monstations'][x][station][subcase_string].__len__() ))
-                elif (np.size(self.datasets['monstations'][x][station]['t'][0]) > 1) and ('loads_dyn2stat' in self.datasets['monstations'][x][station].keys()) and (self.datasets['monstations'][x][station]['loads_dyn2stat'] != []):
-                    # Scenario 2: Dynamic loads have been converted to quasi-static time slices / snapshots.
-                    loads_string   = 'loads_dyn2stat'
-                    subcase_string = 'subcases_dyn2stat'
-                    t_string = 't_dyn2stat'
-                    logging.info('- {}: found {} dyn2stat loads -> discarding dynamic loads'.format(station, self.datasets['monstations'][x][station][subcase_string].__len__() ))
-                else:
-                    # Scenario 3: There are only dynamic loads. 
-                    return
                 # Merge.   
-                new_monstations[station]['loads']           += list(self.datasets['monstations'][x][station][loads_string][()])
-                new_monstations[station]['subcases']        += list(self.datasets['monstations'][x][station][subcase_string][()])
-                new_monstations[station]['t']               += list(self.datasets['monstations'][x][station][t_string][()])
+                new_monstations[station]['loads']           += list(self.datasets['monstations'][x][station]['loads'][()])
+                new_monstations[station]['subcases']        += list(self.datasets['monstations'][x][station]['subcases'][()])
+                new_monstations[station]['t']               += list(self.datasets['monstations'][x][station]['t'][()])
 
         # Save into existing data structure.
         self.new_dataset_id = self.datasets['n']
@@ -160,12 +140,12 @@ class Merge:
         aux_out.dyn2stat_data = dyn2stat_data
         aux_out.monstations = monstations
         
-        aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + job_name + '.csv', dyn2stat=True) 
-        #aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + job_name + '.bdf', dyn2stat=True) 
-        aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name + '.pickle', dyn2stat=True) 
+        aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + job_name + '.csv') 
+        aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + job_name + '.bdf') 
+        aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name + '.pickle') 
     
 if __name__ == "__main__":
-    jobs_to_merge = ['jcl_HAP-O6-loop1_maneuver', 'jcl_HAP-O6-loop1_gust_unsteady_FMU', 'jcl_HAP-O6-loop1_landing', 'jcl_HAP-O6-loop1_prop']
+    jobs_to_merge = ['jcl_HAP-O6-loop3_maneuver', 'jcl_HAP-O6-loop3_gust_unsteady_FMU', 'jcl_HAP-O6-loop3_landing', 'jcl_HAP-O6-loop3_prop']
     m = Merge(path_input='/scratch/HAP_workingcopy/JCLs', path_output='/scratch/HAP_LoadsKernel')
-    m.run_merge('jcl_HAP-O6_merged_loop1', jobs_to_merge)
+    m.run_merge('jcl_HAP-O6_merged_loop3b', jobs_to_merge)
     
