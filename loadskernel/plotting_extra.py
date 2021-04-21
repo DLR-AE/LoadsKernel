@@ -69,7 +69,8 @@ class DetailedPlots(plotting_standard.StandardPlots):
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
         ax.view_init(elev=30.0, azim=-120.0) 
-        fig.colorbar(plt.cm.ScalarMappable(cmap=colors, norm=plt.cm.colors.Normalize(value_min, value_max)), ax=ax)
+        if len(cp) == aerogrid['n']:
+            fig.colorbar(plt.cm.ScalarMappable(cmap=colors, norm=plt.cm.colors.Normalize(value_min, value_max)), ax=ax)
         fig.tight_layout()
         
         return ax
