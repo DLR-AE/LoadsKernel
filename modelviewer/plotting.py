@@ -13,7 +13,7 @@ from mayavi.sources.utils import has_attributes
 
 class Plotting:
     def __init__(self):
-        self.pscale = 0.1
+        self.pscale = 0.2
         pass
 
     def plot_nothing(self):
@@ -22,8 +22,11 @@ class Plotting:
         self.show_strc=False
         self.show_mode=False
         self.show_aero=False
+        self.show_cfdgrids=False
         self.show_coupling=False
         self.show_cs=False
+        self.show_cell=False
+        self.show_monstations=False
         
     def add_figure(self, fig):
         self.fig = fig
@@ -36,24 +39,22 @@ class Plotting:
         self.aerogrid = model.aerogrid
         self.calc_distance()
         self.calc_focalpoint()
+        
+    def add_cfdgrids(self, cfdgrids):
+        self.cfdgrids = cfdgrids
 
     def calc_distance(self):
         self.distance = 1.5*(  (self.strcgrid['offset'][:,0].max()-self.strcgrid['offset'][:,0].min())**2 \
                           + (self.strcgrid['offset'][:,1].max()-self.strcgrid['offset'][:,1].min())**2 \
                           + (self.strcgrid['offset'][:,2].max()-self.strcgrid['offset'][:,2].min())**2 )**0.5
+    
     def calc_focalpoint(self):
         self.focalpoint = (self.strcgrid['offset'].min(axis=0) + self.strcgrid['offset'].max(axis=0))/2.0
-        
+    
     def set_view_left_above(self):
         self.azimuth   =  60.0
         self.elevation = -65.0
         self.roll      =  55.0
-        self.set_view()
-        
-    def set_view_right_above(self):
-        self.azimuth   = 120.0
-        self.elevation = -65.0
-        self.roll      = -55.0
         self.set_view()
         
     def set_view_back(self):
@@ -67,6 +68,14 @@ class Plotting:
         self.elevation = -90.0
         self.roll      =   0.0
         self.set_view()
+        
+    def set_view_top(self):
+        self.azimuth   = 180.0
+        self.elevation = 0.0
+        self.roll      = 0.0
+        self.distance *= 1.5 # zoom out more
+        self.set_view()
+        self.calc_distance() # rest zoom
 
     def set_view(self):
         mlab.view(azimuth=self.azimuth, elevation=self.elevation, roll=self.roll,  distance=self.distance, focalpoint=self.focalpoint)
@@ -75,6 +84,7 @@ class Plotting:
     # ------------
     # --- mass ---
     #-------------
+    
     def hide_masses(self):
         self.src_masses.remove()
         self.src_mass_cg.remove()
@@ -97,31 +107,32 @@ class Plotting:
         mlab.draw(self.fig)
 
     def setup_mass_display(self, radius_masses, radius_mass_cg, cggrid):
-        ug1 = tvtk.UnstructuredGrid(points=self.strcgrid['offset'])
-        ug1.point_data.scalars = radius_masses
+        self.ug1_mass = tvtk.UnstructuredGrid(points=self.strcgrid['offset'])
+        self.ug1_mass.point_data.scalars = radius_masses
         # plot points as glyphs
-        self.src_masses = mlab.pipeline.add_dataset(ug1)
+        self.src_masses = mlab.pipeline.add_dataset(self.ug1_mass)
         points = mlab.pipeline.glyph(self.src_masses, scale_mode='scalar', scale_factor = 1.0, color=(1,0.7,0))
         points.glyph.glyph.clamping = False
-        #points.glyph.glyph.range = np.array([0.0, 1.0])
         
-        ug2 = tvtk.UnstructuredGrid(points=cggrid['offset'])
-        ug2.point_data.scalars = np.array([radius_mass_cg])
+        self.ug2_mass = tvtk.UnstructuredGrid(points=cggrid['offset'])
+        self.ug2_mass.point_data.scalars = np.array([radius_mass_cg])
         # plot points as glyphs
-        self.src_mass_cg = mlab.pipeline.add_dataset(ug2)
+        self.src_mass_cg = mlab.pipeline.add_dataset(self.ug2_mass)
         points = mlab.pipeline.glyph(self.src_mass_cg, scale_mode='scalar', scale_factor = 1.0, color=(1,1,0), opacity=0.3, resolution=64)
         points.glyph.glyph.clamping = False
-        #points.glyph.glyph.range = np.array([0.0, 1.0])      
 
     def update_mass_display(self, radius_masses, radius_mass_cg, cggrid):
-        self.src_masses.outputs[0].points.from_array(self.strcgrid['offset'])
-        self.src_masses.outputs[0].point_data.scalars.from_array(radius_masses)
-        self.src_mass_cg.outputs[0].points.from_array(cggrid['offset'])
-        self.src_mass_cg.outputs[0].point_data.scalars.from_array(np.array([radius_mass_cg]))
+        self.ug1_mass.points.from_array(self.strcgrid['offset'])
+        self.ug1_mass.point_data.scalars.from_array(radius_masses)
+        self.ug1_mass.modified()
+        self.ug2_mass.points.from_array(cggrid['offset'])
+        self.ug2_mass.point_data.scalars.from_array(np.array([radius_mass_cg]))
+        self.ug2_mass.modified()
 
     # ------------
     # --- strc ---
     #-------------
+    
     def hide_strc(self):
         self.src_strc.remove()
         self.show_strc=False
@@ -146,70 +157,107 @@ class Plotting:
         mlab.draw(self.fig)
         
     def setup_strc_display(self, offsets, color, p_scale):
-        ug = tvtk.UnstructuredGrid(points=offsets)
-        #ug.point_data.scalars = scalars
+        self.ug_strc = tvtk.UnstructuredGrid(points=offsets)
         if hasattr(self.model, 'strcshell'):
             # plot shell as surface
             shells = []
             for shell in self.model.strcshell['cornerpoints']: 
                 shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell])
             shell_type = tvtk.Polygon().cell_type
-            ug.set_cells(shell_type, shells)
-            src_strc = mlab.pipeline.add_dataset(ug)
+            self.ug_strc.set_cells(shell_type, shells)
+            src_strc = mlab.pipeline.add_dataset(self.ug_strc)
             points  = mlab.pipeline.glyph(src_strc, color=color, scale_factor=p_scale) 
             surface = mlab.pipeline.surface(src_strc, opacity=0.4, color=color)
         else: 
             # plot points as glyphs
-            src_strc = mlab.pipeline.add_dataset(ug)
+            src_strc = mlab.pipeline.add_dataset(self.ug_strc)
             points = mlab.pipeline.glyph(src_strc, color=color, scale_factor=p_scale)
         points.glyph.glyph.scale_mode = 'data_scaling_off'
         return src_strc
         
-        
     def update_mode_display(self, offsets):
-        self.src_mode.outputs[0].points.from_array(offsets)
-        #self.src_mode.outputs[0].point_data.scalars.from_array(scalars)
+        self.ug_strc.points.from_array(offsets)
+        self.ug_strc.modified()
         
     # ------------
     # --- aero ---
     #-------------
+    
     def hide_aero(self):
         self.src_aerogrid.remove()
+        self.src_MAC.remove()
         self.show_aero=False
         mlab.draw(self.fig)
         
-    def plot_aero(self):
-        self.setup_aero_display(color=(1,1,1), p_scale=self.pscale)
+    def plot_aero(self, scalars=None, vminmax=[-10.0, 10.0]):
+        self.setup_aero_display(scalars, vminmax)
         self.show_aero=True
         mlab.draw(self.fig)
         
-    def setup_aero_display(self, color, p_scale):
-        ug = tvtk.UnstructuredGrid(points=self.model.aerogrid['cornerpoint_grids'][:,(1,2,3)])
+    def setup_aero_display(self, scalars, vminmax):
+        ug1 = tvtk.UnstructuredGrid(points=self.model.aerogrid['cornerpoint_grids'][:,(1,2,3)])
         shells = []
         for shell in self.model.aerogrid['cornerpoint_panels']: 
             shells.append([np.where(self.model.aerogrid['cornerpoint_grids'][:,0]==id)[0][0] for id in shell])
         shell_type = tvtk.Polygon().cell_type
-        ug.set_cells(shell_type, shells)
-        #ug.cell_data.scalars = scalars
-        self.src_aerogrid = mlab.pipeline.add_dataset(ug)
+        ug1.set_cells(shell_type, shells)
+        if scalars is not None:
+            ug1.cell_data.scalars = scalars
+        self.src_aerogrid = mlab.pipeline.add_dataset(ug1)
+
+        ug2 = tvtk.UnstructuredGrid(points=np.array([self.MAC]))
+        self.src_MAC = mlab.pipeline.add_dataset(ug2)
+        points = mlab.pipeline.glyph(self.src_MAC, scale_mode='scalar', scale_factor = 0.5, color=(1,0,0), opacity=0.4, resolution=64)
+        points.glyph.glyph.clamping = False
         
-        points = mlab.pipeline.glyph(self.src_aerogrid, color=color, scale_factor=p_scale)
-        points.glyph.glyph.scale_mode = 'data_scaling_off'
-        
-        surface = mlab.pipeline.surface(self.src_aerogrid, color=color)
-        surface.actor.mapper.scalar_visibility=False
+        if scalars is not None:
+            surface = mlab.pipeline.surface(self.src_aerogrid, colormap='coolwarm', vmin=vminmax[0], vmax=vminmax[1])
+            surface.module_manager.scalar_lut_manager.show_legend=True
+            surface.module_manager.scalar_lut_manager.label_text_property.color=(0,0,0)
+            surface.module_manager.scalar_lut_manager.label_text_property.font_family='times'
+            surface.module_manager.scalar_lut_manager.label_text_property.bold=False
+            surface.module_manager.scalar_lut_manager.label_text_property.italic=False
+            surface.module_manager.scalar_lut_manager.number_of_labels=5
+            
+        else:
+            surface = mlab.pipeline.surface(self.src_aerogrid, color=(1,1,1))
         surface.actor.property.edge_visibility=True
-        #surface.actor.property.edge_color=(0.9,0.9,0.9)
         surface.actor.property.edge_color=(0,0,0)
         surface.actor.property.line_width=0.5
+        
+    def hide_cfdgrids(self):
+        for src in self.src_cfdgrids:
+            src.remove()
+        self.show_cfdgrids=False
+        mlab.draw(self.fig)
+        
+    def plot_cfdgrids(self, markers):
+        self.src_cfdgrids = []
+        for cfdgrid in self.cfdgrids:
+            if int(cfdgrid['desc']) in markers:
+                self.setup_cfdgrid_display(grid=cfdgrid, color=(1,1,1), scalars=None)
+        self.show_cfdgrids=True
+        mlab.draw(self.fig)
+
+    def setup_cfdgrid_display(self, grid, color, scalars):
+        ug = tvtk.UnstructuredGrid(points=grid['offset'])
+        #ug.point_data.scalars = scalars
+        shells = []
+        for shell in grid['points_of_surface']: 
+            shells.append([np.where(grid['ID']==id)[0][0] for id in shell])
+        shell_type = tvtk.Polygon().cell_type
+        ug.set_cells(shell_type, shells)
+        src_cfdgrid = mlab.pipeline.add_dataset(ug)
+        self.src_cfdgrids.append(src_cfdgrid)
+        
+        surface = mlab.pipeline.surface(src_cfdgrid, opacity=1.0, line_width=0.5, color=color)
+        surface.actor.property.edge_visibility=True    
     
-    def update_aero_display(self, scalars): # currently unused
-        self.src_aerogrid.outputs[0].cell_data.scalars.from_array(scalars)
-        self.src_aerogrid.update()
 
     # --------------
     # --- coupling ---
     #---------------
+    
     def hide_aero_strc_coupling(self):
         self.src_grid_i.remove()
         self.src_grid_d.remove()
@@ -226,7 +274,6 @@ class Plotting:
             self.src_grid_i, self.src_grid_d \
             = self.plot_splinegrids(self.model.splinegrid, '', self.model.aerogrid, '_k')
         self.show_coupling=True
-            
             
     def plot_splinegrids(self, grid_i,  set_i,  grid_d, set_d):
         p_scale = self.pscale # points
@@ -272,6 +319,7 @@ class Plotting:
     # --------------
     # --- monstations ---
     #---------------
+    
     def hide_monstations(self):
         self.src_mongrid_i.remove()
         self.src_mongrid_d.remove()
@@ -279,14 +327,21 @@ class Plotting:
         self.show_monstations=False
         mlab.draw(self.fig)
             
-    def plot_monstations(self):
+    def plot_monstations(self, monstation_id):
+        if self.show_monstations:
+            self.hide_monstations()
+        pos = self.model.mongrid_rules['ID_i'].index(int(monstation_id))
+        rules = {'ID_i': [self.model.mongrid_rules['ID_i'][pos]],
+                 'ID_d': [self.model.mongrid_rules['ID_d'][pos]],
+                } 
         self.src_mongrid_i, self.src_mongrid_d, self.src_mongrid_rules \
-        = self.plot_splinerules(self.model.mongrid, '', self.model.strcgrid, '', self.model.mongrid_rules, self.model.coord)
+        = self.plot_splinerules(self.model.mongrid, '', self.model.strcgrid, '', rules, self.model.coord)
         self.show_monstations=True
 
     # ----------
     # --- cs ---
     #-----------
+    
     def hide_cs(self):
         self.src_cs.remove()
         self.show_cs=False
@@ -312,11 +367,65 @@ class Plotting:
         mlab.draw(self.fig)
 
     def setup_cs_display(self, points):        
-        ug = tvtk.UnstructuredGrid(points=points)
+        self.ug1_cs = tvtk.UnstructuredGrid(points=points)
         # plot points as glyphs
-        self.src_cs = mlab.pipeline.add_dataset(ug)
+        self.src_cs = mlab.pipeline.add_dataset(self.ug1_cs)
         points = mlab.pipeline.glyph(self.src_cs, scale_mode='scalar', scale_factor=self.pscale, color=(1,0,0))
         points.glyph.glyph.scale_mode = 'data_scaling_off'
 
     def update_cs_display(self, points):
-        self.src_cs.outputs[0].points.from_array(points)
+        self.ug1_cs.points.from_array(points)
+        self.ug1_cs.modified()
+
+    # -------------
+    # --- cells ---
+    #--------------
+    def hide_cell(self):
+        self.src_cell.remove()
+        self.show_cell=False
+        mlab.draw(self.fig)
+        
+    def plot_cell(self, cell_data, culling=False):
+        if self.show_cell:
+            self.update_cell_display(cell_data=cell_data)
+        else:
+            self.setup_cell_display(offsets=self.strcgrid['offset'], color=(0,0,1), p_scale=self.pscale, cell_data=cell_data, culling=culling)
+            self.show_cell=True
+        mlab.draw(self.fig)
+           
+    def setup_cell_display(self, offsets, color, p_scale, cell_data, culling):
+        ug = tvtk.UnstructuredGrid(points=offsets)
+        #ug.point_data.scalars = scalars
+        if hasattr(self.model, 'strcshell'):
+            # plot shell as surface
+            shells = []
+            for shell in self.model.strcshell['cornerpoints']: 
+                shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell])
+            shell_type = tvtk.Polygon().cell_type
+            ug.set_cells(shell_type, shells)
+            ug.cell_data.scalars = cell_data
+            self.src_cell = mlab.pipeline.add_dataset(ug)
+            #points  = mlab.pipeline.glyph(self.src_cell, color=color, scale_factor=p_scale) 
+            surface = mlab.pipeline.surface(self.src_cell, opacity=1.0, line_width=0.5, colormap='plasma')
+            surface.actor.property.edge_visibility=True
+            if culling:
+                surface.actor.property.backface_culling=True
+            else:
+                surface.actor.property.backface_culling=False
+            surface.module_manager.scalar_lut_manager.show_legend=True
+            surface.module_manager.scalar_lut_manager.label_text_property.color=(0,0,0)
+            surface.module_manager.scalar_lut_manager.label_text_property.font_family='times'
+            surface.module_manager.scalar_lut_manager.label_text_property.bold=False
+            surface.module_manager.scalar_lut_manager.label_text_property.italic=False
+            surface.module_manager.scalar_lut_manager.number_of_labels=5
+
+        else: 
+            # plot points as glyphs
+            self.src_cell = mlab.pipeline.add_dataset(ug)
+            points = mlab.pipeline.glyph(self.src_cell, color=color, scale_factor=p_scale)
+            points.glyph.glyph.scale_mode = 'data_scaling_off'
+
+    def update_cell_display(self, cell_data):
+        self.src_cell.outputs[0].cell_data.scalars.from_array(cell_data)
+        self.src_cell.update()
+        
