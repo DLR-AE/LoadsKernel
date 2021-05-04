@@ -1,12 +1,3 @@
-.job_template: &job_configuration  # Hidden yaml configuration that defines an anchor named 'job_configuration'
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedules" && $CI_COMMIT_BRANCH == "master"'
-    - if: '$CI_PIPELINE_SOURCE == "triggers" && $CI_COMMIT_BRANCH == "master"'
-    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == "master"'
-    - if: '$CI_PIPELINE_SOURCE == "api" && $CI_COMMIT_BRANCH == "master"'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "master"'
-# See also: https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
-
 variables:
   GIT_STRATEGY: clone
 
@@ -22,7 +13,6 @@ before_script:
   - which pytest
 
 test:
-  <<: *job_configuration
   stage: test
   tags:
     - lk
