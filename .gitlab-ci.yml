@@ -26,6 +26,7 @@ test:
   script:
     - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml
     - coverage xml -o coverage.xml
+    - coverage report
   artifacts:
     when: always
     paths:
