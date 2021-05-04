@@ -21,7 +21,6 @@ stages:
 
 before_script:
   - mkdir ./test_tmp
-  - bash -c "
   - source /opt/AE/share/python/switching/py_env.sh anaconda3
   - which python
   - which pytest
