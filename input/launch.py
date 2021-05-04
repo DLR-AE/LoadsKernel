@@ -12,7 +12,7 @@ from modelviewer import view
 
 
 # Here you launch the Loads Kernel with your job
-k = kernel.Kernel('jcl_Discus2c', pre=False, main=False, post=True, test=False, parallel=False,
+k = kernel.Kernel('jcl_Discus2c', pre=True, main=True, post=True, test=False, parallel=False,
                   path_input='../../loads-kernel-examples/Discus2c/JCLs',
                   path_output='../../loads-kernel-examples/Discus2c/output')
 k.run()
