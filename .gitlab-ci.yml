@@ -1,44 +1,28 @@
-
-.job_template: &job_configuration  # Hidden yaml configuration that defines an anchor named 'job_configuration'
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedules"'
-    - if: '$CI_PIPELINE_SOURCE == "triggers"'
-    - if: '$CI_PIPELINE_SOURCE == "web"'
-    - if: '$CI_PIPELINE_SOURCE == "api"'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-
-.job_template_deploy: &job_configuration_deploy  # Hidden yaml configuration that defines an anchor named 'job_configuration'
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedules" && $CI_COMMIT_BRANCH == "master"'
-    - if: '$CI_PIPELINE_SOURCE == "triggers" && $CI_COMMIT_BRANCH == "master"'
-    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == "master"'
-    - if: '$CI_PIPELINE_SOURCE == "api" && $CI_COMMIT_BRANCH == "master"'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "master"'
-# See also: https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
+variables:
+  GIT_STRATEGY: clone
 
 stages:
   - test
 
 before_script:
   - mkdir ./test_tmp
-  - bash -c "
+  - set +e  # switch off break on error
   - source /opt/AE/share/python/switching/py_env.sh anaconda3
+  - set -e  # switch on break on error
   - which python
   - which pytest
 
 test:
-  <<: *job_configuration
   stage: test
   tags:
     - lk
   script:
-    - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml"    
+    - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml
     - coverage xml -o coverage.xml
-    - zip testlogs.zip `find ./test_tmp | grep .log `
+    - coverage report
   artifacts:
     when: always
     paths:
-      - testlogs.zip
       - testresult.xml
     reports:
       cobertura: coverage.xml
