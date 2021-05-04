@@ -7,6 +7,9 @@
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "master"'
 # See also: https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
 
+variables:
+  GIT_STRATEGY: clone
+
 stages:
   - test
 
