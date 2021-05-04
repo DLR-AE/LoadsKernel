@@ -1,13 +1,5 @@
 .job_template: &job_configuration  # Hidden yaml configuration that defines an anchor named 'job_configuration'
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedules"'
-    - if: '$CI_PIPELINE_SOURCE == "triggers"'
-    - if: '$CI_PIPELINE_SOURCE == "web"'
-    - if: '$CI_PIPELINE_SOURCE == "api"'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-
-.job_template_deploy: &job_configuration_deploy  # Hidden yaml configuration that defines an anchor named 'job_configuration'
-  rules:
     - if: '$CI_PIPELINE_SOURCE == "schedules" && $CI_COMMIT_BRANCH == "master"'
     - if: '$CI_PIPELINE_SOURCE == "triggers" && $CI_COMMIT_BRANCH == "master"'
     - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == "master"'
