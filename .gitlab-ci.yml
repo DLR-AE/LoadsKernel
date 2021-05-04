@@ -23,6 +23,7 @@ test:
   artifacts:
     when: always
     paths:
+      - coverage.xml
       - testresult.xml
     reports:
       cobertura: coverage.xml
