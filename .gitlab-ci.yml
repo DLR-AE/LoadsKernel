@@ -32,7 +32,7 @@ test:
   tags:
     - lk
   script:
-    - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml"    
+    - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml
     - coverage xml -o coverage.xml
     - zip testlogs.zip `find ./test_tmp | grep .log `
   artifacts:
