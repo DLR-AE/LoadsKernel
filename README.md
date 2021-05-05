@@ -13,4 +13,4 @@ Voß, A., “Loads Kernel User Guide, Version 1.01,” Institut für Aeroelastik
 
 [![pipeline status](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/master/pipeline.svg)](https://gitlab.dlr.de/loads-kernel/loads-kernel/-/commits/master)
 
-[![coverage](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/master/coverage.svg)]
+![coverage](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/master/coverage.svg)
