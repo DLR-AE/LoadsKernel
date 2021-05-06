@@ -466,27 +466,42 @@ class Kernel():
             # add the handler(s) to the root logger
             logger.setLevel(logging.INFO)
             logger.addHandler(logfile)
-    
+
     def setup_logger(self):
         logger = logging.getLogger()
-        if not logger.hasHandlers():
-            # define a Handler which writes messages or higher to the sys.stout
+        # Set logging level.
+        if self.debug:
+            logger.setLevel(logging.DEBUG)
+        else:
+            logger.setLevel(logging.INFO)
+        # Get the names of all existing loggers.
+        existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
+        if 'lk_logfile' in existing_handlers:
+            # Make sure that the filename is still correct.
+            hdlr = logger.handlers[existing_handlers.index('lk_logfile')]
+            if not hdlr.baseFilename == self.path_output + 'log_' + self.job_name + ".txt":
+                # In case the filename is incorrect, remove the handler completely from the logger.
+                logger.removeHandler(hdlr)
+                # Update the list of all existing loggers.
+                existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
+        # Add the following handlers only if they don't exist. This avoid duplicate lines/log entries.
+        if 'lk_console' not in existing_handlers:
+            # define a Handler which writes messages to the sys.stout
             console = logging.StreamHandler(sys.stdout)
-            console.set_name('console')
-            formatter = logging.Formatter(fmt='%(levelname)s: %(message)s')  # set a format which is simpler for console use
-            console.setFormatter(formatter)  # tell the handler to use this format
-            # define a Handler which writes messages or higher to a log file
-            logfile = logging.FileHandler(filename=self.path_output + 'log_' + self.job_name + ".txt", mode='a')
-            console.set_name('logfile')
-            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
-            logfile.setFormatter(formatter)
-            # set logging level
-            if self.debug:
-                logger.setLevel(logging.DEBUG)
-            else:                
-                logger.setLevel(logging.INFO) 
+            console.set_name('lk_console')
+            # set a format which is simpler for console use
+            formatter = logging.Formatter(fmt='%(levelname)s: %(message)s')
+            # tell the handler to use this format
+            console.setFormatter(formatter)
             # add the handler(s) to the root logger
             logger.addHandler(console)
+        if 'lk_logfile' not in existing_handlers:
+            # define a Handler which writes messages to a log file
+            logfile = logging.FileHandler(filename=self.path_output + 'log_' + self.job_name + ".txt", mode='a')
+            logfile.set_name('lk_logfile')
+            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
+                                          datefmt='%d/%m/%Y %H:%M:%S')
+            logfile.setFormatter(formatter)
             logger.addHandler(logfile)
 
 def unwrap_main_worker(*arg, **kwarg):
