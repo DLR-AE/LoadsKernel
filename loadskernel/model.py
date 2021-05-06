@@ -13,8 +13,9 @@ import loadskernel.read_geom as read_geom
 import loadskernel.read_cfdgrids as read_cfdgrids
 from loadskernel import grid_trafo
 from loadskernel.atmosphere import isa as atmo_isa
-import loadskernel.VLM as VLM
-import loadskernel.DLM as DLM
+
+import panelaero.VLM as VLM
+import panelaero.DLM as DLM
 
 import numpy as np
 import scipy.sparse as sp
