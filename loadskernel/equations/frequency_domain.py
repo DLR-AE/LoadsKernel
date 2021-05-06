@@ -10,9 +10,9 @@ from scipy.interpolate import interp1d
 from scipy.stats import norm
 import logging, copy
 
-from loadskernel import trim_tools
+from loadskernel import solution_tools
 from loadskernel.build_mass import BuildMass
-from loadskernel.model_equations.common import Common
+from loadskernel.equations.common import Common
 from loadskernel.interpolate import MatrixInterpolation
 
 class GustExcitation(Common):

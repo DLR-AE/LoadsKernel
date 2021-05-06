@@ -7,8 +7,8 @@ import numpy as np
 from scipy import linalg
 import logging
 
-from loadskernel.trim_tools import * 
-from loadskernel.model_equations.common import Common
+from loadskernel.solution_tools import * 
+from loadskernel.equations.common import Common
 
 class Steady(Common):
 

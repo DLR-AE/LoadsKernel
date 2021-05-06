@@ -3,7 +3,8 @@
 import sys, logging, pytest
 
 # Here you add the location of the Loads Kernel
-sys.path.append("../../loads-kernel")
+sys.path.append("../loads-kernel")
+sys.path.append("../panel-aero")
 sys.path.append("/opt/tau/bin/py_el")
 
 from loadskernel import program_flow

@@ -8,7 +8,7 @@ import importlib, logging, os, subprocess, shlex
 from scipy import interpolate, linalg
 import scipy.io.netcdf as netcdf
 
-from loadskernel.trim_tools import * 
+from loadskernel.solution_tools import * 
 import loadskernel.meshdefo as meshdefo
 import loadskernel.efcs as efcs
 

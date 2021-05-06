@@ -5,8 +5,8 @@ Created on Aug 2, 2019
 '''
 import numpy as np
 
-from loadskernel.trim_tools import * 
-from loadskernel.model_equations.common import Common
+from loadskernel.solution_tools import * 
+from loadskernel.equations.common import Common
 
 class Unsteady(Common):
 

@@ -8,7 +8,7 @@ import time, multiprocessing, getpass, platform, logging, sys, copy
 
 from loadskernel import io_functions
 from loadskernel.io_functions import specific_functions
-import loadskernel.trim as trim
+import loadskernel.solution_sequences as solution_sequences
 import loadskernel.post_processing as post_processing
 import loadskernel.gather_loads as gather_modul
 import loadskernel.auxiliary_output as auxiliary_output
@@ -176,21 +176,21 @@ class Kernel(ProgramFlowHelper):
         logging.info('subcase: ' + str(jcl.trimcase[i]['subcase']))
         logging.info('(case ' + str(i + 1) + ' of ' + str(len(jcl.trimcase)) + ')')
         logging.info('========================================')
-        trim_i = trim.Trim(model, jcl, jcl.trimcase[i], jcl.simcase[i])
-        trim_i.set_trimcond()
-        trim_i.exec_trim()
-        # trim_i.iterative_trim()
-        if trim_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
-            trim_i.exec_sim()
-        elif trim_i.successful and 'flutter' in jcl.simcase[i] and jcl.simcase[i]['flutter']:
-            trim_i.exec_flutter()
-        elif trim_i.successful and 'derivatives' in jcl.simcase[i] and jcl.simcase[i]['derivatives']:
-            trim_i.calc_jacobian()
-            trim_i.calc_derivatives()
-        response = trim_i.response
+        solution_i = solution_sequences.SolutionSequences(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+        solution_i.set_trimcond()
+        solution_i.exec_trim()
+        # solution_i.iterative_trim()
+        if solution_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
+            solution_i.exec_sim()
+        elif solution_i.successful and 'flutter' in jcl.simcase[i] and jcl.simcase[i]['flutter']:
+            solution_i.exec_flutter()
+        elif solution_i.successful and 'derivatives' in jcl.simcase[i] and jcl.simcase[i]['derivatives']:
+            solution_i.calc_jacobian()
+            solution_i.calc_derivatives()
+        response = solution_i.response
         response['i'] = i
-        response['successful'] = trim_i.successful
-        del trim_i
+        response['successful'] = solution_i.successful
+        del solution_i
         if response['successful']:
             post_processing_i = post_processing.PostProcessing(jcl, model, jcl.trimcase[i], response)
             post_processing_i.force_summation_method()
