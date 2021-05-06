@@ -57,7 +57,7 @@ class GustExcitation(Common):
         d2Uf_dt2  = d2Uh_dt2[5:,self.t_output].T.real - d2Uh_dt2[5:,0].real
         
         g_cg = np.zeros((len(self.t_output), 3))
-        commands = np.zeros((len(self.t_output), self.trim.n_inputs))
+        commands = np.zeros((len(self.t_output), self.solution.n_inputs))
         
         X = np.concatenate((Ucg * np.array([-1.,1.,-1.,-1.,1.,-1.]),     # in DIN 9300 body fixed system for flight physics,  x, y, z, Phi, Theta, Psi
                             dUcg_dt * np.array([-1.,1.,-1.,-1.,1.,-1.]), # in DIN 9300 body fixed system for flight physics,  u, v, w, p, q, r
@@ -166,7 +166,7 @@ class GustExcitation(Common):
         wj_gust[np.where(s_gust <= 0.0)] = 0.0
         wj_gust[np.where(s_gust > 2*self.simcase['gust_gradient'])] = 0.0
         # Ausrichtung der Boe fehlt noch
-        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), trim_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
+        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), solution_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
         wj = wj_gust *  np.array([gust_direction_vector]*t.__len__()).T
         return wj
     
@@ -223,7 +223,7 @@ class TurbulenceExcitation(GustExcitation):
         time_delay = self.model.aerogrid['offset_j'][:,0]/self.Vtas # time delay of every panel in [s]
         phase_delay = -np.tile(time_delay, (len(freqs), 1)).T * 2.0*np.pi * freqs # phase delay of every panel and frequency in [rad]
         # Ausrichtung der Boe fehlt noch
-        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), trim_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
+        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), solution_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
         # Notation: [n_panels, n_freq]
         wj_gust_f = psd_scaled * np.exp(1j*(random_phases+phase_delay)) * gust_direction_vector[:,None] /self.Vtas
         Ph_fourier, Pk_fourier = self.calc_P_fourier(freqs, wj_gust_f)
@@ -338,7 +338,7 @@ class LimitTurbulence(TurbulenceExcitation):
         time_delay = self.model.aerogrid['offset_j'][:,0]/self.Vtas # time delay of every panel in [s]
         phase_delay = -np.tile(time_delay, (len(freqs), 1)).T * 2.0*np.pi * freqs # phase delay of every panel and frequency in [rad]
         # Ausrichtung der Boe fehlt noch
-        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), trim_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
+        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), solution_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
         # Notation: [n_panels, n_freq]
         wj_gust_f = white_noise * np.exp(1j*(phase_delay)) * gust_direction_vector[:,None] /self.Vtas
         Ph_fourier, Pk_fourier = self.calc_P_fourier(freqs, wj_gust_f)

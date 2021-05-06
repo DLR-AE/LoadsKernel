@@ -137,7 +137,7 @@ class Unsteady(Common):
         # evaluate model equations
         if modus=='sim':
             Y = self.equations(X, time, 'sim')
-            return Y[self.trim.idx_state_derivatives+self.trim.idx_input_derivatives+self.trim.idx_lag_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
+            return Y[self.solution.idx_state_derivatives+self.solution.idx_input_derivatives+self.solution.idx_lag_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
             
         elif modus=='sim_full_output':
             response = self.equations(X, time, 'sim_full_output')

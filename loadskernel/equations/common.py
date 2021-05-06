@@ -16,16 +16,16 @@ import loadskernel.efcs as efcs
 #from tau_python import *
 
 class Common():
-    def __init__(self, trim, X0='', simcase=''):
+    def __init__(self, solution, X0='', simcase=''):
         logging.info('Init model equations of type "{}"'.format(self.__class__.__name__))
-        self.model      = trim.model
-        self.jcl        = trim.jcl
-        self.trimcase   = trim.trimcase
+        self.model      = solution.model
+        self.jcl        = solution.jcl
+        self.trimcase   = solution.trimcase
         self.X0         = X0
         self.simcase    = simcase
-        self.trimcond_X = trim.trimcond_X
-        self.trimcond_Y = trim.trimcond_Y
-        self.trim       = trim
+        self.trimcond_X = solution.trimcond_X
+        self.trimcond_Y = solution.trimcond_Y
+        self.solution   = solution
         self.counter    = 0
         
         self.i_atmo     = self.model.atmo['key'].index(self.trimcase['altitude'])
@@ -79,7 +79,7 @@ class Common():
             self.PHIcfd_f    = self.model.mass['PHIcfd_f'][self.i_mass] 
         
         # set-up 1-cos gust   
-        # Vtas aus trim condition berechnen
+        # Vtas aus solution condition berechnen
         uvw = np.array(self.trimcond_X[6:9,2], dtype='float')
         Vtas = sum(uvw**2)**0.5
         if self.simcase and self.simcase['gust']:
@@ -111,13 +111,13 @@ class Common():
             Example: self.efcs.controller_init(np.dot(self.PHIcg_norm[3:6,3:6],np.dot(calc_drehmatrix_angular(float(self.trimcond_X[3,2]), float(self.trimcond_X[4,2]), float(self.trimcond_X[5,2])), np.array(self.trimcond_X[9:12,2], dtype='float'))), 'angular velocities')
             """
             if self.jcl.efcs['version'] in ['HAP']:
-                self.efcs.controller_init(command_0=X0[self.trim.idx_inputs], 
+                self.efcs.controller_init(command_0=X0[self.solution.idx_inputs], 
                                           setpoint_v=float(self.trimcond_Y[np.where(self.trimcond_Y[:,0]=='Vtas')[0][0], 2]),
                                           setpoint_h=-X0[np.where(self.trimcond_X[:,0]=='z')[0][0]],
                                          )
             elif self.jcl.efcs['version'] in ['HAP_FMU']:
                 self.efcs.fmu_init( filename=self.jcl.efcs['filename_fmu'],
-                                    command_0=X0[self.trim.idx_inputs], 
+                                    command_0=X0[self.solution.idx_inputs], 
                                     setpoint_v=float(self.trimcond_Y[np.where(self.trimcond_Y[:,0]=='Vtas')[0][0], 2]),
                                     setpoint_h=-X0[np.where(self.trimcond_X[:,0]=='z')[0][0]],
                                   )
@@ -361,8 +361,8 @@ class Common():
         # There are lag states for the rotational motion (_1) and for the translational motion (_2).
         # This is to separate the lag states as the AIC matrices need to be generalized differently for the two cases.
         # In addition, the lag states depend on the generalized velocity and the generalized acceleration.
-        lag_states_1 = X[self.trim.idx_lag_states[:int(self.trim.n_lag_states/2)]].reshape((self.n_modes,n_poles))
-        lag_states_2 = X[self.trim.idx_lag_states[int(self.trim.n_lag_states/2):]].reshape((self.n_modes,n_poles))
+        lag_states_1 = X[self.solution.idx_lag_states[:int(self.solution.n_lag_states/2)]].reshape((self.n_modes,n_poles))
+        lag_states_2 = X[self.solution.idx_lag_states[int(self.solution.n_lag_states/2):]].reshape((self.n_modes,n_poles))
         c_over_Vtas = (0.5*c_ref)/Vtas
         if t <= 0.0: # initial step
             self.t_old  = np.copy(t) 
@@ -428,7 +428,7 @@ class Common():
         ABCD        = self.model.aero['ABCD'][self.i_aero]
         c_ref       = self.jcl.general['c_ref']
     
-        lag_states = X[self.trim.idx_lag_states].reshape((n_j,n_poles))
+        lag_states = X[self.solution.idx_lag_states].reshape((n_j,n_poles))
         c_over_Vtas = (0.5*c_ref)/Vtas
         if t <= 0.0: # initial step
             self.t_old  = np.copy(t) 
@@ -518,8 +518,8 @@ class Common():
             dp1  = PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12])))[self.model.extragrid['set'][:,2]]  + PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2])[self.model.extragrid['set'][:,2]] # velocity LG attachment point 
             
             if self.jcl.landinggear['method'] in ['generic']:
-                p2  = X[self.trim.idx_lg_states[:self.model.extragrid['n']]]  # position Tire center over ground
-                dp2 = X[self.trim.idx_lg_states[self.model.extragrid['n']:]] # velocity Tire center
+                p2  = X[self.solution.idx_lg_states[:self.model.extragrid['n']]]  # position Tire center over ground
+                dp2 = X[self.solution.idx_lg_states[self.model.extragrid['n']:]] # velocity Tire center
                 # loop over every landing gear
                 for i in range(self.model.extragrid['n']):
                     # calculate pre-stress F0 in gas spring
@@ -590,7 +590,7 @@ class Common():
         # Trimcase and simcase can have different support conditions.
         
         # get support conditions from trimcase or simcase
-        if modus in ['trim', 'trim_full_output'] and 'support' in self.trimcase:
+        if modus in ['solution', 'trim_full_output'] and 'support' in self.trimcase:
             support = self.trimcase['support']
         elif modus in ['sim', 'sim_full_output'] and self.simcase!= '' and 'support' in self.simcase:
             support = self.simcase['support']
@@ -780,7 +780,7 @@ class Common():
     
     def get_Ux2(self, X):
         # Steuerflaechenausschlaege vom efcs holen
-        Ux2 = self.efcs.cs_mapping(X[self.trim.idx_inputs])
+        Ux2 = self.efcs.cs_mapping(X[self.solution.idx_inputs])
         return Ux2
     
     def rigid_EoM(self, dUcg_dt, Pb, g_cg, modus):
@@ -807,19 +807,19 @@ class Common():
         if self.simcase and self.simcase['cs_signal']:
             dcommand = self.efcs.cs_signal(t)
         elif self.simcase and self.simcase['controller']:
-            feedback = {'pqr':          X[self.trim.idx_states[9:12]],
-                        'PhiThetaPsi':  X[self.trim.idx_states[3:6]],
-                        'h':           -X[self.trim.idx_states[2]],
+            feedback = {'pqr':          X[self.solution.idx_states[9:12]],
+                        'PhiThetaPsi':  X[self.solution.idx_states[3:6]],
+                        'h':           -X[self.solution.idx_states[2]],
                         'Vtas':         Vtas, 
                         'gamma':        gamma,
                         'alpha':        alpha,
                         'beta':         beta,
-                        'XiEtaZetaThrust': X[self.trim.idx_inputs],
+                        'XiEtaZetaThrust': X[self.solution.idx_inputs],
                        } 
 
             dcommand = self.efcs.controller(t, feedback)
         else:
-            dcommand = np.zeros(self.trim.n_input_derivatives)
+            dcommand = np.zeros(self.solution.n_input_derivatives)
         return dcommand
     
     def precession_moment(self, I, RPM, rot_vec, pqr):
