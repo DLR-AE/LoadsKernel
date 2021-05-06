@@ -11,6 +11,7 @@ Voß, A., “Loads Kernel User Guide, Version 1.01,” Institut für Aeroelastik
 
 # Continuous Integration
 
-[![pipeline status](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/master/pipeline.svg)](https://gitlab.dlr.de/loads-kernel/loads-kernel/-/commits/master)
+Master branch [![pipeline status](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/master/pipeline.svg)](https://gitlab.dlr.de/loads-kernel/loads-kernel/-/commits/master)
+Development branch [![pipeline status](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/devel/pipeline.svg)](https://gitlab.dlr.de/loads-kernel/loads-kernel/-/commits/devel)
 
 ![coverage](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/master/coverage.svg)
