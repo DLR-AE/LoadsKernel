@@ -15,4 +15,4 @@ Master branch [![pipeline status](https://gitlab.dlr.de/loads-kernel/loads-kerne
 
 Development branch [![pipeline status](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/devel/pipeline.svg)](https://gitlab.dlr.de/loads-kernel/loads-kernel/-/commits/devel)
 
-Test coverage ![coverage](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/master/coverage.svg)
+Test coverage [![coverage](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/master/coverage.svg)](https://loads-kernel.pages.gitlab.dlr.de/loads-kernel/coverage/)
