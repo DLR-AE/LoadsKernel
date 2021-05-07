@@ -106,3 +106,32 @@ class TestAllegraFreqdom(TestAllegraTimedom):
     path_input = '/scratch/loads-kernel-examples/Allegra/JCLs/'
     path_reference='/work/voss_ar/loads-kernel-examples/reference_output/'
 
+class TestDiscus2cParallelProcessing(HelperFunctions):
+    job_name = 'jcl_Discus2c_parallelprocessing'
+    path_input = '/scratch/loads-kernel-examples/Discus2c/JCLs/'
+    path_reference='/work/voss_ar/loads-kernel-examples/reference_output/'
+
+    def test_mainprocessing_functional(self, get_test_dir):
+        # Here you launch the Loads Kernel with your job
+        k = program_flow.Kernel(self.job_name, pre=True, main=True, post=False, parallel=2,
+                          path_input=self.path_input,
+                          path_output=get_test_dir)
+        k.run()
+    def test_mainprocessing_results(self, get_test_dir):
+        # do comparisons
+        logging.info('Comparing response with reference')
+        responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, get_test_dir)
+        reference_responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_reference)
+        assert self.compare_lists(responses, reference_responses), "response does NOT match reference"
+
+        logging.info('Comparing monstations with reference')
+        monstations = io_functions.specific_functions.load_hdf5(get_test_dir + 'monstations_' + self.job_name + '.hdf5')
+        reference_monstations = io_functions.specific_functions.load_hdf5(self.path_reference + 'monstations_' + self.job_name + '.hdf5')
+        assert self.compare_dictionaries(monstations, reference_monstations), "monstations do NOT match reference"
+
+        # do comparisons
+        logging.info('Comparing dyn2stat with reference')
+        dyn2stat_data = io_functions.specific_functions.load_hdf5(get_test_dir + 'dyn2stat_' + self.job_name + '.hdf5')
+        reference_dyn2stat_data = io_functions.specific_functions.load_hdf5(self.path_reference + 'dyn2stat_' + self.job_name + '.hdf5')
+        assert self.compare_dictionaries(dyn2stat_data, reference_dyn2stat_data), "dyn2stat does NOT match reference"
+
