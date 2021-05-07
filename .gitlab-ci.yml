@@ -3,6 +3,7 @@ variables:
 
 stages:
   - test
+  - deploy
 
 before_script:
   - mkdir ./test_tmp
@@ -26,6 +27,17 @@ test:
     paths:
       - coverage.xml
       - testresult.xml
+      - htmlcov/
     reports:
       cobertura: coverage.xml
       junit: testresult.xml
+
+pages:
+  stage: deploy
+  dependencies:
+    - test
+  script:
+    - mv htmlcov/ public/
+  artifacts:
+    paths:
+      - public
