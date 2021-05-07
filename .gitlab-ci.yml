@@ -16,17 +16,17 @@ test:
     - set -e  # switch on break on error
     - which python
     - which pytest
-    - mkdir ./test_tmp
+
     - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml
     - coverage xml -o coverage.xml
     - coverage report
-    - coverage html -d coverage
+    - coverage html --directory ./public/coverage
   artifacts:
     when: always
     paths:
       - coverage.xml
       - testresult.xml
-      - coverage/
+      - public/
     reports:
       cobertura: coverage.xml
       junit: testresult.xml
@@ -37,8 +37,6 @@ pages:
     - lk
   dependencies:
     - test
-  script:
-    - mv coverage public/coverage
   artifacts:
     paths:
       - public
