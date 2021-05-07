@@ -20,13 +20,13 @@ test:
     - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml
     - coverage xml -o coverage.xml
     - coverage report
-    - coverage html
+    - coverage html -d coverage
   artifacts:
     when: always
     paths:
       - coverage.xml
       - testresult.xml
-      - htmlcov/
+      - coverage/
     reports:
       cobertura: coverage.xml
       junit: testresult.xml
@@ -38,7 +38,7 @@ pages:
   dependencies:
     - test
   script:
-    - mv htmlcov/ public/coverage/
+    - mv coverage public/coverage
   artifacts:
     paths:
       - public
