@@ -6,7 +6,7 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 import itertools
 
 from loadskernel.units import * 
-from loadskernel.model_equations.frequency_domain import PKMethod
+from loadskernel.equations.frequency_domain import PKMethod
 
 
 

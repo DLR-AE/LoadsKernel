@@ -12,22 +12,22 @@ from scipy.integrate import ode
 from loadskernel.integrate import RungeKutta4, ExplicitEuler
 import loadskernel.io_functions.specific_functions as specific_io
 
-from loadskernel.model_equations.steady     import Steady
-from loadskernel.model_equations.cfd_steady import CfdSteady
-from loadskernel.model_equations.nonlin_steady import NonlinSteady
-from loadskernel.model_equations.unsteady   import Unsteady
-from loadskernel.model_equations.landing    import Landing
-from loadskernel.model_equations.frequency_domain import GustExcitation
-from loadskernel.model_equations.frequency_domain import TurbulenceExcitation, LimitTurbulence
-from loadskernel.model_equations.frequency_domain import KMethod
-from loadskernel.model_equations.frequency_domain import KEMethod
-from loadskernel.model_equations.frequency_domain import PKMethod
-from loadskernel.model_equations.state_space import StateSpaceAnalysis
-from loadskernel.model_equations.state_space import JacobiAnalysis
+from loadskernel.equations.steady     import Steady
+from loadskernel.equations.cfd_steady import CfdSteady
+from loadskernel.equations.nonlin_steady import NonlinSteady
+from loadskernel.equations.unsteady   import Unsteady
+from loadskernel.equations.landing    import Landing
+from loadskernel.equations.frequency_domain import GustExcitation
+from loadskernel.equations.frequency_domain import TurbulenceExcitation, LimitTurbulence
+from loadskernel.equations.frequency_domain import KMethod
+from loadskernel.equations.frequency_domain import KEMethod
+from loadskernel.equations.frequency_domain import PKMethod
+from loadskernel.equations.state_space import StateSpaceAnalysis
+from loadskernel.equations.state_space import JacobiAnalysis
 
 from loadskernel.trim_conditions import TrimConditions
 
-class Trim(TrimConditions):
+class SolutionSequences(TrimConditions):
     
     def approx_jacobian(self, X0,func,epsilon,dt):
         """
@@ -278,7 +278,7 @@ class Trim(TrimConditions):
             else:
                 self.response = {}
                 self.successful = False
-                logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'], msg))
+                logging.warning('SolutionSequences failed for subcase {}. The SolutionSequences solver reports: {}'.format(self.trimcase['subcase'], msg))
                 return
 
     def iterative_trim(self):
@@ -313,12 +313,12 @@ class Trim(TrimConditions):
             except Common.TauError as e:
                 self.response = {}
                 self.successful = False
-                logging.warning('Trim failed for subcase {} due to TauError: {}'.format(self.trimcase['subcase'], e))
+                logging.warning('SolutionSequences failed for subcase {} due to TauError: {}'.format(self.trimcase['subcase'], e))
                 return
             except Common.ConvergenceError as e:
                 self.response = {}
                 self.successful = False
-                logging.warning('Trim failed for subcase {} due to ConvergenceError: {}'.format(self.trimcase['subcase'], e))
+                logging.warning('SolutionSequences failed for subcase {} due to ConvergenceError: {}'.format(self.trimcase['subcase'], e))
                 return
             else:
                 logging.info(msg)
@@ -331,7 +331,7 @@ class Trim(TrimConditions):
                 else:
                     self.response = {}
                     self.successful = False
-                    logging.warning('Trim failed for subcase {}. The Trim solver reports: {}'.format(self.trimcase['subcase'], msg))
+                    logging.warning('SolutionSequences failed for subcase {}. The SolutionSequences solver reports: {}'.format(self.trimcase['subcase'], msg))
                     return
 
     def exec_sim(self):
