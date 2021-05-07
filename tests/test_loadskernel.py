@@ -3,10 +3,11 @@
 import sys, logging, pytest
 
 # Here you add the location of the Loads Kernel
-sys.path.append("../../loads-kernel")
+sys.path.append("../loads-kernel")
+sys.path.append("/scratch/panel-aero")
 sys.path.append("/opt/tau/bin/py_el")
 
-from loadskernel import kernel
+from loadskernel import program_flow
 import loadskernel.io_functions as io_functions
 from tests.helper_functions import HelperFunctions
 
@@ -16,7 +17,6 @@ def get_test_dir(tmpdir_factory):
     test_dir = io_functions.specific_functions.check_path(test_dir)
     return str(test_dir)
 
-@pytest.mark.incremental
 class TestDiscus2c(HelperFunctions):
     job_name = 'jcl_Discus2c'
     path_input = '/scratch/loads-kernel-examples/Discus2c/JCLs/'
@@ -24,21 +24,21 @@ class TestDiscus2c(HelperFunctions):
 
     def test_preprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = kernel.Kernel(self.job_name, pre=True, main=False, post=False, parallel=False,
+        k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False, parallel=False,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()
 
     def test_mainprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = kernel.Kernel(self.job_name, pre=False, main=True, post=False, parallel=False,
+        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False, parallel=False,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()
 
     def test_postprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = kernel.Kernel(self.job_name, pre=False, main=False, post=True, parallel=False,
+        k = program_flow.Kernel(self.job_name, pre=False, main=False, post=True, parallel=False,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()

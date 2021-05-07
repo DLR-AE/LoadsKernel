@@ -5,8 +5,8 @@ Created on Aug 2, 2019
 '''
 import numpy as np
 
-from loadskernel.trim_tools import * 
-from loadskernel.model_equations.common import Common
+from loadskernel.solution_tools import * 
+from loadskernel.equations.common import Common
 
 class Landing(Common):
 
@@ -156,7 +156,7 @@ class Landing(Common):
 
         elif modus=='sim':
             Y = self.equations(X, time, 'sim')
-            return Y[self.trim.idx_state_derivatives+self.trim.idx_input_derivatives+self.trim.idx_lg_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
+            return Y[self.solution.idx_state_derivatives+self.solution.idx_input_derivatives+self.solution.idx_lg_derivatives] # Nz ist eine Rechengroesse und keine Simulationsgroesse!
             
         elif modus=='sim_full_output':
             response = self.equations(X, time, 'sim_full_output')
