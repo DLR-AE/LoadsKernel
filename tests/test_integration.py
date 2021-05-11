@@ -120,7 +120,7 @@ class TestAllegraFlutter(HelperFunctions):
      
     def test_mainprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False, parallel=4,
+        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False, parallel=False,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()
@@ -148,59 +148,22 @@ class TestAllegraFlutter(HelperFunctions):
         reference_responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_reference)
         assert self.compare_lists(responses, reference_responses), "response does NOT match reference"
 
-class TestAllegraLimitTurbulence(HelperFunctions):
+class TestAllegraLimitTurbulence(TestAllegraFlutter):
     job_name = 'jcl_ALLEGRA_limitturbulence'
     path_input = '/scratch/loads-kernel-examples/Allegra/JCLs/'
     path_reference='/work/voss_ar/loads-kernel-examples/reference_output/'
-    
-    def test_preprocessing_functional(self, get_test_dir):
-        # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False, parallel=False,
-                          path_input=self.path_input,
-                          path_output=get_test_dir)
-        k.run()
-    
-    def test_mainprocessing_functional(self, get_test_dir):
-        # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False, parallel=False,
-                          path_input=self.path_input,
-                          path_output=get_test_dir)
-        k.run()
-    
-    def test_postprocessing_functional(self, get_test_dir):
-        # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=False, main=False, post=True, parallel=False,
-                          path_input=self.path_input,
-                          path_output=get_test_dir)
-        k.run()
-    
-    def test_preprocessing_results(self, get_test_dir):
-        # do comparisons
-        logging.info('Comparing model with reference')
-        model = io_functions.specific_functions.load_model(self.job_name, get_test_dir)
-        reference_model = io_functions.specific_functions.load_model(self.job_name, self.path_reference)
-        # Running the test in a temporary directory means the path_output changes constantly and can't be compared.
-        del model.path_output
-        assert self.compare_dictionaries(model.__dict__, reference_model.__dict__), "model does NOT match reference"
-    
-    def test_mainprocessing_results(self, get_test_dir):
-        # do comparisons
-        logging.info('Comparing response with reference')
-        responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, get_test_dir)
-        reference_responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_reference)
-        assert self.compare_lists(responses, reference_responses), "response does NOT match reference"
 
 class TestHAPO6Trim(TestDiscus2c):
     job_name = 'jcl_HAP-O6'
     path_input = '/scratch/loads-kernel-examples/HAP-O6/JCLs/'
     path_reference='/work/voss_ar/loads-kernel-examples/reference_output/'
 
-class TestHAPO6Derivatives(TestAllegraLimitTurbulence):
+class TestHAPO6Derivatives(TestAllegraFlutter):
     job_name = 'jcl_HAP-O6_derivatives'
     path_input = '/scratch/loads-kernel-examples/HAP-O6/JCLs/'
     path_reference='/work/voss_ar/loads-kernel-examples/reference_output/'
 
-class TestHAPO6StateSpaceSystem(TestAllegraLimitTurbulence):
+class TestHAPO6StateSpaceSystem(TestAllegraFlutter):
     job_name = 'jcl_HAP-O6_sss'
     path_input = '/scratch/loads-kernel-examples/HAP-O6/JCLs/'
     path_reference='/work/voss_ar/loads-kernel-examples/reference_output/'
