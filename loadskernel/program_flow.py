@@ -342,39 +342,45 @@ class Kernel(ProgramFlowHelper):
         dyn2stat_data = io_functions.specific_functions.load_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5')
 
         logging.info('--> Drawing some standard plots.')
-        plt = plotting_standard.StandardPlots(self.jcl, model)
-        plt.add_monstations(monstations)
-        plt.add_responses(responses)
-        plt.plot_monstations(self.path_output + 'monstations_' + self.job_name + '.pdf')
-        if any([x in self.jcl.simcase[0] and self.jcl.simcase[0][x] for x in ['gust', 'turbulence', 'cs_signal', 'controller']]):
-            plt.plot_monstations_time(self.path_output + 'monstations_time_' + self.job_name + '.pdf') # nur sim
-        elif 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
+        if 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
+            plt = plotting_standard.FlutterPlots(self.jcl, model)
+            plt.add_responses(responses)
             plt.plot_fluttercurves_to_pdf(self.path_output + 'fluttercurves_' + self.job_name + '.pdf')
             plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
         elif 'derivatives' in self.jcl.simcase[0] and self.jcl.simcase[0]['derivatives']:
+            plt = plotting_standard.FlutterPlots(self.jcl, model)
+            plt.add_responses(responses)
             plt.plot_eigenvalues_to_pdf(self.path_output + 'eigenvalues_' + self.job_name + '.pdf')
         elif 'limit_turbulence' in self.jcl.simcase[0] and self.jcl.simcase[0]['limit_turbulence']:
             plt = plotting_standard.TurbulencePlots(self.jcl, model)
             plt.add_monstations(monstations)
             plt.plot_monstations(self.path_output + 'monstations_turbulence_' + self.job_name + '.pdf')
-
-        logging.info('--> Saving auxiliary output data.')
-        aux_out = auxiliary_output.AuxiliaryOutput(self.jcl, model, self.jcl.trimcase)
-        aux_out.crit_trimcases = plt.crit_trimcases
-        aux_out.dyn2stat_data = dyn2stat_data
-        aux_out.responses = responses
-        if ('t_final' and 'dt' in self.jcl.simcase[0].keys()):
-            aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + self.job_name + '.csv')
-            aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf')
         else:
-            aux_out.write_trimresults(self.path_output + 'trim_results_' + self.job_name + '.csv')
-            aux_out.write_successful_trimcases(self.path_output + 'successful_trimcases_' + self.job_name + '.csv')
-            aux_out.write_failed_trimcases(self.path_output + 'failed_trimcases_' + self.job_name + '.csv')
-            aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + self.job_name + '.csv')
-            aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf')
-            # aux_out.write_all_nodalloads(self.path_output + 'nodalloads_all_' + self.job_name + '.bdf')
-            # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
-            # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
+            # Here come the loads plots
+            plt = plotting_standard.LoadPlots(self.jcl, model)
+            plt.add_monstations(monstations)
+            plt.add_responses(responses)
+            plt.plot_monstations(self.path_output + 'monstations_' + self.job_name + '.pdf')
+            if any([x in self.jcl.simcase[0] and self.jcl.simcase[0][x] for x in ['gust', 'turbulence', 'cs_signal', 'controller']]):
+                plt.plot_monstations_time(self.path_output + 'monstations_time_' + self.job_name + '.pdf') # nur sim
+
+            logging.info('--> Saving auxiliary output data.')
+            aux_out = auxiliary_output.AuxiliaryOutput(self.jcl, model, self.jcl.trimcase)
+            aux_out.crit_trimcases = plt.crit_trimcases
+            aux_out.dyn2stat_data = dyn2stat_data
+            aux_out.responses = responses
+            if ('t_final' and 'dt' in self.jcl.simcase[0].keys()):
+                aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + self.job_name + '.csv')
+                aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf')
+            else:
+                aux_out.write_trimresults(self.path_output + 'trim_results_' + self.job_name + '.csv')
+                aux_out.write_successful_trimcases(self.path_output + 'successful_trimcases_' + self.job_name + '.csv')
+                aux_out.write_failed_trimcases(self.path_output + 'failed_trimcases_' + self.job_name + '.csv')
+                aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + self.job_name + '.csv')
+                aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf')
+                # aux_out.write_all_nodalloads(self.path_output + 'nodalloads_all_' + self.job_name + '.bdf')
+                # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
+                # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
 
 #         logging.info( '--> Drawing some more detailed plots.')
 #         plt = plotting_extra.DetailedPlots(self.jcl, model)

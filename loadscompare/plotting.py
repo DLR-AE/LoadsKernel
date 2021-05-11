@@ -13,7 +13,7 @@ from scipy.spatial import ConvexHull
 
 from loadskernel import plotting_standard
 
-class Plotting(plotting_standard.StandardPlots):
+class Plotting(plotting_standard.LoadPlots):
     def __init__(self, fig):
         plt.rcParams.update({'font.size': 16,
                              'svg.fonttype':'none'})

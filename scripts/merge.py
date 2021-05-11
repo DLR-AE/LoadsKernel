@@ -122,7 +122,7 @@ class Merge:
         logging.info( '--> Drawing some plots.' ) 
         jcl           = self.datasets['jcl'][self.new_dataset_id]
         monstations   = self.datasets['monstations'][self.new_dataset_id]
-        plt = plotting_standard.StandardPlots(jcl, model=None)
+        plt = plotting_standard.LoadPlots(jcl, model=None)
         # determine crit trimcases graphically
         plt.add_monstations(monstations)
         plt.plot_monstations(self.path_output + 'monstations_' + job_name + '.pdf')
