@@ -349,7 +349,7 @@ class TrimConditions:
     def add_engine(self):
         if hasattr(self.jcl, 'engine'):
             if 'thrust' in self.trimcase and self.trimcase['thrust'] in ['free', 'balanced']:
-                logging.info('setting trim conditions to balanced thrust')
+                logging.info('setting trim conditions to "balanced thrust"')
                 # inputs
                 self.inputs[np.where((self.inputs[:,0] == 'thrust'))[0][0],1] = 'free'
                 # outputs
