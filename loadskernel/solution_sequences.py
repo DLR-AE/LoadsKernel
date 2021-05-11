@@ -59,7 +59,7 @@ class SolutionSequences(TrimConditions):
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
 
         # flight condition
-        X0 = self.response['X']
+        X0 = self.response['X'][0,:]
         #X0 = np.array(self.trimcond_X[:,2], dtype='float')
         logging.info('Calculating jacobian for ' + str(len(X0)) + ' variables...')
         jac = self.approx_jacobian(X0=X0, func=equations.equations, epsilon=0.01, dt=1.0) # epsilon sollte klein sein, dt sollte 1.0s sein
@@ -163,7 +163,7 @@ class SolutionSequences(TrimConditions):
             # re-calculate new trim
             self.exec_trim()
             Pmac_c = (self.response['Pmac']-response0['Pmac'])/response0['q_dyn']/A/delta
-            derivatives.append([Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref']])
+            derivatives.append([Pmac_c[0,0], Pmac_c[0,1], Pmac_c[0,2], Pmac_c[0,3]/self.model.macgrid['b_ref'], Pmac_c[0,4]/self.model.macgrid['c_ref'], Pmac_c[0,5]/self.model.macgrid['b_ref']])
             # restore trim condition for next loop 
             self.trimcond_X = copy.deepcopy(trimcond_X0)
         # write back original response and store results
@@ -190,7 +190,6 @@ class SolutionSequences(TrimConditions):
             d = np.array(self.response['flexible_derivatives'][pos_flex]) / np.array(self.response['rigid_derivatives'][pos_rigid])
             tmp = '{:>20} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g} {:< 10.4g}'.format( p, d[0], d[1], d[2], d[3], d[4], d[5] )
             logging.info(tmp)
-        
 
     def calc_additional_derivatives(self, key):
         # key: 'rigid' or 'flexible'

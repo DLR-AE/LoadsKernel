@@ -303,6 +303,16 @@ class TrimConditions:
             self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],1] = 'target'
             self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],2] = self.trimcase['beta']
         
+        elif self.trimcase['maneuver'] == 'coordinated_sideslip':
+            logging.info('setting trim conditions to "sideslip"')
+            
+            # set sideslip condition
+            self.states[np.where((self.states[:,0] == 'psi'))[0][0],1] = 'free'
+            self.states[np.where((self.states[:,0] == 'v'))[0][0],1] = 'free'
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dy'))[0][0],1] = 'target'
+            self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],1] = 'target'
+            self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],2] = self.trimcase['beta']
+        
         # --------------
         # --- bypass --- 
         # --------------
@@ -339,7 +349,7 @@ class TrimConditions:
     def add_engine(self):
         if hasattr(self.jcl, 'engine'):
             if 'thrust' in self.trimcase and self.trimcase['thrust'] in ['free', 'balanced']:
-                logging.info('setting trim conditions to balanced thrust')
+                logging.info('setting trim conditions to "balanced thrust"')
                 # inputs
                 self.inputs[np.where((self.inputs[:,0] == 'thrust'))[0][0],1] = 'free'
                 # outputs

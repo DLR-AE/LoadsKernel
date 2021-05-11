@@ -16,7 +16,7 @@ from PIL.ImageColor import colormap
 from loadskernel import plotting_standard
 import loadskernel.io_functions as io_functions
 
-class DetailedPlots(plotting_standard.StandardPlots):
+class DetailedPlots(plotting_standard.LoadPlots):
     
     def plot_aerogrid(self, aerogrid, cp = '', colormap = 'jet', value_min = '', value_max = ''):
         # This function plots aerogrids as used in the Loads Kernel
@@ -225,7 +225,7 @@ class DetailedPlots(plotting_standard.StandardPlots):
         # Show plots
         plt.show()
 
-class Animations(plotting_standard.StandardPlots):   
+class Animations(plotting_standard.LoadPlots):   
                     
     def make_movie(self, path_output, speedup_factor=1.0):
         for response in self.responses:

@@ -13,7 +13,7 @@ from loadskernel.units import tas2eas
 from loadskernel.units import eas2tas
 
 
-class StandardPlots():
+class LoadPlots(object):
     def __init__(self, jcl, model):
         self.jcl = jcl
         self.model = model
@@ -451,6 +451,8 @@ class StandardPlots():
         pp.close()
         logging.info('plots saved as ' + filename_pdf)
 
+class FlutterPlots(LoadPlots):
+    
     def plot_fluttercurves(self):
         logging.info('start plotting flutter curves...')
         fig, ax = plt.subplots(3, sharex=True, figsize=(8,10))
@@ -535,8 +537,8 @@ class StandardPlots():
             
             # this kind of plot is only feasible for methods which iterate over Vtas, e.g. not the K- or KE-methods
             if 'flutter' in simcase and simcase['flutter_para']['method'] not in ['pk', 'statespace']:
-                logging.warning('skip plotting of eigenvalues and -vectors for {}'.format(trimcase['desc']))
-                break
+                logging.info('skip plotting of eigenvalues and -vectors for {}'.format(trimcase['desc']))
+                continue
             
             i_mass     = self.model.mass['key'].index(trimcase['mass'])
             i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
@@ -601,7 +603,6 @@ class StandardPlots():
                 # add legend
                 ax[1].legend(bbox_to_anchor=(1.10, 1), loc='upper left', borderaxespad=0.0, fontsize=10)
                 
-                
                 ax[2].set_position([0.60, 0.1, 0.35, 0.8])
                 ax[2].yaxis.set_ticks(np.arange(0,response['states'].__len__(),1))
                 ax[2].yaxis.set_ticklabels(response['states'], fontsize=10)
@@ -626,7 +627,7 @@ class StandardPlots():
         self.pp.close()
         logging.info('plots saved as ' + filename_pdf)
 
-class TurbulencePlots(StandardPlots):
+class TurbulencePlots(LoadPlots):
     
     def plot_monstations(self, filename_pdf):
 
@@ -690,9 +691,8 @@ class TurbulencePlots(StandardPlots):
                 for point in ['_T1', '_T2', '_T3', '_T4', '_AB', '_EF', '_CD', '_GH']:
                     labels.append(subcase+point)
             for x, y, label in zip(X.ravel(), Y.ravel(), labels):
-                self.subplot.text(x, y, label, fontsize=8)
-            
-            
+                self.subplot.text(x, y, label, fontsize=8)           
+    
     def fit_ellipse(self, X0, Y0, X, Y, color):
         # Formulate and solve the least squares problem ||Ax - b ||^2
         A = np.vstack([(X-X0)**2, 2.0*(X-X0)*(Y-Y0), (Y-Y0)**2]).T

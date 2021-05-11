@@ -133,6 +133,8 @@ class jcl:
         self.simcase = [{'dt': 0.01,            # time step size in [s]
                          't_final': 2.0,        # final simulation time  in [s]
                          'gust': True,          # True or False, enables 1-cosine gust according to CS-25
+                         'turbulence': False,   # True or False, enables continuous turbulence excitation
+                         'limit_turbulence': False, # True or False, calculates limit turbulence according to CS-25
                          'gust_gradient': 9.0,  # gust gradient H in [m]
                          'gust_orientation': 0, # orientation of the gust in [deg], 0/360 = gust from bottom, 180 = gust from top, 
                          # 90 = gust from the right, 270 = gust from the left, arbitrary values possible (rotation of gust direction vector about Nastran's x-axis pointing backwards)

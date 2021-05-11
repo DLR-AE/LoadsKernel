@@ -51,7 +51,8 @@ class HelperFunctions(object):
                 result = np.all(np.equal(item_a, item_b))
             else:
                 # compares numpy arrays within tolerance of 1e-4
-                result = np.allclose(item_a, item_b, rtol=1e-4, atol=1e-4)
+                # NaNs occur e.g. in the flutter calculations and are considered as equal.
+                result = np.allclose(item_a, item_b, rtol=1e-4, atol=1e-4, equal_nan=True)
         else:
             result = np.all(item_a == item_b)
         return result
