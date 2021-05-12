@@ -23,6 +23,7 @@ import loadskernel.io_functions.specific_functions as specific_io
 from modelviewer.plotting import Plotting
 from modelviewer.pytran import NastranSOL101
 from modelviewer.cfdgrid import TauGrid
+from modelviewer.iges import IgesMesh
 
 # First, and before importing any Enthought packages, set the ETS_TOOLKIT
 # environment variable to qt4, to tell Traits that we will use Qt.
@@ -96,10 +97,17 @@ class Modelviewer():
         self.nc_opt['filters'] = "all files (*.*)"
         self.nc_opt['initialdir'] = os.getcwd()
         self.nc_opt['title'] = 'Open a Tau Grid File'
+        
+        # define file options
+        self.iges_opt = {}
+        self.iges_opt['filters'] = "IGES files (*.igs *.iges);;all files (*.*)"
+        self.iges_opt['initialdir'] = os.getcwd()
+        self.iges_opt['title'] = 'Open an IGES File'
 
         self.plotting = Plotting()
         self.nastran = NastranSOL101()
         self.taugrid = TauGrid()
+        self.iges = IgesMesh()
 
     def run(self):
         self.initGUI()
@@ -110,7 +118,6 @@ class Modelviewer():
         # '.instance()' method to retrieve the existing one.
         app = QtGui.QApplication.instance()
         self.container = QtGui.QWidget()
-        self.container.hide()
 
         self.initTabs()
         self.initMayaviFigure()
@@ -311,21 +318,28 @@ class Modelviewer():
         layout_cs.addWidget(bt_cs_hide)
 
     def initPytranTab(self):
-        tab_celldata = QtGui.QWidget()
-        self.tabs_widget.addTab(tab_celldata, "pytran")
+        tab_pytran = QtGui.QWidget()
+        self.tabs_widget.addTab(tab_pytran, "pytran")
         # Elements of results tab
         self.list_celldata = QtGui.QListWidget()
         self.list_celldata.itemClicked.connect(self.get_new_cell_data_for_plotting)
         self.cb_culling = QtGui.QCheckBox('Culling On/Off')
         self.cb_culling.stateChanged.connect(self.toggle_culling)
-        bt_cell_hide = QtGui.QPushButton('Hide')
+        bt_cell_hide = QtGui.QPushButton('Hide Nastran results')
         bt_cell_hide.clicked.connect(self.plotting.hide_cell)
+                
+        self.list_iges = QtGui.QListWidget()
+        self.list_iges.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection) # allow multiple selections
+        self.list_iges.itemSelectionChanged.connect(self.get_iges_for_plotting)
+        bt_iges_hide = QtGui.QPushButton('Hide IGES')
+        bt_iges_hide.clicked.connect(self.plotting.hide_iges)
 
-        layout_celldata = QtGui.QVBoxLayout(tab_celldata)
-        layout_celldata.addWidget(self.list_celldata)
-        layout_celldata.addWidget(self.cb_culling)
-        layout_celldata.addWidget(bt_cell_hide)
-        layout_celldata.addStretch(1)
+        layout_pytran = QtGui.QVBoxLayout(tab_pytran)
+        layout_pytran.addWidget(self.list_celldata)
+        layout_pytran.addWidget(self.cb_culling)
+        layout_pytran.addWidget(bt_cell_hide)
+        layout_pytran.addWidget(self.list_iges)
+        layout_pytran.addWidget(bt_iges_hide)
 
     def initMayaviFigure(self):
         # ----------------------------
@@ -358,9 +372,13 @@ class Modelviewer():
 
         self.loadButtonCfdgrid = QtGui.QAction('Load Tau Grid', self.window)
         self.loadButtonCfdgrid.setShortcut('Ctrl+T')
-        self.loadButtonCfdgrid.setDisabled(True)
         self.loadButtonCfdgrid.triggered.connect(self.load_tau_grid)
         fileMenu.addAction(self.loadButtonCfdgrid)
+        
+        self.loadButtonIges = QtGui.QAction('Load IGES', self.window)
+        self.loadButtonIges.setShortcut('Ctrl+I')
+        self.loadButtonIges.triggered.connect(self.load_iges)
+        fileMenu.addAction(self.loadButtonIges)
 
         # Add exit button
         exitButton = QtGui.QAction('Exit', self.window)
@@ -368,24 +386,25 @@ class Modelviewer():
         exitButton.triggered.connect(self.window.close)
         fileMenu.addAction(exitButton)
 
-        fileMenu = mainMenu.addMenu('View')
+        self.viewMenu = mainMenu.addMenu('View')
+        self.viewMenu.setEnabled(False)
         # Add view buttons
 
         bt_view_left_above = QtGui.QAction('Left Above', self.window)
         bt_view_left_above.triggered.connect(self.plotting.set_view_left_above)
-        fileMenu.addAction(bt_view_left_above)
+        self.viewMenu.addAction(bt_view_left_above)
 
         bt_view_top = QtGui.QAction('Top', self.window)
         bt_view_top.triggered.connect(self.plotting.set_view_top)
-        fileMenu.addAction(bt_view_top)
+        self.viewMenu.addAction(bt_view_top)
 
         bt_view_back = QtGui.QAction('Back', self.window)
         bt_view_back.triggered.connect(self.plotting.set_view_back)
-        fileMenu.addAction(bt_view_back)
+        self.viewMenu.addAction(bt_view_back)
 
         bt_view_side = QtGui.QAction('Side', self.window)
         bt_view_side.triggered.connect(self.plotting.set_view_side)
-        fileMenu.addAction(bt_view_side)
+        self.viewMenu.addAction(bt_view_side)
 
         self.window.setCentralWidget(self.container)
         self.window.setWindowTitle("Loads Kernel Model Viewer")
@@ -525,6 +544,15 @@ class Modelviewer():
             items = self.list_markers.selectedItems()
             selected_markers = [int(item.text()) for item in items]
             self.plotting.plot_cfdgrids(selected_markers)
+            
+    def get_iges_for_plotting(self, *args):
+        if self.list_iges.currentItem() is not None:
+            # determine marker
+            items = self.list_iges.selectedItems()
+            selected_meshes = [item.text() for item in items]
+            if self.plotting.show_iges:
+                self.plotting.hide_iges()
+            self.plotting.plot_iges(selected_meshes)
 
     def toggle_culling(self):
         self.plotting.hide_cell()
@@ -547,11 +575,9 @@ class Modelviewer():
             self.update_fields()
             self.calc_MAC()
             self.plotting.add_model(self.model)
-            self.plotting.plot_nothing()
             self.file_opt['initialdir'] = os.path.split(filename)[0]
-            self.container.show()
+            self.viewMenu.setEnabled(True)
             self.loadButtonNastran.setEnabled(True)
-            self.loadButtonCfdgrid.setEnabled(True)
 
     def update_fields(self):
         self.list_mass.clear()
@@ -585,15 +611,30 @@ class Modelviewer():
     def load_tau_grid(self):
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.nc_opt['title'], self.nc_opt['initialdir'], self.nc_opt['filters'])[0]
         if filename != '':
+            self.tabs_widget.setCurrentIndex(2)
             self.taugrid.load_file(filename)
             self.plotting.add_cfdgrids(self.taugrid.cfdgrids)
             self.update_markers()
+            self.nc_opt['initialdir'] = os.path.split(filename)[0]
 
     def update_markers(self):
         self.list_markers.clear()
         for cfdgrid in self.taugrid.cfdgrids:
             self.list_markers.addItem(QtGui.QListWidgetItem(cfdgrid['desc']))
-
+    
+    def load_iges(self):
+        filename = QtGui.QFileDialog.getOpenFileName(self.window, self.iges_opt['title'], self.iges_opt['initialdir'], self.iges_opt['filters'])[0]
+        if filename != '':
+            self.tabs_widget.setCurrentIndex(6)
+            self.iges.load_file(filename)
+            self.plotting.add_iges_meshes(self.iges.meshes)
+            self.update_list_iges()
+            self.iges_opt['initialdir'] = os.path.split(filename)[0]
+    
+    def update_list_iges(self):
+        self.list_iges.clear()
+        for mesh in self.iges.meshes:
+            self.list_iges.addItem(QtGui.QListWidgetItem(mesh['desc']))
 
 if __name__ == "__main__":
     m = Modelviewer()
