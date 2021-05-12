@@ -26,14 +26,12 @@ class Efcs(HAP.Efcs):
             logging.debug(' - '+k)
             self.ref_values[k] = v.value_reference
             
-    def fmu_init(self, filename_fmu, filename_actuator, command_0, setpoint_v, setpoint_h, ):
+    def fmu_init(self, filename_fmu, filename_actuator, setpoint ):
         """
         Dokumentation der FMU in [1].
         [1] Weiser, C. and Looye, G., “P4.1 EFCS Simulink description & release notes.” DLR Institute of System Dynamics and Control, 30-Jun-2020.
         https://teamsites.dlr.de/dlr/HAP/Dateien/3_HAP/1_Plattform/P4_Flugmanagement_u_Regelung/P4.1_Flugregelung(SR)/FCSW_export/HAP_P41_SDD_L3.pdf
         """
-        # store initial trim commands from loads kernel for late use
-        self.command_0 = command_0
         # set up fmu interface, then set up the fmu
         self.fmi_init(filename_fmu)
 
@@ -48,15 +46,32 @@ class Efcs(HAP.Efcs):
                           [0.0, 0.0, 0.0]) 
         self.fmi.set_real([self.ref_values['Pilot_cmd.eng_left'], self.ref_values['Pilot_cmd.eng_right']], 
                           [0.0, 0.0]) 
+        
+        # Set Sensors, see Table 3.2 in [1]
+        # airspeed (with Vcas ~ Vtas)
+        self.fmi.set_real([self.ref_values['Sensors.AIRDATA.V_CAS'], self.ref_values['Sensors.AIRDATA.V_TAS']],
+                          [setpoint['Vtas'], setpoint['Vtas']])
+        # barometric altitude [m], vertical speed [m/s]
+        self.fmi.set_real([self.ref_values['Sensors.AIRDATA.h_baro'], self.ref_values['Sensors.AIRDATA.h_dot_baro']],
+                          [-setpoint['z'], -setpoint['dz']])
+        # attitude / euler angles PhiThetaPsi [rad]
+        self.fmi.set_real([self.ref_values['Sensors.IRS.phi'], self.ref_values['Sensors.IRS.theta'], self.ref_values['Sensors.IRS.psi']],
+                          setpoint['PhiThetaPsi']*0.0)
+        # body rates pqr [rad/s]
+        self.fmi.set_real([self.ref_values['Sensors.IRS.p_B'], self.ref_values['Sensors.IRS.q_B'], self.ref_values['Sensors.IRS.r_B']],
+                          setpoint['pqr'])
+        # load factor Nxyz [-]                                        
+        self.fmi.set_real([self.ref_values['Sensors.IRS.nx'], self.ref_values['Sensors.IRS.ny'], self.ref_values['Sensors.IRS.nz']],
+                          [setpoint['Nxyz']])
 
         self.fmi.initialize()
         self.last_time = 0.0
         
         # set up actuator
-        self.eta_actuator    = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
-        self.zeta_actuator   = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
-        self.xi_actuator     = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
-        self.thrust_actuator = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
+#         self.eta_actuator    = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
+#         self.zeta_actuator   = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
+#         self.xi_actuator     = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
+#         self.thrust_actuator = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
         
         self.actuator = Actuator()
         self.actuator.fmu_init(filename_actuator)
@@ -66,7 +81,7 @@ class Efcs(HAP.Efcs):
         self.min_eta  = -10.0/180.0*np.pi
         self.max_zeta = +15.0/180.0*np.pi
         self.min_zeta = -15.0/180.0*np.pi
-        if tas2eas(setpoint_v, setpoint_h) > 15.0:
+        if tas2eas(setpoint['Vtas'], -setpoint['z']) > 15.0:
             # limit xi to 1/3 for VNE
             self.max_xi   = +5.0/180.0*np.pi
             self.min_xi   = -5.0/180.0*np.pi
@@ -91,10 +106,10 @@ class Efcs(HAP.Efcs):
                               [feedback['Vtas'], feedback['Vtas']])
             # barometric altitude [m], vertical speed [m/s]
             self.fmi.set_real([self.ref_values['Sensors.AIRDATA.h_baro'], self.ref_values['Sensors.AIRDATA.h_dot_baro']],
-                              [feedback['h'], feedback['dh']])
+                              [-feedback['z'], -feedback['dz']])
             # attitude / euler angles PhiThetaPsi [rad]
             self.fmi.set_real([self.ref_values['Sensors.IRS.phi'], self.ref_values['Sensors.IRS.theta'], self.ref_values['Sensors.IRS.psi']],
-                              feedback['PhiThetaPsi'])
+                              feedback['PhiThetaPsi']*0.0)
             # body rates pqr [rad/s]
             self.fmi.set_real([self.ref_values['Sensors.IRS.p_B'], self.ref_values['Sensors.IRS.q_B'], self.ref_values['Sensors.IRS.r_B']],
                               feedback['pqr'])
@@ -111,9 +126,11 @@ class Efcs(HAP.Efcs):
                                       self.ref_values['Ux3_cmddpmdqmdrm[3]']])       
         
         d_pos = self.actuator.run(t, commands)
+        # adjust sign conventions following section 4.3.3 Definition of control surface commands in [1]
         d_pos[1] *= -1.0
         d_pos[2] *= -1.0
-        dcommand = np.zeros(self.command_0.shape)
+        # assemble command derivatives in correct order for loads kernel
+        dcommand = np.zeros(feedback['commands'].shape)
         dcommand[0:3] = d_pos
         
 #         # Add the trim commands (unknown to the FMU)
