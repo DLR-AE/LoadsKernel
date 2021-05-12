@@ -61,7 +61,7 @@ class Steady(Common):
         # ----------------------
         # --- CS derivatives ---
         # ----------------------
-        dcommand = self.get_command_derivatives(t, dUcg_dt, X, Vtas, gamma, alpha, beta)
+        dcommand = self.get_command_derivatives(t, X, Vtas, gamma, alpha, beta, Nxyz, np.dot(Tbody2geo,X[6:12])[0:3])
 
         # --------------   
         # --- output ---   

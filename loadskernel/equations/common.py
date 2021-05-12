@@ -116,7 +116,8 @@ class Common():
                                           setpoint_h=-X0[np.where(self.trimcond_X[:,0]=='z')[0][0]],
                                          )
             elif self.jcl.efcs['version'] in ['HAP_FMU']:
-                self.efcs.fmu_init( filename=self.jcl.efcs['filename_fmu'],
+                self.efcs.fmu_init( filename_fmu=self.jcl.efcs['filename_fmu'],
+                                    filename_actuator=self.jcl.efcs['filename_actuator'],
                                     command_0=X0[self.solution.idx_inputs], 
                                     setpoint_v=float(self.trimcond_Y[np.where(self.trimcond_Y[:,0]=='Vtas')[0][0], 2]),
                                     setpoint_h=-X0[np.where(self.trimcond_X[:,0]=='z')[0][0]],
@@ -803,7 +804,7 @@ class Common():
         d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
         return d2Uf_dt2
     
-    def get_command_derivatives(self, t, dUcg_dt, X, Vtas, gamma, alpha, beta):
+    def get_command_derivatives(self, t, X, Vtas, gamma, alpha, beta, Nxyz, dxyz):
         if self.simcase and self.simcase['cs_signal']:
             dcommand = self.efcs.cs_signal(t)
         elif self.simcase and self.simcase['controller']:
@@ -815,6 +816,8 @@ class Common():
                         'alpha':        alpha,
                         'beta':         beta,
                         'XiEtaZetaThrust': X[self.solution.idx_inputs],
+                        'Nxyz':         Nxyz,
+                        'dh':          -dxyz[2],
                        } 
 
             dcommand = self.efcs.controller(t, feedback)
