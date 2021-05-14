@@ -7,9 +7,8 @@ import numpy as np
 import logging, pyfmi
 from pyfmi.fmi import FMUModelCS2
 
-import loadskernel.PID as PID
 from loadskernel.efcs import HAP
-from loadskernel.units import tas2eas
+from loadskernel.units import tas2eas, tas2cas
 
 class Efcs(HAP.Efcs):
     
@@ -29,8 +28,8 @@ class Efcs(HAP.Efcs):
     def fmu_init(self, filename_fmu, filename_actuator, setpoint ):
         """
         Dokumentation der FMU in [1].
-        [1] Weiser, C. and Looye, G., “P4.1 EFCS Simulink description & release notes.” DLR Institute of System Dynamics and Control, 30-Jun-2020.
-        https://teamsites.dlr.de/dlr/HAP/Dateien/3_HAP/1_Plattform/P4_Flugmanagement_u_Regelung/P4.1_Flugregelung(SR)/FCSW_export/HAP_P41_SDD_L3.pdf
+        [1] Weiser, C., “HAP-P41-00-RN-L3 Flight Control Software Release Notes,” DLR Institute of System Dynamics and Control, 
+        Version 2021.05, Jun. 2020, https://teamsites.dlr.de/dlr/HAP/Dateien/3_HAP/1_Plattform/P4_Flugmanagement_u_Regelung/P4.1_Flugregelung(SR)/04_FCSW_export.
         """
         # set up fmu interface, then set up the fmu
         self.fmi_init(filename_fmu)
@@ -50,29 +49,24 @@ class Efcs(HAP.Efcs):
         # Set Sensors, see Table 3.2 in [1]
         # airspeed (with Vcas ~ Vtas)
         self.fmi.set_real([self.ref_values['Sensors.AIRDATA.V_CAS'], self.ref_values['Sensors.AIRDATA.V_TAS']],
-                          [setpoint['Vtas'], setpoint['Vtas']])
+                          [tas2cas(setpoint['Vtas'], -setpoint['z']), setpoint['Vtas']])
         # barometric altitude [m], vertical speed [m/s]
         self.fmi.set_real([self.ref_values['Sensors.AIRDATA.h_baro'], self.ref_values['Sensors.AIRDATA.h_dot_baro']],
                           [-setpoint['z'], -setpoint['dz']])
         # attitude / euler angles PhiThetaPsi [rad]
         self.fmi.set_real([self.ref_values['Sensors.IRS.phi'], self.ref_values['Sensors.IRS.theta'], self.ref_values['Sensors.IRS.psi']],
-                          setpoint['PhiThetaPsi']*0.0)
+                          setpoint['PhiThetaPsi'])
         # body rates pqr [rad/s]
         self.fmi.set_real([self.ref_values['Sensors.IRS.p_B'], self.ref_values['Sensors.IRS.q_B'], self.ref_values['Sensors.IRS.r_B']],
                           setpoint['pqr'])
         # load factor Nxyz [-]                                        
         self.fmi.set_real([self.ref_values['Sensors.IRS.nx'], self.ref_values['Sensors.IRS.ny'], self.ref_values['Sensors.IRS.nz']],
                           [setpoint['Nxyz']])
-
+        
         self.fmi.initialize()
         self.last_time = 0.0
         
-        # set up actuator
-#         self.eta_actuator    = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
-#         self.zeta_actuator   = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
-#         self.xi_actuator     = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
-#         self.thrust_actuator = PID.PID_ideal(Kp = 30.0, Ki = 0.0, Kd = 0.0, t=0.0)
-        
+        # set up actuator        
         self.actuator = Actuator()
         self.actuator.fmu_init(filename_actuator)
         
@@ -99,17 +93,22 @@ class Efcs(HAP.Efcs):
     def controller(self, t, feedback):
         # If the time increment is positive, then perform a time step in the FMU.
         dt_fmu = t - self.last_time
-        if dt_fmu > 0.0:
+        """
+        Because the fmu uses an integrator with a discrete sampling rate (100 Hz, optimized for hardware), 
+        the fmu time step must be dt_fmu = 0.01 s correspondingly. The aeroelastic simulation is running with a variable time step size, 
+        but at least 10 000 Hz, so we are usually very close to 0.01 s. 
+        """
+        if dt_fmu > 0.01:
             # Update Sensors, see Table 3.2 in [1]
             # airspeed (with Vcas ~ Vtas)
             self.fmi.set_real([self.ref_values['Sensors.AIRDATA.V_CAS'], self.ref_values['Sensors.AIRDATA.V_TAS']],
-                              [feedback['Vtas'], feedback['Vtas']])
+                              [tas2cas(feedback['Vtas'], -feedback['z']) , feedback['Vtas']])
             # barometric altitude [m], vertical speed [m/s]
             self.fmi.set_real([self.ref_values['Sensors.AIRDATA.h_baro'], self.ref_values['Sensors.AIRDATA.h_dot_baro']],
                               [-feedback['z'], -feedback['dz']])
             # attitude / euler angles PhiThetaPsi [rad]
             self.fmi.set_real([self.ref_values['Sensors.IRS.phi'], self.ref_values['Sensors.IRS.theta'], self.ref_values['Sensors.IRS.psi']],
-                              feedback['PhiThetaPsi']*0.0)
+                              feedback['PhiThetaPsi'])
             # body rates pqr [rad/s]
             self.fmi.set_real([self.ref_values['Sensors.IRS.p_B'], self.ref_values['Sensors.IRS.q_B'], self.ref_values['Sensors.IRS.r_B']],
                               feedback['pqr'])
@@ -124,7 +123,7 @@ class Efcs(HAP.Efcs):
         commands = self.fmi.get_real([self.ref_values['Ux3_cmddpmdqmdrm[1]'], 
                                       self.ref_values['Ux3_cmddpmdqmdrm[2]'],
                                       self.ref_values['Ux3_cmddpmdqmdrm[3]']])       
-        
+        # Run the actuator to get the control surface rates
         d_pos = self.actuator.run(t, commands)
         # adjust sign conventions following section 4.3.3 Definition of control surface commands in [1]
         d_pos[1] *= -1.0
@@ -132,36 +131,6 @@ class Efcs(HAP.Efcs):
         # assemble command derivatives in correct order for loads kernel
         dcommand = np.zeros(feedback['commands'].shape)
         dcommand[0:3] = d_pos
-        
-#         # Add the trim commands (unknown to the FMU)
-#         # adjust sign conventions following section 4.3.3 Definition of control surface commands in [1]
-#         command_xi   =  commands[0] + self.command_0[0]
-#         command_eta  = -commands[1] + self.command_0[1]
-#         command_zeta = -commands[2] + self.command_0[2]
-#         # The FMU distinguishes left and right engine but there is (currently) only one thrust command in loads kernel.
-#         # For now, take a mean value for both engines.
-#         command_thrust = 0.5*(thrust_l + thrust_r) + self.command_0[3]
-#         
-#         # Perform time step of actuators and apply limits.
-#         self.xi_actuator.setSetPoint(command_xi)
-#         self.xi_actuator.update(t=t, feedback_value=feedback['XiEtaZetaThrust'][0]) # xi actuator
-#         command_dxi = self.apply_limit(self.xi_actuator.output, self.max_actuator_speed, -self.max_actuator_speed)
-#         
-#         self.eta_actuator.setSetPoint(command_eta)
-#         self.eta_actuator.update(t=t, feedback_value=feedback['XiEtaZetaThrust'][1]) # eta actuator
-#         command_deta = self.apply_limit(self.eta_actuator.output, self.max_actuator_speed, -self.max_actuator_speed)
-#            
-#         self.zeta_actuator.setSetPoint(command_zeta)
-#         self.zeta_actuator.update(t=t, feedback_value=feedback['XiEtaZetaThrust'][2]) # zeta actuator
-#         command_dzeta = self.apply_limit(self.zeta_actuator.output, self.max_actuator_speed, -self.max_actuator_speed)
-#  
-#         self.thrust_actuator.setSetPoint(command_thrust)
-#         self.thrust_actuator.update(t=t, feedback_value=feedback['XiEtaZetaThrust'][3]) # thrust actuator/ engine control unit
-#         command_dthrust = self.thrust_actuator.output 
-#  
-#         # assemble command derivatives in correct order for loads kernel
-#         dcommand = np.zeros(self.command_0.shape)
-#         dcommand[0:3] = command_dxi, command_deta, command_dzeta
 
         return dcommand
 
