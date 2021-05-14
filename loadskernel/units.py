@@ -32,6 +32,19 @@ def tas2eas(tas,h):
     p, rho, T, a = atmo_isa(h)
     return tas/(rho0/rho)**0.5
 
+def tas2cas(tas,h):
+    # Like cas2tas but with different procedure to calculate qc.
+    # For double-checking, see interactive chart at
+    # http://walter.bislins.ch/blog/index.asp?page=Compressibility+Correction+Chart%2C+Verwendung+und+Berechnung
+    # In addition, the round-trip Vtas --> Vcas --> Vtas must result in the same Vtas.
+    p, rho, T, a = atmo_isa(h)
+    p0, rho0, T0, a0 = atmo_isa(0)
+    gamma = 1.4
+    qc = p*( (1 + (gamma-1)/2 * (tas/a)**2)**(gamma/(gamma-1)) - 1 )
+    f = ( gamma/(gamma-1)*p/qc*( (qc/p+1)**((gamma-1)/gamma) - 1 ) )**0.5
+    f0 = ( gamma/(gamma-1)*p0/qc*( (qc/p0+1)**((gamma-1)/gamma) - 1 ) )**0.5    
+    cas = tas * f0/f / (rho0/rho)**0.5
+    return cas
     
 def cas2tas(cas,h):
     # Reference: NASA RP 1046,Measurement of Aircraft Speed and Altitude, William Gracey, 1980
