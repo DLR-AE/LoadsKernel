@@ -8,6 +8,8 @@ stages:
 
 test:
   stage: test
+  timeout: 3 hours
+  coverage: '/^TOTAL.+?(\d+\%)$/'
   tags:
     - lk
   script:
