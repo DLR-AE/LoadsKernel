@@ -114,7 +114,14 @@ class Efcs(HAP.Efcs):
                               feedback['pqr'])
             # load factor Nxyz [-]                                        
             self.fmi.set_real([self.ref_values['Sensors.IRS.nx'], self.ref_values['Sensors.IRS.ny'], self.ref_values['Sensors.IRS.nz']],
-                              [feedback['Nxyz']])
+                              [feedback['Nxyz']*np.array([1.0, -1.0, 1.0])])
+            """
+            Ny muss momentan mit -1 multipliziert werden, da es im Regler einen Vorzeichenfehler gibt ;)
+            [‎18.‎05.‎2021 09:40]  Weiser, Christian:  
+            Fehler gefunden, es hat tatsächlich jemand einfach alle Lastfaktoren mit -1 multipliziert, vermutlich weil bisher immer nur Nz genutzt wurde...
+            [‎18.‎05.‎2021 09:41]  Weiser, Christian:  
+            ich würde vorschlagen wir lassen es dann erstmal so mit der -1
+            """
             # Perform time step.
             self.fmi.do_step(t-dt_fmu, dt_fmu, True)
             self.last_time = t
