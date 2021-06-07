@@ -5,11 +5,10 @@ import sys, logging, pytest
 # Here you add the location of the Loads Kernel
 sys.path.append("../loads-kernel")
 sys.path.append("/scratch/panel-aero")
-sys.path.append("/opt/tau/bin/py_el")
 
 from loadskernel import program_flow
 import loadskernel.io_functions as io_functions
-from tests.helper_functions import HelperFunctions
+from helper_functions import HelperFunctions
 
 @pytest.fixture(scope='class')
 def get_test_dir(tmpdir_factory):
