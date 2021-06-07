@@ -92,7 +92,7 @@ class DetailedPlots(plotting_standard.LoadPlots):
     def plot_time_data(self):
         # Create all plots
         fig1, (ax11, ax12) = plt.subplots(nrows=2, ncols=1, sharex=True,)
-        fig2, (ax21, ax22) = plt.subplots(nrows=2, ncols=1, sharex=True,)
+        fig2, (ax21, ax22, ax23) = plt.subplots(nrows=3, ncols=1, sharex=True,)
         fig3, (ax31, ax32) = plt.subplots(nrows=2, ncols=1, sharex=True,)
         fig4, (ax41, ax42) = plt.subplots(nrows=2, ncols=1, sharex=True,)
         fig5, (ax51, ax52, ax53) = plt.subplots(nrows=3, ncols=1, sharex=True,)
@@ -122,9 +122,10 @@ class DetailedPlots(plotting_standard.LoadPlots):
                 ax11.plot(response['t'], Pb_unsteady, 'r-')
 
             ax21.plot(response['t'], response['q_dyn'], 'k-')
-            ax22.plot(response['t'], response['Nxyz'][:,2], 'b-')
             ax22.plot(response['t'], response['alpha'][:]/np.pi*180.0, 'r-')
             ax22.plot(response['t'], response['beta'][:]/np.pi*180.0, 'c-')
+            ax23.plot(response['t'], response['Nxyz'][:,1], 'g-')
+            ax23.plot(response['t'], response['Nxyz'][:,2], 'b-')
 
             ax31.plot(response['t'], response['X'][:,0], 'b-')
             ax31.plot(response['t'], response['X'][:,1], 'g-')
@@ -174,10 +175,13 @@ class DetailedPlots(plotting_standard.LoadPlots):
         ax21.set_ylabel('[Pa]')
         ax21.grid(True)
         ax21.legend(['q_dyn'])
-        ax22.set_xlabel('t [sec]')
-        ax22.legend(['Nz', 'alpha', 'beta'])
+        ax22.legend(['alpha', 'beta'])
         ax22.grid(True)
-        ax22.set_ylabel('[-]/[deg]')
+        ax22.set_ylabel('[deg]')
+        ax23.set_xlabel('t [sec]')
+        ax23.legend(['Ny', 'Nz'])
+        ax23.grid(True)
+        ax23.set_ylabel('[-]')
         
         ax31.set_ylabel('[m]')
         ax31.grid(True)

@@ -116,11 +116,18 @@ class Common():
                                           setpoint_h=-X0[np.where(self.trimcond_X[:,0]=='z')[0][0]],
                                          )
             elif self.jcl.efcs['version'] in ['HAP_FMU']:
-                self.efcs.fmu_init( filename=self.jcl.efcs['filename_fmu'],
-                                    command_0=X0[self.solution.idx_inputs], 
-                                    setpoint_v=float(self.trimcond_Y[np.where(self.trimcond_Y[:,0]=='Vtas')[0][0], 2]),
-                                    setpoint_h=-X0[np.where(self.trimcond_X[:,0]=='z')[0][0]],
-                                  )
+                setpoint = {'pqr':          X0[self.solution.idx_states[9:12]],
+                            'PhiThetaPsi':  X0[self.solution.idx_states[3:6]],
+                            'z':            X0[self.solution.idx_states[2]],
+                            'Vtas':         float(self.trimcond_Y[np.where(self.trimcond_Y[:,0]=='Vtas')[0][0], 2]), 
+                            'commands':     X0[self.solution.idx_inputs],
+                            'Nxyz':         np.array([0.0, 0.0, float(self.trimcond_Y[np.where(self.trimcond_Y[:,0]=='Nz')[0][0], 2])]),
+                            'dz':           float(self.trimcond_Y[np.where(self.trimcond_Y[:,0]=='dz')[0][0], 2]),
+                           } 
+                
+                self.efcs.fmu_init(filename_fmu=self.jcl.efcs['filename_fmu'],
+                                   filename_actuator=self.jcl.efcs['filename_actuator'],
+                                   setpoint=setpoint)
             else:
                 logging.error('Unknown EFCS: {}'.format(self.jcl.efcs['version']))
                         
@@ -803,18 +810,20 @@ class Common():
         d2Uf_dt2 = np.dot( -np.linalg.inv(self.Mff),  ( np.dot(self.Dff, dUf_dt) + np.dot(self.Kff, Uf) - Pf  ) )
         return d2Uf_dt2
     
-    def get_command_derivatives(self, t, dUcg_dt, X, Vtas, gamma, alpha, beta):
+    def get_command_derivatives(self, t, X, Vtas, gamma, alpha, beta, Nxyz, dxyz):
         if self.simcase and self.simcase['cs_signal']:
             dcommand = self.efcs.cs_signal(t)
         elif self.simcase and self.simcase['controller']:
             feedback = {'pqr':          X[self.solution.idx_states[9:12]],
                         'PhiThetaPsi':  X[self.solution.idx_states[3:6]],
-                        'h':           -X[self.solution.idx_states[2]],
+                        'z':            X[self.solution.idx_states[2]],
                         'Vtas':         Vtas, 
                         'gamma':        gamma,
                         'alpha':        alpha,
                         'beta':         beta,
-                        'XiEtaZetaThrust': X[self.solution.idx_inputs],
+                        'commands':     X[self.solution.idx_inputs],
+                        'Nxyz':         Nxyz,
+                        'dz':           dxyz[2],
                        } 
 
             dcommand = self.efcs.controller(t, feedback)

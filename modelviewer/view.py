@@ -163,17 +163,17 @@ class Modelviewer():
         lb_modes_mass = QtGui.QLabel('Mass')
         lb_modes_number = QtGui.QLabel('Modes')
         self.list_modes_mass = QtGui.QListWidget()
-        self.list_modes_mass.itemClicked.connect(self.update_modes)
+        self.list_modes_mass.itemSelectionChanged.connect(self.update_modes)
         self.list_modes_number = QtGui.QListWidget()
-        self.list_modes_number.itemClicked.connect(self.get_mode_data_for_plotting)
+        self.list_modes_number.itemSelectionChanged.connect(self.get_mode_data_for_plotting)
         self.lb_freq = QtGui.QLabel('Frequency: {:0.4f} Hz'.format(0.0))
         self.lb_uf = QtGui.QLabel('Scaling: 1.0')
         # slider for generalized coordinate magnification factor
         self.sl_uf = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.sl_uf.setMinimum(-25)
-        self.sl_uf.setMaximum(+25)
+        self.sl_uf.setMinimum(-50)
+        self.sl_uf.setMaximum(+50)
         self.sl_uf.setSingleStep(1)
-        self.sl_uf.setValue(10)
+        self.sl_uf.setValue(5)
         self.sl_uf.setTickPosition(QtGui.QSlider.TicksBelow)
         self.sl_uf.setTickInterval(5)
         self.sl_uf.valueChanged.connect(self.get_mode_data_for_plotting)
@@ -198,7 +198,7 @@ class Modelviewer():
         self.tabs_widget.addTab(tab_mass, "mass")
         # Elements of mass tab
         self.list_mass = QtGui.QListWidget()
-        self.list_mass.itemClicked.connect(self.get_mass_data_for_plotting)
+        self.list_mass.itemSelectionChanged.connect(self.get_mass_data_for_plotting)
         self.lb_rho = QtGui.QLabel('Rho: 2700 kg/m^3')
         # slider for generalized coordinate magnification factor
         self.sl_rho = QtGui.QSlider(QtCore.Qt.Horizontal)
@@ -278,7 +278,7 @@ class Modelviewer():
         self.tabs_widget.addTab(tab_monstations, "monstations")
         # Elements of monstations tab
         self.list_monstations = QtGui.QListWidget()      
-        self.list_monstations.itemClicked.connect(self.get_monstation_for_plotting)
+        self.list_monstations.itemSelectionChanged.connect(self.get_monstation_for_plotting)
         self.lb_monstation_coord = QtGui.QLabel('Coord:')
         bt_monstations_hide = QtGui.QPushButton('Hide')
         bt_monstations_hide.clicked.connect(self.plotting.hide_monstations)
@@ -293,7 +293,7 @@ class Modelviewer():
         self.tabs_widget.addTab(tab_cs, "cs")
         # Elements of cs tab
         self.list_cs = QtGui.QListWidget()
-        self.list_cs.itemClicked.connect(self.get_new_cs_for_plotting)
+        self.list_cs.itemSelectionChanged.connect(self.get_new_cs_for_plotting)
         self.lb_deg = QtGui.QLabel('Deflection: 0 deg')
         # slider for generalized coordinate magnification factor
         self.sl_deg = QtGui.QSlider(QtCore.Qt.Horizontal)
@@ -322,7 +322,7 @@ class Modelviewer():
         self.tabs_widget.addTab(tab_pytran, "pytran")
         # Elements of results tab
         self.list_celldata = QtGui.QListWidget()
-        self.list_celldata.itemClicked.connect(self.get_new_cell_data_for_plotting)
+        self.list_celldata.itemSelectionChanged.connect(self.get_new_cell_data_for_plotting)
         self.cb_culling = QtGui.QCheckBox('Culling On/Off')
         self.cb_culling.stateChanged.connect(self.toggle_culling)
         bt_cell_hide = QtGui.QPushButton('Hide Nastran results')
@@ -426,7 +426,7 @@ class Modelviewer():
             self.get_mode_data_for_plotting()
 
     def get_mode_data_for_plotting(self):
-        uf_i = np.sign(np.double(self.sl_uf.value())) * 10.0**(np.abs(np.double(self.sl_uf.value()))/10.0)
+        uf_i = np.sign(self.sl_uf.value()) * (self.sl_uf.value()/5.0)**2.0
         self.lb_uf.setText('Scaling: {:0.2f}'.format(uf_i))
         if self.list_modes_mass.currentItem() is not None and self.list_modes_number.currentItem() is not None:
             key = self.list_modes_mass.currentItem().data(0)
