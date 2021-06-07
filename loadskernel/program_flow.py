@@ -4,7 +4,7 @@ Created on Thu Nov 27 14:00:31 2014
 
 @author: voss_ar
 """
-import time, multiprocessing, getpass, platform, logging, sys, copy
+import time, multiprocessing, getpass, platform, logging, sys, copy, argparse
 
 from loadskernel import io_functions
 from loadskernel.io_functions import specific_functions
@@ -496,6 +496,31 @@ def unwrap_main_listener(*arg, **kwarg):
     # This is a function outside the class to unwrap the self from the arguments. Requirement for multiprocessing pool.
     return Kernel.main_listener(*arg, **kwarg)
 
+def str2bool(v):
+    # This is a function outside the class to convert strings to boolean. Requirement for parsing command line arguments.
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 if __name__ == "__main__":
-    print ("Please use the launch-script 'launch.py' from your input directory.")
-    sys.exit()
+    parser = argparse.ArgumentParser()
+    # register the most common arguments
+    parser.add_argument('--job_name', help='Name of the JCL (no extension .py)', type=str, required=True)
+    parser.add_argument('--pre', help='Pre-processing', choices=[True, False], type=str2bool, required=True)
+    parser.add_argument('--main', help='Main-processing, True/False', choices=[True, False], type=str2bool, required=True)
+    parser.add_argument('--post', help='Post-processing, True/False', choices=[True, False], type=str2bool, required=True)
+    parser.add_argument('--path_input', help='Path to the JCL file', type=str, required=True)
+    parser.add_argument('--path_output', help='Path to save the output', type=str, required=True)
+    # get arguments from command line
+    args = parser.parse_args()
+    # run the loads kernel with the command line arguments
+    k = Kernel(job_name=args.job_name, pre=args.pre, main=args.main, post=args.post,
+               path_input=args.path_input, 
+               path_output=args.path_output)
+    k.run()
+
