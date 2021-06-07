@@ -636,6 +636,9 @@ class Modelviewer():
         for mesh in self.iges.meshes:
             self.list_iges.addItem(QtGui.QListWidgetItem(mesh['desc']))
 
-if __name__ == "__main__":
+def command_line_interface():
     m = Modelviewer()
     m.run()
+    
+if __name__ == "__main__":
+    command_line_interface()

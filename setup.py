@@ -1,7 +1,7 @@
 """
 Setup file, currently supports:
 
-- installation via "pip install --user -e <repo_url>"
+- installation via "pip install --user -e <repo_path>"
 - installation via "python setup.py develop --user"
 """
 
@@ -16,6 +16,9 @@ def my_setup():
           author_email='arne.voss@dlr.de',
           license='internal use',
           packages=find_packages(),
+          entry_points={'console_scripts': ['loads-kernel=loadskernel.program_flow:command_line_interface',
+                                            'model-viewer=modelviewer.view:command_line_interface',
+                                            'loads-compare=loadscompare.compare:command_line_interface']},
           python_requires='>=3.7',
           install_requires=[
                             'Panel-Aero @ git+https://gitlab.dlr.de/loads-kernel/panel-aero.git',

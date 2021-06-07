@@ -507,7 +507,7 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-if __name__ == "__main__":
+def command_line_interface():
     parser = argparse.ArgumentParser()
     # register the most common arguments
     parser.add_argument('--job_name', help='Name of the JCL (no extension .py)', type=str, required=True)
@@ -523,4 +523,9 @@ if __name__ == "__main__":
                path_input=args.path_input, 
                path_output=args.path_output)
     k.run()
+    
+if __name__ == "__main__":
+    command_line_interface()
+    
+
 
