@@ -20,6 +20,8 @@ def my_setup():
                                             'model-viewer=modelviewer.view:command_line_interface',
                                             'loads-compare=loadscompare.compare:command_line_interface']},
           include_package_data=True,
+          package_data={'loadskernel': ['graphics/*.*'],
+                        'loadscompare': ['graphics/*.*'],},
           python_requires='>=3.7',
           install_requires=[
                             'Panel-Aero @ git+https://gitlab.dlr.de/loads-kernel/panel-aero.git',
