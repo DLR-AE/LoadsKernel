@@ -27,6 +27,7 @@ class Plotting:
         self.show_cs=False
         self.show_cell=False
         self.show_monstations=False
+        self.show_iges=False
         
     def add_figure(self, fig):
         self.fig = fig
@@ -42,6 +43,9 @@ class Plotting:
         
     def add_cfdgrids(self, cfdgrids):
         self.cfdgrids = cfdgrids
+    
+    def add_iges_meshes(self, meshes):
+        self.iges_meshes = meshes
 
     def calc_distance(self):
         self.distance = 1.5*(  (self.strcgrid['offset'][:,0].max()-self.strcgrid['offset'][:,0].min())**2 \
@@ -428,4 +432,24 @@ class Plotting:
     def update_cell_display(self, cell_data):
         self.src_cell.outputs[0].cell_data.scalars.from_array(cell_data)
         self.src_cell.update()
+    
+    
+    def hide_iges(self):
+        for src in self.src_iges:
+            src.remove()
+        self.show_iges=False
+        mlab.draw(self.fig)
+        
+    def plot_iges(self, selected_meshes):
+        self.src_iges = []
+        for mesh in self.iges_meshes:
+            if mesh['desc'] in selected_meshes:
+                self.setup_iges_display(mesh['vtk'])
+        self.show_iges=True
+        mlab.draw(self.fig)
+
+    def setup_iges_display(self, vtk_object):
+        src = mlab.pipeline.add_dataset(vtk_object)
+        self.src_iges.append(src)
+        surface = mlab.pipeline.surface(src, opacity=0.4, line_width=0.5, color=(0.5, 0.5, 0.5))
         
