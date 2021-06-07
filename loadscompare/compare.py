@@ -297,10 +297,10 @@ class Compare():
         self.lb_mon.clear()
         for x in self.common_monstations:
             self.lb_mon.addItem(QListWidgetItem(x))
-        
-if __name__ == "__main__":
+
+def command_line_interface():
     c = Compare()
     c.run()
     
-    
-    
+if __name__ == "__main__":
+    command_line_interface()
