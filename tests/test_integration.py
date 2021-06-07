@@ -2,6 +2,10 @@
 # Launch script for the Loads Kernel
 import sys, logging, pytest
 
+# Here you add the location of the Loads Kernel
+sys.path.append("../loads-kernel")
+sys.path.append("/scratch/panel-aero")
+
 from loadskernel import program_flow
 import loadskernel.io_functions as io_functions
 from helper_functions import HelperFunctions
