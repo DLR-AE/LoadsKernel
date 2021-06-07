@@ -1,0 +1,2 @@
+recursive-include input *
+recursive-include graphics *

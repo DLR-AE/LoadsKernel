@@ -19,6 +19,7 @@ def my_setup():
           entry_points={'console_scripts': ['loads-kernel=loadskernel.program_flow:command_line_interface',
                                             'model-viewer=modelviewer.view:command_line_interface',
                                             'loads-compare=loadscompare.compare:command_line_interface']},
+          include_package_data=True,
           python_requires='>=3.7',
           install_requires=[
                             'Panel-Aero @ git+https://gitlab.dlr.de/loads-kernel/panel-aero.git',
