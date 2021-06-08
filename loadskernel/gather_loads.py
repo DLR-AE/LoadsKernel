@@ -84,17 +84,21 @@ class GatherLoads:
                 timeslices_dyn2stat = np.concatenate((timeslices_dyn2stat, pos_max_loads_over_time, pos_min_loads_over_time)) # remember identified time slices 
             logging.info('reducing dyn2stat data...')       
             timeslices_dyn2stat = np.unique(timeslices_dyn2stat)
+            nastran_subcase_running_number = 1
             for pos in timeslices_dyn2stat: 
                 # save nodal loads Pg for this time slice
                 self.dyn2stat['Pg'].append(response['Pg'][pos,:])
-                subcases_dyn2stat_string = str(self.monstations[key][i_case]['subcase']) + '_t={:05.3f}'.format(self.monstations[key][i_case]['t'][pos,0])
+                subcases_dyn2stat_string = str(self.monstations[key][i_case]['subcase']) + '_t={:.3f}'.format(self.monstations[key][i_case]['t'][pos,0])
                 self.dyn2stat['subcases'].append(subcases_dyn2stat_string)
                 """
                 Generate unique IDs for subcases:
-                Take first digits from original subcase, then add a running number.
-                This is only important for Nastran output as Nastran does not like subcases in the style 'xy_t=0.123'
+                Take first digits from original subcase, then add a running number. This is a really stupid approach, 
+                but we are limited to 8 digits and need to make the best out of that... Using 5 digits for the subcase 
+                and 3 digits for the running number appears to work for most cases. This is only important for Nastran 
+                Force and Moment cards as Nastran does not like subcases in the style 'xy_t=0.123' and requires numbers 
+                in ascending order.
                 """
-                self.dyn2stat['subcases_ID'].append( int(subcases_dyn2stat_string.replace('_t=', '').replace('.', '')) )
+                self.dyn2stat['subcases_ID'].append( int(self.monstations[key][i_case]['subcase'])*1000 + nastran_subcase_running_number )
                 # save section loads to monstations
                 for key in self.monstations.keys():
                     self.monstations[key]['subcases'].append(subcases_dyn2stat_string)
