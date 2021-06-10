@@ -247,8 +247,11 @@ def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='',
     T_di = sp.lil_matrix( (dimensions_d, dimensions_i) )
     for i_i in range(len(splinerules['ID_i'])):
         for i_d in range(len(splinerules['ID_d'][i_i])):
-            position_i = np.where(grid_i['ID']==splinerules['ID_i'][i_i])[0][0]
-            position_d = np.where(grid_d['ID']==splinerules['ID_d'][i_i][i_d])[0][0]
+            try:
+                position_i = np.where(grid_i['ID']==splinerules['ID_i'][i_i])[0][0]
+                position_d = np.where(grid_d['ID']==splinerules['ID_d'][i_i][i_d])[0][0]
+            except:
+                raise AssertionError('There is a problem at monitoring station {}, grid {}'.format(splinerules['ID_i'][i_i], splinerules['ID_d'][i_i][i_d]))
             
             T_sub = np.eye(6)
 
