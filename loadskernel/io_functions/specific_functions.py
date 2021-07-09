@@ -4,7 +4,7 @@ Created on Apr 9, 2019
 @author: voss_ar
 ''' 
 import pickle, h5py
-import time, imp, sys, os, psutil, logging, shutil, re, csv
+import time, importlib, sys, os, psutil, logging, shutil, re, csv
 import numpy as np
   
 def write_list_of_dictionaries(dictionary, filename_csv):
@@ -77,7 +77,8 @@ def load_jcl(job_name, path_input, jcl):
     if jcl == None:
         logging.info( '--> Reading parameters from JCL.')
         # import jcl dynamically by filename
-        jcl_modul = imp.load_source('jcl', path_input + job_name + '.py')
+        spec = importlib.util.spec_from_file_location('jcl', os.path.join(path_input, job_name+'.py' ))
+        jcl_modul = spec.loader.load_module()
         jcl = jcl_modul.jcl() 
     # small check for completeness
     attributes = ['general', 'efcs', 'geom', 'aero', 'spline', 'mass', 'atmo', 'trimcase', 'simcase']
@@ -93,7 +94,8 @@ def load_model(job_name, path_output):
     with open(path_output + 'model_' + job_name + '.pickle', 'rb') as f:
         tmp = pickle.load(f)
     model = NewModel()
-    for key in tmp.keys(): setattr(model, key, tmp[key])
+    for key in tmp.keys(): 
+        setattr(model, key, tmp[key])
     logging.info( '--> Done in %.2f [sec].' % (time.time() - t_start))
     return model
     
