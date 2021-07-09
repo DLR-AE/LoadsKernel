@@ -104,6 +104,8 @@ class GatherLoads:
                     self.monstations[key]['subcases'].append(subcases_dyn2stat_string)
                     self.monstations[key]['loads'].append(self.monstations[key][i_case]['loads'][pos,:])
                     self.monstations[key]['t'].append(self.monstations[key][i_case]['t'][pos,:])
+                # increase counter of running number by 1
+                nastran_subcase_running_number += 1
 
         else:
             i_case = response['i']
