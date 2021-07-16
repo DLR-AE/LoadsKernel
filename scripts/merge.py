@@ -140,12 +140,12 @@ class Merge:
         aux_out.dyn2stat_data = dyn2stat_data
         aux_out.monstations = monstations
         
+        aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name + '.pickle') 
         aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + job_name + '.csv') 
         aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + job_name + '.bdf') 
-        aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name + '.pickle') 
     
 if __name__ == "__main__":
-    jobs_to_merge = ['jcl_HAP-O6-loop4_maneuver', 'jcl_HAP-O6-loop4_gust_unsteady_FMU', 'jcl_HAP-O6-loop4_landing', 'jcl_HAP-O6-loop4_prop']
+    jobs_to_merge = ['jcl_HAP-O6-loop7_maneuver', 'jcl_HAP-O6-loop7_gust_unsteady_FMU', 'jcl_HAP-O6-loop7_landing', 'jcl_HAP-O6-loop7_prop']
     m = Merge(path_input='/scratch/HAP_workingcopy/JCLs', path_output='/scratch/HAP_LoadsKernel')
-    m.run_merge('jcl_HAP-O6_merged_loop4', jobs_to_merge)
+    m.run_merge('jcl_HAP-O6_merged_loop7', jobs_to_merge)
     
