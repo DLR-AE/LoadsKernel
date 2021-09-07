@@ -68,10 +68,17 @@ class Common():
             self.hingeline = 'y'
  
         # import aircraft-specific class from efcs.py dynamically 
-        efcs_module = importlib.import_module('loadskernel.efcs.'+self.jcl.efcs['version'])
+        if 'path' in self.jcl.efcs:
+            # If a path is specified, import module from that path.
+            spec = importlib.util.spec_from_file_location(self.jcl.efcs['version'], os.path.join(self.jcl.efcs['path'], self.jcl.efcs['version']+'.py' ))
+            efcs_module = spec.loader.load_module()
+        else: 
+            # Use the 'old' way, where the EFCS is stored in the program code.
+            efcs_module = importlib.import_module('loadskernel.efcs.'+self.jcl.efcs['version'])
         # init efcs
-        self.efcs =  efcs_module.Efcs() 
-        
+        self.efcs =  efcs_module.Efcs()
+        logging.info('Init EFCS "{}"'.format(efcs_module.__name__))
+
         # get cfd splining matrices
         if self.jcl.aero['method'] == 'cfd_steady':
             self.PHIcfd_strc = self.model.PHIcfd_strc

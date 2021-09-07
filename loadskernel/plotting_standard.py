@@ -12,7 +12,6 @@ import logging, itertools, os
 from loadskernel.units import tas2eas
 from loadskernel.units import eas2tas
 
-
 class LoadPlots(object):
     def __init__(self, jcl, model):
         self.jcl = jcl
@@ -26,105 +25,27 @@ class LoadPlots(object):
         self.potatos_mx_mz = [] # VTP
         self.potatos_my_mz = [] # FUS
         self.cuttingforces_wing = []
-        self.im = plt.imread(os.path.dirname(__file__)+'/graphics/LK_logo2.png')
+        self.im = plt.imread(os.path.dirname(__file__)+'/../graphics/LK_logo2.png')
+        self.f_scale = 0.02 # vectors
+        self.p_scale = 0.03 # points
         
-        # Allegra
-        if self.jcl.general['aircraft'] == 'ALLEGRA':
-            self.potatos_fz_mx = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
-            self.potatos_mx_my = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01' ]
-            self.potatos_fz_my = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', 'ZHCUT01', 'ZFCUT27', 'ZFCUT28']
-            self.cuttingforces_wing = ['ZWCUT01', 'ZWCUT04', 'ZWCUT08', 'ZWCUT12', 'ZWCUT16', 'ZWCUT20', 'ZWCUT24', ]
-            self.f_scale = 0.002 # vectors
-            self.p_scale = 0.4 # points
-        # DLR-F19
-        elif self.jcl.general['aircraft'] == 'DLR F-19-S':
-            self.potatos_fz_mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
-            self.potatos_mx_my = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON6', 'MON7', 'MON9']
-            self.potatos_fz_my = ['MON1', 'MON2', 'MON3', 'MON33', 'MON4', 'MON5']
-            self.cuttingforces_wing = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8']
-            self.f_scale = 0.002 # vectors
-            self.p_scale = 0.04 # points
-        # MULDICON
-        elif self.jcl.general['aircraft'] == 'MULDICON':
-            self.potatos_fz_mx = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
-            self.potatos_mx_my = ['MON1', 'MON2', 'MON3', 'MON33', 'MON8', 'MON9']
-            self.potatos_fz_my = ['MON4', 'MON5', 'MON81', 'MON82', 'MON83']
-            self.cuttingforces_wing = ['MON10', 'MON1', 'MON2', 'MON3', 'MON33', 'MON8']
-            self.f_scale = 0.002 # vectors
-            self.p_scale = 0.03 # points
-        # Discus2c
-        elif self.jcl.general['aircraft'] == 'Discus2c':
-            self.potatos_fz_mx = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
-            self.potatos_mx_my = ['MON646', 'MON644', 'MON641', 'MON546', 'MON544', 'MON541', 'MON348', 'MON346', 'MON102']
-            self.potatos_fz_my = ['MON102']
-            self.cuttingforces_wing = ['MON646', 'MON644', 'MON641', 'MON541', 'MON544', 'MON546']
-            self.f_scale = 0.1 # vectors
-            self.p_scale = 0.05 # points
-        # FLEXOP
-        elif self.jcl.general['aircraft'] in ['FLEXOP', 'fs35', 'Openclass', 'D150', 'FFD']:
-            self.potatos_fz_mx = ['MON1']
-            self.potatos_mx_my = ['MON1']
-            self.potatos_fz_my = ['MON1']
-            self.cuttingforces_wing = ['MON1']
-            self.f_scale = 0.1 # vectors
-            self.p_scale = 0.2 # points
-        # HALO
-        elif self.jcl.general['aircraft'] == 'HALO':
-            self.potatos_fz_mx = ['PMS_L', 'PMS_R']
-            self.potatos_mx_my = ['PMS_L', 'PMS_R']
-            self.potatos_fz_my = ['PMS_L', 'PMS_R']
-            self.cuttingforces_wing = ['PMS_L', 'PMS_R']
-            self.f_scale = 0.02 # vectors
-            self.p_scale = 0.4 # points
-        elif self.jcl.general['aircraft'] in ['ACFA']:
-            self.potatos_fz_mx = ['MON1']
-            self.potatos_mx_my = ['MON1']
-            self.potatos_fz_my = ['MON1']
-            self.cuttingforces_wing = ['MON1']
-            self.f_scale = 0.002 # vectors
-            self.p_scale = 0.4 # points
-        elif self.jcl.general['aircraft'] in ['XRF1']:
-            self.potatos_fz_mx = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
-            self.potatos_mx_my = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
-            self.potatos_fz_my = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
-            self.cuttingforces_wing = ['MON4', 'MON10', 'MON16', 'MON22', 'MON28', 'MON34']
-            self.f_scale = 0.002 # vectors
-            self.p_scale = 0.4 # points
-        elif self.jcl.general['aircraft'] in ['HAP-C1', 'HAP-C2', 'HAP']:
-            self.potatos_fz_mx =      ['54001', '54002', '54003', '54004', '54005', '54006', '54007', '54008', '54009', '54010', 
-                                       '54011', '54012', '54013', '54014', '54015', '54016', '54017', '54018', '54019', '54020', 
-                                       '54021', '54022', '54023', '54024', '54025', '54026', '54027', '54028', '54029', '54030', 
-                                       '54031', '54032', '54033', '54034', '54035', '54036', '54037', '54038',
-                                       '33301', '33302', '33303', '33304', '33305', '33306', '33307', '33308', '33309', '33310', 
-                                       '33311'] # Wing, HTP
-            self.potatos_mx_my =      ['54001', '54002', '54003', '54004', '54005', '54006', '54007', '54008', '54009', '54010', 
-                                       '54011', '54012', '54013', '54014', '54015', '54016', '54017', '54018', '54019', '54020', 
-                                       '54021', '54022', '54023', '54024', '54025', '54026', '54027', '54028', '54029', '54030', 
-                                       '54031', '54032', '54033', '54034', '54035', '54036', '54037', '54038',
-                                       '33301', '33302', '33303', '33304', '33305', '33306', '33307', '33308', '33309', '33310', 
-                                       '33311',
-                                       '100001', '100002', '100003', '100004', '100005', '100006', '100007', '100008',
-                                       '54100001', '54100002', '54100003'] # Wing, HTP, Prop
-            self.potatos_fz_my =      []
-            self.potatos_fy_mx =      ['33201', '33202', '33203', '33204', '33205', '33206'] # VTP
-            self.potatos_mx_mz =      ['33201', '33202', '33203', '33204', '33205', '33206'] # VTP 
-            self.potatos_my_mz =      ['100001', '100002', '100003', '100004', '100005', '100006', '100007', '100008',
-                                       '54100001', '54100002', '54100003'] # FUS, Prop
-             
-            self.cuttingforces_wing = ['54038', '54037', '54036', '54035', '54034',
-                                       '54033', '54032', '54031', '54030', '54029', '54028', '54027', '54026', 
-                                       '54025', '54024', '54023', '54022', '54021', '54020', '54019', '54018', '54017', '54016', 
-                                       '54015', '54014', '54013', '54012', '54011', '54010', '54009', '54008', '54007', '54006', 
-                                       '54005', '54004', '54003', '54002', '54001', 
-                                       '64001', '64002', '64003', '64004', '64005', '64006', '64007', '64008', '64009', '64010', 
-                                       '64011', '64012', '64013', '64014', '64015', '64016', '64017', '64018', '64019', '64020', 
-                                       '64021', '64022', '64023', '64024', '64025', '64026', '64027', '64028', '64029', '64030', 
-                                       '64031', '64032', '64033', '64034', '64035', '64036', '64037', '64038']
-            self.f_scale = 0.1 # vectors
-            self.p_scale = 0.3 # points
+        if hasattr(self.jcl, 'loadplots'):
+            if 'potatos_fz_mx' in self.jcl.loadplots:
+                self.potatos_fz_mx = self.jcl.loadplots['potatos_fz_mx']
+            if 'potatos_mx_my' in self.jcl.loadplots:
+                self.potatos_mx_my = self.jcl.loadplots['potatos_mx_my']
+            if 'potatos_fz_my' in self.jcl.loadplots:
+                self.potatos_fz_my = self.jcl.loadplots['potatos_fz_my']
+            if 'potatos_fy_mx' in self.jcl.loadplots:
+                self.potatos_fy_mx = self.jcl.loadplots['potatos_fy_mx']
+            if 'potatos_mx_mz' in self.jcl.loadplots:
+                self.potatos_mx_mz = self.jcl.loadplots['potatos_mx_mz']
+            if 'potatos_my_mz' in self.jcl.loadplots:
+                self.potatos_my_mz = self.jcl.loadplots['potatos_my_mz']
+            if 'cuttingforces_wing' in self.jcl.loadplots:
+                self.cuttingforces_wing = self.jcl.loadplots['cuttingforces_wing']
         else:
-            logging.error('Unknown aircraft: ' + str(self.jcl.general['aircraft']))
-            return
+            logging.warning('jcl.loadplots not specified in the JCL - no automatic plotting of load envelopes possible.')
     
     def add_responses(self, responses):
         self.responses = responses
@@ -229,7 +150,8 @@ class LoadPlots(object):
         # launch plotting
         self.pp = PdfPages(filename_pdf)
         self.potato_plots()
-        self.cuttingforces_along_wing_plots()
+        if self.cuttingforces_wing:
+            self.cuttingforces_along_wing_plots()
         self.pp.close()
         logging.info('plots saved as ' + filename_pdf)
     

@@ -234,11 +234,11 @@ class Modelviewer():
         tab_aero = QtGui.QWidget()
         self.tabs_widget.addTab(tab_aero, "aero")
         # Elements of aero tab
-        bt_aero_show = QtGui.QPushButton('Show')
-        bt_aero_show.clicked.connect(self.toggle_w2gj)
+        self.list_aero = QtGui.QListWidget()
+        self.list_aero.itemSelectionChanged.connect(self.get_aero_for_plotting)
         self.cb_w2gj = QtGui.QCheckBox('Color by W2GJ [deg]')
         self.cb_w2gj.setChecked(False)
-        self.cb_w2gj.stateChanged.connect(self.toggle_w2gj)
+        self.cb_w2gj.stateChanged.connect(self.get_aero_for_plotting)
         bt_aero_hide = QtGui.QPushButton('Hide')
         bt_aero_hide.clicked.connect(self.plotting.hide_aero)
         self.lb_MAC = QtGui.QLabel('MAC: x={:0.4f}, y={:0.4f} m'.format(0.0, 0.0))
@@ -251,7 +251,7 @@ class Modelviewer():
         bt_cfdgrid_hide.clicked.connect(self.plotting.hide_cfdgrids)
 
         layout_aero = QtGui.QVBoxLayout(tab_aero)
-        layout_aero.addWidget(bt_aero_show)
+        layout_aero.addWidget(self.list_aero)
         layout_aero.addWidget(self.lb_MAC)
         layout_aero.addWidget(self.lb_MAC2)
         layout_aero.addWidget(self.cb_w2gj)
@@ -474,11 +474,11 @@ class Modelviewer():
             self.plotting.plot_monstations(monstation_id)
             self.lb_monstation_coord.setText('Coord: {}'.format(self.model.mongrid['CD'][self.model.mongrid['name'].index(key)]))
             
-    def calc_MAC(self):
+    def calc_MAC(self, i_aero=0):
         # The mean aerodynamic center is calculated from the aerodynamics.
         # This approach includes also the downwash from wing on HTP.
         
-        Qjj = self.model.aero['Qjj'][0]
+        Qjj = self.model.aero['Qjj'][i_aero]
         # assume unit downwash
         Ujx1 = np.dot(self.model.Djx1,[0,0,1.0,0,0,0])
         wj = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1)
@@ -493,17 +493,21 @@ class Modelviewer():
         self.MAC[1] = self.model.macgrid['offset'][0,1] +  Pmac[3] / Pmac[2]        
         self.plotting.MAC = self.MAC
     
-    def toggle_w2gj(self):
-        self.lb_MAC.setText('MAC: x={:0.4f}, y={:0.4f} m'.format(self.MAC[0], self.MAC[1]))
-        self.lb_MAC2.setText('(based on AIC from "{}")'.format(self.model.aero['key'][0]))
-        if self.cb_w2gj.isChecked():
-            if self.plotting.show_aero:
-                self.plotting.hide_aero()
-            self.plotting.plot_aero(self.model.camber_twist['cam_rad']/np.pi*180.0)
-        else:
-            if self.plotting.show_aero:
-                self.plotting.hide_aero()
-            self.plotting.plot_aero()
+    def get_aero_for_plotting(self):
+         if self.list_aero.currentItem() is not None:
+            key = self.list_aero.currentItem().data(0)
+            i_aero = self.model.aero['key'].index(key)
+            self.calc_MAC(i_aero)
+            self.lb_MAC.setText('MAC: x={:0.4f}, y={:0.4f} m'.format(self.MAC[0], self.MAC[1]))
+            self.lb_MAC2.setText('(based on AIC from "{}", rigid, subsonic)'.format(self.model.aero['key'][i_aero]))
+            if self.cb_w2gj.isChecked():
+                if self.plotting.show_aero:
+                    self.plotting.hide_aero()
+                self.plotting.plot_aero(self.model.camber_twist['cam_rad']/np.pi*180.0)
+            else:
+                if self.plotting.show_aero:
+                    self.plotting.hide_aero()
+                self.plotting.plot_aero()
 
     def get_new_cs_for_plotting(self, *args):
         # To show a different control surface, new points need to be created. Thus, remove last control surface from plot.
@@ -585,6 +589,10 @@ class Modelviewer():
         for key in self.model.mass['key']:
             self.list_mass.addItem(QtGui.QListWidgetItem(key))
             self.list_modes_mass.addItem(QtGui.QListWidgetItem(key))
+        
+        self.list_aero.clear()
+        for key in self.model.aero['key']:
+            self.list_aero.addItem(QtGui.QListWidgetItem(key))
 
         self.list_cs.clear()
         for key in self.model.x2grid['key']:

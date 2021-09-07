@@ -10,7 +10,7 @@ import numpy as np
 import loadskernel.io_functions.specific_functions as specific_io
 from loadskernel import auxiliary_output
 from loadskernel import plotting_standard
-from loadskernel import kernel
+from loadskernel import program_flow
 
 class Merge:
     def __init__(self, path_input, path_output):
@@ -50,15 +50,15 @@ class Merge:
         for job_name in jobs_to_merge:
             logging.info('job:' + job_name)
             self.load_job(job_name)
-        self.update_fields()
+        self.find_common_monstations()
         
-    def update_fields(self):
-        keys = [list(monstations) for monstations in self.datasets['monstations']]
-        self.common_monstations = np.unique(keys)
+    def find_common_monstations(self):
+        keys = [monstations.keys() for monstations in self.datasets['monstations']]
+        self.common_monstations = sorted(list(set(keys[0]).intersection(*keys[1:])))
             
     def run_merge(self, job_name, jobs_to_merge):
            
-        k = kernel.Kernel(job_name, path_input=self.path_input, path_output=self.path_output)
+        k = program_flow.Kernel(job_name, path_input=self.path_input, path_output=self.path_output)
         k.setup()
         k.setup_logger()
         logging.info( 'Starting Loads Merge')
@@ -140,12 +140,12 @@ class Merge:
         aux_out.dyn2stat_data = dyn2stat_data
         aux_out.monstations = monstations
         
+        aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name + '.pickle') 
         aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + job_name + '.csv') 
         aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + job_name + '.bdf') 
-        aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name + '.pickle') 
     
 if __name__ == "__main__":
-    jobs_to_merge = ['jcl_HAP-O6-loop3_maneuver', 'jcl_HAP-O6-loop3_gust_unsteady_FMU', 'jcl_HAP-O6-loop3_landing', 'jcl_HAP-O6-loop3_prop']
+    jobs_to_merge = ['jcl_HAP-O6-loop7_maneuver', 'jcl_HAP-O6-loop7_gust_unsteady_FMU', 'jcl_HAP-O6-loop7_landing', 'jcl_HAP-O6-loop7_prop']
     m = Merge(path_input='/scratch/HAP_workingcopy/JCLs', path_output='/scratch/HAP_LoadsKernel')
-    m.run_merge('jcl_HAP-O6_merged_loop3b', jobs_to_merge)
+    m.run_merge('jcl_HAP-O6_merged_loop7', jobs_to_merge)
     
