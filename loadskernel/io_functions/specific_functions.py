@@ -48,7 +48,7 @@ def recursively_save_dict_to_hdf5(fid, dic, path=''):
     for key, item in dic.items():
         if isinstance(item, dict):
             recursively_save_dict_to_hdf5(fid, item, path=path+'/'+key)
-        elif isinstance(item, (np.ndarray, int, np.int64, np.float64)):
+        elif isinstance(item, (np.ndarray, int, np.number)):
             fid.create_dataset(path+'/'+key, data=item)
         elif isinstance(item, (str, list)):
             if isinstance(item, str) or any([isinstance(x, (str)) for x in item]):
