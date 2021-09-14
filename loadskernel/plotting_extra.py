@@ -83,7 +83,7 @@ class DetailedPlots(plotting_standard.LoadPlots):
             i_atmo = self.model.atmo['key'].index(trimcase['altitude'])
             rho = self.model.atmo['rho'][i_atmo]
             Vtas = trimcase['Ma'] * self.model.atmo['a'][i_atmo]
-            F = Pk[self.model.aerogrid['set_k'][:,2]] # * -1.0
+            F = Pk[0,self.model.aerogrid['set_k'][:,2]] # * -1.0
             cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
             ax = self.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r',)# -0.5, 0.5)
             ax.set_title('Cp for {:s}'.format(trimcase['desc']))
