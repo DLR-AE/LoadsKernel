@@ -202,7 +202,13 @@ class Common():
         return Pk, wj
     
     def camber_twist(self, q_dyn):
-        wj = np.sin(self.model.camber_twist['cam_rad'] )
+        """
+        Multiplication with the sign of the z-direction of the panel normal vector ensures compatibility 
+        with aerodynamic models that are NOT constructed from the left to the right. However, this is not 
+        the ultimate solution, because it will fail for vertical surfaces with camber + twist. Fortunately, I can't 
+        think of any twisted vertical tail or a vertical tail has a cambered airfoil. 
+        """
+        wj = np.sin(self.model.camber_twist['cam_rad']) * np.sign(self.model.aerogrid['N'][:,2])
         Pk = self.calc_Pk(q_dyn, wj)
         return Pk, wj
     
