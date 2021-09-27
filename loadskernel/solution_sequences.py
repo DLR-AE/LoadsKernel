@@ -295,7 +295,7 @@ class SolutionSequences(TrimConditions):
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
         n_modes = self.model.mass['n_modes'][i_mass]
         
-        for i_mode in range(n_modes):
+        for i_mode in range(1, n_modes+1):
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],1] = 'fix'
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
             self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
