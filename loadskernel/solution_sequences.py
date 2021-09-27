@@ -17,6 +17,7 @@ from loadskernel.equations.cfd_steady import CfdSteady
 from loadskernel.equations.nonlin_steady import NonlinSteady
 from loadskernel.equations.unsteady   import Unsteady
 from loadskernel.equations.landing    import Landing
+from loadskernel.equations.common     import TauError, ConvergenceError
 from loadskernel.equations.frequency_domain import GustExcitation
 from loadskernel.equations.frequency_domain import TurbulenceExcitation, LimitTurbulence
 from loadskernel.equations.frequency_domain import KMethod
@@ -309,12 +310,12 @@ class SolutionSequences(TrimConditions):
             logging.info('running trim for ' + str(len(xfree_0)) + ' variables...')
             try:
                 xfree, info, status, msg= so.fsolve(equations.eval_equations_iteratively, xfree_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-3, xtol=1.0e-3 )
-            except Common.TauError as e:
+            except TauError as e:
                 self.response = {}
                 self.successful = False
                 logging.warning('SolutionSequences failed for subcase {} due to TauError: {}'.format(self.trimcase['subcase'], e))
                 return
-            except Common.ConvergenceError as e:
+            except ConvergenceError as e:
                 self.response = {}
                 self.successful = False
                 logging.warning('SolutionSequences failed for subcase {} due to ConvergenceError: {}'.format(self.trimcase['subcase'], e))
