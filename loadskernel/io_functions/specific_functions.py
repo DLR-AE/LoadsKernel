@@ -77,8 +77,14 @@ def load_jcl(job_name, path_input, jcl):
     if jcl == None:
         logging.info( '--> Reading parameters from JCL.')
         # import jcl dynamically by filename
-        spec = importlib.util.spec_from_file_location('jcl', os.path.join(path_input, job_name+'.py' ))
-        jcl_modul = spec.loader.load_module()
+        if sys.version_info[0] < 3:
+            # This is the old way used in Python 2
+            import imp
+            jcl_modul = imp.load_source('jcl', path_input + job_name + '.py')
+        else: 
+            # this is the newer way used in Python 3
+            spec = importlib.util.spec_from_file_location('jcl', os.path.join(path_input, job_name+'.py' ))
+            jcl_modul = spec.loader.load_module()
         jcl = jcl_modul.jcl() 
     # small check for completeness
     attributes = ['general', 'efcs', 'geom', 'aero', 'spline', 'mass', 'atmo', 'trimcase', 'simcase']
