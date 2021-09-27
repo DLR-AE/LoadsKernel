@@ -7,7 +7,7 @@ Created on Wed May  6 20:12:08 2015
 
 import numpy as np
 import scipy.sparse as sp
-from loadskernel import spline_functions
+import loadskernel.spline_functions
 
 def grid_trafo(grid, coord, dest_coord):
     
@@ -60,12 +60,12 @@ def calc_transformation_matrix(coord, grid_i, set_i, coord_i, grid_d, set_d, coo
     T_i = sp.lil_matrix((dimensions_i,dimensions_i))
     for i_i in range(len(grid_i['ID'])):
         pos_coord_i = coord['ID'].index(grid_i[coord_i][i_i])
-        T_i = spline_functions.sparse_insert( T_i, coord['dircos'][pos_coord_i], grid_i['set'+set_i][i_i,0:3], grid_i['set'+set_i][i_i,0:3] )
-        T_i = spline_functions.sparse_insert( T_i, coord['dircos'][pos_coord_i], grid_i['set'+set_i][i_i,3:6], grid_i['set'+set_i][i_i,3:6] )
+        T_i = loadskernel.spline_functions.sparse_insert( T_i, coord['dircos'][pos_coord_i], grid_i['set'+set_i][i_i,0:3], grid_i['set'+set_i][i_i,0:3] )
+        T_i = loadskernel.spline_functions.sparse_insert( T_i, coord['dircos'][pos_coord_i], grid_i['set'+set_i][i_i,3:6], grid_i['set'+set_i][i_i,3:6] )
         
     T_d = sp.lil_matrix((dimensions_d,dimensions_d))
     for i_d in range(len(grid_d['ID'])):
         pos_coord_d = coord['ID'].index(grid_d[coord_d][i_d])
-        T_d = spline_functions.sparse_insert( T_d, coord['dircos'][pos_coord_d], grid_d['set'+set_d][i_d,0:3], grid_d['set'+set_d][i_d,0:3] )
-        T_d = spline_functions.sparse_insert( T_d, coord['dircos'][pos_coord_d], grid_d['set'+set_d][i_d,3:6], grid_d['set'+set_d][i_d,3:6] )
+        T_d = loadskernel.spline_functions.sparse_insert( T_d, coord['dircos'][pos_coord_d], grid_d['set'+set_d][i_d,0:3], grid_d['set'+set_d][i_d,0:3] )
+        T_d = loadskernel.spline_functions.sparse_insert( T_d, coord['dircos'][pos_coord_d], grid_d['set'+set_d][i_d,3:6], grid_d['set'+set_d][i_d,3:6] )
     return T_i, T_d
