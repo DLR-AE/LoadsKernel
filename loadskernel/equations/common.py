@@ -12,9 +12,6 @@ from loadskernel.solution_tools import *
 import loadskernel.meshdefo as meshdefo
 import loadskernel.efcs as efcs
 
-import PyPara
-from tau_python import tau_parallel_end, tau_close
-
 class Common():
     def __init__(self, solution, X0='', simcase=''):
         logging.info('Init model equations of type "{}"'.format(self.__class__.__name__))
@@ -68,7 +65,7 @@ class Common():
             self.hingeline = 'y'
  
         # import aircraft-specific class from efcs.py dynamically 
-        if 'path' in self.jcl.efcs and sys.version_info[0] > 3:
+        if 'path' in self.jcl.efcs and sys.version_info[0] >= 3:
             # If a path is specified, import module from that path.
             spec = importlib.util.spec_from_file_location(self.jcl.efcs['version'], os.path.join(self.jcl.efcs['path'], self.jcl.efcs['version']+'.py' ))
             efcs_module = spec.loader.load_module()
@@ -87,6 +84,17 @@ class Common():
             self.PHIcfd_strc = self.model.PHIcfd_strc
             self.PHIcfd_cg   = self.model.mass['PHIcfd_cg'][self.i_mass] 
             self.PHIcfd_f    = self.model.mass['PHIcfd_f'][self.i_mass] 
+            """
+            Technically, Tau-Python works with both Python 2 and 3. However, the Tau versions on our 
+            linux cluster and on marvinng are compiled with Python 2 and don't work with Python 3. 
+            With the wrong Python version, an error is raised already during the import, which is 
+            handled by the try/except statement below.
+            """
+            try:
+                import PyPara
+                from tau_python import tau_parallel_end, tau_close
+            except:
+                logging.error('Tau-Python could NOT be imported! Model equations of type "{}" will NOT work.'.format(self.jcl.aero['method']))
         
         # set-up 1-cos gust   
         # Vtas aus solution condition berechnen
