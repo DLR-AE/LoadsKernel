@@ -35,6 +35,8 @@ class CfdSteady(Steady):
         Pk_idrag    = Pk_rbm*0.0
         Pk_unsteady = Pk_rbm*0.0 
         
+        Pextra, Pb_ext, Pf_ext = self.engine(X)
+        
         # -------------------------------  
         # --- correction coefficients ---   
         # -------------------------------
@@ -45,7 +47,7 @@ class CfdSteady(Steady):
         # ---------------------------
         Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero)
-        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + np.dot(self.PHIcfd_cg.T, Pcfd)
+        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + Pb_ext + np.dot(self.PHIcfd_cg.T, Pcfd)
         
         g_cg = gravitation_on_earth(self.PHInorm_cg, Tgeo2body)
                
@@ -53,7 +55,7 @@ class CfdSteady(Steady):
         # --- EoM ---   
         # -----------
         d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg, modus)
-        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) + np.dot(self.PHIcfd_f.T, Pcfd)
+        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) + Pf_ext + np.dot(self.PHIcfd_f.T, Pcfd)
         d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
         
         # ----------------------
