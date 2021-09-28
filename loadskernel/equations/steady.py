@@ -236,12 +236,12 @@ class Steady(Common):
 
             # recover Uf_old from last step and blend with Uf_now
             f_relax = 0.8
-            Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(n_modes)]
+            Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(1, n_modes+1)]
             Uf_old = np.array(Uf_old, dtype='float')
             Uf_new = Uf_new*f_relax + Uf_old*(1.0-f_relax)
 
             # set new values for Uf in trimcond for next loop and store in response
-            for i_mode in range(n_modes):
+            for i_mode in range(1, n_modes+1):
                 self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] = '{:g}'.format(Uf_new[i_mode])
                 response['X'][12+i_mode] = Uf_new[i_mode]
             
