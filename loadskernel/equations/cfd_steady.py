@@ -106,6 +106,7 @@ class CfdSteady(Steady):
                         'Nxyz': Nxyz,
                         'g_cg': g_cg,
                         'Pextra': Pextra,
+                        'Pcfd': Pcfd,
                        }
             return response        
         
