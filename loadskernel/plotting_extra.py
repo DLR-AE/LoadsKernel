@@ -381,9 +381,9 @@ class Animations(plotting_standard.LoadPlots):
         set = ''
         
         # get deformations
-        self.x = grid['offset'+set][:,0] + response['Ug'][:,grid['set'+set][:,0]]
-        self.y = grid['offset'+set][:,1] + response['Ug'][:,grid['set'+set][:,1]]
-        self.z = grid['offset'+set][:,2] + response['Ug'][:,grid['set'+set][:,2]]
+        self.x = grid['offset'+set][:,0] + response['Ug'][:][:,grid['set'+set][:,0]]
+        self.y = grid['offset'+set][:,1] + response['Ug'][:][:,grid['set'+set][:,1]]
+        self.z = grid['offset'+set][:,2] + response['Ug'][:][:,grid['set'+set][:,2]]
         self.color_scalar = np.linalg.norm(response['Ug_f'][:][:,grid['set'+set][:,(0,1,2)]], axis=2)
         
         # get forces
