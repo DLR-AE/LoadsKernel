@@ -4,16 +4,24 @@ Created on Aug 2, 2019
 @author: voss_ar
 '''
 import numpy as np
-import importlib, logging, os, subprocess, shlex
+import importlib, logging, os, subprocess, shlex, sys
 from scipy import interpolate, linalg
 import scipy.io.netcdf as netcdf
 
 from loadskernel.solution_tools import * 
 import loadskernel.meshdefo as meshdefo
 import loadskernel.efcs as efcs
-
-#import PyTauModuleInit, PyPara, PyDeform, PyPrep, PySolv
-#from tau_python import *
+"""
+Technically, Tau-Python works with both Python 2 and 3. However, the Tau versions on our 
+linux cluster and on marvinng are compiled with Python 2 and don't work with Python 3. 
+With the wrong Python version, an error is raised already during the import, which is 
+handled by the try/except statement below.
+"""
+try:
+    import PyPara
+    from tau_python import tau_parallel_end, tau_close
+except:
+    pass
 
 class Common():
     def __init__(self, solution, X0='', simcase=''):
@@ -68,10 +76,13 @@ class Common():
             self.hingeline = 'y'
  
         # import aircraft-specific class from efcs.py dynamically 
-        if 'path' in self.jcl.efcs:
+        if 'path' in self.jcl.efcs and sys.version_info[0] >= 3:
             # If a path is specified, import module from that path.
             spec = importlib.util.spec_from_file_location(self.jcl.efcs['version'], os.path.join(self.jcl.efcs['path'], self.jcl.efcs['version']+'.py' ))
             efcs_module = spec.loader.load_module()
+        elif 'path' in self.jcl.efcs and sys.version_info[0] < 3:
+            import imp
+            efcs_module = imp.load_source(self.jcl.efcs['version'], os.path.join(self.jcl.efcs['path'], self.jcl.efcs['version']+'.py' ))
         else: 
             # Use the 'old' way, where the EFCS is stored in the program code.
             efcs_module = importlib.import_module('loadskernel.efcs.'+self.jcl.efcs['version'])
@@ -84,6 +95,9 @@ class Common():
             self.PHIcfd_strc = self.model.PHIcfd_strc
             self.PHIcfd_cg   = self.model.mass['PHIcfd_cg'][self.i_mass] 
             self.PHIcfd_f    = self.model.mass['PHIcfd_f'][self.i_mass] 
+            # Check if Tau-Python was imported successfully, see try/except statement in the import section.
+            if "PyPara" not in sys.modules:
+                logging.error('Tau-Python was/could NOT be imported! Model equations of type "{}" will NOT work.'.format(self.jcl.aero['method']))
         
         # set-up 1-cos gust   
         # Vtas aus solution condition berechnen
