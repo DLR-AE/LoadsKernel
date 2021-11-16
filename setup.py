@@ -30,12 +30,14 @@ def my_setup():
                             'traits', 
                             'traitsui', 
                             'pyface', 
+                            'pyqt5',
                             'pyiges @ git+https://github.com/pyvista/pyiges.git',
                             'numpy',
                             'scipy',
                             'psutil',
                             'pyfmi',
                             'h5py',
+                            'tables',
                             ],
           )
 
