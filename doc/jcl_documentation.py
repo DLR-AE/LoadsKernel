@@ -108,6 +108,19 @@ class jcl:
                       'rotation_vector': [[-1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]], # body coordinate system
                       'rotation_inertia': [1.613, 1.613], # Nms^2 
                      }
+        # This section controls the automatic plotting and selection of dimensioning load cases. 
+        # Simply put a list of names of the monitoring stations (e.g. ['MON1', 'MON2',...]) into the dictionary 
+        # of possible load plots listed below. This will generate a pdf document and nastran force and moment 
+        # cards for the dimensioning load cases. 
+        self.loadplots = {
+                          'potatos_fz_mx': ['MON5'],
+                          'potatos_mx_my': ['MON1', 'MON2', 'MON3', 'MON4', 'MON334'],
+                          'potatos_fz_my': [],
+                          'potatos_fy_mx': [],
+                          'potatos_mx_mz': ['MON324'],
+                          'potatos_my_mz': [],
+                          'cuttingforces_wing': ['MON1', 'MON2', 'MON3', 'MON4'],
+                          }
                       
         self.trimcase = [{'desc': 'CC.BFDM.OVCFL000.Vergleichsfall53', # description of maneuver case, e.g. according to G. Pinho Chiozzotto, "Kriterien fuer die Erstellung eines Lastenkatalogs," Institute of Aeroelasticity, iLOADs MS1.2, Feb. 2014.
                           'maneuver': '',       # blank for trim about all three axes, for more trim conditions see trim_conditions.py
