@@ -8,7 +8,7 @@ import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
 
 class meshdefo:
-    def  __init__(self, jcl, model, plotting=True):
+    def  __init__(self, jcl, model, plotting=False):
         self.jcl        = jcl
         self.model      = model
         self.cfdgrids   = model.cfdgrids
