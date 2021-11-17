@@ -65,38 +65,16 @@ def spline_nastran(filename, strcgrid, aerogrid):
             
     return PHI
 
-
-def spline_rbf(grid_i,  set_i,  grid_d, set_d, rbf_type='tps', surface_spline=False, dimensions='', ):
-
-    cl_rbf = rbf(grid_i['offset'+set_i].T, grid_d['offset'+set_d].T, rbf_type, surface_spline) 
-    cl_rbf.build_M()
-    cl_rbf.build_splinematrix()
-    if surface_spline:
-        PHI_tmp = cl_rbf.H[:,3:]
-    else:
-        PHI_tmp = cl_rbf.H[:,4:]
-    # obige Matrix gilt fuer Verschiebung eines DOF
-    # PHI soll aber alle 6 DOFs verschieben!
-    # Hier koennte auch eine sparse-Matrix genommen werden...
-    
-    # Here, the size of the splining matrix is determined. One might want the matrix to be bigger than actually needed.
-    # One example might be the multiplication of the (smaller) x2grid with the (larger) AIC matrix.
-    if dimensions != '' and len(dimensions) == 2:
-        dimensions_i = dimensions[0]
-        dimensions_d = dimensions[1]
-    else:
-        dimensions_i = 6*len(grid_i['set'+set_i])
-        dimensions_d = 6*len(grid_d['set'+set_d])
-    logging.debug(' - expanding spline matrix to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i))
-    PHI = sp.coo_matrix((dimensions_d , dimensions_i))
-    PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,0], grid_i['set'+set_i][:,0])
-    PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])
-    PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,2], grid_i['set'+set_i][:,2])
-#     PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,3], grid_i['set'+set_i][:,3])
-#     PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,4], grid_i['set'+set_i][:,4])
-#     PHI = sparse_insert_coo(PHI, PHI_tmp, grid_d['set'+set_d][:,5], grid_i['set'+set_i][:,5])
-    logging.debug(' - splining done.')
-    return PHI.tobsr() # better sparse format
+def sparse_insert(sparsematrix, submatrix, idx1, idx2):
+    # For sparse matrices, "fancy indexing" is not supported / not implemented as of 2014
+    # -> the items of a submatrix have to be inserted into the main martix item by item
+    # This takes some time, but it is faster for large numbers of DOFs (say >10,000) as 
+    # matrix multiplication is faster and memory consumption is much (!!!) lower. 
+    for id1 in range(np.shape(submatrix)[0]):
+        for id2 in range(np.shape(submatrix)[1]):
+            if submatrix[id1,id2] != 0.0:
+                sparsematrix[ idx1[id1], idx2[id2] ] = submatrix[id1,id2]
+    return sparsematrix 
 
 def sparse_insert_coo(sparsematrix, submatrix, idx1, idx2):
     # For sparse matrices, "fancy indexing" is not supported / not implemented as of 2017
@@ -107,26 +85,60 @@ def sparse_insert_coo(sparsematrix, submatrix, idx1, idx2):
     sparsematrix.data = np.concatenate(( sparsematrix.data, submatrix.reshape(-1) ))
     return sparsematrix
 
-class rbf:
+def spline_rbf(grid_i,  set_i,  grid_d, set_d, 
+               rbf_type='tps', surface_spline=False,
+               dimensions='', support_radius=2.0):
+    """
+    This is a convenience function that wraps the Spline_rbf class and returns the spline matrix PHI.
+    """
+    rbf = Spline_rbf(grid_i['offset'+set_i].T, grid_d['offset'+set_d].T, rbf_type, surface_spline, support_radius) 
+    rbf.build_M()
+    rbf.build_BC()
+    rbf.build_splinematrix()
+    rbf.expand_splinematrix(grid_i,  set_i,  grid_d, set_d, dimensions)
+    return rbf.PHI_expanded
+
+class Spline_rbf:
+
+    def __init__(self, nodes_fe, nodes_cfd, rbf_type, surface_spline, support_radius):
+        """
+        This class organizes the calculation of the spline matrix in four steps:
+        1. build_M()
+        2. build_BC()
+        3. build_splinematrix()
+        4. expand_splinematrix()
+        """
+        self.surface_spline = surface_spline
+        self.rbf_type = rbf_type
+        self.rbf_type = 'wendland2'
+        self.R = support_radius
+        if self.surface_spline:
+            logging.debug('Using surface formulation (2D xy surface)')
+            self.nodes_cfd = nodes_cfd[0:2,:]
+            self.nodes_fe = nodes_fe[0:2,:]
+            self.n = 3
+        else:
+            logging.debug('Using volume formulation (3D)')
+            self.nodes_cfd = nodes_cfd
+            self.nodes_fe = nodes_fe
+            self.n = 4
+        self.n_fe = nodes_fe.shape[1]
+        self.n_cfd = self.nodes_cfd.shape[1]
+        logging.info('Splining (rbf) of {:.0f} points to {:.0f} points...'.format(self.n_cfd , self.n_fe))
 
     def build_M(self):
         # Nomenklatur nach Neumann & Krueger
         logging.debug(' - building M')
-        if self.surface_spline:
-            self.A = np.vstack((np.ones(self.n_fe),self.nodes_fe[0:2,:]))
-        else:
-            self.A = np.vstack((np.ones(self.n_fe),self.nodes_fe))
-        self.phi = np.zeros((self.n_fe, self.n_fe))
+        self.A = np.vstack((np.ones(self.n_fe),self.nodes_fe))
+        phi = np.zeros((self.n_fe, self.n_fe))
         for i in range(self.n_fe):
             #for j in range(i+1):
                 #r_ij = np.linalg.norm(self.nodes_fe[:,i] - self.nodes_fe[:,j])
             r_ii_vec = self.nodes_fe[:,:i+1] - np.tile(self.nodes_fe[:,i],(i+1,1)).T
             r_ii = np.sum(r_ii_vec**2, axis=0)**0.5
-            rbf_values = rbf.eval_rbf(self, r_ii)
-            #self.phi.itemset((i,:i+1),rbf_values)
-            #self.phi.itemset((:i+1,i),rbf_values)
-            self.phi[i,:i+1] = rbf_values
-            self.phi[:i+1,i] = rbf_values
+            rbf_values = self.eval_rbf(r_ii)
+            phi[i,:i+1] = rbf_values
+            phi[:i+1,i] = rbf_values
                 
         # Gleichungssystem aufstellen und loesen
         # M * ab = rechte_seite
@@ -134,81 +146,105 @@ class rbf:
         # A' phi   b   y
         
         # linke Seite basteln
-        M1 = np.hstack((np.zeros((self.A.shape[0],self.A.shape[0])) , self.A))
-        M2 = np.hstack(( self.A.transpose(), self.phi))
+        M1 = np.hstack((np.zeros((self.n,self.n)) , self.A))
+        M2 = np.hstack(( self.A.transpose(), phi))
         self.M = np.vstack((M1, M2))
 
-    def build_splinematrix(self):
+    def build_BC(self):
         # Nomenklatur nach Neumann & Krueger
         logging.debug(' - building B and C')
-        if self.surface_spline:
-            self.B = np.vstack((np.ones(self.n_cfd),self.nodes_cfd[0:2,:]))
-        else:
-            self.B = np.vstack((np.ones(self.n_cfd),self.nodes_cfd))
-        self.C = np.zeros((self.n_fe, self.n_cfd))
+        B = np.vstack((np.ones(self.n_cfd),self.nodes_cfd))
+        C = np.zeros((self.n_fe, self.n_cfd))
         for i in range(self.n_fe):
-            #for j in range(self.n_cfd):
-                #r_ij = np.linalg.norm(self.nodes_fe[:,i] - self.nodes_cfd[:,j])
             r_ij_vec = np.tile(self.nodes_fe[:,i], (self.n_cfd,1)).T - self.nodes_cfd[:,:] 
             r_ij = np.sum(r_ij_vec**2, axis=0)**0.5
-            rbf_values = rbf.eval_rbf(self, r_ij)
-            #self.C.itemset((i,j),rbf_value)
-            self.C[i,:] = rbf_values
-        self.BC = np.vstack((self.B, self.C))
-        
-        # t_start = time.time()
-        # print 'inverting M'
-        # M_inv = np.linalg.inv(self.M)
-        # print 'calculating H'
-        # self.H = np.dot(self.BC.T, M_inv)
-        # print str(time.time() - t_start) + 'sec'
-        
+            rbf_values = self.eval_rbf(r_ij)
+            C[i,:] = rbf_values
+        self.BC = np.vstack((B, C))
+    
+    def build_splinematrix(self):
+        """
+        Now that the system of equations is set-up, we can work on the solution.
+        Note 1: Instead of calculating the inverse of M, we solve the system, which 
+        can be faster.
+        Note 2: In PyCSM_CouplingMatrix_3D.py by Jens Neumann a slightly different 
+        approach is used by first reducing the system size (M * E) and the solving 
+        the system. However, this requires two more matrix multiplications and showed 
+        no advantages in terms of speed, so I decided to stay with my formulation.
+        Note 3: The results are numerically equivalent (using np.allclose(self.PHI, self.G))
+        to results obtained with PyCSM_CouplingMatrix_3D.py.
+        """
+        # solve the system
         t_start = time.time()
         logging.debug(' - solving M*H=BC for H')
-        self.H= scipy.linalg.solve(self.M, self.BC).T 
+        H = scipy.linalg.solve(self.M, self.BC).T 
         logging.debug(' - done in {:.2f} sec'.format(time.time() - t_start))
-        
-        
+        # finally, extract the complete splining matrix PHI from H
+        self.PHI = H[:,self.n:]
+    
+    def expand_splinematrix(self, grid_i,  set_i,  grid_d, set_d, dimensions):
+        """
+        This functions does three things:
+        a) The spline matrix applies to all three translational degrees of freedom.
+        b) The size of the splining matrix is expanded as one might want the matrix to be 
+        bigger than actually needed. One example might be the multiplication of the (smaller) 
+        x2grid with the (larger) AIC matrix.
+        c) Because the spline matrix can contain many zeros, a sparse matrix might be a better 
+        choice compared to a full numpy array. 
+        """
+        if dimensions != '' and len(dimensions) == 2:
+            dimensions_i = dimensions[0]
+            dimensions_d = dimensions[1]
+        else:
+            dimensions_i = 6*len(grid_i['set'+set_i])
+            dimensions_d = 6*len(grid_d['set'+set_d])
+        logging.debug(' - expanding spline matrix to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i))
+        # coo sparse matrices are good for inserting new data
+        PHI_coo = sp.coo_matrix((dimensions_d , dimensions_i))
+        PHI_coo = sparse_insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,0], grid_i['set'+set_i][:,0])
+        PHI_coo = sparse_insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])
+        PHI_coo = sparse_insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,2], grid_i['set'+set_i][:,2])
+        # better sparse format than coo
+        self.PHI_expanded = PHI_coo.tobsr() 
+                
     def eval_rbf(self, r):
-        if self.rbf_type == 'gauss':
-            const = 10.0
-            return np.exp(-(const*r)**2)
             
         if self.rbf_type == 'linear':
             return r
             
         if self.rbf_type == 'tps':
-#            # sigularitaet bei r = 0 vermeiden
-            return r**2 * np.log(r+1e-6)
+            """
+            See Harder, R. L., and Desmarais, R. N., “Interpolation using 
+            surface splines.,” Journal of Aircraft, vol. 9, no. 2, pp. 189–191, 
+            Feb. 1972, https://doi.org/10.2514/3.44330.
+            """
+            rbf = r**2 * np.log(r**2)
+            # Fix singularity when r = 0.0
+            rbf[r==0.0] = 0.0
+            return rbf
         
-        if self.rbf_type == 'wendlandC0':
-            return (1-r)**2
+        if self.rbf_type == 'wendland1':
+            """
+            See section 4.1.2 in Neumann, J., “Identifikation radialer Basisfunktionen zur 
+            räumlichen Strömungs-Struktur-Kopplung unter Berücksichtigung des Interpolations- 
+            und des Lasttransformationsfehlers,” Institute of Aeroelasticity, Göttingen, Germany, 
+            Internal Report DLR IB 232-2008 J 01, 2008.
+            """
+            rbf = np.zeros(r.shape)
+            pos = r <= self.R
+            rbf[pos] = (1.0-r[pos]/self.R)**2
+            return rbf
         
-        if self.rbf_type == 'wendlandC2':
-            return (1-r)**4 + (4*r+1)
+        if self.rbf_type == 'wendland2':
+            rbf = np.zeros(r.shape)
+            pos = r <= self.R
+            rbf[pos] = (1.0-r[pos]/self.R)**4 * (4.0*r[pos]/self.R + 1.0)
+            return rbf
         
         else:
             logging.error('Unkown Radial Basis Function!')
-            
-    def __init__(self, nodes_fe, nodes_cfd, rbf_type, surface_spline):
-        self.nodes_cfd = nodes_cfd
-        self.nodes_fe = nodes_fe
-        self.n_fe = nodes_fe.shape[1]
-        self.n_cfd = self.nodes_cfd.shape[1]
-        self.rbf_type = rbf_type
-        self.surface_spline = surface_spline
-        logging.info('Splining (rbf) of {:.0f} points to {:.0f} points...'.format(self.n_cfd , self.n_fe))
-        if self.surface_spline:
-            logging.debug('Using surface formulation (2D xy surface)')
-        else:
-            logging.debug('Using volume formulation (3D)')
 
-# Assumptions: 
-# - grids have 6 dof
 
-# Usage of sparse matrices from scipy.sparse:
-# http://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.sparse.lil_matrix.html
-# lil_matrix((M, N)) is recommended as "an efficient structure for constructing sparse matrices incrementally".
 
 def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='', sparse_output=False):
     
@@ -271,14 +307,3 @@ def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='',
         return splinematrix.tocsc() # better sparse format than lil_matrix
     else:
         return splinematrix.toarray() 
-
-def sparse_insert(sparsematrix, submatrix, idx1, idx2):
-    # For sparse matrices, "fancy indexing" is not supported / not implemented as of 2014
-    # -> the items of a submatrix have to be inserted into the main martix item by item
-    # This takes some time, but it is faster for large numbers of DOFs (say >10,000) as 
-    # matrix multiplication is faster and memory consumption is much (!!!) lower. 
-    for id1 in range(np.shape(submatrix)[0]):
-        for id2 in range(np.shape(submatrix)[1]):
-            if submatrix[id1,id2] != 0.0:
-                sparsematrix[ idx1[id1], idx2[id2] ] = submatrix[id1,id2]
-    return sparsematrix 
