@@ -12,68 +12,57 @@ from mpl_toolkits.mplot3d import axes3d
 from matplotlib import animation
 import os, logging, pickle
 from PIL.ImageColor import colormap
+from mayavi import mlab
+from tvtk.api import tvtk
+from mayavi.sources.utils import has_attributes
 
 from loadskernel import plotting_standard
 import loadskernel.io_functions as io_functions
 
 class DetailedPlots(plotting_standard.LoadPlots):
     
-    def plot_aerogrid(self, aerogrid, cp = '', colormap = 'jet', value_min = '', value_max = ''):
-        # This function plots aerogrids as used in the Loads Kernel
-        # - By default, the panales are plotted as a wireframe.
-        # - If a pressure distribution (or any numpy array with n values) is given, 
-        #   the panels are colored according to this value.
-        # - It is possible to give a min and max value for the color distirbution, 
-        #   which is useful to compare severeal plots.  
+    def plot_aerogrid(self, scalars=None, colormap='plasma', value_min='', value_max=''):
+        # create the unstructured grid 
+        points = self.model.aerogrid['cornerpoint_grids'][:,(1,2,3)]
+        ug = tvtk.UnstructuredGrid(points=points)
+        shells = []
+        for shell in self.model.aerogrid['cornerpoint_panels']: 
+            shells.append([np.where(self.model.aerogrid['cornerpoint_grids'][:,0]==id)[0][0] for id in shell])
+        shell_type = tvtk.Polygon().cell_type
+        ug.set_cells(shell_type, shells)
+        ug.cell_data.scalars = scalars
         
-        if len(cp) == aerogrid['n']:
-            colors = plt.cm.get_cmap(name=colormap)  
+        # hand over unstructured grid to mayavi
+        fig = mlab.figure(bgcolor=(1,1,1))
+        src_aerogrid = mlab.pipeline.add_dataset(ug)
+        
+        # determine if suitable scalar data is given
+        if len(scalars) == self.model.aerogrid['n']:
+            # determine an upper and lower limit of the colorbar, if not given
             if value_min == '':
-                value_min = cp.min()
+                value_min = scalars.min()
             if value_max == '':
-                value_max = cp.max()   
-    
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        # plot evry panel seperatly
-        # (plotting all at once is much more complicated!)
-        for i_panel in range(aerogrid['n']):
-            # construct matrices xx, yy and zz from cornerpoints for each panale
-            point0 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel][0],1:]
-            point1 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel][1],1:]
-            point2 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel][2],1:]
-            point3 =  aerogrid['cornerpoint_grids'][aerogrid['cornerpoint_grids'][:,0] == aerogrid['cornerpoint_panels'][i_panel][3],1:]
-            xx = np.array(([point0[0,0], point1[0,0]], [point3[0,0], point2[0,0]]))
-            yy = np.array(([point0[0,1], point1[0,1]], [point3[0,1], point2[0,1]]))
-            zz = np.array(([point0[0,2], point1[0,2]], [point3[0,2], point2[0,2]]))
-            # determine the color of the panel according to pressure coefficient
-            # (by default, panels are colored according to its z-component)
-            if len(cp) == aerogrid['n']:
-                color_i = colors(np.int(np.round( colors.N / (value_max - value_min ) * (cp[i_panel] - value_min ) )))
-                ax.plot_surface(xx, yy, zz, rstride=1, cstride=1, linewidth=0.5, edgecolor='black', color=color_i, shade=False )
-            else:
-                ax.plot_wireframe(xx, yy, zz, rstride=1, cstride=1, color='black')
+                value_max = scalars.max()
+            surface = mlab.pipeline.surface(src_aerogrid, opacity=1.0, line_width=0.5, colormap=colormap, vmin=value_min, vmax=value_max)
+            surface.actor.mapper.scalar_visibility=True
+            self.add_colorbar(surface)
+        else:
+            surface = mlab.pipeline.surface(src_aerogrid, opacity=1.0, line_width=0.5)
+            surface.actor.mapper.scalar_visibility=False 
+        surface.actor.property.edge_visibility=True
+        mlab.show()
         
-        X,Y,Z = aerogrid['cornerpoint_grids'][:,1], aerogrid['cornerpoint_grids'][:,2], aerogrid['cornerpoint_grids'][:,3]
-        # Create cubic bounding box to simulate equal aspect ratio
-        # see http://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to
-        max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max() / 2.0
-        mid_x = (X.max()+X.min()) * 0.5
-        mid_y = (Y.max()+Y.min()) * 0.5
-        mid_z = (Z.max()+Z.min()) * 0.5
-        ax.set_xlim(mid_x - max_range, mid_x + max_range)
-        ax.set_ylim(mid_y - max_range, mid_y + max_range)
-        ax.set_zlim(mid_z - max_range, mid_z + max_range)
-       
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-        ax.view_init(elev=30.0, azim=-120.0) 
-        if len(cp) == aerogrid['n']:
-            fig.colorbar(plt.cm.ScalarMappable(cmap=colors, norm=plt.cm.colors.Normalize(value_min, value_max)), ax=ax)
-        fig.tight_layout()
-        
-        return ax
+    def add_colorbar(self, pipeline):
+        cbar = mlab.colorbar(pipeline, title='dCp', orientation='vertical')
+        cbar._label_text_property.color=(0,0,0)
+        cbar._label_text_property.font_family='times'
+        cbar._label_text_property.bold=False
+        cbar._label_text_property.italic=False
+        cbar._title_text_property.color=(0,0,0)
+        cbar._title_text_property.font_family='times'
+        cbar._title_text_property.bold=False
+        cbar._title_text_property.italic=False
+        cbar.number_of_labels=5
 
     def plot_pressure_distribution(self):
         for response in self.responses:
@@ -84,10 +73,8 @@ class DetailedPlots(plotting_standard.LoadPlots):
             rho = self.model.atmo['rho'][i_atmo]
             Vtas = trimcase['Ma'] * self.model.atmo['a'][i_atmo]
             F = Pk[0,self.model.aerogrid['set_k'][:,2]] # * -1.0
-            cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']
-            ax = self.plot_aerogrid(self.model.aerogrid, cp, 'viridis_r',)# -0.5, 0.5)
-            ax.set_title('Cp for {:s}'.format(trimcase['desc']))
-            plt.show()
+            cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']            
+            self.plot_aerogrid(cp)
             
     def plot_time_data(self):
         # Create all plots
