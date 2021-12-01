@@ -664,21 +664,19 @@ class Common():
     def tau_update_para(self, uvwpqr):
         Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))   
         # Para.update(para_dict, block_key, block_id, key, key_value, sub_file, para_replace)
-             
-        # general parameters
-        para_dict = {'Reference Mach number': self.trimcase['Ma'],
-                     'Reference temperature': self.model.atmo['T'][self.i_atmo],
-                     'Reference density': self.model.atmo['rho'][self.i_atmo],
-                     'Number of domains': self.jcl.aero['tau_cores'],
-                     'Number of primary grid domains': self.jcl.aero['tau_cores'],
-                     'Output files prefix': './sol/subcase_{}'.format(self.trimcase['subcase']),
-                     'Grid prefix': './dualgrid/subcase_{}'.format(self.trimcase['subcase']),
-#                      'Maximal time step number': 10, # for testing
-                     }
+        if self.counter == 1:     
+            # set general parameters, which don't change over the course of the CFD simulation
+            para_dict = {'Reference Mach number': self.trimcase['Ma'],
+                         'Reference temperature': self.model.atmo['T'][self.i_atmo],
+                         'Reference density': self.model.atmo['rho'][self.i_atmo],
+                         'Number of domains': self.jcl.aero['tau_cores'],
+                         'Number of primary grid domains': self.jcl.aero['tau_cores'],
+                         'Output files prefix': './sol/subcase_{}'.format(self.trimcase['subcase']),
+                         'Grid prefix': './dualgrid/subcase_{}'.format(self.trimcase['subcase']),
+                         }
+            Para.update(para_dict)
         
-        Para.update(para_dict)
-        
-        # aircraft motion related parameters
+        # set aircraft motion related parameters
         # given in local, body-fixed reference frame, see Tau User Guide Section 18.1 "Coordinate Systems of the TAU-Code"
         # rotations in [deg], translations in grid units
         para_dict = {'Origin of local coordinate system':'{} {} {}'.format(self.model.mass['cggrid'][self.i_mass]['offset'][0,0],\
@@ -732,20 +730,17 @@ class Common():
         Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))
         filename_surface = self.jcl.aero['para_path'] + Para.get_para_value('Surface output filename')
         self.pytau_close()
-        # get filename of surface solution via pytau
-#         filename = tau_solver_get_filename()
-#         pos = filename.find('.pval')
-#         filename_surface = self.jcl.aero['para_path'] + filename[:pos] + '.surface' + filename[pos:]
 
         # gather from multiple domains
         old_dir = os.getcwd()
         os.chdir(self.jcl.aero['para_path'])
+        # using a individual para file only for gathering allows to gather only the surface, not the volume output, which is faster
         with open('gather_subcase_{}.para'.format(self.trimcase['subcase']),'w') as fid:
             fid.write('Restart-data prefix : {}'.format(filename_surface))
         subprocess.call(['gather', 'gather_subcase_{}.para'.format(self.trimcase['subcase'])])
         os.chdir(old_dir)
+        
         logging.info( 'Reading {}'.format(filename_surface))
-
         ncfile_pval = netcdf.NetCDFFile(filename_surface, 'r')
         global_id = ncfile_pval.variables['global_id'][:].copy()
 
@@ -769,18 +764,20 @@ class Common():
     
     def tau_prepare_initial_solution(self, args_solve):   
         Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))  
-        # general parameters
-        para_dicts = [{'Inviscid flux discretization type': 'Upwind',
+        # set solution parameters for the initial and following solutions
+        para_dicts = [
+                      # initial solution
+                      {'Inviscid flux discretization type': 'Upwind',
                        'Order of upwind flux (1-2)': 1.0,
                        'Maximal time step number': 300, 
                       },
+                      # restore parameters for following solutions
                       {'Inviscid flux discretization type': Para.get_para_value('Inviscid flux discretization type'),
                        'Order of upwind flux (1-2)': Para.get_para_value('Order of upwind flux (1-2)'),
                        'Maximal time step number': Para.get_para_value('Maximal time step number'), 
                       }]
         for para_dict in para_dicts:
             Para.update(para_dict)
-            logging.debug("Parameters set for Upwind solution.")
             returncode = subprocess.call(args_solve)
             if returncode != 0:
                 raise TauError('Subprocess returned an error from Tau solver, please see solver.stdout !')
