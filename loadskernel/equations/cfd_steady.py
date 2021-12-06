@@ -22,10 +22,10 @@ class CfdSteady(Steady):
         # --------------------   
         # --- aerodynamics ---   
         # --------------------
-        self.tau_update_para(X[6:12])
-        self.tau_prepare_meshdefo(Uf, Ux2)
-        self.tau_run()
-        Pcfd = self.tau_last_solution()
+        self.cfd_interface.update_para(X[6:12])
+        self.cfd_interface.prepare_meshdefo(Uf, Ux2)
+        self.cfd_interface.run_solver()
+        Pcfd = self.cfd_interface.get_last_solution()
         
         Pk_rbm      = np.zeros(6*self.model.aerogrid['n'])
         Pk_cam      = Pk_rbm*0.0

@@ -17,7 +17,7 @@ from loadskernel.equations.cfd_steady import CfdSteady
 from loadskernel.equations.nonlin_steady import NonlinSteady
 from loadskernel.equations.unsteady   import Unsteady
 from loadskernel.equations.landing    import Landing
-from loadskernel.equations.common     import TauError, ConvergenceError
+from loadskernel.equations.common     import ConvergenceError
 from loadskernel.equations.frequency_domain import GustExcitation
 from loadskernel.equations.frequency_domain import TurbulenceExcitation, LimitTurbulence
 from loadskernel.equations.frequency_domain import KMethod
@@ -27,6 +27,8 @@ from loadskernel.equations.state_space import StateSpaceAnalysis
 from loadskernel.equations.state_space import JacobiAnalysis
 
 from loadskernel.trim_conditions import TrimConditions
+
+from loadskernel.cfd_interfaces.tau_interface import TauError
 
 class SolutionSequences(TrimConditions):
     
@@ -313,7 +315,7 @@ class SolutionSequences(TrimConditions):
             except TauError as e:
                 self.response = {}
                 self.successful = False
-                logging.warning('SolutionSequences failed for subcase {} due to TauError: {}'.format(self.trimcase['subcase'], e))
+                logging.warning('SolutionSequences failed for subcase {} due to CFDError: {}'.format(self.trimcase['subcase'], e))
                 return
             except ConvergenceError as e:
                 self.response = {}
