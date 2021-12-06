@@ -15,3 +15,11 @@ class TauGrid(loadskernel.read_cfdgrids.ReadCfdgrids):
     def get_markers(self):
         ncfile_grid = netcdf.NetCDFFile(self.filename_grid, 'r')
         self.markers = ncfile_grid.variables['marker'][:].tolist()
+
+class SU2Grid(loadskernel.read_cfdgrids.ReadCfdgrids):
+    def  __init__(self):
+        pass
+
+    def load_file(self, filename):
+        self.filename_grid = filename 
+        self.read_cfdmesh_su2()

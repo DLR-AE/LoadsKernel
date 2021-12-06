@@ -22,7 +22,7 @@ import numpy as np
 import loadskernel.io_functions.specific_functions as specific_io
 from modelviewer.plotting import Plotting
 from modelviewer.pytran import NastranSOL101
-from modelviewer.cfdgrid import TauGrid
+from modelviewer.cfdgrid import TauGrid, SU2Grid
 from modelviewer.iges import IgesMesh
 
 # First, and before importing any Enthought packages, set the ETS_TOOLKIT
@@ -96,7 +96,7 @@ class Modelviewer():
         self.nc_opt = {}
         self.nc_opt['filters'] = "all files (*.*)"
         self.nc_opt['initialdir'] = os.getcwd()
-        self.nc_opt['title'] = 'Open a Tau Grid File'
+        self.nc_opt['title'] = 'Open a Grid File'
         
         # define file options
         self.iges_opt = {}
@@ -106,7 +106,7 @@ class Modelviewer():
 
         self.plotting = Plotting()
         self.nastran = NastranSOL101()
-        self.taugrid = TauGrid()
+
         self.iges = IgesMesh()
 
     def run(self):
@@ -370,10 +370,15 @@ class Modelviewer():
         self.loadButtonNastran.triggered.connect(self.load_nastran_results)
         fileMenu.addAction(self.loadButtonNastran)
 
-        self.loadButtonCfdgrid = QtGui.QAction('Load Tau Grid', self.window)
-        self.loadButtonCfdgrid.setShortcut('Ctrl+T')
-        self.loadButtonCfdgrid.triggered.connect(self.load_tau_grid)
-        fileMenu.addAction(self.loadButtonCfdgrid)
+        self.loadButtonTauGrid = QtGui.QAction('Load Tau Grid', self.window)
+        self.loadButtonTauGrid.setShortcut('Ctrl+T')
+        self.loadButtonTauGrid.triggered.connect(self.load_tau_grid)
+        fileMenu.addAction(self.loadButtonTauGrid)
+        
+        self.loadButtonSU2Grid = QtGui.QAction('Load SU2 Grid', self.window)
+        self.loadButtonSU2Grid.setShortcut('Ctrl+S')
+        self.loadButtonSU2Grid.triggered.connect(self.load_su2_grid)
+        fileMenu.addAction(self.loadButtonSU2Grid)
         
         self.loadButtonIges = QtGui.QAction('Load IGES', self.window)
         self.loadButtonIges.setShortcut('Ctrl+I')
@@ -546,7 +551,7 @@ class Modelviewer():
         if self.list_markers.currentItem() is not None:
             # determine marker
             items = self.list_markers.selectedItems()
-            selected_markers = [int(item.text()) for item in items]
+            selected_markers = [item.text() for item in items]
             self.plotting.plot_cfdgrids(selected_markers)
             
     def get_iges_for_plotting(self, *args):
@@ -620,14 +625,25 @@ class Modelviewer():
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.nc_opt['title'], self.nc_opt['initialdir'], self.nc_opt['filters'])[0]
         if filename != '':
             self.tabs_widget.setCurrentIndex(2)
-            self.taugrid.load_file(filename)
-            self.plotting.add_cfdgrids(self.taugrid.cfdgrids)
+            self.cfdgrid = TauGrid()
+            self.cfdgrid.load_file(filename)
+            self.plotting.add_cfdgrids(self.cfdgrid.cfdgrids)
+            self.update_markers()
+            self.nc_opt['initialdir'] = os.path.split(filename)[0]
+    
+    def load_su2_grid(self):
+        filename = QtGui.QFileDialog.getOpenFileName(self.window, self.nc_opt['title'], self.nc_opt['initialdir'], self.nc_opt['filters'])[0]
+        if filename != '':
+            self.tabs_widget.setCurrentIndex(2)
+            self.cfdgrid = SU2Grid()
+            self.cfdgrid.load_file(filename)
+            self.plotting.add_cfdgrids(self.cfdgrid.cfdgrids)
             self.update_markers()
             self.nc_opt['initialdir'] = os.path.split(filename)[0]
 
     def update_markers(self):
         self.list_markers.clear()
-        for cfdgrid in self.taugrid.cfdgrids:
+        for cfdgrid in self.cfdgrid.cfdgrids:
             self.list_markers.addItem(QtGui.QListWidgetItem(cfdgrid['desc']))
     
     def load_iges(self):
