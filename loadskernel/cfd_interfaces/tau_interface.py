@@ -11,7 +11,7 @@ except:
     pass
 
 import numpy as np
-import logging, os, subprocess, shlex, sys
+import logging, os, subprocess, shlex, sys, platform
 import scipy.io.netcdf as netcdf
 
 import loadskernel.cfd_interfaces.meshdefo as meshdefo
@@ -39,7 +39,28 @@ class TauInterface(object):
         output = process.communicate()
         if str.find(output[1], 'www.open-mpi.org') == -1:
             logging.error('Wrong MPI implementation detected (Tau requires OpenMPI).')
-
+        # Set-up a list of hosts on which MPI shall be executed.
+        self.setup_mpi_hosts(n_workers=1)
+    
+    def setup_mpi_hosts(self, n_workers):
+        # Set-up a list of hosts on which MPI shall be executed.
+        machinefile = self.jcl.machinefile
+        n_required = self.jcl.aero['tau_cores'] * n_workers
+        if machinefile == None:
+            # all work is done on this node
+            tau_mpi_hosts = [platform.node()] * n_required
+        else:
+            tau_mpi_hosts = []
+            with open(machinefile) as f:
+                lines = f.readlines()
+            for line in lines:
+                line = line.split(' slots=')
+                tau_mpi_hosts += [line[0]] * int(line[1])
+        if tau_mpi_hosts.__len__() < n_required:
+            logging.error('Number of given hosts ({}) smaller than required hosts ({}). Exit.'.format(tau_mpi_hosts.__len__(), n_required))
+            sys.exit()
+        self.tau_mpi_hosts = tau_mpi_hosts
+    
     def prepare_meshdefo(self, Uf, Ux2):
         defo = meshdefo.meshdefo(self.jcl, self.model)
         defo.init_deformations()
@@ -96,14 +117,14 @@ class TauInterface(object):
         tau_close()
         
     def run_solver(self):
-        mpi_hosts = ','.join(self.jcl.aero['mpi_hosts'])
-        logging.info('Starting Tau deformation, preprocessing and solver on {} hosts ({}).'.format(self.jcl.aero['tau_cores'], mpi_hosts) )
+        tau_mpi_hosts = ','.join(self.tau_mpi_hosts)
+        logging.info('Starting Tau deformation, preprocessing and solver on {} hosts ({}).'.format(self.jcl.aero['tau_cores'], tau_mpi_hosts) )
         old_dir = os.getcwd()
         os.chdir(self.jcl.aero['para_path'])
 
-        args_deform   = shlex.split('mpiexec -np {} --host {} deformation para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'],  mpi_hosts, self.trimcase['subcase'], self.trimcase['subcase']))
-        args_pre      = shlex.split('mpiexec -np {} --host {} ptau3d.preprocessing para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'], mpi_hosts, self.trimcase['subcase'], self.trimcase['subcase']))
-        args_solve    = shlex.split('mpiexec -np {} --host {} ptau3d.{} para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'], mpi_hosts, self.jcl.aero['tau_solver'], self.trimcase['subcase'], self.trimcase['subcase']))
+        args_deform   = shlex.split('mpiexec -np {} --host {} deformation para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'],  tau_mpi_hosts, self.trimcase['subcase'], self.trimcase['subcase']))
+        args_pre      = shlex.split('mpiexec -np {} --host {} ptau3d.preprocessing para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'], tau_mpi_hosts, self.trimcase['subcase'], self.trimcase['subcase']))
+        args_solve    = shlex.split('mpiexec -np {} --host {} ptau3d.{} para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'], tau_mpi_hosts, self.jcl.aero['tau_solver'], self.trimcase['subcase'], self.trimcase['subcase']))
         
         returncode = subprocess.call(args_deform)
         if returncode != 0: 

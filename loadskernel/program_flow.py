@@ -64,24 +64,7 @@ class ProgramFlowHelper(object):
         logging.info(' ---------O---------')
         logging.info('')
         logging.info('')
-
-    def setup_mpi_hosts(self, n_workers):
-        n_required = self.jcl.aero['tau_cores'] * n_workers
-        if self.machinefile == None:
-            # all work is done on this node
-            mpi_hosts = [platform.node()] * n_required
-        else:
-            mpi_hosts = []
-            with open(self.machinefile) as f:
-                lines = f.readlines()
-            for line in lines:
-                line = line.split(' slots=')
-                mpi_hosts += [line[0]] * int(line[1])
-        if mpi_hosts.__len__() < n_required:
-            logging.error('Number of given hosts ({}) smaller than required hosts ({}). Exit.'.format(mpi_hosts.__len__(), n_required))
-            sys.exit()
-        return mpi_hosts
-
+    
     def setup_logger_cluster(self, i):
         logger = logging.getLogger()
         if not logger.hasHandlers():
@@ -141,6 +124,8 @@ class Kernel(ProgramFlowHelper):
         logging.info('post: ' + str(self.post))
         logging.info('test: ' + str(self.test))
         self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
+        # add machinefile to jcl
+        self.jcl.machinefile = self.machinefile
 
         if self.pre:
             self.run_pre()
@@ -214,10 +199,7 @@ class Kernel(ProgramFlowHelper):
                 logging.info('Restart option: found existing response.')
                 response = responses[[response['i'] for response in responses].index(i)]
             else:
-                jcl = copy.deepcopy(self.jcl)
-                if self.jcl.aero['method'] in ['cfd_steady']:
-                    # assign hosts
-                    jcl.aero['mpi_hosts'] = self.setup_mpi_hosts(n_workers=1)
+                jcl = copy.deepcopy(self.jcl)                    
                 response = self.main_common(model, jcl, i)
             if response['successful']:
                 mon.gather_monstations(self.jcl.trimcase[i], response)
@@ -264,16 +246,10 @@ class Kernel(ProgramFlowHelper):
         listener = pool.apply_async(unwrap_main_listener, (self, q_output))  # put listener to work
         n_workers = n_processes - 1
 
-        if self.jcl.aero['method'] in ['cfd_steady']:
-            mpi_hosts = self.setup_mpi_hosts(n_workers)
-
         logging.info('--> Launching {} worker(s).'.format(str(n_workers)))
         workers = []
         for i_worker in range(n_workers):
             jcl = copy.deepcopy(self.jcl)
-            if jcl.aero['method'] in ['cfd_steady']:
-                jcl.aero['mpi_hosts'] = mpi_hosts[:jcl.aero['tau_cores']]  # assign hosts
-                mpi_hosts = mpi_hosts[jcl.aero['tau_cores']:]  # remaining hosts
             workers.append(pool.apply_async(unwrap_main_worker, (self, q_input, q_output, jcl)))
  
         for i_worker in range(n_workers):
@@ -422,11 +398,20 @@ class Kernel(ProgramFlowHelper):
         return
 
 class ClusterMode(Kernel):
+    """
+    The cluster mode is similar to the (normal) sequential mode, but only ONE subcase is calculated.
+    This mode relies on a job scheduler that is able to run an array of jobs, where each the job is 
+    accompanied by an index i=0...n and n is the number of all subcases.
+    In a second step, when all jobs are finished, the results (e.g. one response per subcase) need to 
+    be gathered.
+    """
 
     def run_cluster(self, i):
         i = int(i)
         self.setup_logger_cluster(i=i)
         self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
+        # add machinefile to jcl
+        self.jcl.machinefile = self.machinefile
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
         logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
         logging.info('cluster array mode')
@@ -444,9 +429,6 @@ class ClusterMode(Kernel):
         t_start = time.time()
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         jcl = copy.deepcopy(self.jcl)
-        if self.jcl.aero['method'] in ['cfd_steady']:
-            # assign hosts
-            jcl.aero['mpi_hosts'] = self.setup_mpi_hosts(n_workers=1)
         response = self.main_common(model, jcl, i)
         logging.info('--> Saving response(s).')
         path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
