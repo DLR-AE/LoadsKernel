@@ -14,7 +14,7 @@ import numpy as np
 import logging, os, subprocess, shlex, sys
 import scipy.io.netcdf as netcdf
 
-import loadskernel.meshdefo as meshdefo
+import loadskernel.cfd_interfaces.meshdefo as meshdefo
 
 class TauInterface(object):
     
