@@ -308,6 +308,7 @@ class SolutionSequences(TrimConditions):
         if self.trimcase['maneuver'] == 'bypass':
             logging.info('running bypass...')
             self.response = equations.eval_equations(xfree_0, time=0.0, modus='trim_full_output')
+            self.successful = True
         else:
             logging.info('running trim for ' + str(len(xfree_0)) + ' variables...')
             try:
