@@ -82,13 +82,13 @@ class SU2Interface(object):
                 config['RESTART_SOL'] = 'NO'
             else: 
                 config['RESTART_SOL'] = 'YES'
-            # update the translational velocities via angle of attack and side slip
+            # update the translational velocities via angle of attack and side slip, given in degree
             # using only the translational velocities resulted in NaNs for the nodal forces
             u, v, w = uvwpqr[:3]
             # with alpha = np.arctan(w/u) and beta = np.arctan(v/u)
-            config['AOA']            = np.arctan(w/u)
-            config['SIDESLIP_ANGLE'] = np.arctan(v/u)
-            # rotational velocities, given in m/s and in rad in the CFD coordinate system (aft-right-up) ??
+            config['AOA']            = np.arctan(w/u)/np.pi*180.0
+            config['SIDESLIP_ANGLE'] = np.arctan(v/u)/np.pi*180.0
+            # rotational velocities, given in rad/s in the CFD coordinate system (aft-right-up) ??
             p, q, r = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[:3]
             config['ROTATION_RATE'] = '{} {} {}'.format(p, q, r)
             # do the update
@@ -105,7 +105,7 @@ class SU2Interface(object):
     def run_solver(self):
         logging.debug('This is process {} an I wait for the barrier in "run_solver()"'.format(self.myid))
         self.comm.barrier()
-        logging.debug('Continuing...')
+        logging.debug('Launch SU2 computation...')
         # starts timer
         t_start = time.time()
         # run solver
@@ -121,31 +121,25 @@ class SU2Interface(object):
         logging.debug("Computation successfully performed in {} seconds.".format(time.time() - t_start))
         
     def get_last_solution(self):
-        FluidSolver = self.FluidSolver
+        logging.debug('Start recovery of nodal loads from SU2')
+        t_start = time.time()
         Pcfd = np.zeros(self.model.cfdgrid['n']*6)
-        
-        solver_all_moving_markers = np.array(FluidSolver.GetAllDeformMeshMarkersTag())
-        solver_marker_ids = FluidSolver.GetAllBoundaryMarkers()
+        solver_all_moving_markers = np.array(self.FluidSolver.GetAllDeformMeshMarkersTag())
+        solver_marker_ids = self.FluidSolver.GetAllBoundaryMarkers()
         # Die Oberflächenmarker und die Partitionierung stimmen in der Regel nicht überein. 
         # Daher muss geschaut werden, ob der momentane MPI-Knoten überhaupt den Oberflächenmarker enthält.
         has_moving_marker = [marker in solver_marker_ids.keys() for marker in solver_all_moving_markers]
-        # Die marker bekommen in SU2 unterschiedliche IDs, daher muss die Zuordnugn über die Namen erfolgen.
-        #lk_markers = [cfdgrid['desc'] for cfdgrid in self.model.cfdgrids]
         
         for marker in solver_all_moving_markers[has_moving_marker]:
             solver_marker_id = solver_marker_ids[marker]
-            n_vertices = FluidSolver.GetNumberVertices(solver_marker_id)
+            n_vertices = self.FluidSolver.GetNumberVertices(solver_marker_id)
             for i_vertex in range(n_vertices):
-                fxyz = FluidSolver.GetFlowLoad(solver_marker_id, i_vertex)
-                GlobalIndex = FluidSolver.GetVertexGlobalIndex(solver_marker_id, i_vertex)
-                #pos = self.model.cfdgrid['set'][GlobalIndex == self.model.cfdgrid['ID'],:3].flatten()
-                pos = self.model.cfdgrid['set'][GlobalIndex,:3].flatten()
-                Pcfd[pos] = fxyz
-                
-                Pcfd[self.model.cfdgrid['set'][:,2]].sum()
-                Pcfd[self.model.cfdgrid['set'][:,0]].sum()
-                
-        logging.debug('All nodal loads received.')
+                fxyz = self.FluidSolver.GetFlowLoad(solver_marker_id, i_vertex)
+                GlobalIndex = self.FluidSolver.GetVertexGlobalIndex(solver_marker_id, i_vertex)
+                pos = self.model.cfdgrid['set'][np.where(GlobalIndex == self.model.cfdgrid['ID'])[0],:3]
+                Pcfd[pos] += fxyz
+
+        logging.debug('All nodal loads received and sorted in {} sec.'.format(time.time() - t_start))
         
         return Pcfd
     
