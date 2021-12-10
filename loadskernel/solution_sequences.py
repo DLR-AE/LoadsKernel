@@ -287,10 +287,10 @@ class SolutionSequences(TrimConditions):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = Steady(self)
         elif self.jcl.aero['method'] in [ 'cfd_steady']:
-            equations = CfdSteady(self)
             specific_io.check_para_path(self.jcl)
             specific_io.copy_para_file(self.jcl, self.trimcase)
             specific_io.check_tau_folders(self.jcl)
+            equations = CfdSteady(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
