@@ -4,7 +4,7 @@ Created on Thu Nov 27 14:00:31 2014
 
 @author: voss_ar
 """
-import time, multiprocessing, getpass, platform, logging, sys, copy, argparse
+import time, multiprocessing, getpass, platform, logging, sys, copy, argparse, os
 
 from loadskernel import io_functions
 from loadskernel.io_functions import specific_functions
@@ -15,6 +15,7 @@ import loadskernel.auxiliary_output as auxiliary_output
 import loadskernel.plotting_standard as plotting_standard
 import loadskernel.plotting_extra as plotting_extra
 import loadskernel.model as model_modul
+from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
 
 class ProgramFlowHelper(object):
 
@@ -45,12 +46,14 @@ class ProgramFlowHelper(object):
         # parallel computing options
         self.parallel = parallel        # True/False/integer
         self.machinefile = machinefile  # filename
-        self.setup()
+        # Initialize some more things
+        self.setup_path()
+        self.setup_logger()
+        self.have_mpi, self.comm, self.myid = setup_mpi(self.debug)
 
-    def setup(self):
+    def setup_path(self):
         self.path_input = io_functions.specific_functions.check_path(self.path_input)
         self.path_output = io_functions.specific_functions.check_path(self.path_output)
-        self.setup_logger()
 
     def print_logo(self):
         logging.info('')
@@ -404,6 +407,11 @@ class ClusterMode(Kernel):
     accompanied by an index i=0...n and n is the number of all subcases.
     In a second step, when all jobs are finished, the results (e.g. one response per subcase) need to 
     be gathered.
+    Example:
+    k = program_flow.ClusterMode('jcl_name', ...)
+    k.run_cluster(sys.argv[2])
+    or
+    k.gather_cluster()
     """
 
     def run_cluster(self, i):
