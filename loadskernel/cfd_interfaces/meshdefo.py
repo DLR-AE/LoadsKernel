@@ -78,7 +78,37 @@ class meshdefo:
             del PHIi_d
         if self.plotting:
             mlab.show()
+    
+    def set_deformations(self, FluidSolver):
+        """
+        Communicate the change of coordinates of the fluid interface to the fluid solver.
+        Prepare the fluid solver for mesh deformation.
+        """
+
+        solver_all_moving_markers = np.array(FluidSolver.GetAllDeformMeshMarkersTag())
+        solver_marker_ids = FluidSolver.GetAllBoundaryMarkers()
+        # Die Oberflächenmarker und die Partitionierung stimmen in der Regel nicht überein. 
+        # Daher muss geschaut werden, ob der momentane MPI-Knoten überhaupt den Oberflächenmarker enthält.
+        has_moving_marker = [marker in solver_marker_ids.keys() for marker in solver_all_moving_markers]
+        # Die marker bekommen in SU2 unterschiedliche IDs, daher muss die Zuordnugn über die Namen erfolgen.
+        lk_markers = [cfdgrid['desc'] for cfdgrid in self.cfdgrids]
+        
+        for marker in solver_all_moving_markers[has_moving_marker]:
+            solver_marker_id = solver_marker_ids[marker]
+            lk_marker_id = lk_markers.index(marker)
             
+            # Check:  marker == self.cfdgrids[lk_marker_id]['desc']
+            n_vertices = FluidSolver.GetNumberVertices(solver_marker_id)
+            # Check (only for one domain): n_vertices == self.cfdgrids[lk_marker_id]['n']
+            for i_vertex in range(n_vertices):
+                GlobalIndex = FluidSolver.GetVertexGlobalIndex(solver_marker_id, i_vertex)
+                # Check: GlobalIndex in self.cfdgrids[lk_marker_id]['ID']
+                pos = self.cfdgrids[lk_marker_id]['set'][GlobalIndex == self.cfdgrids[lk_marker_id]['ID'],:3].flatten()
+                disp_x, disp_y, disp_z = self.Ucfd[lk_marker_id][pos]
+                FluidSolver.SetMeshDisplacement(solver_marker_id, i_vertex, disp_x, disp_y, disp_z)
+        logging.debug('All mesh deformations set.')
+    
+    
     def write_deformations(self, filename_defo):
         if 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat']=='cgns':
             self.write_defo_cgns(filename_defo)
