@@ -174,7 +174,7 @@ class SU2Interface(object):
                 pos = self.model.cfdgrid['set'][np.where(GlobalIndex == self.model.cfdgrid['ID'])[0],:3]
                 Pcfd_send[pos] += fxyz
         self.comm.barrier()
-        self.comm.Gatherv(Pcfd_send, Pcfd_rcv, root=0)
+        self.comm.Allgatherv(Pcfd_send, Pcfd_rcv)
         Pcfd = Pcfd_rcv.sum(axis=0)
         logging.debug('All nodal loads recovered, sorted and gathered in {:.2f} sec.'.format(time.time() - t_start))
         return Pcfd
