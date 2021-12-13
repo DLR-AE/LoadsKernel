@@ -48,8 +48,8 @@ class ProgramFlowHelper(object):
         self.machinefile = machinefile  # filename
         # Initialize some more things
         self.setup_path()
-        self.setup_logger()
         self.have_mpi, self.comm, self.myid = setup_mpi(self.debug)
+        self.setup_logger()
 
     def setup_path(self):
         self.path_input = io_functions.specific_functions.check_path(self.path_input)
@@ -73,12 +73,13 @@ class ProgramFlowHelper(object):
         if not logger.hasHandlers():
             path_log = io_functions.specific_functions.check_path(self.path_output+'log/')
             # define a Handler which writes INFO messages or higher to a log file
-            logfile = logging.FileHandler(filename=path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + ".txt", mode='w')
+            logfile = logging.FileHandler(filename=path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.txt.' + str(self.myid), mode='w')
             formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
             logfile.setFormatter(formatter)
             # add the handler(s) to the root logger
             logger.setLevel(logging.INFO)
             logger.addHandler(logfile)
+        logger.info('This is the log for MPI process {}.'.format(self.myid))
 
     def setup_logger(self):
         logger = logging.getLogger()
@@ -92,7 +93,7 @@ class ProgramFlowHelper(object):
         if 'lk_logfile' in existing_handlers:
             # Make sure that the filename is still correct.
             hdlr = logger.handlers[existing_handlers.index('lk_logfile')]
-            if not hdlr.baseFilename == self.path_output + 'log_' + self.job_name + ".txt":
+            if not hdlr.baseFilename == self.path_output + 'log_' + self.job_name + '.txt.' + str(self.myid):
                 # In case the filename is incorrect, remove the handler completely from the logger.
                 logger.removeHandler(hdlr)
                 # Update the list of all existing loggers.
@@ -110,18 +111,19 @@ class ProgramFlowHelper(object):
             logger.addHandler(console)
         if 'lk_logfile' not in existing_handlers:
             # define a Handler which writes messages to a log file
-            logfile = logging.FileHandler(filename=self.path_output + 'log_' + self.job_name + ".txt", mode='a')
+            logfile = logging.FileHandler(filename=self.path_output + 'log_' + self.job_name + '.txt.' + str(self.myid), mode='a')
             logfile.set_name('lk_logfile')
             formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
                                           datefmt='%d/%m/%Y %H:%M:%S')
             logfile.setFormatter(formatter)
             logger.addHandler(logfile)
+        logger.info('This is the log for MPI process {}.'.format(self.myid))
 
 class Kernel(ProgramFlowHelper):
 
     def run(self):
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
-        logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
+        logging.info('User ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
         logging.info('pre:  ' + str(self.pre))
         logging.info('main: ' + str(self.main))
         logging.info('post: ' + str(self.post))
@@ -415,14 +417,15 @@ class ClusterMode(Kernel):
     """
 
     def run_cluster(self, i):
+        logging.info('Starting Loads Kernel with job: ' + self.job_name)
+        logging.info('User ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
+        logging.info('Cluster array mode')
         i = int(i)
         self.setup_logger_cluster(i=i)
         self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
         # add machinefile to jcl
         self.jcl.machinefile = self.machinefile
-        logging.info('Starting Loads Kernel with job: ' + self.job_name)
-        logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
-        logging.info('cluster array mode')
+        
 
         self.run_main_single(i)
 
@@ -433,15 +436,16 @@ class ClusterMode(Kernel):
         """
         This function calculates one single load case, e.g. using CFD with mpi hosts on a cluster.
         """
-        logging.info('--> Starting Main in single mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
+        logging.info('--> Starting main in single mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         jcl = copy.deepcopy(self.jcl)
         response = self.main_common(model, jcl, i)
-        logging.info('--> Saving response(s).')
-        path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
-        with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb')  as f:
-            io_functions.specific_functions.dump_pickle(response, f)
+        if self.myid == 0:
+            logging.info('--> Saving response(s).')
+            path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
+            with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb')  as f:
+                io_functions.specific_functions.dump_pickle(response, f)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def gather_cluster(self):
