@@ -42,9 +42,43 @@ class SU2Interface(object):
     def prepare_meshdefo(self, Uf, Ux2):
         defo = meshdefo.meshdefo(self.jcl, self.model)
         defo.init_deformations()
-        defo.Uf(Uf, self.trimcase)
-        defo.Ux2(Ux2)
-        defo.set_deformations(self.FluidSolver)
+        if self.myid == 0:
+            defo.Uf(Uf, self.trimcase)
+            defo.Ux2(Ux2)
+        Ucfd = defo.Ucfd
+        logging.debug('This is process {} and I wait for the mpi barrier in "prepare_meshdefo()"'.format(self.myid))
+        self.comm.barrier()
+        self.comm.bcast(Ucfd, root=0)
+        self.set_deformations(Ucfd)
+    
+    def set_deformations(self, Ucfd):
+        """
+        Communicate the change of coordinates of the fluid interface to the fluid solver.
+        Prepare the fluid solver for mesh deformation.
+        """
+
+        solver_all_moving_markers = np.array(self.FluidSolver.GetAllDeformMeshMarkersTag())
+        solver_marker_ids = self.FluidSolver.GetAllBoundaryMarkers()
+        # Die Oberflächenmarker und die Partitionierung stimmen in der Regel nicht überein. 
+        # Daher muss geschaut werden, ob der momentane MPI-Knoten überhaupt den Oberflächenmarker enthält.
+        has_moving_marker = [marker in solver_marker_ids.keys() for marker in solver_all_moving_markers]
+        # Die marker bekommen in SU2 unterschiedliche IDs, daher muss die Zuordnugn über die Namen erfolgen.
+        lk_markers = [cfdgrid['desc'] for cfdgrid in self.model.cfdgrids]
+        
+        for marker in solver_all_moving_markers[has_moving_marker]:
+            solver_marker_id = solver_marker_ids[marker]
+            lk_marker_id = lk_markers.index(marker)
+            
+            # Check:  marker == self.cfdgrids[lk_marker_id]['desc']
+            n_vertices = self.FluidSolver.GetNumberVertices(solver_marker_id)
+            # Check (only for one domain): n_vertices == self.cfdgrids[lk_marker_id]['n']
+            for i_vertex in range(n_vertices):
+                GlobalIndex = self.FluidSolver.GetVertexGlobalIndex(solver_marker_id, i_vertex)
+                # Check: GlobalIndex in self.cfdgrids[lk_marker_id]['ID']
+                pos = self.model.cfdgrids[lk_marker_id]['set'][GlobalIndex == self.model.cfdgrids[lk_marker_id]['ID'],:3].flatten()
+                disp_x, disp_y, disp_z = Ucfd[lk_marker_id][pos]
+                self.FluidSolver.SetMeshDisplacement(solver_marker_id, i_vertex, disp_x, disp_y, disp_z)
+        logging.debug('All mesh deformations set.')
     
     def update_para(self, uvwpqr):
         """
@@ -95,17 +129,17 @@ class SU2Interface(object):
             # config.write() maintains the original layout of the file but doesn't add new parameters
             # config.dump() writes all parameters in a weird order, including default values
             config.dump(para_filename)
-            logging.debug("Parameters updated.")
+            logging.info('SU2 parameters updated...')
         # make sure that all process wait until the new parameter file is written
         self.comm.barrier()
         # then initialize SU2 on all processes
+        logging.info('Initializing SU2...')
         self.FluidSolver = pysu2.CSinglezoneDriver(para_filename, 1, self.comm)
-        
-        
+      
     def run_solver(self):
-        logging.debug('This is process {} an I wait for the barrier in "run_solver()"'.format(self.myid))
+        logging.debug('This is process {} and I wait for the mpi barrier in "run_solver()"'.format(self.myid))
         self.comm.barrier()
-        logging.debug('Launch SU2 computation...')
+        logging.info('Launch SU2...')
         # starts timer
         t_start = time.time()
         # run solver
@@ -118,12 +152,13 @@ class SU2Interface(object):
         self.comm.barrier()
         if self.first_execution == True:
             self.first_execution = False
-        logging.debug("Computation successfully performed in {} seconds.".format(time.time() - t_start))
+        logging.debug('CFD computation performed in {:.2f} seconds.'.format(time.time() - t_start))
         
     def get_last_solution(self):
         logging.debug('Start recovery of nodal loads from SU2')
         t_start = time.time()
-        Pcfd = np.zeros(self.model.cfdgrid['n']*6)
+        Pcfd_send = np.zeros(self.model.cfdgrid['n']*6)
+        Pcfd_rcv  = np.zeros(( self.comm.Get_size() , self.model.cfdgrid['n']*6))
         solver_all_moving_markers = np.array(self.FluidSolver.GetAllDeformMeshMarkersTag())
         solver_marker_ids = self.FluidSolver.GetAllBoundaryMarkers()
         # Die Oberflächenmarker und die Partitionierung stimmen in der Regel nicht überein. 
@@ -137,10 +172,11 @@ class SU2Interface(object):
                 fxyz = self.FluidSolver.GetFlowLoad(solver_marker_id, i_vertex)
                 GlobalIndex = self.FluidSolver.GetVertexGlobalIndex(solver_marker_id, i_vertex)
                 pos = self.model.cfdgrid['set'][np.where(GlobalIndex == self.model.cfdgrid['ID'])[0],:3]
-                Pcfd[pos] += fxyz
-
-        logging.debug('All nodal loads received and sorted in {} sec.'.format(time.time() - t_start))
-        
+                Pcfd_send[pos] += fxyz
+        self.comm.barrier()
+        self.comm.Gatherv(Pcfd_send, Pcfd_rcv, root=0)
+        Pcfd = Pcfd_rcv.sum(axis=0)
+        logging.debug('All nodal loads recovered, sorted and gathered in {:.2f} sec.'.format(time.time() - t_start))
         return Pcfd
     
     def prepare_initial_solution(self):   
