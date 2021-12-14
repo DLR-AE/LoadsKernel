@@ -1,6 +1,6 @@
 
 import numpy as np
-import logging, os, subprocess, shlex, sys, platform, time
+import logging, os, subprocess, shlex, sys, platform, time, copy, gc
 
 import loadskernel.cfd_interfaces.meshdefo as meshdefo
 from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
@@ -38,7 +38,9 @@ class SU2Interface(object):
             logging.info('Init CFD interface of type "{}" on MPI process {}.'.format(self.__class__.__name__, self.myid))
         else:
             logging.error('pysu2 was/could NOT be imported! Model equations of type "{}" will NOT work.'.format(self.jcl.aero['method']))
-
+        gc.enable()
+        self.FluidSolver = None
+        
     def prepare_meshdefo(self, Uf, Ux2):
         defo = meshdefo.meshdefo(self.jcl, self.model)
         defo.init_deformations()
@@ -50,6 +52,7 @@ class SU2Interface(object):
         self.comm.barrier()
         self.comm.bcast(Ucfd, root=0)
         self.set_deformations(Ucfd)
+        del defo, Ucfd
     
     def set_deformations(self, Ucfd):
         """
@@ -87,9 +90,11 @@ class SU2Interface(object):
         """
         # derive name of para file for this subcase
         para_filename = self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase'])
+        initialize_su2 = True
         if self.myid == 0:
             # read all existing parameters
             config = SU2.io.Config(para_filename)
+            config_old = copy.deepcopy(config)
             if self.first_execution:
                 # set general parameters, which don't change over the course of the CFD simulation, so they are only updated 
                 # for the first execution
@@ -120,21 +125,40 @@ class SU2Interface(object):
             # using only the translational velocities resulted in NaNs for the nodal forces
             u, v, w = uvwpqr[:3]
             # with alpha = np.arctan(w/u) and beta = np.arctan(v/u)
-            config['AOA']            = np.arctan(w/u)/np.pi*180.0
-            config['SIDESLIP_ANGLE'] = np.arctan(v/u)/np.pi*180.0
+            config['AOA']            = '{}'.format(np.arctan(w/u)/np.pi*180.0)
+            config['SIDESLIP_ANGLE'] = '{}'.format(np.arctan(v/u)/np.pi*180.0)
             # rotational velocities, given in rad/s in the CFD coordinate system (aft-right-up) ??
             p, q, r = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[:3]
             config['ROTATION_RATE'] = '{} {} {}'.format(p, q, r)
-            # do the update
-            # config.write() maintains the original layout of the file but doesn't add new parameters
-            # config.dump() writes all parameters in a weird order, including default values
-            config.dump(para_filename)
-            logging.info('SU2 parameters updated...')
+        
+            # Find out if the configuration file changed. 
+            # If this is the case, then we need to initialize SU2 again.
+            parameter_added = [key not in config_old for key in config]
+            parameter_changed = [config_old[key] != config[key] for key in config_old]
+            if np.any(parameter_added) or np.any(parameter_changed):
+                # do the update
+                # config.write() maintains the original layout of the file but doesn't add new parameters
+                # config.dump() writes all parameters in a weird order, including default values
+                config.dump(para_filename)
+                logging.info('SU2 parameters updated...')
+                initialize_su2 = True
+            else:
+                logging.info('SU2 parameters are unchanged...')
+                initialize_su2 = False
+        
+        
         # make sure that all process wait until the new parameter file is written
         self.comm.barrier()
-        # then initialize SU2 on all processes
-        logging.info('Initializing SU2...')
-        self.FluidSolver = pysu2.CSinglezoneDriver(para_filename, 1, self.comm)
+        self.comm.bcast(initialize_su2, root=0)
+        if initialize_su2:
+            # then initialize SU2 on all processes
+            logging.info('Initializing SU2...')
+            del self.FluidSolver
+            self.FluidSolver = pysu2.CSinglezoneDriver(para_filename, 1, self.comm)
+            gc.collect()
+        else:
+            logging.info('Reusing SU2 instance...')
+            
       
     def run_solver(self):
         logging.debug('This is process {} and I wait for the mpi barrier in "run_solver()"'.format(self.myid))
@@ -143,6 +167,7 @@ class SU2Interface(object):
         # starts timer
         t_start = time.time()
         # run solver
+        #self.FluidSolver.StartSolver()
         self.FluidSolver.Preprocess(0)
         self.FluidSolver.Run()
         self.FluidSolver.Postprocess()
@@ -176,6 +201,7 @@ class SU2Interface(object):
         self.comm.barrier()
         self.comm.Allgatherv(Pcfd_send, Pcfd_rcv)
         Pcfd = Pcfd_rcv.sum(axis=0)
+        del Pcfd_send, Pcfd_rcv
         logging.debug('All nodal loads recovered, sorted and gathered in {:.2f} sec.'.format(time.time() - t_start))
         return Pcfd
     
