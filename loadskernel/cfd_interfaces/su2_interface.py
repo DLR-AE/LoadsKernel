@@ -50,7 +50,7 @@ class SU2Interface(object):
         Ucfd = defo.Ucfd
         logging.debug('This is process {} and I wait for the mpi barrier in "prepare_meshdefo()"'.format(self.myid))
         self.comm.barrier()
-        self.comm.bcast(Ucfd, root=0)
+        Ucfd = self.comm.bcast(Ucfd, root=0)
         self.set_deformations(Ucfd)
         del defo, Ucfd
     
@@ -125,7 +125,8 @@ class SU2Interface(object):
             # using only the translational velocities resulted in NaNs for the nodal forces
             u, v, w = uvwpqr[:3]
             # with alpha = np.arctan(w/u) and beta = np.arctan(v/u)
-            config['AOA']            = '{}'.format(np.arctan(w/u)/np.pi*180.0)
+            config['AOA']            = np.arctan(w/u)/np.pi*180.0
+            # for some reason, the sideslip angle is parsed as as string...
             config['SIDESLIP_ANGLE'] = '{}'.format(np.arctan(v/u)/np.pi*180.0)
             # rotational velocities, given in rad/s in the CFD coordinate system (aft-right-up) ??
             p, q, r = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[:3]
@@ -149,7 +150,7 @@ class SU2Interface(object):
         
         # make sure that all process wait until the new parameter file is written
         self.comm.barrier()
-        self.comm.bcast(initialize_su2, root=0)
+        initialize_su2 = self.comm.bcast(initialize_su2, root=0)
         if initialize_su2:
             # then initialize SU2 on all processes
             logging.info('Initializing SU2...')
