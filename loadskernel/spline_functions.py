@@ -124,7 +124,7 @@ class Spline_rbf:
             self.n = 4
         self.n_fe = nodes_fe.shape[1]
         self.n_cfd = self.nodes_cfd.shape[1]
-        logging.info('Splining (rbf) of {:.0f} points to {:.0f} points...'.format(self.n_cfd , self.n_fe))
+        logging.debug('Splining (rbf) of {:.0f} points to {:.0f} points...'.format(self.n_cfd , self.n_fe))
 
     def build_M(self):
         # Nomenklatur nach Neumann & Krueger
