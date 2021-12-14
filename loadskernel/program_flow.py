@@ -99,7 +99,7 @@ class ProgramFlowHelper(object):
                 # Update the list of all existing loggers.
                 existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
         # Add the following handlers only if they don't exist. This avoid duplicate lines/log entries.
-        if 'lk_console' not in existing_handlers:
+        if (self.myid == 0) and ('lk_console' not in existing_handlers):
             # define a Handler which writes messages to the sys.stout
             console = logging.StreamHandler(sys.stdout)
             console.set_name('lk_console')
@@ -193,12 +193,14 @@ class Kernel(ProgramFlowHelper):
         logging.info('--> Starting Main in sequential mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        mon = gather_modul.GatherLoads(self.jcl, model)
-        if self.restart:
-            logging.info('Restart option: loading existing responses.')
-            # open response
-            responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
-        fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
+        if self.myid == 0:
+            mon = gather_modul.GatherLoads(self.jcl, model)
+            if self.restart:
+                logging.info('Restart option: loading existing responses.')
+                # open response
+                responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
+            fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
+        
         for i in range(len(self.jcl.trimcase)):
             if self.restart and i in [response['i'] for response in responses]:
                 logging.info('Restart option: found existing response.')
@@ -206,21 +208,22 @@ class Kernel(ProgramFlowHelper):
             else:
                 jcl = copy.deepcopy(self.jcl)                    
                 response = self.main_common(model, jcl, i)
-            if response['successful']:
+            if self.myid == 0 and response['successful']:
                 mon.gather_monstations(self.jcl.trimcase[i], response)
                 mon.gather_dyn2stat(response)
                 logging.info('--> Saving response(s).')
                 io_functions.specific_functions.write_hdf5(fid, response, path='/'+str(response['i']))
-        # close response
-        io_functions.specific_functions.close_hdf5(fid)
-
-        logging.info('--> Saving monstation(s).')
-        io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
-                                                  mon.monstations)
-
-        logging.info('--> Saving dyn2stat.')
-        io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
-                                                  mon.dyn2stat)
+        if self.myid == 0:
+            # close response
+            io_functions.specific_functions.close_hdf5(fid)
+    
+            logging.info('--> Saving monstation(s).')
+            io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
+                                                      mon.monstations)
+    
+            logging.info('--> Saving dyn2stat.')
+            io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
+                                                      mon.dyn2stat)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def run_main_parallel(self):
