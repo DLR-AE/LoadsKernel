@@ -461,7 +461,7 @@ class ClusterMode(Kernel):
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         responses = io_functions.specific_functions.gather_responses(self.job_name, io_functions.specific_functions.check_path(self.path_output+'responses'))
         mon = gather_modul.GatherLoads(self.jcl, model)
-        f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
+        fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
         for i in range(len(self.jcl.trimcase)):
             response = responses[[response['i'] for response in responses].index(i)]
             if response['successful']:
@@ -469,17 +469,17 @@ class ClusterMode(Kernel):
                 mon.gather_dyn2stat(response)
 
             logging.info('--> Saving response(s).')
-            io_functions.specific_functions.dump_pickle(response, f)
+            io_functions.specific_functions.write_hdf5(fid, response, path='/'+str(response['i']))
         # close response
-        f.close()
+        io_functions.specific_functions.close_hdf5(fid)
 
         logging.info('--> Saving monstation(s).')
-        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'wb') as f:
-            io_functions.specific_functions.dump_pickle(mon.monstations, f)
+        io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
+                                                  mon.monstations)
 
         logging.info('--> Saving dyn2stat.')
-        with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'wb') as f:
-            io_functions.specific_functions.dump_pickle(mon.dyn2stat, f)
+        io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
+                                                  mon.dyn2stat)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
         logging.info('Loads Kernel finished.')
