@@ -1,6 +1,6 @@
 
 import numpy as np
-import logging, os, subprocess, shlex, sys, platform, time, copy, gc
+import logging, os, subprocess, shlex, sys, platform, time, copy
 
 import loadskernel.cfd_interfaces.meshdefo as meshdefo
 from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
@@ -38,7 +38,6 @@ class SU2Interface(object):
             logging.info('Init CFD interface of type "{}" on MPI process {}.'.format(self.__class__.__name__, self.myid))
         else:
             logging.error('pysu2 was/could NOT be imported! Model equations of type "{}" will NOT work.'.format(self.jcl.aero['method']))
-        gc.enable()
         self.FluidSolver = None
         
     def prepare_meshdefo(self, Uf, Ux2):
@@ -52,7 +51,6 @@ class SU2Interface(object):
         self.comm.barrier()
         Ucfd = self.comm.bcast(Ucfd, root=0)
         self.set_deformations(Ucfd)
-        del defo, Ucfd
     
     def set_deformations(self, Ucfd):
         """
@@ -154,9 +152,9 @@ class SU2Interface(object):
         if initialize_su2:
             # then initialize SU2 on all processes
             logging.info('Initializing SU2...')
-            del self.FluidSolver
+            if self.FluidSolver != None:
+                self.FluidSolver.Postprocessing()
             self.FluidSolver = pysu2.CSinglezoneDriver(para_filename, 1, self.comm)
-            gc.collect()
         else:
             logging.info('Reusing SU2 instance...')
             
@@ -202,7 +200,6 @@ class SU2Interface(object):
         self.comm.barrier()
         self.comm.Allgatherv(Pcfd_send, Pcfd_rcv)
         Pcfd = Pcfd_rcv.sum(axis=0)
-        del Pcfd_send, Pcfd_rcv
         logging.debug('All nodal loads recovered, sorted and gathered in {:.2f} sec.'.format(time.time() - t_start))
         return Pcfd
     
