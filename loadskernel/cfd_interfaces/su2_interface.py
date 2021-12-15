@@ -139,10 +139,10 @@ class SU2Interface(object):
                 # config.write() maintains the original layout of the file but doesn't add new parameters
                 # config.dump() writes all parameters in a weird order, including default values
                 config.dump(para_filename)
-                logging.info('SU2 parameters updated...')
+                logging.info('SU2 parameters updated.')
                 initialize_su2 = True
             else:
-                logging.info('SU2 parameters are unchanged...')
+                logging.info('SU2 parameters are unchanged.')
                 initialize_su2 = False
         
         
@@ -151,18 +151,17 @@ class SU2Interface(object):
         initialize_su2 = self.comm.bcast(initialize_su2, root=0)
         if initialize_su2:
             # then initialize SU2 on all processes
-            logging.info('Initializing SU2...')
+            logging.info('Initializing SU2.')
             if self.FluidSolver != None:
                 self.FluidSolver.Postprocessing()
             self.FluidSolver = pysu2.CSinglezoneDriver(para_filename, 1, self.comm)
         else:
-            logging.info('Reusing SU2 instance...')
-            
-      
+            logging.info('Reusing SU2 instance.')
+
     def run_solver(self):
         logging.debug('This is process {} and I wait for the mpi barrier in "run_solver()"'.format(self.myid))
         self.comm.barrier()
-        logging.info('Launch SU2...')
+        logging.info('Launch SU2.')
         # starts timer
         t_start = time.time()
         # run solver
