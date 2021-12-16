@@ -438,17 +438,15 @@ class ClusterMode(Kernel):
     """
 
     def run_cluster(self, i):
+        i = int(i)
+        self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
+        # add machinefile to jcl
+        self.jcl.machinefile = self.machinefile
+        self.setup_logger_cluster(i=i)
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
         logging.info('User ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
         logging.info('Cluster array mode')
-        i = int(i)
-        self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
-        self.setup_logger_cluster(i=i)
         
-        # add machinefile to jcl
-        self.jcl.machinefile = self.machinefile
-        
-
         self.run_main_single(i)
 
         logging.info('Loads Kernel finished.')
