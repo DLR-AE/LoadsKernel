@@ -96,7 +96,7 @@ class ProgramFlowHelper(object):
                                           datefmt='%d/%m/%Y %H:%M:%S')
             logfile.setFormatter(formatter)
             logger.addHandler(logfile)
-        logger.info('This is the log for MPI process {}.'.format(self.myid))
+        logger.info('This is the log for process {}.'.format(self.myid))
 
     def setup_logger(self):
         logger = logging.getLogger()
@@ -134,7 +134,7 @@ class ProgramFlowHelper(object):
                                           datefmt='%d/%m/%Y %H:%M:%S')
             logfile.setFormatter(formatter)
             logger.addHandler(logfile)
-        logger.info('This is the log for MPI process {}.'.format(self.myid))
+        logger.info('This is the log for process {}.'.format(self.myid))
 
 class Kernel(ProgramFlowHelper):
 
