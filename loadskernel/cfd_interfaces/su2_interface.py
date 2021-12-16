@@ -109,13 +109,11 @@ class SU2Interface(object):
                 # make sure that the free stream onflow is zero
                 config['MACH_NUMBER']    = self.trimcase['Ma']
                 # activate grid movement
-                config['GRID_MOVEMENT'] = 'STEADY_TRANSLATION'
+                config['GRID_MOVEMENT'] = 'ROTATING_FRAME'
                 config['MOTION_ORIGIN'] = '{} {} {}'.format(self.model.mass['cggrid'][self.i_mass]['offset'][0,0],
                                                             self.model.mass['cggrid'][self.i_mass]['offset'][0,1],
                                                             self.model.mass['cggrid'][self.i_mass]['offset'][0,2])
                 config['MACH_MOTION'] = self.trimcase['Ma']
-                # set the translational velocities to zero, just to make sure...
-                config['TRANSLATION_RATE'] = '{} {} {}'.format(0.0, 0.0, 0.0)
                 # there is no restart for the first execution
                 config['RESTART_SOL'] = 'NO'
             else: 
@@ -128,7 +126,7 @@ class SU2Interface(object):
             # for some reason, the sideslip angle is parsed as as string...
             config['SIDESLIP_ANGLE'] = '{}'.format(np.arctan(v/u)/np.pi*180.0)
             # rotational velocities, given in rad/s in the CFD coordinate system (aft-right-up) ??
-            p, q, r = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[:3]
+            p, q, r = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[3:]
             config['ROTATION_RATE'] = '{} {} {}'.format(p, q, r)
         
             # Find out if the configuration file changed. 
