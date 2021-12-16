@@ -201,6 +201,10 @@ class TauInterface(object):
             returncode = subprocess.call(args_solve)
             if returncode != 0:
                 raise TauError('Subprocess returned an error from Tau solver, please see solver.stdout !')
+        
+    def release_memory(self):
+        # Because Tau is called via a subprocess, there is no need to release memory manually.
+        pass
 
 class TauError(Exception):
     '''Raise when subprocess yields a returncode != 0 from Tau'''

@@ -108,5 +108,8 @@ class CfdSteady(Steady):
                         'Pextra': Pextra,
                         'Pcfd': Pcfd,
                        }
-            return response        
+            return response
+        
+    def finalize(self):
+        self.cfd_interface.release_memory()
         

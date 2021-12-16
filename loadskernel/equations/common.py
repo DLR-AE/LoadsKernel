@@ -751,5 +751,15 @@ class Common():
             
         return Pextra, Pb_ext, Pf_ext
 
+    def finalize(self):
+        """
+        This function is called each time a trim is finished and the model equations are no longer used.
+        The background is that in case the model equations are pure Python code, we can rely on the automatic 
+        memory management. In cases where other, external code is involved, it might become necessary to 
+        release the memory manually, for example with the CFD solver SU2.Of course other, final operations 
+        may be performed as needed. 
+        """
+        pass
+    
 class ConvergenceError(Exception):
     '''Raise when structural deformation does not converge after xx loops'''

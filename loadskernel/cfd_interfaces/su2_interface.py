@@ -152,8 +152,7 @@ class SU2Interface(object):
         if initialize_su2:
             # then initialize SU2 on all processes
             logging.info('Initializing SU2.')
-            if self.FluidSolver != None:
-                self.FluidSolver.Postprocessing()
+            self.release_memory()
             self.FluidSolver = pysu2.CSinglezoneDriver(para_filename, 1, self.comm)
         else:
             logging.info('Reusing SU2 instance.')
@@ -204,3 +203,8 @@ class SU2Interface(object):
     
     def prepare_initial_solution(self):   
         pass
+    
+    def release_memory(self):
+        if self.FluidSolver != None:
+            self.FluidSolver.Postprocessing()
+        

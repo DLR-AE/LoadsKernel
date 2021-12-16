@@ -281,7 +281,8 @@ class SolutionSequences(TrimConditions):
                 self.response = {}
                 self.successful = False
                 logging.warning('SolutionSequences failed for subcase {}. The SolutionSequences solver reports: {}'.format(self.trimcase['subcase'], msg))
-                return
+        equations.finalize()
+        return
 
     def iterative_trim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
@@ -309,12 +310,10 @@ class SolutionSequences(TrimConditions):
                 self.response = {}
                 self.successful = False
                 logging.warning('SolutionSequences failed for subcase {} due to CFDError: {}'.format(self.trimcase['subcase'], e))
-                return
             except ConvergenceError as e:
                 self.response = {}
                 self.successful = False
                 logging.warning('SolutionSequences failed for subcase {} due to ConvergenceError: {}'.format(self.trimcase['subcase'], e))
-                return
             else:
                 logging.info(msg)
                 logging.info('function evaluations: ' + str(info['nfev']))
@@ -327,7 +326,8 @@ class SolutionSequences(TrimConditions):
                     self.response = {}
                     self.successful = False
                     logging.warning('SolutionSequences failed for subcase {}. The SolutionSequences solver reports: {}'.format(self.trimcase['subcase'], msg))
-                    return
+        equations.finalize()
+        return
 
     def exec_sim(self):
         # decrease dimension to simplify indexing (undo what has been done in the last lines of exec_trim() ) 
