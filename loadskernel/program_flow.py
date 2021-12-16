@@ -22,20 +22,19 @@ class ProgramFlowHelper(object):
     def __init__(self,
                  job_name,
                  pre=False, main=False, post=False,
-                 debug=False, test=False,
+                 test=False,
                  path_input='../input/',
                  path_output='../output/',
                  jcl=None,
-                 parallel=False,
-                 restart=False,
+                 use_multiprocessing=False,
                  machinefile=None,):
         # basic options
         self.pre = pre                  # True/False
         self.main = main                # True/False
         self.post = post                # True/False
         # debug options
-        self.debug = debug              # True/False
-        self.restart = restart          # True/False
+        self.debug = False              # True/False
+        self.restart = False            # True/False
         # advanced options
         self.test = test                # True/False
         # job control options
@@ -44,12 +43,18 @@ class ProgramFlowHelper(object):
         self.path_output = path_output  # path
         self.jcl = jcl                  # python class
         # parallel computing options
-        self.parallel = parallel        # True/False/integer
+        self.use_multiprocessing = use_multiprocessing        # True/False/integer
         self.machinefile = machinefile  # filename
         # Initialize some more things
         self.setup_path()
-        self.have_mpi, self.comm, self.myid = setup_mpi(self.debug)
-        self.setup_logger()
+        if use_multiprocessing:
+            # In case we want to use multiprocessing, MPI should not be initialized.
+            # This is because multiprocessing and MPI don't harmonize and block each other.
+            self.have_mpi = False
+            self.myid = 0
+        else:
+            self.have_mpi, self.comm, self.myid = setup_mpi(self.debug)
+            
 
     def setup_path(self):
         self.path_input = io_functions.specific_functions.check_path(self.path_input)
@@ -70,14 +75,26 @@ class ProgramFlowHelper(object):
     
     def setup_logger_cluster(self, i):
         logger = logging.getLogger()
-        if not logger.hasHandlers():
-            path_log = io_functions.specific_functions.check_path(self.path_output+'log/')
-            # define a Handler which writes INFO messages or higher to a log file
+        logger.setLevel(logging.INFO)
+        path_log = io_functions.specific_functions.check_path(self.path_output+'log/')
+        # Get the names of all existing loggers.
+        existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
+        if 'lk_clusterlogfile' in existing_handlers:
+            # Make sure that the filename is still correct.
+            hdlr = logger.handlers[existing_handlers.index('lk_clusterlogfile')]
+            if not hdlr.baseFilename == path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.txt.' + str(self.myid):
+                # In case the filename is incorrect, remove the handler completely from the logger.
+                logger.removeHandler(hdlr)
+                # Update the list of all existing loggers.
+                existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
+        # Add the following handlers only if they don't exist. This avoid duplicate lines/log entries.
+        if 'lk_clusterlogfile' not in existing_handlers:
+            # define a Handler which writes messages to a log file
             logfile = logging.FileHandler(filename=path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.txt.' + str(self.myid), mode='w')
-            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
+            logfile.set_name('lk_clusterlogfile')
+            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
+                                          datefmt='%d/%m/%Y %H:%M:%S')
             logfile.setFormatter(formatter)
-            # add the handler(s) to the root logger
-            logger.setLevel(logging.INFO)
             logger.addHandler(logfile)
         logger.info('This is the log for MPI process {}.'.format(self.myid))
 
@@ -122,6 +139,7 @@ class ProgramFlowHelper(object):
 class Kernel(ProgramFlowHelper):
 
     def run(self):
+        self.setup_logger()
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
         logging.info('User ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
         logging.info('pre:  ' + str(self.pre))
@@ -134,9 +152,9 @@ class Kernel(ProgramFlowHelper):
 
         if self.pre:
             self.run_pre()
-        if self.main and self.parallel:
-            self.run_main_parallel()
-        if self.main and not self.parallel:
+        if self.main and self.use_multiprocessing:
+            self.run_main_multiprocessing()
+        if self.main and not self.use_multiprocessing:
             self.run_main_sequential()
         if self.post:
             self.run_post()
@@ -226,13 +244,13 @@ class Kernel(ProgramFlowHelper):
                                                       mon.dyn2stat)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
-    def run_main_parallel(self):
+    def run_main_multiprocessing(self):
         """
-        This function organizes the parallel computation of multiple load cases on one machine.
+        This function organizes the multiprocessing computation of multiple load cases on one machine.
         Parallelization is achieved using a worker/listener concept.
         The worker and the listener communicate via the output queue.
         """
-        logging.info('--> Starting Main in parallel mode for %d trimcase(s).' % len(self.jcl.trimcase))
+        logging.info('--> Starting Main in multiprocessing mode for %d trimcase(s).' % len(self.jcl.trimcase))
         t_start = time.time()
         manager = multiprocessing.Manager()
         q_input = manager.Queue()
@@ -243,8 +261,8 @@ class Kernel(ProgramFlowHelper):
             q_input.put(i)
         logging.info('--> All trimcases queued, waiting for execution.')
 
-        if type(self.parallel) == int:
-            n_processes = self.parallel
+        if type(self.use_multiprocessing) == int:
+            n_processes = self.use_multiprocessing
         else:
             n_processes = multiprocessing.cpu_count()
             if n_processes < 2:
@@ -424,8 +442,9 @@ class ClusterMode(Kernel):
         logging.info('User ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
         logging.info('Cluster array mode')
         i = int(i)
-        self.setup_logger_cluster(i=i)
         self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
+        self.setup_logger_cluster(i=i)
+        
         # add machinefile to jcl
         self.jcl.machinefile = self.machinefile
         
