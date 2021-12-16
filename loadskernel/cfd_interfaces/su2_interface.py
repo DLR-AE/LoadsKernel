@@ -60,10 +60,11 @@ class SU2Interface(object):
 
         solver_all_moving_markers = np.array(self.FluidSolver.GetAllDeformMeshMarkersTag())
         solver_marker_ids = self.FluidSolver.GetAllBoundaryMarkers()
-        # Die Oberflächenmarker und die Partitionierung stimmen in der Regel nicht überein. 
-        # Daher muss geschaut werden, ob der momentane MPI-Knoten überhaupt den Oberflächenmarker enthält.
+        # The surface marker and the partitioning of the solver usually don't agree.
+        # Thus, it is necessary to figure out if the partition of the current mpi process has
+        # a node that belongs to a moving surface marker.
         has_moving_marker = [marker in solver_marker_ids.keys() for marker in solver_all_moving_markers]
-        # Die marker bekommen in SU2 unterschiedliche IDs, daher muss die Zuordnugn über die Namen erfolgen.
+        # In SU2, markers are tracked by their name, not by their ID, and the ID might differ.
         lk_markers = [cfdgrid['desc'] for cfdgrid in self.model.cfdgrids]
         
         for marker in solver_all_moving_markers[has_moving_marker]:
@@ -183,8 +184,9 @@ class SU2Interface(object):
         Pcfd_rcv  = np.zeros(( self.comm.Get_size() , self.model.cfdgrid['n']*6))
         solver_all_moving_markers = np.array(self.FluidSolver.GetAllDeformMeshMarkersTag())
         solver_marker_ids = self.FluidSolver.GetAllBoundaryMarkers()
-        # Die Oberflächenmarker und die Partitionierung stimmen in der Regel nicht überein. 
-        # Daher muss geschaut werden, ob der momentane MPI-Knoten überhaupt den Oberflächenmarker enthält.
+        # The surface marker and the partitioning of the solver usually don't agree.
+        # Thus, it is necessary to figure out if the partition of the current mpi process has
+        # a node that belongs to a moving surface marker.
         has_moving_marker = [marker in solver_marker_ids.keys() for marker in solver_all_moving_markers]
         
         for marker in solver_all_moving_markers[has_moving_marker]:
