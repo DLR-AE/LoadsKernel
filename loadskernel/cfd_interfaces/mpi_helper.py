@@ -1,6 +1,6 @@
 import platform, sys, os, time
 try:
-    import mpi4py
+    from mpi4py import MPI
 except:
     pass
     
@@ -8,7 +8,7 @@ def setup_mpi(debug=False):
     if 'mpi4py' in sys.modules:
         have_mpi = True
         # Set-up the MPI World communicator
-        comm = mpi4py.MPI.COMM_WORLD
+        comm = MPI.COMM_WORLD
         myid = comm.Get_rank()
         if myid == 0:
             print('MPI interface initialized with {} processes(es).'.format(comm.Get_size()))
