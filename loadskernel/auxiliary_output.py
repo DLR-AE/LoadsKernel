@@ -52,7 +52,7 @@ class AuxiliaryOutput:
             
     def assemble_trimresult(self, i_case):
         response = self.responses[i_case]
-        if response['successful']:
+        if response['successful'][()]:
             trimresult = OrderedDict({'subcase':  self.jcl.trimcase[i_case]['subcase'],
                           'desc':     self.jcl.trimcase[i_case]['desc'],})
             i_mass  = self.model.mass['key'].index(self.jcl.trimcase[i_case]['mass'])
@@ -131,7 +131,7 @@ class AuxiliaryOutput:
         for i_case in range(len(self.jcl.trimcase)):
             trimcase = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
                         'desc':     self.jcl.trimcase[i_case]['desc'],}
-            if self.responses[i_case]['successful']:
+            if self.responses[i_case]['successful'][()]:
                 sucessfull_trimcases_info.append(trimcase)
         logging.info('writing successful trimcases cases to: ' + filename_csv)
         io_functions.specific_functions.write_list_of_dictionaries(sucessfull_trimcases_info, filename_csv)
@@ -141,7 +141,7 @@ class AuxiliaryOutput:
         for i_case in range(len(self.jcl.trimcase)):
             trimcase = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
                         'desc':     self.jcl.trimcase[i_case]['desc'],}
-            if not self.responses[i_case]['successful']:
+            if not self.responses[i_case]['successful'][()]:
                 failed_trimcases_info.append(trimcase)
         logging.info('writing failed trimcases cases to: ' + filename_csv)
         io_functions.specific_functions.write_list_of_dictionaries(failed_trimcases_info, filename_csv)
