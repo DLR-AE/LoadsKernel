@@ -149,6 +149,7 @@ class Modelviewer():
         self.initCouplingTab()
         self.initMonstationsTab()
         self.initPytranTab()
+        self.initIgesTab()
 
     def initStrcTab(self):
         tab_strc = QtGui.QWidget()
@@ -323,10 +324,21 @@ class Modelviewer():
         # Elements of results tab
         self.list_celldata = QtGui.QListWidget()
         self.list_celldata.itemSelectionChanged.connect(self.get_new_cell_data_for_plotting)
-        self.cb_culling = QtGui.QCheckBox('Culling On/Off')
-        self.cb_culling.stateChanged.connect(self.toggle_culling)
+        self.list_show_cells = QtGui.QListWidget()
+        self.list_show_cells.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.list_show_cells.itemSelectionChanged.connect(self.get_new_cell_data_for_plotting)
+        
         bt_cell_hide = QtGui.QPushButton('Hide Nastran results')
         bt_cell_hide.clicked.connect(self.plotting.hide_cell)
+        
+        layout_pytran = QtGui.QGridLayout(tab_pytran)
+        layout_pytran.addWidget(self.list_celldata, 0, 0, 1, 1)
+        layout_pytran.addWidget(self.list_show_cells, 0, 1, 1, 1)
+        layout_pytran.addWidget(bt_cell_hide, 1, 0, 1, -1)
+        
+    def initIgesTab(self):
+        tab_iges = QtGui.QWidget()
+        self.tabs_widget.addTab(tab_iges, "iges")
                 
         self.list_iges = QtGui.QListWidget()
         self.list_iges.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection) # allow multiple selections
@@ -334,12 +346,9 @@ class Modelviewer():
         bt_iges_hide = QtGui.QPushButton('Hide IGES')
         bt_iges_hide.clicked.connect(self.plotting.hide_iges)
 
-        layout_pytran = QtGui.QVBoxLayout(tab_pytran)
-        layout_pytran.addWidget(self.list_celldata)
-        layout_pytran.addWidget(self.cb_culling)
-        layout_pytran.addWidget(bt_cell_hide)
-        layout_pytran.addWidget(self.list_iges)
-        layout_pytran.addWidget(bt_iges_hide)
+        layout_iges = QtGui.QVBoxLayout(tab_iges)
+        layout_iges.addWidget(self.list_iges)
+        layout_iges.addWidget(bt_iges_hide)
 
     def initMayaviFigure(self):
         # ----------------------------
@@ -529,12 +538,12 @@ class Modelviewer():
             self.plotting.plot_cs(i_surf, axis, deg)
 
     def get_new_cell_data_for_plotting(self, *args):
-        if self.list_celldata.currentItem() is not None:
-            # determine cs
+        if (self.list_show_cells.currentItem() is not None) and (self.list_celldata.currentItem() is not None):
+            items = self.list_show_cells.selectedItems()
+            show_cells = [int(item.text()) for item in items]
             key = self.list_celldata.currentItem().data(0)
-            celldata = self.nastran.celldata[key]
-            culling = self.cb_culling.isChecked()  # True/False
-            self.plotting.plot_cell(celldata, culling)
+            celldata = self.nastran.celldata[key]            
+            self.plotting.plot_cell(celldata, show_cells)
 
     def get_new_markers_for_plotting(self, *args):
         # To show a different control surface, new points need to be created. Thus, remove last control surface from plot.
@@ -557,11 +566,6 @@ class Modelviewer():
             if self.plotting.show_iges:
                 self.plotting.hide_iges()
             self.plotting.plot_iges(selected_meshes)
-
-    def toggle_culling(self):
-        self.plotting.hide_cell()
-        self.get_new_cell_data_for_plotting()
-
     def load_model(self):
         # open file dialog
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'], self.file_opt['filters'])[0]
@@ -615,6 +619,10 @@ class Modelviewer():
         self.list_celldata.clear()
         for key in self.nastran.celldata.keys():
             self.list_celldata.addItem(QtGui.QListWidgetItem(key))
+        self.list_show_cells.clear()
+        if hasattr(self.model, 'strcshell'):
+            for key in self.model.strcshell['ID']:
+                self.list_show_cells.addItem(QtGui.QListWidgetItem(str(key)))
 
     def load_tau_grid(self):
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.nc_opt['title'], self.nc_opt['initialdir'], self.nc_opt['filters'])[0]

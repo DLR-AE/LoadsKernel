@@ -389,33 +389,33 @@ class Plotting:
         self.show_cell=False
         mlab.draw(self.fig)
         
-    def plot_cell(self, cell_data, culling=False):
+    def plot_cell(self, cell_data, show_cells):
         if self.show_cell:
-            self.update_cell_display(cell_data=cell_data)
-        else:
-            self.setup_cell_display(offsets=self.strcgrid['offset'], color=(0,0,1), p_scale=self.pscale, cell_data=cell_data, culling=culling)
-            self.show_cell=True
+            # self.update_cell_display(cell_data=cell_data)
+            # The pure update doesn't work in case different shells are selected.
+            self.hide_cell()
+        self.setup_cell_display(offsets=self.strcgrid['offset'], color=(0,0,1), p_scale=self.pscale, cell_data=cell_data, show_cells=show_cells)
+        self.show_cell=True
         mlab.draw(self.fig)
            
-    def setup_cell_display(self, offsets, color, p_scale, cell_data, culling):
+    def setup_cell_display(self, offsets, color, p_scale, cell_data, show_cells):
         ug = tvtk.UnstructuredGrid(points=offsets)
         #ug.point_data.scalars = scalars
         if hasattr(self.model, 'strcshell'):
             # plot shell as surface
-            shells = []
-            for shell in self.model.strcshell['cornerpoints']: 
-                shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell])
+            shells = []; data = []
+            for i_shell in range(self.model.strcshell['n']):
+                if self.model.strcshell['ID'][i_shell] in show_cells:
+                    data.append(cell_data[i_shell])
+                    shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in self.model.strcshell['cornerpoints'][i_shell]])
             shell_type = tvtk.Polygon().cell_type
             ug.set_cells(shell_type, shells)
-            ug.cell_data.scalars = cell_data
+            ug.cell_data.scalars = data
             self.src_cell = mlab.pipeline.add_dataset(ug)
             #points  = mlab.pipeline.glyph(self.src_cell, color=color, scale_factor=p_scale) 
-            surface = mlab.pipeline.surface(self.src_cell, opacity=1.0, line_width=0.5, colormap='plasma')
+            surface = mlab.pipeline.surface(self.src_cell, opacity=1.0, line_width=0.5, colormap='plasma', vmin=cell_data.min(), vmax=cell_data.max())
             surface.actor.property.edge_visibility=True
-            if culling:
-                surface.actor.property.backface_culling=True
-            else:
-                surface.actor.property.backface_culling=False
+
             surface.module_manager.scalar_lut_manager.show_legend=True
             surface.module_manager.scalar_lut_manager.label_text_property.color=(0,0,0)
             surface.module_manager.scalar_lut_manager.label_text_property.font_family='times'
