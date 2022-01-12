@@ -59,7 +59,7 @@ class Merge:
     def run_merge(self, job_name, jobs_to_merge):
            
         k = program_flow.Kernel(job_name, path_input=self.path_input, path_output=self.path_output)
-        k.setup()
+        k.setup_path()
         k.setup_logger()
         logging.info( 'Starting Loads Merge')
         logging.info( 'user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() +')')

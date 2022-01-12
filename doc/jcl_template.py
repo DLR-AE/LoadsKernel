@@ -51,13 +51,14 @@ class jcl:
                      # Additional parameters for CFD
                      'para_path':'/scratch/tau/',
                      'para_file':'para',
+                     'cfd_solver': 'tau',                                   # 'tau' or 'su2'
                      'tau_solver': 'el',
                      'tau_cores': 16,
                     }
         self.meshdefo = {'surface':                              # general surface mesh information
-                                    {'fileformat': 'netcdf',     # 'cgns', 'netcdf'
-                                     'markers': [1,3],           # list of markers [1, 2, ...] of surfaces to be included in deformation
-                                     'filename_grid':'tau.grid', # Tau volume or surface mesh or CGNSS surface mesh
+                                    {'fileformat': 'netcdf',     # 'cgns', 'netcdf', 'su2'
+                                     'markers': [1,3],           # list of markers [1, 2, ...] or ['upper', 'lower', ...] of surfaces to be included in deformation
+                                     'filename_grid':'tau.grid', # CFD mesh
                                     },
                          'volume':{},                            # general volume mesh information, unused
                         } 

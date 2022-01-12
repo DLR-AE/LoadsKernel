@@ -78,7 +78,7 @@ class meshdefo:
             del PHIi_d
         if self.plotting:
             mlab.show()
-            
+    
     def write_deformations(self, filename_defo):
         if 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat']=='cgns':
             self.write_defo_cgns(filename_defo)

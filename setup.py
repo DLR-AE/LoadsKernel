@@ -37,6 +37,7 @@ def my_setup():
                             'pyfmi',
                             'h5py',
                             'tables',
+                            'mpi4py',
                             ],
           )
 
