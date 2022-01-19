@@ -31,7 +31,7 @@ class meshdefo:
                 Ujx2 += np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
             elif hingeline == 'z':
                 Ujx2 += np.dot(self.model.Djx2[i_x2],[0,0,0,0,0,Ux2[i_x2]])
-        self.transfer_deformations(self.model.aerogrid, Ujx2, '_k', surface_spline=False)
+        self.transfer_deformations(self.model.aerogrid, Ujx2, '_k', rbf_type='wendland2', surface_spline=False, support_radius=1.5)
                     
     def Uf(self, Uf, trimcase):
         logging.info('Apply flexible deformations to cfdgrid')
@@ -47,7 +47,7 @@ class meshdefo:
         PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
         Ug_f_body = np.dot(PHIf_strc.T, Uf.T).T
         
-        self.transfer_deformations(splinegrid, Ug_f_body)
+        self.transfer_deformations(splinegrid, Ug_f_body, '', rbf_type='tps', surface_spline=False)
 
     def init_deformations(self):
         # create empty deformation vectors for cfdgrids
@@ -55,7 +55,7 @@ class meshdefo:
         for cfdgrid in self.cfdgrids:
             self.Ucfd.append(np.zeros(cfdgrid['n']*6))
     
-    def transfer_deformations(self, grid_i, U_i, set_i = '', surface_spline=False):
+    def transfer_deformations(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
         if self.plotting:
             # set-up plot
             from mayavi import mlab
@@ -66,7 +66,9 @@ class meshdefo:
         for grid_d, Ucfd in zip(self.cfdgrids, self.Ucfd):
             logging.debug('Working on marker {}'.format(grid_d['desc']))
             # build spline matrix
-            PHIi_d = spline_functions.spline_rbf(grid_i, set_i, grid_d, '', rbf_type='tps', surface_spline=surface_spline, dimensions=[U_i.size, grid_d['n']*6])
+            PHIi_d = spline_functions.spline_rbf(grid_i, set_i, grid_d, '', 
+                                                 rbf_type=rbf_type, surface_spline=surface_spline, 
+                                                 support_radius=support_radius, dimensions=[U_i.size, grid_d['n']*6])
             # store deformation of cfdgrid
             Ucfd += PHIi_d.dot(U_i)
             if self.plotting:
@@ -76,7 +78,7 @@ class meshdefo:
             del PHIi_d
         if self.plotting:
             mlab.show()
-            
+    
     def write_deformations(self, filename_defo):
         if 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat']=='cgns':
             self.write_defo_cgns(filename_defo)

@@ -22,7 +22,7 @@ import numpy as np
 import loadskernel.io_functions.specific_functions as specific_io
 from modelviewer.plotting import Plotting
 from modelviewer.pytran import NastranSOL101
-from modelviewer.cfdgrid import TauGrid
+from modelviewer.cfdgrid import TauGrid, SU2Grid
 from modelviewer.iges import IgesMesh
 
 # First, and before importing any Enthought packages, set the ETS_TOOLKIT
@@ -96,7 +96,7 @@ class Modelviewer():
         self.nc_opt = {}
         self.nc_opt['filters'] = "all files (*.*)"
         self.nc_opt['initialdir'] = os.getcwd()
-        self.nc_opt['title'] = 'Open a Tau Grid File'
+        self.nc_opt['title'] = 'Open a Grid File'
         
         # define file options
         self.iges_opt = {}
@@ -106,7 +106,7 @@ class Modelviewer():
 
         self.plotting = Plotting()
         self.nastran = NastranSOL101()
-        self.taugrid = TauGrid()
+
         self.iges = IgesMesh()
 
     def run(self):
@@ -149,6 +149,7 @@ class Modelviewer():
         self.initCouplingTab()
         self.initMonstationsTab()
         self.initPytranTab()
+        self.initIgesTab()
 
     def initStrcTab(self):
         tab_strc = QtGui.QWidget()
@@ -323,10 +324,21 @@ class Modelviewer():
         # Elements of results tab
         self.list_celldata = QtGui.QListWidget()
         self.list_celldata.itemSelectionChanged.connect(self.get_new_cell_data_for_plotting)
-        self.cb_culling = QtGui.QCheckBox('Culling On/Off')
-        self.cb_culling.stateChanged.connect(self.toggle_culling)
+        self.list_show_cells = QtGui.QListWidget()
+        self.list_show_cells.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.list_show_cells.itemSelectionChanged.connect(self.get_new_cell_data_for_plotting)
+        
         bt_cell_hide = QtGui.QPushButton('Hide Nastran results')
         bt_cell_hide.clicked.connect(self.plotting.hide_cell)
+        
+        layout_pytran = QtGui.QGridLayout(tab_pytran)
+        layout_pytran.addWidget(self.list_celldata, 0, 0, 1, 1)
+        layout_pytran.addWidget(self.list_show_cells, 0, 1, 1, 1)
+        layout_pytran.addWidget(bt_cell_hide, 1, 0, 1, -1)
+        
+    def initIgesTab(self):
+        tab_iges = QtGui.QWidget()
+        self.tabs_widget.addTab(tab_iges, "iges")
                 
         self.list_iges = QtGui.QListWidget()
         self.list_iges.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection) # allow multiple selections
@@ -334,12 +346,9 @@ class Modelviewer():
         bt_iges_hide = QtGui.QPushButton('Hide IGES')
         bt_iges_hide.clicked.connect(self.plotting.hide_iges)
 
-        layout_pytran = QtGui.QVBoxLayout(tab_pytran)
-        layout_pytran.addWidget(self.list_celldata)
-        layout_pytran.addWidget(self.cb_culling)
-        layout_pytran.addWidget(bt_cell_hide)
-        layout_pytran.addWidget(self.list_iges)
-        layout_pytran.addWidget(bt_iges_hide)
+        layout_iges = QtGui.QVBoxLayout(tab_iges)
+        layout_iges.addWidget(self.list_iges)
+        layout_iges.addWidget(bt_iges_hide)
 
     def initMayaviFigure(self):
         # ----------------------------
@@ -370,10 +379,15 @@ class Modelviewer():
         self.loadButtonNastran.triggered.connect(self.load_nastran_results)
         fileMenu.addAction(self.loadButtonNastran)
 
-        self.loadButtonCfdgrid = QtGui.QAction('Load Tau Grid', self.window)
-        self.loadButtonCfdgrid.setShortcut('Ctrl+T')
-        self.loadButtonCfdgrid.triggered.connect(self.load_tau_grid)
-        fileMenu.addAction(self.loadButtonCfdgrid)
+        self.loadButtonTauGrid = QtGui.QAction('Load Tau Grid', self.window)
+        self.loadButtonTauGrid.setShortcut('Ctrl+T')
+        self.loadButtonTauGrid.triggered.connect(self.load_tau_grid)
+        fileMenu.addAction(self.loadButtonTauGrid)
+        
+        self.loadButtonSU2Grid = QtGui.QAction('Load SU2 Grid', self.window)
+        self.loadButtonSU2Grid.setShortcut('Ctrl+S')
+        self.loadButtonSU2Grid.triggered.connect(self.load_su2_grid)
+        fileMenu.addAction(self.loadButtonSU2Grid)
         
         self.loadButtonIges = QtGui.QAction('Load IGES', self.window)
         self.loadButtonIges.setShortcut('Ctrl+I')
@@ -529,12 +543,12 @@ class Modelviewer():
             self.plotting.plot_cs(i_surf, axis, deg)
 
     def get_new_cell_data_for_plotting(self, *args):
-        if self.list_celldata.currentItem() is not None:
-            # determine cs
+        if (self.list_show_cells.currentItem() is not None) and (self.list_celldata.currentItem() is not None):
+            items = self.list_show_cells.selectedItems()
+            show_cells = [int(item.text()) for item in items]
             key = self.list_celldata.currentItem().data(0)
-            celldata = self.nastran.celldata[key]
-            culling = self.cb_culling.isChecked()  # True/False
-            self.plotting.plot_cell(celldata, culling)
+            celldata = self.nastran.celldata[key]            
+            self.plotting.plot_cell(celldata, show_cells)
 
     def get_new_markers_for_plotting(self, *args):
         # To show a different control surface, new points need to be created. Thus, remove last control surface from plot.
@@ -546,7 +560,7 @@ class Modelviewer():
         if self.list_markers.currentItem() is not None:
             # determine marker
             items = self.list_markers.selectedItems()
-            selected_markers = [int(item.text()) for item in items]
+            selected_markers = [item.text() for item in items]
             self.plotting.plot_cfdgrids(selected_markers)
             
     def get_iges_for_plotting(self, *args):
@@ -557,11 +571,6 @@ class Modelviewer():
             if self.plotting.show_iges:
                 self.plotting.hide_iges()
             self.plotting.plot_iges(selected_meshes)
-
-    def toggle_culling(self):
-        self.plotting.hide_cell()
-        self.get_new_cell_data_for_plotting()
-
     def load_model(self):
         # open file dialog
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'], self.file_opt['filters'])[0]
@@ -615,19 +624,34 @@ class Modelviewer():
         self.list_celldata.clear()
         for key in self.nastran.celldata.keys():
             self.list_celldata.addItem(QtGui.QListWidgetItem(key))
+        self.list_show_cells.clear()
+        if hasattr(self.model, 'strcshell'):
+            for key in self.model.strcshell['ID']:
+                self.list_show_cells.addItem(QtGui.QListWidgetItem(str(key)))
 
     def load_tau_grid(self):
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.nc_opt['title'], self.nc_opt['initialdir'], self.nc_opt['filters'])[0]
         if filename != '':
             self.tabs_widget.setCurrentIndex(2)
-            self.taugrid.load_file(filename)
-            self.plotting.add_cfdgrids(self.taugrid.cfdgrids)
+            self.cfdgrid = TauGrid()
+            self.cfdgrid.load_file(filename)
+            self.plotting.add_cfdgrids(self.cfdgrid.cfdgrids)
+            self.update_markers()
+            self.nc_opt['initialdir'] = os.path.split(filename)[0]
+    
+    def load_su2_grid(self):
+        filename = QtGui.QFileDialog.getOpenFileName(self.window, self.nc_opt['title'], self.nc_opt['initialdir'], self.nc_opt['filters'])[0]
+        if filename != '':
+            self.tabs_widget.setCurrentIndex(2)
+            self.cfdgrid = SU2Grid()
+            self.cfdgrid.load_file(filename)
+            self.plotting.add_cfdgrids(self.cfdgrid.cfdgrids)
             self.update_markers()
             self.nc_opt['initialdir'] = os.path.split(filename)[0]
 
     def update_markers(self):
         self.list_markers.clear()
-        for cfdgrid in self.taugrid.cfdgrids:
+        for cfdgrid in self.cfdgrid.cfdgrids:
             self.list_markers.addItem(QtGui.QListWidgetItem(cfdgrid['desc']))
     
     def load_iges(self):

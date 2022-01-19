@@ -12,12 +12,14 @@ class ReadCfdgrids:
             logging.error('jcl.meshdefo has no key "surface"')
 
     def read_surface(self, merge_domains=False):
-        if 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat']=='cgns':
+        if 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat'].lower()=='cgns':
             self.read_cfdmesh_cgns(merge_domains)
-        elif 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat']=='netcdf':
+        elif 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat'].lower()=='netcdf':
             self.read_cfdmesh_netcdf(merge_domains)
+        elif 'fileformat' in self.jcl.meshdefo['surface'] and self.jcl.meshdefo['surface']['fileformat'].lower()=='su2':
+            self.read_cfdmesh_su2(merge_domains)
         else:
-            logging.error('jcl.meshdefo["surface"]["fileformat"] must be "netcdf" or "cgns"' )
+            logging.error('jcl.meshdefo["surface"]["fileformat"] must be "netcdf", "cgns" or "su2"' )
             return
         
     def read_cfdmesh_cgns(self, merge_domains=False):
@@ -124,3 +126,95 @@ class ReadCfdgrids:
                 cfdgrid['points_of_surface'] = [points_of_surface[s] for s in surfaces]
                 self.cfdgrids.append(cfdgrid)
         ncfile_grid.close()
+        
+    def read_cfdmesh_su2(self, merge_domains=False):
+        """
+        The description of the SU2 mesh file format is given here: https://su2code.github.io/docs/Mesh-File/
+        """
+        logging.info( 'Extracting points belonging to surface marker(s) from grid {}'.format(self.filename_grid))
+        # Open the ascii file and read all lines.
+        with open(self.filename_grid, 'r') as fid:
+            lines = fid.readlines()
+        # Loop over all lines, if a keyword such as NELEM, NPOIN or MARKER_TAG is found, 
+        # this announces a new section in the file.
+        surface_points = {}
+        n_lines = len(lines)
+        i = 0
+        while i < n_lines:
+            if str.find(lines[i], 'NELEM') !=- 1:
+                n_elem = int(lines[i].split()[1])
+                # There is nothing we need to do with the volume element connectivity, so we can skip this section.
+                # Skipping all lines (at once) saves a lot of time, since there are many volume elements...
+                i += n_elem
+            elif str.find(lines[i], 'NPOIN') != -1:
+                # New section found.
+                # Here, the coordinates of all points are given, including surface and volume points.
+                n_points = int(lines[i].split()[1])
+                i += 1
+                # Loop over next lines to read all points and their coordinates
+                tmp = []
+                for x in range(n_points):
+                    tmp.append(lines[i+x].split())
+                points = np.array(tmp, dtype=np.float)
+                i += x
+            elif str.find(lines[i], 'MARKER_TAG') != -1:
+                # New section found.
+                # Here, all points are listed that belong to one marker. 
+                # In addition, the connectivity is given, which we need e.g. for plotting.
+                marker = lines[i].split()[1]
+                i += 1
+                n_elem = int(lines[i].split()[1])
+                i += 1
+                # Loop over next lines to read all surface points
+                triangles = []
+                quadrilaterals = []
+                for x in range(n_elem):
+                    split_line = lines[i+x].split()
+                    if split_line[0] == '5':
+                        # Triangle elements are identified with a 5
+                        triangles.append( [int(id) for id in split_line[1:]] )
+                    elif split_line[0] == '9':
+                        # Quadrilateral elements are identified with a 9
+                        quadrilaterals.append( [int(id) for id in split_line[1:]])
+                    else:
+                        logging.error('Surface elements of type "{}" are not implemented!'.format(split_line[0]))
+                    
+                i += x
+                # Store everything
+                surface_points[marker] = {}
+                surface_points[marker]['points'] = np.unique(triangles + quadrilaterals)
+                surface_points[marker]['points_of_surface'] = triangles + quadrilaterals
+            i += 1
+
+        if merge_domains:   
+            # First we need to do some merging...
+            tmp_points = np.array([], dtype=int)
+            tmp_surfaces = []
+            for marker in self.markers:
+                tmp_points = np.hstack((tmp_points, surface_points[marker]['points']))
+                tmp_surfaces += surface_points[marker]['points_of_surface']
+            
+            # Assemble the cfdgrid
+            self.cfdgrid = {}
+            self.cfdgrid['ID'] = np.unique(tmp_points)
+            self.cfdgrid['CP'] = np.zeros(self.cfdgrid['ID'].shape)
+            self.cfdgrid['CD'] = np.zeros(self.cfdgrid['ID'].shape)
+            self.cfdgrid['n'] = len(self.cfdgrid['ID'])   
+            self.cfdgrid['offset'] = points[self.cfdgrid['ID'],:3]
+            self.cfdgrid['set'] = np.arange(6*self.cfdgrid['n']).reshape(-1,6)
+            self.cfdgrid['desc'] = self.markers
+            self.cfdgrid['points_of_surface'] = tmp_surfaces
+        else:
+            self.cfdgrids = []
+            for marker in surface_points.keys():
+                # Assemble the cfdgrid
+                cfdgrid = {}
+                cfdgrid['ID'] = surface_points[marker]['points']
+                cfdgrid['CP'] = np.zeros(cfdgrid['ID'].shape)
+                cfdgrid['CD'] = np.zeros(cfdgrid['ID'].shape)
+                cfdgrid['n'] = len(cfdgrid['ID'])
+                cfdgrid['offset'] = points[cfdgrid['ID'],:3]
+                cfdgrid['set'] = np.arange(6*cfdgrid['n']).reshape(-1,6)
+                cfdgrid['desc'] = marker
+                cfdgrid['points_of_surface'] = surface_points[marker]['points_of_surface']
+                self.cfdgrids.append(cfdgrid)

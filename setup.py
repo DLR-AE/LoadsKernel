@@ -36,6 +36,8 @@ def my_setup():
                             'psutil',
                             'pyfmi',
                             'h5py',
+                            'tables',
+                            'mpi4py',
                             ],
           )
 

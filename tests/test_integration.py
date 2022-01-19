@@ -23,21 +23,21 @@ class TestDiscus2c(HelperFunctions):
 
     def test_preprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False, parallel=False,
+        k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()
 
     def test_mainprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False, parallel=False,
+        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()
 
     def test_postprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=False, main=False, post=True, parallel=False,
+        k = program_flow.Kernel(self.job_name, pre=False, main=False, post=True,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()
@@ -112,21 +112,21 @@ class TestAllegraFlutter(HelperFunctions):
      
     def test_preprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False, parallel=False,
+        k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()
      
     def test_mainprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False, parallel=False,
+        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()
      
     def test_postprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=False, main=False, post=True, parallel=False,
+        k = program_flow.Kernel(self.job_name, pre=False, main=False, post=True,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()
@@ -174,14 +174,14 @@ class TestDiscus2cParallelProcessing(HelperFunctions):
     
     def test_preprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False, parallel=False,
+        k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False, use_multiprocessing=False,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()
 
     def test_mainprocessing_functional(self, get_test_dir):
         # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False, parallel=2,
+        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False, use_multiprocessing=2,
                           path_input=self.path_input,
                           path_output=get_test_dir)
         k.run()

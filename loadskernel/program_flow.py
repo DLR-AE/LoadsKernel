@@ -4,7 +4,7 @@ Created on Thu Nov 27 14:00:31 2014
 
 @author: voss_ar
 """
-import time, multiprocessing, getpass, platform, logging, sys, copy, argparse
+import time, multiprocessing, getpass, platform, logging, sys, copy, argparse, os
 
 from loadskernel import io_functions
 from loadskernel.io_functions import specific_functions
@@ -15,26 +15,26 @@ import loadskernel.auxiliary_output as auxiliary_output
 import loadskernel.plotting_standard as plotting_standard
 import loadskernel.plotting_extra as plotting_extra
 import loadskernel.model as model_modul
+from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
 
 class ProgramFlowHelper(object):
 
     def __init__(self,
                  job_name,
                  pre=False, main=False, post=False,
-                 debug=False, test=False,
+                 test=False,
                  path_input='../input/',
                  path_output='../output/',
                  jcl=None,
-                 parallel=False,
-                 restart=False,
+                 use_multiprocessing=False,
                  machinefile=None,):
         # basic options
         self.pre = pre                  # True/False
         self.main = main                # True/False
         self.post = post                # True/False
         # debug options
-        self.debug = debug              # True/False
-        self.restart = restart          # True/False
+        self.debug = False              # True/False
+        self.restart = False            # True/False
         # advanced options
         self.test = test                # True/False
         # job control options
@@ -43,14 +43,22 @@ class ProgramFlowHelper(object):
         self.path_output = path_output  # path
         self.jcl = jcl                  # python class
         # parallel computing options
-        self.parallel = parallel        # True/False/integer
+        self.use_multiprocessing = use_multiprocessing        # True/False/integer
         self.machinefile = machinefile  # filename
-        self.setup()
+        # Initialize some more things
+        self.setup_path()
+        if use_multiprocessing:
+            # In case we want to use multiprocessing, MPI should not be initialized.
+            # This is because multiprocessing and MPI don't harmonize and block each other.
+            self.have_mpi = False
+            self.myid = 0
+        else:
+            self.have_mpi, self.comm, self.myid = setup_mpi(self.debug)
+            
 
-    def setup(self):
+    def setup_path(self):
         self.path_input = io_functions.specific_functions.check_path(self.path_input)
         self.path_output = io_functions.specific_functions.check_path(self.path_output)
-        self.setup_logger()
 
     def print_logo(self):
         logging.info('')
@@ -64,35 +72,31 @@ class ProgramFlowHelper(object):
         logging.info(' ---------O---------')
         logging.info('')
         logging.info('')
-
-    def setup_mpi_hosts(self, n_workers):
-        n_required = self.jcl.aero['tau_cores'] * n_workers
-        if self.machinefile == None:
-            # all work is done on this node
-            mpi_hosts = [platform.node()] * n_required
-        else:
-            mpi_hosts = []
-            with open(self.machinefile) as f:
-                lines = f.readlines()
-            for line in lines:
-                line = line.split(' slots=')
-                mpi_hosts += [line[0]] * int(line[1])
-        if mpi_hosts.__len__() < n_required:
-            logging.error('Number of given hosts ({}) smaller than required hosts ({}). Exit.'.format(mpi_hosts.__len__(), n_required))
-            sys.exit()
-        return mpi_hosts
-
+    
     def setup_logger_cluster(self, i):
         logger = logging.getLogger()
-        if not logger.hasHandlers():
-            path_log = io_functions.specific_functions.check_path(self.path_output+'log/')
-            # define a Handler which writes INFO messages or higher to a log file
-            logfile = logging.FileHandler(filename=path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + ".txt", mode='w')
-            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
+        logger.setLevel(logging.INFO)
+        path_log = io_functions.specific_functions.check_path(self.path_output+'log/')
+        # Get the names of all existing loggers.
+        existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
+        if 'lk_clusterlogfile' in existing_handlers:
+            # Make sure that the filename is still correct.
+            hdlr = logger.handlers[existing_handlers.index('lk_clusterlogfile')]
+            if not hdlr.baseFilename == path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.txt.' + str(self.myid):
+                # In case the filename is incorrect, remove the handler completely from the logger.
+                logger.removeHandler(hdlr)
+                # Update the list of all existing loggers.
+                existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
+        # Add the following handlers only if they don't exist. This avoid duplicate lines/log entries.
+        if 'lk_clusterlogfile' not in existing_handlers:
+            # define a Handler which writes messages to a log file
+            logfile = logging.FileHandler(filename=path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.txt.' + str(self.myid), mode='w')
+            logfile.set_name('lk_clusterlogfile')
+            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
+                                          datefmt='%d/%m/%Y %H:%M:%S')
             logfile.setFormatter(formatter)
-            # add the handler(s) to the root logger
-            logger.setLevel(logging.INFO)
             logger.addHandler(logfile)
+        logger.info('This is the log for process {}.'.format(self.myid))
 
     def setup_logger(self):
         logger = logging.getLogger()
@@ -106,13 +110,13 @@ class ProgramFlowHelper(object):
         if 'lk_logfile' in existing_handlers:
             # Make sure that the filename is still correct.
             hdlr = logger.handlers[existing_handlers.index('lk_logfile')]
-            if not hdlr.baseFilename == self.path_output + 'log_' + self.job_name + ".txt":
+            if not hdlr.baseFilename == self.path_output + 'log_' + self.job_name + '.txt.' + str(self.myid):
                 # In case the filename is incorrect, remove the handler completely from the logger.
                 logger.removeHandler(hdlr)
                 # Update the list of all existing loggers.
                 existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
         # Add the following handlers only if they don't exist. This avoid duplicate lines/log entries.
-        if 'lk_console' not in existing_handlers:
+        if (self.myid == 0) and ('lk_console' not in existing_handlers):
             # define a Handler which writes messages to the sys.stout
             console = logging.StreamHandler(sys.stdout)
             console.set_name('lk_console')
@@ -124,29 +128,33 @@ class ProgramFlowHelper(object):
             logger.addHandler(console)
         if 'lk_logfile' not in existing_handlers:
             # define a Handler which writes messages to a log file
-            logfile = logging.FileHandler(filename=self.path_output + 'log_' + self.job_name + ".txt", mode='a')
+            logfile = logging.FileHandler(filename=self.path_output + 'log_' + self.job_name + '.txt.' + str(self.myid), mode='a')
             logfile.set_name('lk_logfile')
             formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
                                           datefmt='%d/%m/%Y %H:%M:%S')
             logfile.setFormatter(formatter)
             logger.addHandler(logfile)
+        logger.info('This is the log for process {}.'.format(self.myid))
 
 class Kernel(ProgramFlowHelper):
 
     def run(self):
+        self.setup_logger()
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
-        logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
+        logging.info('User ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
         logging.info('pre:  ' + str(self.pre))
         logging.info('main: ' + str(self.main))
         logging.info('post: ' + str(self.post))
         logging.info('test: ' + str(self.test))
         self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
+        # add machinefile to jcl
+        self.jcl.machinefile = self.machinefile
 
         if self.pre:
             self.run_pre()
-        if self.main and self.parallel:
-            self.run_main_parallel()
-        if self.main and not self.parallel:
+        if self.main and self.use_multiprocessing:
+            self.run_main_multiprocessing()
+        if self.main and not self.use_multiprocessing:
             self.run_main_sequential()
         if self.post:
             self.run_post()
@@ -203,46 +211,46 @@ class Kernel(ProgramFlowHelper):
         logging.info('--> Starting Main in sequential mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        mon = gather_modul.GatherLoads(self.jcl, model)
-        if self.restart:
-            logging.info('Restart option: loading existing responses.')
-            # open response
-            responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
-        fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
+        if self.myid == 0:
+            mon = gather_modul.GatherLoads(self.jcl, model)
+            if self.restart:
+                logging.info('Restart option: loading existing responses.')
+                # open response
+                responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
+            fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
+        
         for i in range(len(self.jcl.trimcase)):
             if self.restart and i in [response['i'] for response in responses]:
                 logging.info('Restart option: found existing response.')
                 response = responses[[response['i'] for response in responses].index(i)]
             else:
-                jcl = copy.deepcopy(self.jcl)
-                if self.jcl.aero['method'] in ['cfd_steady']:
-                    # assign hosts
-                    jcl.aero['mpi_hosts'] = self.setup_mpi_hosts(n_workers=1)
+                jcl = copy.deepcopy(self.jcl)                    
                 response = self.main_common(model, jcl, i)
-            if response['successful']:
+            if self.myid == 0 and response['successful']:
                 mon.gather_monstations(self.jcl.trimcase[i], response)
                 mon.gather_dyn2stat(response)
                 logging.info('--> Saving response(s).')
                 io_functions.specific_functions.write_hdf5(fid, response, path='/'+str(response['i']))
-        # close response
-        io_functions.specific_functions.close_hdf5(fid)
-
-        logging.info('--> Saving monstation(s).')
-        io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
-                                                  mon.monstations)
-
-        logging.info('--> Saving dyn2stat.')
-        io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
-                                                  mon.dyn2stat)
+        if self.myid == 0:
+            # close response
+            io_functions.specific_functions.close_hdf5(fid)
+    
+            logging.info('--> Saving monstation(s).')
+            io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
+                                                      mon.monstations)
+    
+            logging.info('--> Saving dyn2stat.')
+            io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
+                                                      mon.dyn2stat)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
-    def run_main_parallel(self):
+    def run_main_multiprocessing(self):
         """
-        This function organizes the parallel computation of multiple load cases on one machine.
+        This function organizes the multiprocessing computation of multiple load cases on one machine.
         Parallelization is achieved using a worker/listener concept.
         The worker and the listener communicate via the output queue.
         """
-        logging.info('--> Starting Main in parallel mode for %d trimcase(s).' % len(self.jcl.trimcase))
+        logging.info('--> Starting Main in multiprocessing mode for %d trimcase(s).' % len(self.jcl.trimcase))
         t_start = time.time()
         manager = multiprocessing.Manager()
         q_input = manager.Queue()
@@ -253,8 +261,8 @@ class Kernel(ProgramFlowHelper):
             q_input.put(i)
         logging.info('--> All trimcases queued, waiting for execution.')
 
-        if type(self.parallel) == int:
-            n_processes = self.parallel
+        if type(self.use_multiprocessing) == int:
+            n_processes = self.use_multiprocessing
         else:
             n_processes = multiprocessing.cpu_count()
             if n_processes < 2:
@@ -264,16 +272,10 @@ class Kernel(ProgramFlowHelper):
         listener = pool.apply_async(unwrap_main_listener, (self, q_output))  # put listener to work
         n_workers = n_processes - 1
 
-        if self.jcl.aero['method'] in ['cfd_steady']:
-            mpi_hosts = self.setup_mpi_hosts(n_workers)
-
         logging.info('--> Launching {} worker(s).'.format(str(n_workers)))
         workers = []
         for i_worker in range(n_workers):
             jcl = copy.deepcopy(self.jcl)
-            if jcl.aero['method'] in ['cfd_steady']:
-                jcl.aero['mpi_hosts'] = mpi_hosts[:jcl.aero['tau_cores']]  # assign hosts
-                mpi_hosts = mpi_hosts[jcl.aero['tau_cores']:]  # remaining hosts
             workers.append(pool.apply_async(unwrap_main_worker, (self, q_input, q_output, jcl)))
  
         for i_worker in range(n_workers):
@@ -422,15 +424,29 @@ class Kernel(ProgramFlowHelper):
         return
 
 class ClusterMode(Kernel):
+    """
+    The cluster mode is similar to the (normal) sequential mode, but only ONE subcase is calculated.
+    This mode relies on a job scheduler that is able to run an array of jobs, where each the job is 
+    accompanied by an index i=0...n and n is the number of all subcases.
+    In a second step, when all jobs are finished, the results (e.g. one response per subcase) need to 
+    be gathered.
+    Example:
+    k = program_flow.ClusterMode('jcl_name', ...)
+    k.run_cluster(sys.argv[2])
+    or
+    k.gather_cluster()
+    """
 
     def run_cluster(self, i):
         i = int(i)
-        self.setup_logger_cluster(i=i)
         self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
+        # add machinefile to jcl
+        self.jcl.machinefile = self.machinefile
+        self.setup_logger_cluster(i=i)
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
-        logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
-        logging.info('cluster array mode')
-
+        logging.info('User ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
+        logging.info('Cluster array mode')
+        
         self.run_main_single(i)
 
         logging.info('Loads Kernel finished.')
@@ -440,18 +456,16 @@ class ClusterMode(Kernel):
         """
         This function calculates one single load case, e.g. using CFD with mpi hosts on a cluster.
         """
-        logging.info('--> Starting Main in single mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
+        logging.info('--> Starting main in single mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         jcl = copy.deepcopy(self.jcl)
-        if self.jcl.aero['method'] in ['cfd_steady']:
-            # assign hosts
-            jcl.aero['mpi_hosts'] = self.setup_mpi_hosts(n_workers=1)
         response = self.main_common(model, jcl, i)
-        logging.info('--> Saving response(s).')
-        path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
-        with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb')  as f:
-            io_functions.specific_functions.dump_pickle(response, f)
+        if self.myid == 0:
+            logging.info('--> Saving response(s).')
+            path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
+            with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb')  as f:
+                io_functions.specific_functions.dump_pickle(response, f)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
     def gather_cluster(self):
@@ -464,7 +478,7 @@ class ClusterMode(Kernel):
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         responses = io_functions.specific_functions.gather_responses(self.job_name, io_functions.specific_functions.check_path(self.path_output+'responses'))
         mon = gather_modul.GatherLoads(self.jcl, model)
-        f = open(self.path_output + 'response_' + self.job_name + '.pickle', 'wb')  # open response
+        fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
         for i in range(len(self.jcl.trimcase)):
             response = responses[[response['i'] for response in responses].index(i)]
             if response['successful']:
@@ -472,17 +486,17 @@ class ClusterMode(Kernel):
                 mon.gather_dyn2stat(response)
 
             logging.info('--> Saving response(s).')
-            io_functions.specific_functions.dump_pickle(response, f)
+            io_functions.specific_functions.write_hdf5(fid, response, path='/'+str(response['i']))
         # close response
-        f.close()
+        io_functions.specific_functions.close_hdf5(fid)
 
         logging.info('--> Saving monstation(s).')
-        with open(self.path_output + 'monstations_' + self.job_name + '.pickle', 'wb') as f:
-            io_functions.specific_functions.dump_pickle(mon.monstations, f)
+        io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
+                                                  mon.monstations)
 
         logging.info('--> Saving dyn2stat.')
-        with open(self.path_output + 'dyn2stat_' + self.job_name + '.pickle', 'wb') as f:
-            io_functions.specific_functions.dump_pickle(mon.dyn2stat, f)
+        io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
+                                                  mon.dyn2stat)
         logging.info('--> Done in {:.2f} [s].'.format(time.time() - t_start))
 
         logging.info('Loads Kernel finished.')

@@ -4,16 +4,12 @@ Created on Aug 2, 2019
 @author: voss_ar
 '''
 import numpy as np
-import importlib, logging, os, subprocess, shlex
+import importlib, logging, os, sys
 from scipy import interpolate, linalg
-import scipy.io.netcdf as netcdf
 
 from loadskernel.solution_tools import * 
-import loadskernel.meshdefo as meshdefo
 import loadskernel.efcs as efcs
-
-#import PyTauModuleInit, PyPara, PyDeform, PyPrep, PySolv
-#from tau_python import *
+from loadskernel.cfd_interfaces import tau_interface, su2_interface
 
 class Common():
     def __init__(self, solution, X0='', simcase=''):
@@ -68,10 +64,13 @@ class Common():
             self.hingeline = 'y'
  
         # import aircraft-specific class from efcs.py dynamically 
-        if 'path' in self.jcl.efcs:
+        if 'path' in self.jcl.efcs and sys.version_info[0] >= 3:
             # If a path is specified, import module from that path.
             spec = importlib.util.spec_from_file_location(self.jcl.efcs['version'], os.path.join(self.jcl.efcs['path'], self.jcl.efcs['version']+'.py' ))
             efcs_module = spec.loader.load_module()
+        elif 'path' in self.jcl.efcs and sys.version_info[0] < 3:
+            import imp
+            efcs_module = imp.load_source(self.jcl.efcs['version'], os.path.join(self.jcl.efcs['path'], self.jcl.efcs['version']+'.py' ))
         else: 
             # Use the 'old' way, where the EFCS is stored in the program code.
             efcs_module = importlib.import_module('loadskernel.efcs.'+self.jcl.efcs['version'])
@@ -83,8 +82,14 @@ class Common():
         if self.jcl.aero['method'] == 'cfd_steady':
             self.PHIcfd_strc = self.model.PHIcfd_strc
             self.PHIcfd_cg   = self.model.mass['PHIcfd_cg'][self.i_mass] 
-            self.PHIcfd_f    = self.model.mass['PHIcfd_f'][self.i_mass] 
-        
+            self.PHIcfd_f    = self.model.mass['PHIcfd_f'][self.i_mass]
+            if self.jcl.aero['cfd_solver'].lower() == 'tau':
+                self.cfd_interface = tau_interface.TauInterface(self.solution)
+            elif self.jcl.aero['cfd_solver'].lower() == 'su2':
+                self.cfd_interface = su2_interface.SU2Interface(self.solution)
+            else:
+                logging.error('Interface for CFD solver "{}" no implemented!'.format(self.jcl.aero['cfd_solver']))
+
         # set-up 1-cos gust   
         # Vtas aus solution condition berechnen
         uvw = np.array(self.trimcond_X[6:9,2], dtype='float')
@@ -202,7 +207,13 @@ class Common():
         return Pk, wj
     
     def camber_twist(self, q_dyn):
-        wj = np.sin(self.model.camber_twist['cam_rad'] )
+        """
+        Multiplication with the sign of the z-direction of the panel normal vector ensures compatibility 
+        with aerodynamic models that are NOT constructed from the left to the right. However, this is not 
+        the ultimate solution, because it will fail for vertical surfaces with camber + twist. Fortunately, I can't 
+        think of any twisted vertical tail or a vertical tail has a cambered airfoil. 
+        """
+        wj = np.sin(self.model.camber_twist['cam_rad']) * np.sign(self.model.aerogrid['N'][:,2])
         Pk = self.calc_Pk(q_dyn, wj)
         return Pk, wj
     
@@ -624,147 +635,6 @@ class Common():
         if 5 in support:
             d2Ucg_dt2[5] = 0.0      
     
-    def tau_prepare_meshdefo(self, Uf, Ux2):
-        defo = meshdefo.meshdefo(self.jcl, self.model)
-        defo.init_deformations()
-        defo.Uf(Uf, self.trimcase)
-        defo.Ux2(Ux2)
-        defo.write_deformations(self.jcl.aero['para_path']+'./defo/surface_defo_subcase_' + str(self.trimcase['subcase'])) 
-        
-        Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))
-        # deformation related parameters
-        # it is important to start the deformation always from the undeformed grid !
-        para_dict = {'Primary grid filename': self.jcl.meshdefo['surface']['filename_grid'],
-                     'New primary grid prefix': './defo/volume_defo_subcase_{}'.format(self.trimcase['subcase'])}
-        Para.update(para_dict)
-        para_dict = {'RBF basis coordinates and deflections filename': './defo/surface_defo_subcase_{}.nc'.format(self.trimcase['subcase']),}
-        Para.update(para_dict, 'group end', 0,)
-        self.pytau_close()
-    
-    def tau_update_para(self, uvwpqr):
-        Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))   
-        # Para.update(para_dict, block_key, block_id, key, key_value, sub_file, para_replace)
-             
-        # general parameters
-        para_dict = {'Reference Mach number': self.trimcase['Ma'],
-                     'Reference temperature': self.model.atmo['T'][self.i_atmo],
-                     'Reference density': self.model.atmo['rho'][self.i_atmo],
-                     'Number of domains': self.jcl.aero['tau_cores'],
-                     'Number of primary grid domains': self.jcl.aero['tau_cores'],
-                     'Output files prefix': './sol/subcase_{}'.format(self.trimcase['subcase']),
-                     'Grid prefix': './dualgrid/subcase_{}'.format(self.trimcase['subcase']),
-#                      'Maximal time step number': 10, # for testing
-                     }
-        
-        Para.update(para_dict)
-        
-        # aircraft motion related parameters
-        # given in local, body-fixed reference frame, see Tau User Guide Section 18.1 "Coordinate Systems of the TAU-Code"
-        # rotations in [deg], translations in grid units
-        para_dict = {'Origin of local coordinate system':'{} {} {}'.format(self.model.mass['cggrid'][self.i_mass]['offset'][0,0],\
-                                                                           self.model.mass['cggrid'][self.i_mass]['offset'][0,1],\
-                                                                           self.model.mass['cggrid'][self.i_mass]['offset'][0,2]),
-                     'Polynomial coefficients for translation x': '0 {}'.format(uvwpqr[0]),
-                     'Polynomial coefficients for translation y': '0 {}'.format(uvwpqr[1]),
-                     'Polynomial coefficients for translation z': '0 {}'.format(uvwpqr[2]),
-                     'Polynomial coefficients for rotation roll': '0 {}'.format(uvwpqr[3]/np.pi*180.0),
-                     'Polynomial coefficients for rotation pitch':'0 {}'.format(uvwpqr[4]/np.pi*180.0),
-                     'Polynomial coefficients for rotation yaw':  '0 {}'.format(uvwpqr[5]/np.pi*180.0),
-                     }
-        Para.update(para_dict, 'mdf end', 0,)
-        logging.debug("Parameters updated.")
-        self.pytau_close()
-        
-    def pytau_close(self):
-        # clean up to avoid trouble at the next run
-        tau_parallel_end()
-        tau_close()
-        
-    def tau_run(self):
-        mpi_hosts = ','.join(self.jcl.aero['mpi_hosts'])
-        logging.info('Starting Tau deformation, preprocessing and solver on {} hosts ({}).'.format(self.jcl.aero['tau_cores'], mpi_hosts) )
-        old_dir = os.getcwd()
-        os.chdir(self.jcl.aero['para_path'])
-
-        args_deform   = shlex.split('mpiexec -np {} --host {} deformation para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'],  mpi_hosts, self.trimcase['subcase'], self.trimcase['subcase']))
-        args_pre      = shlex.split('mpiexec -np {} --host {} ptau3d.preprocessing para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'], mpi_hosts, self.trimcase['subcase'], self.trimcase['subcase']))
-        args_solve    = shlex.split('mpiexec -np {} --host {} ptau3d.{} para_subcase_{} ./log/log_subcase_{} with mpi'.format(self.jcl.aero['tau_cores'], mpi_hosts, self.jcl.aero['tau_solver'], self.trimcase['subcase'], self.trimcase['subcase']))
-        
-        returncode = subprocess.call(args_deform)
-        if returncode != 0: 
-            raise TauError('Subprocess returned an error from Tau deformation, please see deformation.stdout !')          
-        returncode = subprocess.call(args_pre)
-        if returncode != 0:
-            raise TauError('Subprocess returned an error from Tau preprocessing, please see preprocessing.stdout !')
-        
-        if self.counter == 1:
-            self.tau_prepare_initial_solution(args_solve)
-        else:
-            returncode = subprocess.call(args_solve)
-            if returncode != 0:
-                raise TauError('Subprocess returned an error from Tau solver, please see solver.stdout !')
-
-        logging.info("Tau finished normally.")
-        os.chdir(old_dir)
-        
-    def tau_last_solution(self):
-        # get filename of surface solution from para file
-        Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))
-        filename_surface = self.jcl.aero['para_path'] + Para.get_para_value('Surface output filename')
-        self.pytau_close()
-        # get filename of surface solution via pytau
-#         filename = tau_solver_get_filename()
-#         pos = filename.find('.pval')
-#         filename_surface = self.jcl.aero['para_path'] + filename[:pos] + '.surface' + filename[pos:]
-
-        # gather from multiple domains
-        old_dir = os.getcwd()
-        os.chdir(self.jcl.aero['para_path'])
-        with open('gather_subcase_{}.para'.format(self.trimcase['subcase']),'w') as fid:
-            fid.write('Restart-data prefix : {}'.format(filename_surface))
-        subprocess.call(['gather', 'gather_subcase_{}.para'.format(self.trimcase['subcase'])])
-        os.chdir(old_dir)
-        logging.info( 'Reading {}'.format(filename_surface))
-
-        ncfile_pval = netcdf.NetCDFFile(filename_surface, 'r')
-        global_id = ncfile_pval.variables['global_id'][:].copy()
-
-        # determine the positions of the points in the pval file
-        # this could be relevant if not all markers in the pval file are used
-        logging.debug('Working on marker {}'.format(self.model.cfdgrid['desc']))
-        # Because our mesh IDs are sorted and the Tau output is sorted, there is no need for an additional sorting.
-        # Exception: Additional surface markers are written to the Tau output, which are not used for coupling.
-        if global_id.__len__() == self.model.cfdgrid['n']:
-            pos = range(self.model.cfdgrid['n'])
-        else:
-            pos = []
-            for ID in self.model.cfdgrid['ID']: 
-                pos.append(np.where(global_id == ID)[0][0]) 
-        # build force vector from cfd solution self.engine(X)                   
-        Pcfd = np.zeros(self.model.cfdgrid['n']*6)
-        Pcfd[self.model.cfdgrid['set'][:,0]] = ncfile_pval.variables['x-force'][:][pos].copy()
-        Pcfd[self.model.cfdgrid['set'][:,1]] = ncfile_pval.variables['y-force'][:][pos].copy()
-        Pcfd[self.model.cfdgrid['set'][:,2]] = ncfile_pval.variables['z-force'][:][pos].copy()
-        return Pcfd
-    
-    def tau_prepare_initial_solution(self, args_solve):   
-        Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))  
-        # general parameters
-        para_dicts = [{'Inviscid flux discretization type': 'Upwind',
-                       'Order of upwind flux (1-2)': 1.0,
-                       'Maximal time step number': 300, 
-                      },
-                      {'Inviscid flux discretization type': Para.get_para_value('Inviscid flux discretization type'),
-                       'Order of upwind flux (1-2)': Para.get_para_value('Order of upwind flux (1-2)'),
-                       'Maximal time step number': Para.get_para_value('Maximal time step number'), 
-                      }]
-        for para_dict in para_dicts:
-            Para.update(para_dict)
-            logging.debug("Parameters set for Upwind solution.")
-            returncode = subprocess.call(args_solve)
-            if returncode != 0:
-                raise TauError('Subprocess returned an error from Tau solver, please see solver.stdout !')
-
     def geo2body(self, X):
         Tgeo2body = np.zeros((6,6))
         Tgeo2body[0:3,0:3] = calc_drehmatrix(X[3], X[4], X[5])
@@ -881,9 +751,15 @@ class Common():
             
         return Pextra, Pb_ext, Pf_ext
 
-        
-class TauError(Exception):
-    '''Raise when subprocess yields a returncode != 0 from Tau'''
-
+    def finalize(self):
+        """
+        This function is called each time a trim is finished and the model equations are no longer used.
+        The background is that in case the model equations are pure Python code, we can rely on the automatic 
+        memory management. In cases where other, external code is involved, it might become necessary to 
+        release the memory manually, for example with the CFD solver SU2.Of course other, final operations 
+        may be performed as needed. 
+        """
+        pass
+    
 class ConvergenceError(Exception):
     '''Raise when structural deformation does not converge after xx loops'''

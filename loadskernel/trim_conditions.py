@@ -403,6 +403,13 @@ class TrimConditions:
         self.idx_lag_derivatives    = list(range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states))
         self.idx_outputs            = list(range(self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states+self.n_outputs))
             
+    def set_modal_states_fix(self):
+        # remove modes from trimcond_Y and _Y
+        i_mass = self.model.mass['key'].index(self.trimcase['mass'])
+        n_modes = self.model.mass['n_modes'][i_mass]
         
-        
-            
+        for i_mode in range(1, n_modes+1):
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],1] = 'fix'
+            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
+            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'd2Uf_d2t'+str(i_mode)))[0][0],1] = 'fix'

@@ -25,7 +25,7 @@ class LoadPlots(object):
         self.potatos_mx_mz = [] # VTP
         self.potatos_my_mz = [] # FUS
         self.cuttingforces_wing = []
-        self.im = plt.imread(os.path.dirname(__file__)+'/../graphics/LK_logo2.png')
+        self.im = plt.imread(os.path.join(os.path.dirname(__file__), 'graphics', 'LK_logo2.png'))
         self.f_scale = 0.02 # vectors
         self.p_scale = 0.03 # points
         

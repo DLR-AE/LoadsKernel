@@ -1,0 +1,169 @@
+ -----------------------------------------------------
+ BOUNDARY MAPPING
+ -----------------------------------------------------
+
+  ---------------------------------------------------------------: -
+                                                          Markers: 1
+                                                             Type: euler wall
+                                                             Name: Panels
+                                         Write surface data (0/1): 1
+  block end
+  ---------------------------------------------------------------: -
+                                                          Markers: 2
+                                                             Type: farfield
+                                                             Name: far_away
+	                                 Write surface data (0/1): 0
+                                             Angle alpha (degree): 0.0
+						     Mach number : 0.0
+  block end
+
+
+ ----------------------------------------------------- 
+ Required Parameters
+ ----------------------------------------------------- 
+                            Boundary mapping filename: (thisfile)
+                                Primary grid filename: tau_mirrored_medium.grid
+                                    Number of domains: 16
+					   Grid scale: 1
+ ----------------------------------------------------- 
+ IO
+ ----------------------------------------------------- 
+                                          Grid prefix: ./dualgrid/subcase_xxx
+                                  Output files prefix: ./sol/subcase_xxx
+    Controls ----------------------------------------: -
+    
+                     Automatic parameter update (0/1): 1
+                  Write pointdata dimensionless (0/1): 0
+    Monitoring --------------------------------------: -
+                                Monitor history (0/1): 1
+                               Residuals to normalize: (none)
+                                    Monitoring values: Rrho_C-lift_C-drag_C-my_C-mx_Max-y+_Max-Rrho_X-max-Rrho_Y-max-Rrho_Z-max-Rrho
+                       Monitoring significant figures: 8_8_8_8_8_8_8_8_8_8_8_8
+
+ ----------------------------------------------------- 
+ PARTITIONING
+ -----------------------------------------------------
+    Partitioning ------------------------------------: -
+               Use parallel initial partitioner (0/1): 1
+                       Number of primary grid domains: 16
+		          Type of partitioning (name): private
+ ----------------------------------------------------- 
+ PREPROCESSING
+ ----------------------------------------------------- 
+                           Number of multigrid levels: 3
+                                         Output level: 5
+                          Compute lusgs mapping (0/1): 1
+    -------------------------------------------------: -
+    SOLVER ------------------------------------------: -
+    -------------------------------------------------: -
+                                          Solver type: Flow
+    Flux --------------------------------------------: -
+                    Inviscid flux discretization type: Central
+                           Order of upwind flux (1-2): 1
+                           Central dissipation scheme: Scalar_dissipation
+    Solver/Dissipation ------------------------------: -
+                    2nd order dissipation coefficient: 0.5
+            Inverse 4th order dissipation coefficient: 32
+    Timestepping Start/Stop -------------------------: -
+                                        Output period: 99999
+                             Maximal time step number: 2000
+                                     Minimum residual: 1e-20
+	Cauchy convergence control ------------------: -
+                       Use Cauchy convergence control: absolute
+                 Cauchy convergence control variables: C-lift_C-drag_C-my_C-mx
+                 Error for Cauchy convergence control: 1e-4 1e-4 1e-4 1e-4
+             Number of samples for Cauchy convergence: 100
+
+    Timestepsize ------------------------------------: -
+                                    Relaxation solver: Backward_Euler
+                                        Linear solver: Lusgs
+	 Lusgs increased parallel communication (0/1): 1
+                                           CFL number: 8
+                            CFL number (coarse grids): 2
+                            CFL number (large grad p): 2
+    Multigrid ---------------------------------------: -
+                              MG description filename: 3w
+
+  Dual time ---------------------------------------: -
+                               Unsteady time stepping: (none) #dual
+                Unsteady show pseudo time steps (0/1): 1
+                     Unsteady physical time step size: 0.001
+                Unsteady computational time step size: -1
+                   Unsteady normalized time step size: -1
+                         Unsteady physical time steps: 5
+              Unsteady inner iterations per time step: 1000
+
+Turbulence --------------------------------------: -
+                                      Turbulence mode: RANS #DES LES
+                             Turbulence model version: SA
+                   Central convective turbulence flux: Average_of_flux # Average_of_flux fuer SAO, Flux of average, AUSMDV, Roe fuer Menter-SST und RSM, Roe2nd
+             Turbulence equations use multigrid (0/1): 0
+    References --------------------------------------: -
+                                      Reynolds length: 1.0
+                                Reference temperature: 273.15
+                                       Prandtl number: 0.72
+                                   Gas constant gamma: 1.4
+                                    Reference density: 1.225
+                                Reference Mach number: 0.6
+                                    # Reynolds number: 1.0e+6
+    Geometry ----------------------------------------: -
+                              Reference relation area: 82.88
+                 Reference length (pitching momentum): 6.73
+           Reference length (rolling/yawing momentum): 14.8
+                                  Origin coordinate x: 4.42
+                                  Origin coordinate y: 0
+                                  Origin coordinate z: 0
+
+ -----------------------------------------------------
+ Surface output
+ -----------------------------------------------------
+                      Surface output description file: (thisfile)
+                                Surface output period: 99999
+                                Surface output values: xyz_p_cp_cf_fxyz_yplus_v_mach_rho
+ -----------------------------------------------------
+ Extra field pointdata output
+ -----------------------------------------------------
+                        Field output description file: (thisfile)
+                                  Field output values: xyz_cp_p_rho_gradrho_density_mach_v_Nk_cf_cfxyz 
+ -----------------------------------------------------
+ Deformation
+ -----------------------------------------------------     
+      Parameteers for RBF deformation -------------: -
+                               RBF number of groups: 1
+     Parameteers for RBF group start --------------: -
+       RBF basis coordinates and deflections filename: dummy.nc
+			      RBF surface format name: netcdf
+					     RBF name: thin-plate-spline
+                               RBF radius full weight: 0.1
+                               RBF radius zero weight: 3
+                         RBF markers specifying group: 1
+ group end
+ ---------------------------
+ -----------------------------------------------------
+ Motion
+ -----------------------------------------------------
+				Type of grid movement: rigid
+			    Motion hierarchy filename: (thisfile)
+			  Motion description filename: (thisfile)
+		     Extended motion monitoring (0/1): 1
+			  
+					    Node name: aircraft
+				 Node reference frame: inertial
+			     Node controls grid block: 1
+			   Node motion description id: aircraft_motion
+					      hdf end
+			        
+			        Motion description id: aircraft_motion
+				     Type of movement: rigid
+	            Origin of local coordinate system: 4.83 0.0 -0.04
+	          Evaluate forces and moments at node: aircraft
+	            Degree of polynomial for rotation: 1
+                 Degree of polynomial for translation: 1
+	    Polynomial coefficients for translation x: 0 0
+            Polynomial coefficients for translation y: 0 0
+            Polynomial coefficients for translation z: 0 0
+            Polynomial coefficients for rotation roll: 0 0
+	   Polynomial coefficients for rotation pitch: 0 0
+             Polynomial coefficients for rotation yaw: 0 0
+				              mdf end
+

@@ -17,6 +17,7 @@ from loadskernel.equations.cfd_steady import CfdSteady
 from loadskernel.equations.nonlin_steady import NonlinSteady
 from loadskernel.equations.unsteady   import Unsteady
 from loadskernel.equations.landing    import Landing
+from loadskernel.equations.common     import ConvergenceError
 from loadskernel.equations.frequency_domain import GustExcitation
 from loadskernel.equations.frequency_domain import TurbulenceExcitation, LimitTurbulence
 from loadskernel.equations.frequency_domain import KMethod
@@ -26,6 +27,8 @@ from loadskernel.equations.state_space import StateSpaceAnalysis
 from loadskernel.equations.state_space import JacobiAnalysis
 
 from loadskernel.trim_conditions import TrimConditions
+
+from loadskernel.cfd_interfaces.tau_interface import TauError
 
 class SolutionSequences(TrimConditions):
     
@@ -278,47 +281,39 @@ class SolutionSequences(TrimConditions):
                 self.response = {}
                 self.successful = False
                 logging.warning('SolutionSequences failed for subcase {}. The SolutionSequences solver reports: {}'.format(self.trimcase['subcase'], msg))
-                return
+        equations.finalize()
+        return
 
     def iterative_trim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = Steady(self)
         elif self.jcl.aero['method'] in [ 'cfd_steady']:
-            equations = CfdSteady(self)
             specific_io.check_para_path(self.jcl)
             specific_io.copy_para_file(self.jcl, self.trimcase)
             specific_io.check_tau_folders(self.jcl)
+            equations = CfdSteady(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
-        # remove modes from trimcond_Y and _Y
-        i_mass = self.model.mass['key'].index(self.trimcase['mass'])
-        n_modes = self.model.mass['n_modes'][i_mass]
-        
-        for i_mode in range(n_modes):
-            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],1] = 'fix'
-            self.trimcond_X[np.where((self.trimcond_X[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
-            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'dUf_dt'+str(i_mode)))[0][0],1] = 'fix'
-            self.trimcond_Y[np.where((self.trimcond_Y[:,0] == 'd2Uf_d2t'+str(i_mode)))[0][0],1] = 'fix'
+        self.set_modal_states_fix()
         xfree_0 = np.array(self.trimcond_X[:,2], dtype='float')[np.where((self.trimcond_X[:,1] == 'free'))[0]] # start trim from scratch
         
         if self.trimcase['maneuver'] == 'bypass':
             logging.info('running bypass...')
             self.response = equations.eval_equations(xfree_0, time=0.0, modus='trim_full_output')
+            self.successful = True
         else:
             logging.info('running trim for ' + str(len(xfree_0)) + ' variables...')
             try:
                 xfree, info, status, msg= so.fsolve(equations.eval_equations_iteratively, xfree_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-3, xtol=1.0e-3 )
-            except Common.TauError as e:
+            except TauError as e:
                 self.response = {}
                 self.successful = False
-                logging.warning('SolutionSequences failed for subcase {} due to TauError: {}'.format(self.trimcase['subcase'], e))
-                return
-            except Common.ConvergenceError as e:
+                logging.warning('SolutionSequences failed for subcase {} due to CFDError: {}'.format(self.trimcase['subcase'], e))
+            except ConvergenceError as e:
                 self.response = {}
                 self.successful = False
                 logging.warning('SolutionSequences failed for subcase {} due to ConvergenceError: {}'.format(self.trimcase['subcase'], e))
-                return
             else:
                 logging.info(msg)
                 logging.info('function evaluations: ' + str(info['nfev']))
@@ -331,7 +326,8 @@ class SolutionSequences(TrimConditions):
                     self.response = {}
                     self.successful = False
                     logging.warning('SolutionSequences failed for subcase {}. The SolutionSequences solver reports: {}'.format(self.trimcase['subcase'], msg))
-                    return
+        equations.finalize()
+        return
 
     def exec_sim(self):
         # decrease dimension to simplify indexing (undo what has been done in the last lines of exec_trim() ) 
