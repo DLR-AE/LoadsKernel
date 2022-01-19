@@ -5,7 +5,7 @@ except:
     pass
     
 def setup_mpi(debug=False):
-    if 'mpi4py' in sys.modules:
+    if 'mpi4py.MPI' in sys.modules:
         have_mpi = True
         # Set-up the MPI World communicator
         comm = MPI.COMM_WORLD
