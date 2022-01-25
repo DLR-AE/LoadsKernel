@@ -166,7 +166,7 @@ class AuxiliaryOutput:
         # This is quite a complicated sorting because the subcases from dyn2stat may contain non-numeric characters. 
         # A "normal" sorting returns an undesired sequence, leading IDs in a non-ascending sequence. This a not allowed by Nastran. 
         subcases_IDs = list(self.dyn2stat_data['subcases_ID'][:])
-        subcases = list(self.dyn2stat_data['subcases'][:])
+        subcases = list(self.dyn2stat_data['subcases'].asstr()[:])
         crit_ids = [subcases_IDs[subcases.index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases) ]
         crit_ids = np.sort(crit_ids)
         with open(filename+'_Pg', 'w') as fid: 

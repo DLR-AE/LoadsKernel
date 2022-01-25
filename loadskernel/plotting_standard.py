@@ -157,7 +157,7 @@ class LoadPlots(object):
     
     def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull=True, show_labels=False, show_minmax=False):
         loads   = np.array(self.monstations[station]['loads'])
-        subcases = list(self.monstations[station]['subcases'][:]) # make sure this is a list
+        subcases = list(self.monstations[station]['subcases'].asstr()[:]) # make sure this is a list of strings
         points = np.vstack((loads[:,dof_xaxis], loads[:,dof_yaxis])).T
         self.subplot.scatter(points[:,0], points[:,1], color=color, label=desc, zorder=-2) # plot points
         
