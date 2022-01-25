@@ -14,7 +14,8 @@ test:
     - lk
   script:
     - set +e  # switch off break on error
-    - source /opt/AE/share/python/switching/py_env.sh anaconda3
+    - source /opt_ae/anaconda/miniconda-4.10_py3.8/etc/profile.d/conda.sh
+    - conda activate myminiconda
     - set -e  # switch on break on error
     - which python
     - which pytest
