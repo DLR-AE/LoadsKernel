@@ -13,13 +13,8 @@ test:
   tags:
     - lk
   script:
-    - set +e  # switch off break on error
-    - source /opt_ae/anaconda/miniconda-4.10_py3.8/etc/profile.d/conda.sh
-    - conda activate myminiconda
-    - set -e  # switch on break on error
     - which python
     - which pytest
-
     - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml
     - coverage xml -o coverage.xml
     - coverage report
