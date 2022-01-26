@@ -33,7 +33,7 @@ def spline_nastran(filename, strcgrid, aerogrid):
             tmp = 4
         else:
             logging.error('DOF not implemented!')
-        col = aerogrid['set_k'][np.where(np.int(line_split[3].split('-')[0]) == aerogrid['ID'])[0][0],tmp]
+        col = aerogrid['set_k'][np.where(int(line_split[3].split('-')[0]) == aerogrid['ID'])[0][0],tmp]
         
         i_line += 1
         while True:
@@ -57,7 +57,7 @@ def spline_nastran(filename, strcgrid, aerogrid):
                     tmp = 5
                 else:
                     logging.error('DOF not implemented!')                
-                row = strcgrid['set'][np.where(np.int(line_split[0]) == strcgrid['ID'])[0][0],tmp]
+                row = strcgrid['set'][np.where(int(line_split[0]) == strcgrid['ID'])[0][0],tmp]
                 PHI[col,row] = nastran_number_converter(line_split[2], 'float')
                 
                 line_split = line_split[3:]

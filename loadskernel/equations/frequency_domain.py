@@ -121,7 +121,7 @@ class GustExcitation(Common):
         omega = 2.0*np.pi*f
         Qhh_1 = self.Qhh_1_interp(self.f2k(f))
         Qhh_2 = self.Qhh_2_interp(self.f2k(f))
-        TF = np.linalg.inv(-self.Mhh*omega**2 + np.complex(0,1)*omega*(self.Dhh - Qhh_2) + self.Khh - Qhh_1)
+        TF = np.linalg.inv(-self.Mhh*omega**2 + complex(0,1)*omega*(self.Dhh - Qhh_2) + self.Khh - Qhh_1)
         return TF
 
     def build_AIC_interpolators(self):
@@ -373,7 +373,7 @@ class KMethod(GustExcitation):
     def build_AIC_interpolators(self):
         Qhh = []
         for Qjj_unsteady, k_red in zip(self.model.aero['Qjj_unsteady'][self.i_aero], self.model.aero['k_red']):
-            Qhh.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1 + np.complex(0,1)*k_red/(self.model.macgrid['c_ref']/2.0)*self.Djh_2))) )
+            Qhh.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1 + complex(0,1)*k_red/(self.model.macgrid['c_ref']/2.0)*self.Djh_2))) )
         self.Qhh_interp = interp1d( self.model.aero['k_red'], Qhh, kind='cubic', axis=0, fill_value="extrapolate")
         
     def build_systems(self):
