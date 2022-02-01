@@ -37,15 +37,15 @@ def design_gust_cs_25_341(gust_gradient, altitude, rho, V, Z_mo, V_D, MLW, MTOW,
     # adapted from matlab-script by Vega Handojo, DLR-AE-LAE, 2015
     
     # convert (possible) integer to float
-    gust_gradient = np.float(gust_gradient)
-    altitude = np.float(altitude)     # Altitude
-    rho = np.float(rho)     # Air density
-    V = np.float(V)         # Speed
-    Z_mo = np.float(Z_mo)   # Maximum operating altitude
-    V_D = np.float(V_D)     # Design Dive speed
-    MLW = np.float(MLW)     # Maximum Landing Weight
-    MTOW = np.float(MTOW)   # Maximum Take-Off Weight
-    MZFW = np.float(MZFW)   # Maximum Zero Fuel Weight
+    gust_gradient = float(gust_gradient)
+    altitude = float(altitude)     # Altitude
+    rho = float(rho)     # Air density
+    V = float(V)         # Speed
+    Z_mo = float(Z_mo)   # Maximum operating altitude
+    V_D = float(V_D)     # Design Dive speed
+    MLW = float(MLW)     # Maximum Landing Weight
+    MTOW = float(MTOW)   # Maximum Take-Off Weight
+    MZFW = float(MZFW)   # Maximum Zero Fuel Weight
 
     p0, rho0, T0, a0 = atmo_isa(0.0)
     
@@ -72,14 +72,14 @@ def turbulence_cs_25_341(altitude, Z_mo, V, V_C, V_D, MLW, MTOW, MZFW):
     # Turbulence Calculation from CS 25.341 (b)
     
     # convert (possible) integers to floats
-    altitude = np.float(altitude)     # Altitude
-    Z_mo = np.float(Z_mo)   # Maximum operating altitude
-    V = np.float(V)         # Speed
-    V_C = np.float(V_C)     # Design Cruise speed
-    V_D = np.float(V_D)     # Design Dive speed
-    MLW = np.float(MLW)     # Maximum Landing Weight
-    MTOW = np.float(MTOW)   # Maximum Take-Off Weight
-    MZFW = np.float(MZFW)   # Maximum Zero Fuel Weight
+    altitude = float(altitude)     # Altitude
+    Z_mo = float(Z_mo)   # Maximum operating altitude
+    V = float(V)         # Speed
+    V_C = float(V_C)     # Design Cruise speed
+    V_D = float(V_D)     # Design Dive speed
+    MLW = float(MLW)     # Maximum Landing Weight
+    MTOW = float(MTOW)   # Maximum Take-Off Weight
+    MZFW = float(MZFW)   # Maximum Zero Fuel Weight
     
     fg = calc_fg(altitude, Z_mo, MLW, MTOW, MZFW)
     

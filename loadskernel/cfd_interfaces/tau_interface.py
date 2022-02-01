@@ -37,7 +37,7 @@ class TauInterface(object):
         args_version = shlex.split('mpiexec --help')
         process = subprocess.Popen(args_version, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output = process.communicate()
-        if str.find(output[1], 'www.open-mpi.org') == -1:
+        if str.find(str(output[0]), 'www.open-mpi.org') == -1:
             logging.error('Wrong MPI implementation detected (Tau requires OpenMPI).')
         # Set-up a list of hosts on which MPI shall be executed.
         self.setup_mpi_hosts(n_workers=1)

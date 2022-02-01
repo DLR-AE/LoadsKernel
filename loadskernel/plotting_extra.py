@@ -5,16 +5,16 @@ Created on Tue Oct 27 11:26:27 2015
 @author: voss_ar
 """
 import numpy as np
+import os, logging, pickle
 from  matplotlib import pyplot as plt
 plt.rcParams.update({'font.size': 16,
                      'svg.fonttype':'none'})
-from mpl_toolkits.mplot3d import axes3d
 from matplotlib import animation
-import os, logging, pickle
-from PIL.ImageColor import colormap
-from mayavi import mlab
-from tvtk.api import tvtk
-from mayavi.sources.utils import has_attributes
+try:
+    from mayavi import mlab
+    from tvtk.api import tvtk
+except:
+    pass
 
 from loadskernel import plotting_standard
 import loadskernel.io_functions as io_functions

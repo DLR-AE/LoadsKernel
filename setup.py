@@ -22,7 +22,7 @@ def my_setup():
           include_package_data=True,
           package_data={'loadskernel': ['graphics/*.*'],
                         'loadscompare': ['graphics/*.*'],},
-          python_requires='>=3.7',
+          python_requires='>=3.8',
           install_requires=[
                             'Panel-Aero @ git+https://gitlab.dlr.de/loads-kernel/panel-aero.git',
                             'matplotlib',
@@ -38,6 +38,8 @@ def my_setup():
                             'h5py',
                             'tables',
                             'mpi4py',
+                            'pytest',
+                            'pytest-cov',
                             ],
           )
 
