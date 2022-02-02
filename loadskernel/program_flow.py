@@ -53,8 +53,7 @@ class ProgramFlowHelper(object):
             self.have_mpi = False
             self.myid = 0
         else:
-            self.have_mpi, self.comm, self.myid = setup_mpi(self.debug)
-            
+            self.have_mpi, self.comm, self.myid = setup_mpi(self.debug) 
 
     def setup_path(self):
         self.path_input = io_functions.specific_functions.check_path(self.path_input)
@@ -72,11 +71,6 @@ class ProgramFlowHelper(object):
         logging.info(' ---------O---------')
         logging.info('')
         logging.info('')
-    
-    def seconds2string(self, seconds):
-        m, s = divmod(seconds, 60)
-        h, m = divmod(m, 60)
-        return '{:n}:{:02n}:{:02n} [h:mm:ss]'.format(h, m, round(s))
     
     def setup_logger_cluster(self, i):
         logger = logging.getLogger()
@@ -180,7 +174,7 @@ class Kernel(ProgramFlowHelper):
         del model.jcl
         with open(self.path_output + 'model_' + self.job_name + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(model.__dict__, f)
-        logging.info('--> Done in {}.'.format(self.seconds2string(time.time() - t_start)))
+        logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
     def main_common(self, model, jcl, i):
         logging.info('')
@@ -247,7 +241,7 @@ class Kernel(ProgramFlowHelper):
             logging.info('--> Saving dyn2stat.')
             io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
                                                       mon.dyn2stat)
-        logging.info('--> Done in {}.'.format(self.seconds2string(time.time() - t_start)))
+        logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
     def run_main_multiprocessing(self):
         """
@@ -290,7 +284,7 @@ class Kernel(ProgramFlowHelper):
         q_output.join()
         q_output.put('finish')  # putting finish signal into queue for listener
         q_output.join()
-        logging.info('--> Done in {}.'.format(self.seconds2string(time.time() - t_start)))
+        logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
     def main_worker(self, q_input, q_output, jcl):
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
@@ -471,7 +465,7 @@ class ClusterMode(Kernel):
             path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
             with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb')  as f:
                 io_functions.specific_functions.dump_pickle(response, f)
-        logging.info('--> Done in {}.'.format(self.seconds2string(time.time() - t_start)))
+        logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
     def gather_cluster(self):
         self.setup_logger()
@@ -502,7 +496,7 @@ class ClusterMode(Kernel):
         logging.info('--> Saving dyn2stat.')
         io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
                                                   mon.dyn2stat)
-        logging.info('--> Done in {}.'.format(self.seconds2string(time.time() - t_start)))
+        logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
         logging.info('Loads Kernel finished.')
         self.print_logo()
@@ -525,6 +519,11 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+    
+def seconds2string(seconds):
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    return '{:n}:{:02n}:{:02n} [h:mm:ss]'.format(h, m, round(s))
 
 def command_line_interface():
     parser = argparse.ArgumentParser()
