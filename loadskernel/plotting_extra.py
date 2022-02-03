@@ -21,7 +21,7 @@ import loadskernel.io_functions as io_functions
 
 class DetailedPlots(plotting_standard.LoadPlots):
     
-    def plot_aerogrid(self, scalars=None, colormap='plasma', value_min='', value_max=''):
+    def plot_aerogrid(self, scalars=None, colormap='plasma', value_min=None, value_max=None):
         # create the unstructured grid 
         points = self.model.aerogrid['cornerpoint_grids'][:,(1,2,3)]
         ug = tvtk.UnstructuredGrid(points=points)
@@ -37,32 +37,31 @@ class DetailedPlots(plotting_standard.LoadPlots):
         src_aerogrid = mlab.pipeline.add_dataset(ug)
         
         # determine if suitable scalar data is given
-        if len(scalars) == self.model.aerogrid['n']:
+        if scalars is not None:
             # determine an upper and lower limit of the colorbar, if not given
-            if value_min == '':
+            if value_min is None:
                 value_min = scalars.min()
-            if value_max == '':
+            if value_max is None:
                 value_max = scalars.max()
             surface = mlab.pipeline.surface(src_aerogrid, opacity=1.0, line_width=0.5, colormap=colormap, vmin=value_min, vmax=value_max)
             surface.actor.mapper.scalar_visibility=True
-            self.add_colorbar(surface)
+            
+            surface.module_manager.scalar_lut_manager.show_legend=True
+            surface.module_manager.scalar_lut_manager.data_name = 'dCp'
+            surface.module_manager.scalar_lut_manager.label_text_property.color=(0,0,0)
+            surface.module_manager.scalar_lut_manager.label_text_property.font_family='times'
+            surface.module_manager.scalar_lut_manager.label_text_property.bold=False
+            surface.module_manager.scalar_lut_manager.label_text_property.italic=False
+            surface.module_manager.scalar_lut_manager.title_text_property.color=(0,0,0)
+            surface.module_manager.scalar_lut_manager.title_text_property.font_family='times'
+            surface.module_manager.scalar_lut_manager.title_text_property.bold=False
+            surface.module_manager.scalar_lut_manager.title_text_property.italic=False
+            surface.module_manager.scalar_lut_manager.number_of_labels=5
         else:
             surface = mlab.pipeline.surface(src_aerogrid, opacity=1.0, line_width=0.5)
             surface.actor.mapper.scalar_visibility=False 
         surface.actor.property.edge_visibility=True
         mlab.show()
-        
-    def add_colorbar(self, pipeline):
-        cbar = mlab.colorbar(pipeline, title='dCp', orientation='vertical')
-        cbar._label_text_property.color=(0,0,0)
-        cbar._label_text_property.font_family='times'
-        cbar._label_text_property.bold=False
-        cbar._label_text_property.italic=False
-        cbar._title_text_property.color=(0,0,0)
-        cbar._title_text_property.font_family='times'
-        cbar._title_text_property.bold=False
-        cbar._title_text_property.italic=False
-        cbar.number_of_labels=5
 
     def plot_pressure_distribution(self):
         for response in self.responses:
