@@ -97,6 +97,7 @@ class SU2Interface(object):
             if self.first_execution:
                 # set general parameters, which don't change over the course of the CFD simulation, so they are only updated 
                 # for the first execution
+                config['MESH_FILENAME'] = self.jcl.meshdefo['surface']['filename_grid']
                 config['RESTART_FILENAME'] = self.jcl.aero['para_path']+'sol/restart_subcase_{}.dat'.format(self.trimcase['subcase'])
                 config['SOLUTION_FILENAME'] = self.jcl.aero['para_path']+'sol/restart_subcase_{}.dat'.format(self.trimcase['subcase'])
                 config['SURFACE_FILENAME'] = self.jcl.aero['para_path']+'sol/surface_subcase_{}'.format(self.trimcase['subcase'])
@@ -108,6 +109,9 @@ class SU2Interface(object):
                 config['FREESTREAM_PRESSURE']    = self.model.atmo['p'][self.i_atmo]
                 # make sure that the free stream onflow is zero
                 config['MACH_NUMBER']    = self.trimcase['Ma']
+                # activate grid deformation
+                config['DEFORM_MESH'] = 'YES'
+                config['MARKER_DEFORM_MESH'] = '( '+', '.join(self.jcl.meshdefo['surface']['markers'])+' )'
                 # activate grid movement
                 config['GRID_MOVEMENT'] = 'ROTATING_FRAME'
                 config['MOTION_ORIGIN'] = '{} {} {}'.format(self.model.mass['cggrid'][self.i_mass]['offset'][0,0],
