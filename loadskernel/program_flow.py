@@ -13,7 +13,6 @@ import loadskernel.post_processing as post_processing
 import loadskernel.gather_loads as gather_modul
 import loadskernel.auxiliary_output as auxiliary_output
 import loadskernel.plotting_standard as plotting_standard
-import loadskernel.plotting_extra as plotting_extra
 import loadskernel.model as model_modul
 from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
 
@@ -382,30 +381,45 @@ class Kernel(ProgramFlowHelper):
                 # aux_out.write_all_nodalloads(self.path_output + 'nodalloads_all_' + self.job_name + '.bdf')
                 # aux_out.save_nodaldefo(self.path_output + 'nodaldefo_' + self.job_name)
                 # aux_out.save_cpacs(self.path_output + 'cpacs_' + self.job_name + '.xml')
-
-#         logging.info( '--> Drawing some more detailed plots.')
-#         plt = plotting_extra.DetailedPlots(self.jcl, model)
-#         plt.add_responses(responses)
-#         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-#             # nur sim
-#             plt.plot_time_data()
-#         else:
-#             # nur trim
-#             #plt.plot_pressure_distribution()
-#             plt.plot_forces_deformation_interactive()
-#
-#         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-#             plt = plotting_extra.Animations(self.jcl, model)
-#             plt.add_responses(responses)
-#             plt.make_animation()
-#             #plt.make_movie(self.path_output, speedup_factor=1.0)
-
         return
 
     def run_test(self):
-        # place code to test here
+        """
+        This section shall be used for code that is not part of standard post-processing procedures.
+        Below, some useful plotting functions are given that might be helpful, for example 
+        - to identify if a new model is working correctly 
+        - to get extra time data plots
+        - to animate a time domain simulation  
+        """
+        # Because the extra plotting functions require a graphical interface (actually mayavi does), 
+        # the import is performed here to avoid unnecessary import failures e.g. on a cluster.
+        import loadskernel.plotting_extra as plotting_extra
+        # Load the model and the response as usual
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
+        
+        logging.info( '--> Drawing some more detailed plots.')
+        plt = plotting_extra.DetailedPlots(self.jcl, model)
+        plt.add_responses(responses)
+        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+            # show some plots of the time domain data
+            plt.plot_time_data()
+        else:
+            # show some plots of the force vectors, useful to identify model shortcomings
+            #plt.plot_pressure_distribution()
+            plt.plot_forces_deformation_interactive()
+
+        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
+            # show a nice animation of the time domain simulation
+            plt = plotting_extra.Animations(self.jcl, model)
+            plt.add_responses(responses)
+            plt.make_animation()
+            # make a video file of the animation
+            #plt.make_movie(self.path_output, speedup_factor=1.0)
+
+        """
+        At the moment, I also use this section for custom analysis scripts.
+        """
 #         with open(self.path_output + 'statespacemodel_' + self.job_name + '.pickle', 'wb') as fid:
 #             io_functions.specific_functions.dump_pickle(responses, fid)
 
