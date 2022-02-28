@@ -3,6 +3,8 @@ import numpy as np
 import logging, os, subprocess, shlex, sys, platform, time, copy
 
 import loadskernel.cfd_interfaces.meshdefo as meshdefo
+import loadskernel.spline_functions as spline_functions
+import loadskernel.build_splinegrid as build_splinegrid
 from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
 
 try:
@@ -10,7 +12,7 @@ try:
 except:
     pass
 
-class SU2Interface(object):
+class SU2Interface(meshdefo.Meshdefo):
     
     def __init__(self, solution):
         self.model      = solution.model
@@ -41,18 +43,18 @@ class SU2Interface(object):
         self.FluidSolver = None
         
     def prepare_meshdefo(self, Uf, Ux2):
-        defo = meshdefo.meshdefo(self.jcl, self.model)
-        defo.init_deformations()
-        if self.myid == 0:
-            defo.Uf(Uf, self.trimcase)
-            defo.Ux2(Ux2)
-        Ucfd = defo.Ucfd
+        """
+        In this function, we run all the steps to necessary perform the mesh deformation.
+        """
+        # These two functions are inherited from the original Meshdefo class
+        self.Uf(Uf, self.trimcase)
+        self.Ux2(Ux2)
+        # Communicate the deformation of the local mesh to the CFD solver
+        self.set_deformations()
         logging.debug('This is process {} and I wait for the mpi barrier in "prepare_meshdefo()"'.format(self.myid))
         self.comm.barrier()
-        Ucfd = self.comm.bcast(Ucfd, root=0)
-        self.set_deformations(Ucfd)
     
-    def set_deformations(self, Ucfd):
+    def set_deformations(self):
         """
         Communicate the change of coordinates of the fluid interface to the fluid solver.
         Prepare the fluid solver for mesh deformation.
@@ -77,10 +79,10 @@ class SU2Interface(object):
             for i_vertex in range(n_vertices):
                 GlobalIndex = self.FluidSolver.GetVertexGlobalIndex(solver_marker_id, i_vertex)
                 # Check: GlobalIndex in self.cfdgrids[lk_marker_id]['ID']
-                pos = self.model.cfdgrids[lk_marker_id]['set'][GlobalIndex == self.model.cfdgrids[lk_marker_id]['ID'],:3].flatten()
-                disp_x, disp_y, disp_z = Ucfd[lk_marker_id][pos]
+                pos = self.local_mesh['set'][self.local_mesh['GlobalIndex'].index(GlobalIndex),:3]
+                disp_x, disp_y, disp_z = self.Ucfd[pos]
                 self.FluidSolver.SetMeshDisplacement(solver_marker_id, i_vertex, disp_x, disp_y, disp_z)
-        logging.debug('All mesh deformations set.')
+        logging.debug('All surface mesh deformations set.')
     
     def update_para(self, uvwpqr):
         """
@@ -157,6 +159,7 @@ class SU2Interface(object):
             logging.info('Initializing SU2.')
             self.release_memory()
             self.FluidSolver = pysu2.CSinglezoneDriver(para_filename, 1, self.comm)
+            self.get_local_mesh()
         else:
             logging.info('Reusing SU2 instance.')
 
@@ -211,4 +214,50 @@ class SU2Interface(object):
     def release_memory(self):
         if self.FluidSolver != None:
             self.FluidSolver.Postprocessing()
+    
+    def get_local_mesh(self):
+        """
+        Get the local mesh (the partition of this mpi process) of the fluid solver.
+        This function is kind of similar to set_deformations() when it comes to looping over all vertices.
+        """
+        solver_all_moving_markers = np.array(self.FluidSolver.GetAllDeformMeshMarkersTag())
+        solver_marker_ids = self.FluidSolver.GetAllBoundaryMarkers()
+        # The surface marker and the partitioning of the solver usually don't agree.
+        # Thus, it is necessary to figure out if the partition of the current mpi process has
+        # a node that belongs to a moving surface marker.
+        has_moving_marker = [marker in solver_marker_ids.keys() for marker in solver_all_moving_markers]
         
+        # Set-up some helper variables
+        tmp_offset = []
+        tmp_id = []
+        n = 0
+        # Loops to get the coordinates of every vertex that belongs the partition of this mpi process
+        for marker in solver_all_moving_markers[has_moving_marker]:
+            solver_marker_id = solver_marker_ids[marker]
+            n_vertices = self.FluidSolver.GetNumberVertices(solver_marker_id)
+            n += n_vertices
+            for i_vertex in range(n_vertices):
+                tmp_id.append( self.FluidSolver.GetVertexGlobalIndex(solver_marker_id, i_vertex) )
+                tmp_offset.append( self.FluidSolver.GetInitialMeshCoord(solver_marker_id, i_vertex) )
+        
+        # Store the local mesh, use a pattern similar to a any other grids
+        self.local_mesh = {'GlobalIndex': tmp_id,
+                           'offset': np.array(tmp_offset),
+                           'set':np.arange(n*6).reshape((n,6)),
+                           'n': n
+                           }
+        logging.debug('This is process {} and my local mesh has a size of {}"'.format(self.myid, self.local_mesh['n']))
+
+    def transfer_deformations(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
+        """
+        This function overwrites the original Meshdefo.transfer_deformations().
+        This version works on the local mesh of a mpi partition, making the calculation of the 
+        mesh deformations faster.
+        """
+        # build spline matrix
+        PHIi_d = spline_functions.spline_rbf(grid_i, set_i, self.local_mesh, '', 
+                                             rbf_type=rbf_type, surface_spline=surface_spline, 
+                                             support_radius=support_radius, dimensions=[U_i.size, self.local_mesh['n']*6])
+        # store deformation of cfdgrid
+        self.Ucfd = PHIi_d.dot(U_i)
+        del PHIi_d        
