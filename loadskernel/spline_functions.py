@@ -205,7 +205,7 @@ class Spline_rbf:
         PHI_coo = sparse_insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])
         PHI_coo = sparse_insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,2], grid_i['set'+set_i][:,2])
         # better sparse format than coo
-        self.PHI_expanded = PHI_coo.tobsr() 
+        self.PHI_expanded = PHI_coo.tocsr() 
                 
     def eval_rbf(self, r):
             
