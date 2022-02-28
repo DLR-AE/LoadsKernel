@@ -46,11 +46,13 @@ class SU2Interface(meshdefo.Meshdefo):
         """
         In this function, we run all the steps to necessary perform the mesh deformation.
         """
-        # These two functions are inherited from the original Meshdefo class
-        self.Uf(Uf, self.trimcase)
-        self.Ux2(Ux2)
-        # Communicate the deformation of the local mesh to the CFD solver
-        self.set_deformations()
+        # There may be CFD partitions which have no deformation markers. In that case, there is nothing to do.
+        if self.local_mesh['n'] > 0:
+            # These two functions are inherited from the original Meshdefo class
+            self.Uf(Uf, self.trimcase)
+            self.Ux2(Ux2)
+            # Communicate the deformation of the local mesh to the CFD solver
+            self.set_deformations()
         logging.debug('This is process {} and I wait for the mpi barrier in "prepare_meshdefo()"'.format(self.myid))
         self.comm.barrier()
     
@@ -59,7 +61,7 @@ class SU2Interface(meshdefo.Meshdefo):
         Communicate the change of coordinates of the fluid interface to the fluid solver.
         Prepare the fluid solver for mesh deformation.
         """
-
+        logging.info('Sending surface deformations to SU2.')
         solver_all_moving_markers = np.array(self.FluidSolver.GetAllDeformMeshMarkersTag())
         solver_marker_ids = self.FluidSolver.GetAllBoundaryMarkers()
         # The surface marker and the partitioning of the solver usually don't agree.
@@ -246,7 +248,7 @@ class SU2Interface(meshdefo.Meshdefo):
                            'set':np.arange(n*6).reshape((n,6)),
                            'n': n
                            }
-        logging.debug('This is process {} and my local mesh has a size of {}"'.format(self.myid, self.local_mesh['n']))
+        logging.debug('This is process {} and my local mesh has a size of {}'.format(self.myid, self.local_mesh['n']))
 
     def transfer_deformations(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
         """
