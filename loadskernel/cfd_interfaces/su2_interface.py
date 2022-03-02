@@ -48,8 +48,12 @@ class SU2Interface(meshdefo.Meshdefo):
         """
         # There may be CFD partitions which have no deformation markers. In that case, there is nothing to do.
         if self.local_mesh['n'] > 0:
+            # Initialize the surface deformation vector with zeros
+            self.Ucfd = np.zeros(self.local_mesh['n']*6)
             # These two functions are inherited from the original Meshdefo class
+            # Add flexible deformations
             self.Uf(Uf, self.trimcase)
+            # Add control surface deformations
             self.Ux2(Ux2)
             # Communicate the deformation of the local mesh to the CFD solver
             self.set_deformations()
@@ -261,5 +265,5 @@ class SU2Interface(meshdefo.Meshdefo):
                                              rbf_type=rbf_type, surface_spline=surface_spline, 
                                              support_radius=support_radius, dimensions=[U_i.size, self.local_mesh['n']*6])
         # store deformation of cfdgrid
-        self.Ucfd = PHIi_d.dot(U_i)
+        self.Ucfd += PHIi_d.dot(U_i)
         del PHIi_d        
