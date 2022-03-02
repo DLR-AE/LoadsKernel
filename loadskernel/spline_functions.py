@@ -198,6 +198,7 @@ class Spline_rbf:
         else:
             dimensions_i = 6*len(grid_i['set'+set_i])
             dimensions_d = 6*len(grid_d['set'+set_d])
+        t_start = time.time()
         logging.debug(' - expanding spline matrix to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i))
         # coo sparse matrices are good for inserting new data
         PHI_coo = sp.coo_matrix((dimensions_d , dimensions_i))
@@ -206,6 +207,7 @@ class Spline_rbf:
         PHI_coo = sparse_insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,2], grid_i['set'+set_i][:,2])
         # better sparse format than coo
         self.PHI_expanded = PHI_coo.tocsr() 
+        logging.debug(' - done in {:.2f} sec'.format(time.time() - t_start))
                 
     def eval_rbf(self, r):
             
