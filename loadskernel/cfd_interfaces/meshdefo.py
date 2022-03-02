@@ -37,7 +37,8 @@ class Meshdefo:
         logging.info('Apply flexible deformations to cfdgrid')
         # set-up spline grid
         if self.jcl.spline['splinegrid'] == True:
-            splinegrid = self.model.splinegrid
+            # make sure that there are no double points in the spline grid as this would cause a singularity of the spline matrix.
+            splinegrid = build_splinegrid.grid_thin_out_radius(self.model.splinegrid, 0.01)
         else:
             #splinegrid = build_splinegrid.grid_thin_out_random(model.strcgrid, 0.5)
             splinegrid = build_splinegrid.grid_thin_out_radius(self.model.strcgrid, 0.4)
