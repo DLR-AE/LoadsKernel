@@ -62,7 +62,7 @@ class TauInterface(object):
         self.tau_mpi_hosts = tau_mpi_hosts
     
     def prepare_meshdefo(self, Uf, Ux2):
-        defo = meshdefo.meshdefo(self.jcl, self.model)
+        defo = meshdefo.Meshdefo(self.jcl, self.model)
         defo.init_deformations()
         defo.Uf(Uf, self.trimcase)
         defo.Ux2(Ux2)
