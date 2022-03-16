@@ -8,7 +8,7 @@ from scipy import linalg
 import logging
 
 from loadskernel.solution_tools import * 
-from loadskernel.equations.common import Common
+from loadskernel.equations.common import Common, ConvergenceError
 
 class Steady(Common):
 
@@ -256,7 +256,7 @@ class Steady(Common):
             else:
                 logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}'.format(self.counter, defo_new, ddefo))
             if inner_loops > 20:
-                raise ConvergenceError('No convergence of structural deformation achieved after {} inner loops. Check convergence of Tau solution and/or convergence criterion "ddefo".'.format(inner_loops))
+                raise ConvergenceError('No convergence of structural deformation achieved after {} inner loops. Check convergence of CFD solution and/or convergence criterion "ddefo".'.format(inner_loops))
         # get the current values from Y and substract tamlab.figure()
         # fsolve only finds the roots; Y = 0
         Y_target_ist = response['Y'][np.where((self.trimcond_Y[:,1] == 'target'))[0]]
