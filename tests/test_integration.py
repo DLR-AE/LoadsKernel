@@ -1,6 +1,6 @@
 
 # Launch script for the Loads Kernel
-import sys, logging, pytest
+import sys, logging, pytest, subprocess, shlex
 
 # Here you add the location of the Loads Kernel
 sys.path.append("../loads-kernel")
@@ -172,19 +172,21 @@ class TestDiscus2cParallelProcessing(HelperFunctions):
     path_input = '/scratch/loads-kernel-examples/Discus2c/JCLs/'
     path_reference='/work/voss_ar/loads-kernel-examples/reference_output/'
     
-    def test_preprocessing_functional(self, get_test_dir):
-        # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False, use_multiprocessing=False,
-                          path_input=self.path_input,
-                          path_output=get_test_dir)
-        k.run()
+    def test_preprocessing_functional_via_command_line_interface(self, get_test_dir):
+        # Here we us the command line interface
+        args = shlex.split('python ./loadskernel/program_flow.py --job_name %s \
+            --pre True --main False --post False \
+            --path_input %s --path_output %s' % (self.job_name, self.path_input, get_test_dir))
+        returncode = subprocess.call(args)
+        assert returncode == 0, "subprocess call failed: " + str(args)
 
-    def test_mainprocessing_functional(self, get_test_dir):
-        # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False, use_multiprocessing=2,
-                          path_input=self.path_input,
-                          path_output=get_test_dir)
-        k.run()
+    def test_mainprocessing_functional_via_command_line_interface(self, get_test_dir):
+        # Here we us the command line interface
+        args = shlex.split('mpiexec -n 2 python ./loadskernel/program_flow.py --job_name %s \
+            --pre False --main True --post False \
+            --path_input %s --path_output %s' % (self.job_name, self.path_input, get_test_dir))
+        returncode = subprocess.call(args)
+        assert returncode == 0, "subprocess call failed: " + str(args)
     
     def test_preprocessing_results(self, get_test_dir):
         # do comparisons
