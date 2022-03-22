@@ -261,12 +261,13 @@ class Kernel(ProgramFlowHelper):
                }
         # The master process runs on the first processor
         if self.myid == 0:
-            logging.info('I am the master on process %d.' % self.myid)
+            n_workers = self.comm.Get_size() - 1
+            logging.info('--> I am the master with %d worker(s).' %  n_workers)
+            
             mon = gather_modul.GatherLoads(self.jcl, model)
             # open response
             fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')
             
-            n_workers = self.comm.Get_size() - 1
             closed_workers = 0
             i_subcase = 0
             
@@ -280,7 +281,7 @@ class Kernel(ProgramFlowHelper):
                     # Worker is ready, send out a new subcase.
                     if i_subcase < len(self.jcl.trimcase):
                         self.comm.send(i_subcase, dest=source, tag=tags['start'])
-                        logging.debug('Sending a subcase to worker %d' % (source))
+                        logging.info('--> Sending case %d of %d to worker %d' % (i_subcase+1, len(self.jcl.trimcase), source))
                         i_subcase += 1
                     else:
                         # No more task to do, send the exit signal.
