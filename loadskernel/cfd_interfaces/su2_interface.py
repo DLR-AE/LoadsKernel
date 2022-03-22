@@ -29,7 +29,7 @@ class SU2Interface(object):
         if str.find(output, 'mpich.org') == -1:
             logging.error('Wrong MPI implementation detected (SU2 requires MPICH).')
         else:
-            self.have_mpi, self.comm, self.myid = setup_mpi(debug=False)
+            self.have_mpi, self.comm, self.status, self.myid = setup_mpi(debug=False)
         
         # Check if pysu2 was imported successfully, see try/except statement in the import section.
         if "pysu2" in sys.modules and "SU2" in sys.modules:
