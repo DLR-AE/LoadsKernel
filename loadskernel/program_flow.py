@@ -5,6 +5,10 @@ Created on Thu Nov 27 14:00:31 2014
 @author: voss_ar
 """
 import time, multiprocessing, getpass, platform, logging, sys, copy, argparse, os
+try:
+    from mpi4py import MPI
+except:
+    pass
 
 from loadskernel import io_functions
 from loadskernel.io_functions import specific_functions
@@ -25,7 +29,6 @@ class ProgramFlowHelper(object):
                  path_input='../input/',
                  path_output='../output/',
                  jcl=None,
-                 use_multiprocessing=False,
                  machinefile=None,):
         # basic options
         self.pre = pre                  # True/False
@@ -41,18 +44,16 @@ class ProgramFlowHelper(object):
         self.path_input = path_input    # path
         self.path_output = path_output  # path
         self.jcl = jcl                  # python class
-        # parallel computing options
-        self.use_multiprocessing = use_multiprocessing        # True/False/integer
         self.machinefile = machinefile  # filename
         # Initialize some more things
         self.setup_path()
-        if use_multiprocessing:
-            # In case we want to use multiprocessing, MPI should not be initialized.
-            # This is because multiprocessing and MPI don't harmonize and block each other.
-            self.have_mpi = False
-            self.myid = 0
+        # Initialize MPI interface
+        self.have_mpi, self.comm, self.status, self.myid = setup_mpi(self.debug) 
+        # Establish whether or not to use multiprocessing
+        if self.have_mpi and self.comm.Get_size() > 1:
+            self.use_multiprocessing = True
         else:
-            self.have_mpi, self.comm, self.myid = setup_mpi(self.debug) 
+            self.use_multiprocessing = False
 
     def setup_path(self):
         self.path_input = io_functions.specific_functions.check_path(self.path_input)
@@ -148,15 +149,15 @@ class Kernel(ProgramFlowHelper):
         # add machinefile to jcl
         self.jcl.machinefile = self.machinefile
 
-        if self.pre:
+        if self.pre and not self.use_multiprocessing:
             self.run_pre()
         if self.main and self.use_multiprocessing:
             self.run_main_multiprocessing()
         if self.main and not self.use_multiprocessing:
             self.run_main_sequential()
-        if self.post:
+        if self.post and not self.use_multiprocessing:
             self.run_post()
-        if self.test:
+        if self.test and not self.use_multiprocessing:
             self.run_test()
 
         logging.info('Loads Kernel finished.')
@@ -244,94 +245,94 @@ class Kernel(ProgramFlowHelper):
 
     def run_main_multiprocessing(self):
         """
-        This function organizes the multiprocessing computation of multiple load cases on one machine.
-        Parallelization is achieved using a worker/listener concept.
-        The worker and the listener communicate via the output queue.
+        This function organizes the processing of multiple load cases via MPI.
+        Parallelization is achieved using a worker/master concept.
+        The workers and the master communicate via tags ('ready', 'start', 'done', 'exit').
+        This concept is adapted from Jörg Bornschein (see https://github.com/jbornschein/mpi4py-examples/blob/master/09-task-pull.py)
         """
         logging.info('--> Starting Main in multiprocessing mode for %d trimcase(s).' % len(self.jcl.trimcase))
         t_start = time.time()
-        manager = multiprocessing.Manager()
-        q_input = manager.Queue()
-        q_output = manager.Queue()
-
-        # putting trimcases into queue
-        for i in range(len(self.jcl.trimcase)):
-            q_input.put(i)
-        logging.info('--> All trimcases queued, waiting for execution.')
-
-        if type(self.use_multiprocessing) == int:
-            n_processes = self.use_multiprocessing
+        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        # MPI tags can be any integer values
+        tags = {'ready': 0,
+                'start': 1,
+                'done' : 2,
+                'exit' : 3,
+               }
+        # The master process runs on the first processor
+        if self.myid == 0:
+            n_workers = self.comm.Get_size() - 1
+            logging.info('--> I am the master with %d worker(s).' %  n_workers)
+            
+            mon = gather_modul.GatherLoads(self.jcl, model)
+            # open response
+            fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')
+            
+            closed_workers = 0
+            i_subcase = 0
+            
+            while closed_workers < n_workers:
+                logging.debug('Master is waiting for communication...')
+                data = self.comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=self.status)
+                source = self.status.Get_source()
+                tag = self.status.Get_tag()
+                
+                if tag == tags['ready']:
+                    # Worker is ready, send out a new subcase.
+                    if i_subcase < len(self.jcl.trimcase):
+                        self.comm.send(i_subcase, dest=source, tag=tags['start'])
+                        logging.info('--> Sending case %d of %d to worker %d' % (i_subcase+1, len(self.jcl.trimcase), source))
+                        i_subcase += 1
+                    else:
+                        # No more task to do, send the exit signal.
+                        self.comm.send(None, dest=source, tag=tags['exit'])
+                
+                elif tag == tags['done']:
+                    # The worker has returned a response.
+                    response = data
+                    if response['successful']:
+                        logging.info("--> Received response ('successful') from worker %d." % source)
+                        mon.gather_monstations(self.jcl.trimcase[response['i']], response)
+                        mon.gather_dyn2stat(response)
+                    else:
+                        # Trim failed, no post processing, save the empty response
+                        logging.info("--> Received response ('failed') from worker %d." % source)
+                    logging.info('--> Saving response(s).')
+                    io_functions.specific_functions.write_hdf5(fid, response, path='/'+str(response['i']))
+                
+                elif tag == tags['exit']:
+                    # The worker confirms the exit.
+                    logging.debug('Worker %d exited.' % source)
+                    closed_workers += 1
+            # close response
+            io_functions.specific_functions.close_hdf5(fid)
+            logging.info('--> Saving monstation(s).')
+            io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
+                                                      mon.monstations)
+            # with open(path_output + 'monstations_' + job_name + '.mat', 'wb') as f:
+            #    io_matlab.save_mat(f, mon.monstations)
+            logging.info('--> Saving dyn2stat.')
+            io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
+                                              mon.dyn2stat)
+        # The worker process runs on all other processors
         else:
-            n_processes = multiprocessing.cpu_count()
-            if n_processes < 2:
-                n_processes = 2
-        pool = multiprocessing.Pool(n_processes)
-        logging.info('--> Launching 1 listener.')
-        listener = pool.apply_async(unwrap_main_listener, (self, q_output))  # put listener to work
-        n_workers = n_processes - 1
-
-        logging.info('--> Launching {} worker(s).'.format(str(n_workers)))
-        workers = []
-        for i_worker in range(n_workers):
-            jcl = copy.deepcopy(self.jcl)
-            workers.append(pool.apply_async(unwrap_main_worker, (self, q_input, q_output, jcl)))
- 
-        for i_worker in range(n_workers):
-            q_input.put('finish')  # putting finish signal into queue for worker
-        q_input.join()
-        logging.info('--> All trimcases finished, waiting for listener.')
-        q_output.join()
-        q_output.put('finish')  # putting finish signal into queue for listener
-        q_output.join()
+            logging.info('I am worker on process %d.' % self.myid)
+            while True:
+                self.comm.send(None, dest=0, tag=tags['ready'])
+                i_subcase = self.comm.recv(source=0, tag=MPI.ANY_TAG, status=self.status)
+                tag = self.status.Get_tag()
+                
+                if tag == tags['start']:
+                    # Start a new job
+                    response = self.main_common(model, self.jcl, i_subcase)
+                    self.comm.send(response, dest=0, tag=tags['done'])
+                elif tag == tags['exit']:
+                    # Received an exit signal.
+                    break
+            # Confirm the exit signal.
+            self.comm.send(None, dest=0, tag=tags['exit'])
+        
         logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
-
-    def main_worker(self, q_input, q_output, jcl):
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        while True:
-            i = q_input.get()
-            if i == 'finish':
-                q_input.task_done()
-                logging.info('--> Worker quit.')
-                break
-            else:
-                response = self.main_common(model, jcl, i)
-                q_output.put(response)
-                q_input.task_done()
-        return
-
-    def main_listener(self, q_output):
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        mon = gather_modul.GatherLoads(self.jcl, model)
-        # open response
-        fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')
-        logging.info('--> Listener ready.')
-        while True:
-            m = q_output.get()
-            if m == 'finish':
-                # close response
-                io_functions.specific_functions.close_hdf5(fid)
-                logging.info('--> Saving monstation(s).')
-                io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
-                                                          mon.monstations)
-                # with open(path_output + 'monstations_' + job_name + '.mat', 'wb') as f:
-                #    io_matlab.save_mat(f, mon.monstations)
-                logging.info('--> Saving dyn2stat.')
-                io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
-                                                  mon.dyn2stat)
-                q_output.task_done()
-                logging.info('--> Listener quit.')
-                break
-            elif m['successful']:
-                logging.info("--> Received response ('successful') from worker.")
-                mon.gather_monstations(self.jcl.trimcase[m['i']], m)
-                mon.gather_dyn2stat(m)
-            else:
-                # trim failed, no post processing, save 'None'
-                logging.info("--> Received response ('failed') from worker.")
-            logging.info('--> Saving response(s).')
-            io_functions.specific_functions.write_hdf5(fid, m, path='/'+str(m['i']))
-            q_output.task_done()
-        return
 
     def run_post(self):
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
@@ -514,14 +515,6 @@ class ClusterMode(Kernel):
 
         logging.info('Loads Kernel finished.')
         self.print_logo()
-
-def unwrap_main_worker(*arg, **kwarg):
-    # This is a function outside the class to unwrap the self from the arguments. Requirement for multiprocessing pool.
-    return Kernel.main_worker(*arg, **kwarg)
-
-def unwrap_main_listener(*arg, **kwarg):
-    # This is a function outside the class to unwrap the self from the arguments. Requirement for multiprocessing pool.
-    return Kernel.main_listener(*arg, **kwarg)
 
 def str2bool(v):
     # This is a function outside the class to convert strings to boolean. Requirement for parsing command line arguments.

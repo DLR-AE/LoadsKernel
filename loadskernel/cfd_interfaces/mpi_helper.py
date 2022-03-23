@@ -9,10 +9,11 @@ def setup_mpi(debug=False):
         have_mpi = True
         # Set-up the MPI World communicator
         comm = MPI.COMM_WORLD
+        status = MPI.Status()
         myid = comm.Get_rank()
-        if myid == 0:
-            print('MPI interface initialized with {} processes(es).'.format(comm.Get_size()))
         if debug:
+            # Note: the logfile is not yet ready (requires myid), so we use print here.
+            print('MPI interface initialized with {} processes(es).'.format(comm.Get_size()))
             print('This is MPI process {} with PID {} on {}'.format(myid, os.getpid(), platform.node()))
             print('Waiting now for 20 seconds...')
             sys.stdout.flush()
@@ -21,6 +22,6 @@ def setup_mpi(debug=False):
     else:
         have_mpi = False
         comm = None
+        status = None
         myid = 0
-        print('No MPI interface found/initialized.')
-    return have_mpi, comm, myid
+    return have_mpi, comm, status, myid
