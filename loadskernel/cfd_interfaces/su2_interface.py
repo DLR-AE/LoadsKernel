@@ -116,7 +116,7 @@ class SU2Interface(meshdefo.Meshdefo):
                 config['FREESTREAM_DENSITY']     = self.model.atmo['rho'][self.i_atmo]
                 config['FREESTREAM_PRESSURE']    = self.model.atmo['p'][self.i_atmo]
                 # make sure that the free stream onflow is zero
-                config['MACH_NUMBER']    = self.trimcase['Ma']
+                config['MACH_NUMBER'] = 0.0
                 # activate grid deformation
                 config['DEFORM_MESH'] = 'YES'
                 config['MARKER_DEFORM_MESH'] = '( '+', '.join(self.jcl.meshdefo['surface']['markers'])+' )'
@@ -132,11 +132,12 @@ class SU2Interface(meshdefo.Meshdefo):
                 config['RESTART_SOL'] = 'YES'
             # update the translational velocities via angle of attack and side slip, given in degree
             # using only the translational velocities resulted in NaNs for the nodal forces
-            u, v, w = uvwpqr[:3]
+            u, v, w = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[:3]
+            config['TRANSLATION_RATE'] = '{} {} {}'.format(u, v, w)
             # with alpha = np.arctan(w/u) and beta = np.arctan(v/u)
-            config['AOA']            = np.arctan(w/u)/np.pi*180.0
+            #config['AOA']            = np.arctan(w/u)/np.pi*180.0
             # for some reason, the sideslip angle is parsed as as string...
-            config['SIDESLIP_ANGLE'] = '{}'.format(np.arctan(v/u)/np.pi*180.0)
+            #config['SIDESLIP_ANGLE'] = '{}'.format(np.arctan(v/u)/np.pi*180.0)
             # rotational velocities, given in rad/s in the CFD coordinate system (aft-right-up) ??
             p, q, r = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[3:]
             config['ROTATION_RATE'] = '{} {} {}'.format(p, q, r)
