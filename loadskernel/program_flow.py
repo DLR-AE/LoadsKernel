@@ -474,7 +474,22 @@ class ClusterMode(Kernel):
         t_start = time.time()
         model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
         jcl = copy.deepcopy(self.jcl)
+        """
+        Before starting the simulation, dump an empty / dummy response. This is a workaround in case SU2 diverges, 
+        which leads to a hard exit (via mpi_abort). In that case, mpi_abort terminates everything and leaves no
+        possibility to catch and handle an exception in Python. With this workaround, there is at least an empty 
+        response so that the gathering and the post_processing will work properly. 
+        """
+        # Create an empty response
+        empty_response = {'i':i, 
+                          'successful':False}
+        if self.myid == 0:
+            path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
+            with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb')  as f:
+                io_functions.specific_functions.dump_pickle(empty_response, f)
+        # Start the simulation
         response = self.main_common(model, jcl, i)
+        # Overwrite the empty response from above
         if self.myid == 0:
             logging.info('--> Saving response(s).')
             path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
