@@ -26,7 +26,7 @@ class Meshdefo:
             hingeline = 'y'
         for x2_key in self.model.x2grid['key']:        
             i_x2 = self.model.x2grid['key'].index(x2_key) # get position i_x2 of current control surface
-            logging.info('Apply control surface deflections of {} for {} [deg] to cfdgrid'.format(x2_key, Ux2[i_x2]/np.pi*180.0))   
+            logging.info('Apply control surface deflections of {} for {:0.4f} [deg] to cfdgrid'.format(x2_key, Ux2[i_x2]/np.pi*180.0))   
             if hingeline == 'y':
                 Ujx2 += np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
             elif hingeline == 'z':
