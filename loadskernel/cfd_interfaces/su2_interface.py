@@ -24,14 +24,10 @@ class SU2Interface(meshdefo.Meshdefo):
         # set switch for first execution
         self.first_execution = True
         
-        # Check if the correct MPI implementation is used, SU2 requires MPICH
-        args_version = shlex.split('mpiexec --help')
-        # With Python 3, we can use subprocess.check_output() to get the output from a subprocess
-        output = subprocess.check_output(args_version).decode('utf-8')
-        if str.find(output, 'mpich.org') == -1:
-            logging.error('Wrong MPI implementation detected (SU2 requires MPICH).')
-        else:
-            self.have_mpi, self.comm, self.status, self.myid = setup_mpi(debug=False)
+        # Initialize and check if MPI can be used, SU2 requires MPICH
+        self.have_mpi, self.comm, self.status, self.myid = setup_mpi(debug=False)
+        if not self.have_mpi:
+            logging.error('No MPI detected (SU2 requires MPI)!')
         
         # Check if pysu2 was imported successfully, see try/except statement in the import section.
         if "pysu2" in sys.modules and "SU2" in sys.modules:
