@@ -75,7 +75,9 @@ class Merge:
     def build_new_dataset(self):
         # Init new datastructure
         new_monstations = {}
-        new_dyn2stat = {}
+        new_dyn2stat = {'Pg':[],
+                        'subcases':[],
+                        'subcases_ID':[]}
         # Take first jcl as baseline, clear out trim- and simcases
         new_jcl = copy.deepcopy(self.datasets['jcl'][0])
         new_jcl.trimcase=[]
@@ -86,12 +88,11 @@ class Merge:
             logging.info('Working on {} ...'.format(self.datasets['desc'][x]))
             # Append trimcases
             new_jcl.trimcase += self.datasets['jcl'][x].trimcase
-            new_jcl.simcase += self.datasets['jcl'][x].simcase
+            new_jcl.simcase  += self.datasets['jcl'][x].simcase
             # Append dyn2stat
-            for key in self.datasets['dyn2stat'][x].keys():
-                if key not in new_dyn2stat.keys():
-                    new_dyn2stat[key] = []
-                new_dyn2stat[key] += list(self.datasets['dyn2stat'][x][key][()])
+            new_dyn2stat['Pg']          += list(self.datasets['dyn2stat'][x]['Pg'][()])
+            new_dyn2stat['subcases']    += list(self.datasets['dyn2stat'][x]['subcases'].asstr()[:])
+            new_dyn2stat['subcases_ID'] += list(self.datasets['dyn2stat'][x]['subcases_ID'][()])
                     
             # Handle monstations
             for station in self.common_monstations:
@@ -106,7 +107,7 @@ class Merge:
                                                 }
                 # Merge.   
                 new_monstations[station]['loads']           += list(self.datasets['monstations'][x][station]['loads'][()])
-                new_monstations[station]['subcases']        += list(self.datasets['monstations'][x][station]['subcases'][()])
+                new_monstations[station]['subcases']        += list(self.datasets['monstations'][x][station]['subcases'].asstr()[:])
                 new_monstations[station]['t']               += list(self.datasets['monstations'][x][station]['t'][()])
 
         # Save into existing data structure.
