@@ -306,33 +306,9 @@ class Common():
         beta positiv = v positive, wind from the right side
         """
         if hasattr(self.jcl, 'sensor') and 'wind' in self.jcl.sensor['key']:
-            # calculate aircraft motion at sensor location
-            i_wind = self.jcl.sensor['key'].index('wind')
-            PHIsensor_cg = self.model.mass['PHIsensor_cg'][self.i_mass]
-            PHIf_sensor = self.model.mass['PHIf_sensor'][self.i_mass]
-            # rigid
-            u, v, w = PHIsensor_cg.dot(X[6:12])[self.model.sensorgrid['set'][i_wind,0:3]] # velocity sensor attachment point
-            # additional wind from flexible deformation
-            uf_1, vf_1, wf_1 = np.cross(PHIf_sensor.T.dot(Uf)[self.model.sensorgrid['set'][i_wind,(3,4,5)]], X[6:9]).dot(self.PHIcg_norm[:3,:3])
-            # additional wind from flexible velocity
-            uf_2, vf_2, wf_2 = PHIf_sensor.T.dot(dUf_dt)[self.model.sensorgrid['set'][i_wind,0:3]].dot(self.PHIcg_norm[:3,:3])
-            
-            v += vf_1 + vf_2
-            w += wf_1 + wf_2
-
-            if self.simcase and self.simcase['gust']:
-                # Eintauchtiefe in die Boe berechnen, analog zu gust()
-                s_gust = (X[0] - self.model.sensorgrid['offset'][i_wind,0] - self.s0)
-                # downwash der 1-cos Boe an der Sensorposition, analog zu gust()
-                wj_gust = self.WG_TAS * 0.5 * (1-np.cos(np.pi * s_gust / self.simcase['gust_gradient']))
-                if s_gust <= 0.0: 
-                    wj_gust = 0.0
-                if s_gust > 2*self.simcase['gust_gradient']:
-                    wj_gust = 0.0
-                # Ausrichtung und Skalierung der Boe
-                u_gust, v_gust, w_gust = Vtas * wj_gust * np.dot(np.array([0,0,1]), calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 ))
-                v -= v_gust
-                w += w_gust
+            # calculate onflow at sensor location
+            i_sensor = self.jcl.sensor['key'].index('wind')
+            u, v, w = self.get_sensor_onflow(i_sensor, X, Vtas, Uf, dUf_dt)
         else:
             # if no sensors are present, then take only rigid body motion as input
             u, v, w  = X[6:9] # u v w bodyfixed
@@ -341,6 +317,34 @@ class Common():
         beta  = np.arctan(v/u)
         gamma = X[4] - alpha # alpha = theta - gamma
         return alpha, beta, gamma
+    
+    def get_sensor_onflow(self, i_sensor, X, Vtas, Uf, dUf_dt):
+        PHIsensor_cg = self.model.mass['PHIsensor_cg'][self.i_mass]
+        PHIf_sensor = self.model.mass['PHIf_sensor'][self.i_mass]
+        # rigid
+        u, v, w = PHIsensor_cg.dot(X[6:12])[self.model.sensorgrid['set'][i_sensor,0:3]] # velocity sensor attachment point
+        # additional wind from flexible deformation
+        uf_1, vf_1, wf_1 = np.cross(PHIf_sensor.T.dot(Uf)[self.model.sensorgrid['set'][i_sensor,(3,4,5)]], X[6:9]).dot(self.PHIcg_norm[:3,:3])
+        # additional wind from flexible velocity
+        uf_2, vf_2, wf_2 = PHIf_sensor.T.dot(dUf_dt)[self.model.sensorgrid['set'][i_sensor,0:3]].dot(self.PHIcg_norm[:3,:3])
+        
+        v += vf_1 + vf_2
+        w += wf_1 + wf_2
+
+        if self.simcase and self.simcase['gust']:
+            # Eintauchtiefe in die Boe berechnen, analog zu gust()
+            s_gust = (X[0] - self.model.sensorgrid['offset'][i_sensor,0] - self.s0)
+            # downwash der 1-cos Boe an der Sensorposition, analog zu gust()
+            wj_gust = self.WG_TAS * 0.5 * (1-np.cos(np.pi * s_gust / self.simcase['gust_gradient']))
+            if s_gust <= 0.0: 
+                wj_gust = 0.0
+            if s_gust > 2*self.simcase['gust_gradient']:
+                wj_gust = 0.0
+            # Ausrichtung und Skalierung der Boe
+            u_gust, v_gust, w_gust = Vtas * wj_gust * np.dot(np.array([0,0,1]), calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 ))
+            v -= v_gust
+            w += w_gust
+        return u, v, w
     
     def idrag(self, wj, q_dyn):
         if self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae'] and 'induced_drag' in self.jcl.aero and self.jcl.aero['induced_drag']:
@@ -717,8 +721,40 @@ class Common():
         omega = RPM / 60.0 * 2.0 * np.pi # Winkelgeschwindigkeit rad/s
         Mxyz = - rot_vec * power / omega
         return Mxyz
+    
+    def propeller_aerodynamis(self, i_engine, Vtas, q_dyn, alpha, beta, pqr):
+        """
+        This functions calculates the aerodynamic forces and moments of a propeller following equations 1 to 4 in [1].
+        
+        [1] Rodden, W., and Rose, T., “Propeller/nacelle whirl flutter addition to MSC/nastran,” in 
+        Proceedings of the 1989 MSC World User’s Conference, 1989.
 
-    def engine(self, X):
+        """
+        # call function from Christopher to get aerodynamic coefficients
+        # Wie lautet hier die Vorzeichenkonvention??
+        Cz_theta, Cz_psi, Cz_q, Cz_r = [0.0, 0.0, 0.0, 0.0]
+        Cy_theta, Cy_psi, Cy_q, Cy_r = [0.0, 0.0, 0.0, 0.0]
+        Cm_theta, Cm_psi, Cm_q, Cm_r = [0.0, 0.0, 0.0, 0.0]
+        Cn_theta, Cn_psi, Cn_q, Cn_r = [0.0, 0.0, 0.0, 0.0]
+        
+        diameter = self.jcl.engine['diameter'][i_engine]
+        # calculate the area of the propeller disk with S = pi * r^2
+        S = np.pi*(0.5*diameter)**2.0
+        # initialize empty force vector
+        P_prop = np.zeros(6)
+        # Side force Fy, equation 3 in [1]
+        P_prop[1] += q_dyn*S * (Cy_theta*alpha + Cy_psi*beta + Cy_q*pqr[1]*diameter/(2.0*Vtas) + Cy_r*pqr[2]*diameter/(2.0*Vtas))
+        # Lift force Fz, equation 1 in [1]
+        P_prop[2] += q_dyn*S * (Cz_theta*alpha + Cz_psi*beta + Cz_q*pqr[1]*diameter/(2.0*Vtas) + Cz_r*pqr[2]*diameter/(2.0*Vtas))
+        # Pitching moment My, equation 2 in [1]
+        P_prop[4] += q_dyn*S*diameter * (Cm_theta*alpha + Cm_psi*beta + Cm_q*pqr[1]*diameter/(2.0*Vtas) + Cm_r*pqr[2]*diameter/(2.0*Vtas))
+        # Yawing moment Mz, equation 4 in [1]
+        P_prop[5] += q_dyn*S*diameter * (Cn_theta*alpha + Cn_psi*beta + Cn_q*pqr[1]*diameter/(2.0*Vtas) + Cn_r*pqr[2]*diameter/(2.0*Vtas))
+        
+        return P_prop
+        
+
+    def engine(self, X, Vtas, q_dyn, Uf, dUf_dt):
         if hasattr(self.jcl, 'engine'):
             # get thrust setting
             thrust = X[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]
@@ -726,11 +762,11 @@ class Common():
             PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]
             Pextra = np.zeros(self.model.extragrid['n']*6)
             dUcg_dt, Uf, dUf_dt = self.recover_states(X)
-            dUextra_dt = PHIextra_cg.dot(dUcg_dt) + PHIf_extra.T.dot(dUf_dt) # velocity LG attachment point 
+            dUextra_dt = PHIextra_cg.dot(dUcg_dt) + PHIf_extra.T.dot(dUf_dt) # velocity engine attachment point 
 
             for i_engine in range(self.jcl.engine['key'].__len__()):
                 thrust_vector = np.array(self.jcl.engine['thrust_vector'][i_engine])*thrust
-                Pextra[self.model.extragrid['set'][i_engine,0:3]] = thrust_vector
+                Pextra[self.model.extragrid['set'][i_engine,0:3]] += thrust_vector
                 
                 if self.jcl.engine['method'] == 'propellerdisk':
                     pqr     = dUextra_dt[self.model.extragrid['set'][i_engine,(3,4,5)]]
@@ -740,7 +776,16 @@ class Common():
                     rotation_vector     = np.array(self.jcl.engine['rotation_vector'][i_engine])
                     M_precession = self.precession_moment(rotation_inertia, RPM, rotation_vector, pqr)
                     M_torque = self.torque_moment(RPM, rotation_vector, power)
-                    Pextra[self.model.extragrid['set'][i_engine,3:]] = M_precession + M_torque
+                    Pextra[self.model.extragrid['set'][i_engine,3:]] += M_precession + M_torque
+                    
+                    # find the sensor that corresponds to the engine
+                    i_sensor = self.jcl.sensor['key'].index(self.jcl.engine['key'][i_engine])
+                    # calculate the sensor onflow angles with alpha = np.arctan(w/u) and beta = np.arctan(v/u)
+                    u, v, w = self.get_sensor_onflow(i_sensor, X, Vtas, Uf, dUf_dt)
+                    P_prop = self.propeller_aerodynamis(i_engine, Vtas, q_dyn, np.arctan(w/u), np.arctan(v/u), pqr)
+                    
+                    Pextra[self.model.extragrid['set'][i_engine,:]] += P_prop
+
                     
             Pb_ext = PHIextra_cg.T.dot(Pextra)
             Pf_ext = PHIf_extra.dot(Pextra)
