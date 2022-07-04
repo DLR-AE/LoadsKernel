@@ -10,6 +10,7 @@ from scipy import interpolate, linalg
 from loadskernel.solution_tools import * 
 import loadskernel.efcs as efcs
 from loadskernel.cfd_interfaces import tau_interface, su2_interface
+from loadskernel.engine_interfaces import engine_loads, propeller_loads
 
 class Common():
     def __init__(self, solution, X0='', simcase=''):
@@ -151,6 +152,12 @@ class Common():
             self.Djf_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjf'][self.i_mass])* -1.0
             self.Djh_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat'].dot(self.model.mass['PHIjh'][self.i_mass]))
             self.Djh_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjh'][self.i_mass]) * -1.0
+            
+        if hasattr(self.jcl, 'engine'):
+            self.engine_loads = engine_loads.EngineLoads()
+            if self.jcl.engine['method'] == 'propellerdisk':
+                self.propeller_aero_loads = propeller_loads.PropellerAeroLoads(self.jcl.engine['pypropmat_input_file'])
+                self.propeller_precession_loads = propeller_loads.PropellerPrecessionLoads()
     
     def ode_arg_sorter(self, t, X):
         return self.eval_equations(X, t, 'sim')
@@ -711,81 +718,56 @@ class Common():
         else:
             dcommand = np.zeros(self.solution.n_input_derivatives)
         return dcommand
-    
-    def precession_moment(self, I, RPM, rot_vec, pqr):
-        omega = rot_vec * RPM / 60.0 * 2.0 * np.pi # Winkelgeschwindigkeitsvektor rad/s
-        Mxyz = np.cross(omega, pqr) * I
-        return Mxyz
-    
-    def torque_moment(self, RPM, rot_vec, power):
-        omega = RPM / 60.0 * 2.0 * np.pi # Winkelgeschwindigkeit rad/s
-        Mxyz = - rot_vec * power / omega
-        return Mxyz
-    
-    def propeller_aerodynamis(self, i_engine, Vtas, q_dyn, alpha, beta, pqr):
-        """
-        This functions calculates the aerodynamic forces and moments of a propeller following equations 1 to 4 in [1].
         
-        [1] Rodden, W., and Rose, T., “Propeller/nacelle whirl flutter addition to MSC/nastran,” in 
-        Proceedings of the 1989 MSC World User’s Conference, 1989.
-
-        """
-        # call function from Christopher to get aerodynamic coefficients
-        # Wie lautet hier die Vorzeichenkonvention??
-        Cz_theta, Cz_psi, Cz_q, Cz_r = [0.0, 0.0, 0.0, 0.0]
-        Cy_theta, Cy_psi, Cy_q, Cy_r = [0.0, 0.0, 0.0, 0.0]
-        Cm_theta, Cm_psi, Cm_q, Cm_r = [0.0, 0.0, 0.0, 0.0]
-        Cn_theta, Cn_psi, Cn_q, Cn_r = [0.0, 0.0, 0.0, 0.0]
-        
-        diameter = self.jcl.engine['diameter'][i_engine]
-        # calculate the area of the propeller disk with S = pi * r^2
-        S = np.pi*(0.5*diameter)**2.0
-        # initialize empty force vector
-        P_prop = np.zeros(6)
-        # Side force Fy, equation 3 in [1]
-        P_prop[1] += q_dyn*S * (Cy_theta*alpha + Cy_psi*beta + Cy_q*pqr[1]*diameter/(2.0*Vtas) + Cy_r*pqr[2]*diameter/(2.0*Vtas))
-        # Lift force Fz, equation 1 in [1]
-        P_prop[2] += q_dyn*S * (Cz_theta*alpha + Cz_psi*beta + Cz_q*pqr[1]*diameter/(2.0*Vtas) + Cz_r*pqr[2]*diameter/(2.0*Vtas))
-        # Pitching moment My, equation 2 in [1]
-        P_prop[4] += q_dyn*S*diameter * (Cm_theta*alpha + Cm_psi*beta + Cm_q*pqr[1]*diameter/(2.0*Vtas) + Cm_r*pqr[2]*diameter/(2.0*Vtas))
-        # Yawing moment Mz, equation 4 in [1]
-        P_prop[5] += q_dyn*S*diameter * (Cn_theta*alpha + Cn_psi*beta + Cn_q*pqr[1]*diameter/(2.0*Vtas) + Cn_r*pqr[2]*diameter/(2.0*Vtas))
-        
-        return P_prop
-        
-
     def engine(self, X, Vtas, q_dyn, Uf, dUf_dt):
         if hasattr(self.jcl, 'engine'):
             # get thrust setting
             thrust = X[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]
+            # get all matrices for the extra -set
             PHIextra_cg = self.model.mass['PHIextra_cg'][self.i_mass]
             PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]
-            Pextra = np.zeros(self.model.extragrid['n']*6)
             dUcg_dt, Uf, dUf_dt = self.recover_states(X)
-            dUextra_dt = PHIextra_cg.dot(dUcg_dt) + PHIf_extra.T.dot(dUf_dt) # velocity engine attachment point 
-
+            # calculate velocity at extra / engine attachment point 
+            dUextra_dt = PHIextra_cg.dot(dUcg_dt) + PHIf_extra.T.dot(dUf_dt) 
+            # init an empty force vector for all extra points
+            Pextra = np.zeros(self.model.extragrid['n']*6)
+            # loop over all engines
             for i_engine in range(self.jcl.engine['key'].__len__()):
-                thrust_vector = np.array(self.jcl.engine['thrust_vector'][i_engine])*thrust
-                Pextra[self.model.extragrid['set'][i_engine,0:3]] += thrust_vector
+                # assemble a dictionary that contains all engine-relevant parameters
+                parameter_dict = {'thrust_vector': np.array(self.jcl.engine['thrust_vector'][i_engine]),
+                                  'Vtas': Vtas,
+                                  'q_dyn': q_dyn,
+                                  'Ma': self.jcl.aero['Ma'][self.i_aero],
+                                  'rho': self.model.atmo['rho'][self.i_atmo],
+                                 }
+                # get engine thrust vector   
+                P_thrust = self.engine_loads.thrust_forces(parameter_dict, thrust)
+                # add thrust to extra point force vector
+                Pextra[self.model.extragrid['set'][i_engine,:]] += P_thrust
                 
                 if self.jcl.engine['method'] == 'propellerdisk':
-                    pqr     = dUextra_dt[self.model.extragrid['set'][i_engine,(3,4,5)]]
-                    RPM     = self.trimcase['RPM']
-                    power   = self.trimcase['power']
-                    rotation_inertia    = self.jcl.engine['rotation_inertia'][i_engine]
-                    rotation_vector     = np.array(self.jcl.engine['rotation_vector'][i_engine])
-                    M_precession = self.precession_moment(rotation_inertia, RPM, rotation_vector, pqr)
-                    M_torque = self.torque_moment(RPM, rotation_vector, power)
-                    Pextra[self.model.extragrid['set'][i_engine,3:]] += M_precession + M_torque
-                    
                     # find the sensor that corresponds to the engine
                     i_sensor = self.jcl.sensor['key'].index(self.jcl.engine['key'][i_engine])
                     # calculate the sensor onflow angles with alpha = np.arctan(w/u) and beta = np.arctan(v/u)
+                    # Note that the onflow sensor considers also a gust velocities.
                     u, v, w = self.get_sensor_onflow(i_sensor, X, Vtas, Uf, dUf_dt)
-                    P_prop = self.propeller_aerodynamis(i_engine, Vtas, q_dyn, np.arctan(w/u), np.arctan(v/u), pqr)
+                    # expand the parameter dictionary with the propellerdisk-relevant parameters
+                    parameter_dict['RPM'] = self.trimcase['RPM']
+                    parameter_dict['power'] = self.trimcase['power']
+                    parameter_dict['alpha'] = np.arctan(w/u)
+                    parameter_dict['beta']  = np.arctan(v/u)
+                    parameter_dict['pqr'] =  dUextra_dt[self.model.extragrid['set'][i_engine,(3,4,5)]]
+                    parameter_dict['diameter'] = self.jcl.engine['diameter'][i_engine]
+                    parameter_dict['rotation_inertia'] = self.jcl.engine['rotation_inertia'][i_engine]
+                    parameter_dict['rotation_vector'] = np.array(self.jcl.engine['rotation_vector'][i_engine])
                     
-                    Pextra[self.model.extragrid['set'][i_engine,:]] += P_prop
-
+                    # get engine load vector(s)
+                    P_engine_torque     = self.engine_loads.torque_moments(parameter_dict) 
+                    P_precessions       = self.propeller_precession_loads.precession_moments(parameter_dict)
+                    P_prop              = self.propeller_aero_loads.calc_loads(parameter_dict)
+                    
+                    # add engine and propeller loads to extra point force vector
+                    Pextra[self.model.extragrid['set'][i_engine,:]] += P_precessions + P_engine_torque + P_prop
                     
             Pb_ext = PHIextra_cg.T.dot(Pextra)
             Pf_ext = PHIf_extra.dot(Pextra)
