@@ -68,7 +68,7 @@ class PropellerAeroLoads(object):
                                  'Ma': parameter_dict['Ma'], 
                                  'Rho': parameter_dict['rho'], 
                                  'N_rpm': parameter_dict['RPM']}
-        prop_coeffs = self.prop.get_propeller_coefficients(flight_condition_dict, include_lag=True)
+        prop_coeffs = self.prop.get_propeller_coefficients(flight_condition_dict, include_lag=False)
         
         # Get the aerodynamic coefficients
         Cz_theta    = prop_coeffs['z_theta']
