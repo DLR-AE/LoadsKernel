@@ -40,6 +40,7 @@ class PropellerAeroLoads(object):
             self.prop = Prop(filename)
         else:
             logging.error('pyPropMat was/could NOT be imported!'.format(self.jcl.aero['method']))
+        self.prop_coeffs = None
     
     def calc_loads(self, parameter_dict):
         """
@@ -63,30 +64,32 @@ class PropellerAeroLoads(object):
         # Calculate the area of the propeller disk with S = pi * r^2
         S = np.pi*(0.5*diameter)**2.0
         
-        # Calculate the coefficients for the current operational point
-        flight_condition_dict = {'V': Vtas, 
-                                 'Ma': parameter_dict['Ma'], 
-                                 'Rho': parameter_dict['rho'], 
-                                 'N_rpm': parameter_dict['RPM']}
-        prop_coeffs = self.prop.get_propeller_coefficients(flight_condition_dict, include_lag=False)
+        # Calculate the coefficients for the current operational point. It is sufficient to calculate them only once 
+        # at the first run.
+        if self.prop_coeffs == None:
+            flight_condition_dict = {'V': Vtas, 
+                                     'Ma': parameter_dict['Ma'], 
+                                     'Rho': parameter_dict['rho'], 
+                                     'N_rpm': parameter_dict['RPM']}
+            self.prop_coeffs = self.prop.get_propeller_coefficients(flight_condition_dict, include_lag=False)
         
         # Get the aerodynamic coefficients
-        Cz_theta    = prop_coeffs['z_theta']
-        Cz_psi      = prop_coeffs['z_psi']
-        Cz_q        = prop_coeffs['z_q']
-        Cz_r        = prop_coeffs['z_r']
-        Cy_theta    = prop_coeffs['y_theta']
-        Cy_psi      = prop_coeffs['y_psi']
-        Cy_q        = prop_coeffs['y_q']
-        Cy_r        = prop_coeffs['y_r']
-        Cm_theta    = prop_coeffs['m_theta']
-        Cm_psi      = prop_coeffs['m_psi']
-        Cm_q        = prop_coeffs['m_q']
-        Cm_r        = prop_coeffs['m_r']
-        Cn_theta    = prop_coeffs['n_theta']
-        Cn_psi      = prop_coeffs['n_psi']
-        Cn_q        = prop_coeffs['n_q']
-        Cn_r        = prop_coeffs['n_r']
+        Cz_theta    = self.prop_coeffs['z_theta']
+        Cz_psi      = self.prop_coeffs['z_psi']
+        Cz_q        = self.prop_coeffs['z_q']
+        Cz_r        = self.prop_coeffs['z_r']
+        Cy_theta    = self.prop_coeffs['y_theta']
+        Cy_psi      = self.prop_coeffs['y_psi']
+        Cy_q        = self.prop_coeffs['y_q']
+        Cy_r        = self.prop_coeffs['y_r']
+        Cm_theta    = self.prop_coeffs['m_theta']
+        Cm_psi      = self.prop_coeffs['m_psi']
+        Cm_q        = self.prop_coeffs['m_q']
+        Cm_r        = self.prop_coeffs['m_r']
+        Cn_theta    = self.prop_coeffs['n_theta']
+        Cn_psi      = self.prop_coeffs['n_psi']
+        Cn_q        = self.prop_coeffs['n_q']
+        Cn_r        = self.prop_coeffs['n_r']
     
         # initialize empty force vector
         P_prop = np.zeros(6)
