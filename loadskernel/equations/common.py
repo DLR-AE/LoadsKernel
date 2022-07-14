@@ -10,7 +10,7 @@ from scipy import interpolate, linalg
 from loadskernel.solution_tools import * 
 import loadskernel.efcs as efcs
 from loadskernel.cfd_interfaces import tau_interface, su2_interface
-from loadskernel.engine_interfaces import engine_loads, propeller_loads
+from loadskernel.engine_interfaces import engine, propeller
 
 class Common():
     def __init__(self, solution, X0='', simcase=''):
@@ -154,10 +154,13 @@ class Common():
             self.Djh_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjh'][self.i_mass]) * -1.0
             
         if hasattr(self.jcl, 'engine'):
-            self.engine_loads = engine_loads.EngineLoads()
+            self.engine_loads = engine.EngineLoads()
             if self.jcl.engine['method'] == 'propellerdisk':
-                self.propeller_aero_loads = propeller_loads.PropellerAeroLoads(self.jcl.engine['pypropmat_input_file'])
-                self.propeller_precession_loads = propeller_loads.PropellerPrecessionLoads()
+                self.propeller_aero_loads = propeller.PyPropMat4Loads(self.jcl.engine['propeller_input_file'])
+                self.propeller_precession_loads = propeller.PropellerPrecessionLoads()
+            elif self.jcl.engine['method'] == 'VLM4Prop':
+                self.propeller_aero_loads = propeller.VLM4PropLoads(self.model.prop)
+                self.propeller_precession_loads = propeller.PropellerPrecessionLoads()
     
     def ode_arg_sorter(self, t, X):
         return self.eval_equations(X, t, 'sim')
@@ -745,7 +748,7 @@ class Common():
                 # add thrust to extra point force vector
                 Pextra[self.model.extragrid['set'][i_engine,:]] += P_thrust
                 
-                if self.jcl.engine['method'] == 'propellerdisk':
+                if self.jcl.engine['method'] in ['propellerdisk', 'VLM4Prop']:
                     # find the sensor that corresponds to the engine
                     i_sensor = self.jcl.sensor['key'].index(self.jcl.engine['key'][i_engine])
                     # calculate the sensor onflow angles with alpha = np.arctan(w/u) and beta = np.arctan(v/u)
