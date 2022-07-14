@@ -159,7 +159,7 @@ class Common():
                 self.propeller_aero_loads = propeller.PyPropMat4Loads(self.jcl.engine['propeller_input_file'])
                 self.propeller_precession_loads = propeller.PropellerPrecessionLoads()
             elif self.jcl.engine['method'] == 'VLM4Prop':
-                self.propeller_aero_loads = propeller.VLM4PropLoads(self.model.prop)
+                self.propeller_aero_loads = propeller.VLM4PropLoads(self.model.prop, self.i_atmo)
                 self.propeller_precession_loads = propeller.PropellerPrecessionLoads()
     
     def ode_arg_sorter(self, t, X):
@@ -761,6 +761,7 @@ class Common():
                     parameter_dict['beta']  = np.arctan(v/u)
                     parameter_dict['pqr'] =  dUextra_dt[self.model.extragrid['set'][i_engine,(3,4,5)]]
                     parameter_dict['diameter'] = self.jcl.engine['diameter'][i_engine]
+                    parameter_dict['n_blades'] = self.jcl.engine['n_blades'][i_engine]
                     parameter_dict['rotation_inertia'] = self.jcl.engine['rotation_inertia'][i_engine]
                     parameter_dict['rotation_vector'] = np.array(self.jcl.engine['rotation_vector'][i_engine])
                     

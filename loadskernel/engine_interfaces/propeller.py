@@ -6,12 +6,12 @@ Created on Jul 4, 2022
 import logging, sys, yaml, copy
 import numpy as np
 
-import panelaero.VLM as VLM
-import loadskernel.build_aero_functions as build_aero_functions
-import loadskernel.spline_rules as spline_rules
-import loadskernel.spline_functions as spline_functions
+from panelaero import VLM
+from loadskernel import build_aero_functions
+from loadskernel import spline_rules
+from loadskernel import spline_functions
 from loadskernel.solution_tools import * 
-
+from loadskernel import equations
 try:
     from pyPropMat.pyPropMat import Prop
 except:
@@ -193,17 +193,18 @@ def read_propeller_input(filename):
 
 class VLM4PropModel(object):
     
-    def __init__(self, filename, coord):
+    def __init__(self, filename, coord, atmo):
         self.filename = filename
         self.coord = coord
+        self.atmo = atmo
         
-    def build_propgrid(self):
-        self.propgrid = build_aero_functions.build_aerogrid(self.filename, method_caero='VLM4Prop')                 
-        logging.info('The aerodynamic propeller model consists of {} panels.'.format(self.propgrid['n']))
+    def build_aerogrid(self):
+        self.aerogrid = build_aero_functions.build_aerogrid(self.filename, method_caero='VLM4Prop')                 
+        logging.info('The aerodynamic propeller model consists of {} panels.'.format(self.aerogrid['n']))
     
     def build_pacgrid(self):
-        A = np.sum(self.propgrid['A'])
-        b_ref = self.propgrid['offset_P3'][:,1].max()
+        A = np.sum(self.aerogrid['A'])
+        b_ref = self.aerogrid['offset_P3'][:,1].max()
         mean_aero_choord = A/b_ref
         self.pacgrid = {   'ID': np.array([0]),
                            'offset': np.array([[0.0, 0.0, 0.0]]), 
@@ -216,17 +217,17 @@ class VLM4PropModel(object):
                            'c_ref': mean_aero_choord,
                           }
         
-        rules = spline_rules.rules_aeropanel(self.propgrid)
-        self.PHIjk = spline_functions.spline_rb(self.propgrid, '_k', self.propgrid, '_j', rules, self.coord, sparse_output=True)
-        self.PHIlk = spline_functions.spline_rb(self.propgrid, '_k', self.propgrid, '_l', rules, self.coord, sparse_output=True)
+        rules = spline_rules.rules_aeropanel(self.aerogrid)
+        self.PHIjk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_j', rules, self.coord, sparse_output=True)
+        self.PHIlk = spline_functions.spline_rb(self.aerogrid, '_k', self.aerogrid, '_l', rules, self.coord, sparse_output=True)
         
-        rules = spline_rules.rules_point(self.pacgrid, self.propgrid)
-        self.Dkx1 = spline_functions.spline_rb(self.pacgrid, '', self.propgrid, '_k', rules, self.coord, sparse_output=False)
+        rules = spline_rules.rules_point(self.pacgrid, self.aerogrid)
+        self.Dkx1 = spline_functions.spline_rb(self.pacgrid, '', self.aerogrid, '_k', rules, self.coord, sparse_output=False)
         self.Djx1 = self.PHIjk.dot(self.Dkx1)
     
     def build_AICs_steady(self, Ma):
         self.aero = {}
-        self.aero['Gamma_jj'], __ = VLM.calc_Gammas(aerogrid=copy.deepcopy(self.propgrid), Ma=Ma, xz_symmetry=True) # dim: Ma,n,n
+        self.aero['Gamma_jj'], __ = VLM.calc_Gammas(aerogrid=copy.deepcopy(self.aerogrid), Ma=Ma, xz_symmetry=True) # dim: Ma,n,n
 
 class VLM4PropLoads(object):
     """
@@ -237,26 +238,87 @@ class VLM4PropLoads(object):
       no interference with the wake of the preceding blade.
     - Modeling of only one blade and the onflow is rotated --> No interaction between neighboring blades.
     - Only overall Mach number correction possible, no variation in radial direction (influence negligible up to about Ma=0.3)
-    
-    Inputs:
-    - propeller model, prepared in the VLM4PropModel class (see above)
-    - flight_condition_dict (dict): dictionary with flight data
-        {V (float): true air speed
-        Ma (float): flight mach number
-        Rho (float): air density
-        N_rpm (float): propeller revolutions in rpm}
-        
     """
     
-    def __init__(self, model):
+    def __init__(self, model, i_atmo):
+        
         self.model = model
+        self.i_atmo = i_atmo
+        
+        # only for compatibility with Common equations class
+        self.Djx1 = self.model.Djx1
+        
+        # rotation matrix from propeller into aircraft system
+        self.Tprop2aircraft = np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
     
     def calc_loads(self, parameter_dict):
-        # initialize empty force vector
-        P_prop = np.zeros(6)
+        # replace this with input from parameter_dict
+        self.n_blades = parameter_dict['n_blades']
+        self.phi_blades = np.linspace(0.0, 2.0*np.pi, int(self.n_blades), endpoint=False)
+        self.rot_vec = self.Tprop2aircraft.T.dot(parameter_dict['rotation_vector'])
+        self.i_aero  = 0
         
+        self.Vtas    = parameter_dict['Vtas']
+        self.alpha   = parameter_dict['alpha']
+        self.RPM     = parameter_dict['RPM']        
+        
+        # calculate the forces Pmac at the propeller hub
+        Pmac = self.calc_Pmac()
+        
+        # initialize empty force vector
+        P_prop    = np.zeros(6)
+        # convert into aircraft-fixed coordinate system
+        P_prop[:3] = self.Tprop2aircraft.dot(Pmac[:3])
+        P_prop[3:] = self.Tprop2aircraft.dot(Pmac[3:])
         return P_prop
+        
+    def rbm_nonlin(self, dUmac_dt):
+        wj = np.ones(self.model.aerogrid['n'])*np.sum(dUmac_dt[:3]**2.0)**0.5
+        Pk = equations.common.Common.calc_Pk_nonlin(self, dUmac_dt, wj)
+        return Pk
     
+    def camber_twist_nonlin(self, dUmac_dt):
+        Ujx1 = np.dot(self.Djx1,dUmac_dt)
+        Vtas_local = (Ujx1[self.model.aerogrid['set_j'][:,0]]**2.0 + Ujx1[self.model.aerogrid['set_j'][:,1]]**2.0 + Ujx1[self.model.aerogrid['set_j'][:,2]]**2.0)**0.5
+        wj = np.sin(self.model.aerogrid['cam_rad']) * Vtas_local * -1.0 
+        Pk = equations.common.Common.calc_Pk_nonlin(self, dUmac_dt, wj)
+        return Pk
+    
+    def blade2body(self, phi):
+        Tblade2body = np.zeros((6,6))
+        Tblade2body[0:3,0:3] = calc_drehmatrix(0.0, 0.0, phi)
+        Tblade2body[3:6,3:6] = calc_drehmatrix(0.0, 0.0, phi)
+        return Tblade2body, Tblade2body.T
+    
+    def calc_Pmac(self, dphi=0.0):
+        # calculate the motion of the propeller
+        dUmac_dt_aircraft = np.array([-self.Vtas*np.sin(self.alpha), 0.0, self.Vtas*np.cos(self.alpha), 0.0, 0.0, 0.0])
+        dUmac_dt_rpm = np.concatenate(([0.0, 0.0, 0.0], self.rot_vec * self.RPM / 60.0 * 2.0 * np.pi ))
+        # loop over all blades
+        self.Pk = []; self.Pmac = []; self.dUmac_dt = []
+        logging.debug('                                     Fx       Fy       Fz       Mx       My       Mz')
+        for i_blade in range(self.n_blades):
+            # calculate the motion seen by the blade
+            phi_i = self.phi_blades[i_blade] + dphi
+            Tblade2body, Tbody2blade = self.blade2body(phi_i)
+            dUmac_dt_blade = Tbody2blade.dot(dUmac_dt_aircraft) + dUmac_dt_rpm
+            self.dUmac_dt.append(dUmac_dt_blade)
+            # calculate the forces on the blade
+            Pk_rbm = self.rbm_nonlin(dUmac_dt_blade)
+            Pk_cam = self.camber_twist_nonlin(dUmac_dt_blade)
+            self.Pk.append(Pk_rbm + Pk_cam)
+            # sum the forces at the origin and rotate back into aircraft system
+            self.Pmac.append(Tblade2body.dot(self.model.Dkx1.T.dot(Pk_rbm + Pk_cam)))
+            logging.debug('Forces from blade {} at {:>5.1f}°: {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f}'.format(
+                i_blade, phi_i/np.pi*180.0, 
+                self.Pmac[i_blade][0], self.Pmac[i_blade][1], self.Pmac[i_blade][2], 
+                self.Pmac[i_blade][3], self.Pmac[i_blade][4], self.Pmac[i_blade][5], ))
+        # calculate the sum over all blades
+        Pmac_sum = np.sum(self.Pmac, axis=0)
+        logging.debug('                         Sum : {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f}'.format(
+            Pmac_sum[0], Pmac_sum[1], Pmac_sum[2], Pmac_sum[3], Pmac_sum[4], Pmac_sum[5]))
+        return Pmac_sum
+     
 class PropellerPrecessionLoads(object):
     
     def __init__(self):

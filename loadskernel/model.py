@@ -406,8 +406,8 @@ class Model:
         if hasattr(self.jcl, 'engine'):
             if self.jcl.engine['method'] == 'VLM4Prop':
                 logging.info( 'Building VLM4Prop model...')
-                self.prop = propeller.VLM4PropModel(self.jcl.engine['propeller_input_file'], self.coord)
-                self.prop.build_propgrid()
+                self.prop = propeller.VLM4PropModel(self.jcl.engine['propeller_input_file'], self.coord, self.atmo)
+                self.prop.build_aerogrid()
                 self.prop.build_pacgrid()
                 self.prop.build_AICs_steady(self.jcl.engine['Ma'])
             else:
