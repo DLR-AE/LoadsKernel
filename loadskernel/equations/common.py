@@ -156,6 +156,8 @@ class Common():
         if hasattr(self.jcl, 'engine'):
             self.engine_loads = engine.EngineLoads()
             if self.jcl.engine['method'] == 'propellerdisk':
+                self.propeller_precession_loads = propeller.PropellerPrecessionLoads()
+            elif self.jcl.engine['method'] == 'pyPropMat':
                 self.propeller_aero_loads = propeller.PyPropMat4Loads(self.jcl.engine['propeller_input_file'])
                 self.propeller_precession_loads = propeller.PropellerPrecessionLoads()
             elif self.jcl.engine['method'] == 'VLM4Prop':
@@ -748,7 +750,22 @@ class Common():
                 # add thrust to extra point force vector
                 Pextra[self.model.extragrid['set'][i_engine,:]] += P_thrust
                 
-                if self.jcl.engine['method'] in ['propellerdisk', 'VLM4Prop']:
+                if self.jcl.engine['method'] in ['propellerdisk']:
+                    # expand the parameter dictionary with the propellerdisk-relevant parameters
+                    parameter_dict['RPM'] = self.trimcase['RPM']
+                    parameter_dict['power'] = self.trimcase['power']
+                    parameter_dict['pqr'] =  dUextra_dt[self.model.extragrid['set'][i_engine,(3,4,5)]]
+                    parameter_dict['rotation_inertia'] = self.jcl.engine['rotation_inertia'][i_engine]
+                    parameter_dict['rotation_vector'] = np.array(self.jcl.engine['rotation_vector'][i_engine])
+                    
+                    # get engine load vector(s)
+                    P_engine_torque     = self.engine_loads.torque_moments(parameter_dict) 
+                    P_precessions       = self.propeller_precession_loads.precession_moments(parameter_dict)
+                    
+                    # add engine and propeller loads to extra point force vector
+                    Pextra[self.model.extragrid['set'][i_engine,:]] += P_precessions + P_engine_torque
+                
+                elif self.jcl.engine['method'] in ['pyPropMat', 'VLM4Prop']:
                     # find the sensor that corresponds to the engine
                     i_sensor = self.jcl.sensor['key'].index(self.jcl.engine['key'][i_engine])
                     # calculate the sensor onflow angles with alpha = np.arctan(w/u) and beta = np.arctan(v/u)
