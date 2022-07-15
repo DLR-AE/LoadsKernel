@@ -722,7 +722,7 @@ class Common():
             dcommand = np.zeros(self.solution.n_input_derivatives)
         return dcommand
         
-    def engine(self, X, Vtas, q_dyn, Uf, dUf_dt):
+    def engine(self, X, Vtas, q_dyn, Uf, dUf_dt, t):
         if hasattr(self.jcl, 'engine'):
             # get thrust setting
             thrust = X[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]
@@ -764,6 +764,7 @@ class Common():
                     parameter_dict['n_blades'] = self.jcl.engine['n_blades'][i_engine]
                     parameter_dict['rotation_inertia'] = self.jcl.engine['rotation_inertia'][i_engine]
                     parameter_dict['rotation_vector'] = np.array(self.jcl.engine['rotation_vector'][i_engine])
+                    parameter_dict['t'] = t
                     
                     # get engine load vector(s)
                     P_engine_torque     = self.engine_loads.torque_moments(parameter_dict) 

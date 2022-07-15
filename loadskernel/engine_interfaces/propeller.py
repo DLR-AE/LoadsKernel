@@ -232,12 +232,21 @@ class VLM4PropModel(object):
 class VLM4PropLoads(object):
     """
     This class calculates the aerodynamic forces and moments of a propeller using the VLM. 
-    The propeller blade is modeled like a "starboard wing" and the method has the following limitations:
+    The propeller blade is modeled as a "starboard wing" in the xy-plane and rotates about the z-axis.
+    Limitations:
     - This is a quasi-steady approach.
     - Modeling of the wake as a horse shoe vortex (straight wake, like for a wing, no spiral shape) and 
-      no interference with the wake of the preceding blade.
+      no interference with the wake of the preceding blade(s).
     - Modeling of only one blade and the onflow is rotated --> No interaction between neighboring blades.
     - Only overall Mach number correction possible, no variation in radial direction (influence negligible up to about Ma=0.3)
+    - Currently, only a positive rotation about the z-axis (clockwise) feasible. A counter-clockwise rotation would 
+      lead to an onflow of the lifting surface from the back, compromising the VLM assumptions.
+
+    Sign conventions:
+    - The forces Pmac are given in the propeller coordinate system (up-right-forward). 
+    - The forces P_prop are given in the aircraft coordinate system (aft-right-up). 
+    - Alpha positiv = w positive, wind from below
+    - Beta  positiv = v positive, wind from the right side
     """
     
     def __init__(self, model, i_atmo):
@@ -252,22 +261,26 @@ class VLM4PropLoads(object):
         self.Tprop2aircraft = np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
     
     def calc_loads(self, parameter_dict):
-        # replace this with input from parameter_dict
-        self.n_blades = parameter_dict['n_blades']
-        self.phi_blades = np.linspace(0.0, 2.0*np.pi, int(self.n_blades), endpoint=False)
-        self.rot_vec = self.Tprop2aircraft.T.dot(parameter_dict['rotation_vector'])
-        self.i_aero  = 0
-        
+        # update the operational point with the input from the parameter_dict
         self.Vtas    = parameter_dict['Vtas']
         self.alpha   = parameter_dict['alpha']
-        self.RPM     = parameter_dict['RPM']        
-        
+        self.beta    = parameter_dict['beta']
+        self.RPM     = parameter_dict['RPM']   
+        self.t       = parameter_dict['t']
+        # set some propeller-related parameters given in the parameter_dict
+        self.n_blades = parameter_dict['n_blades']
+        # set the initial blade position at t=0.0, which is horizontal
+        self.phi_blades = np.linspace(0.0, 2.0*np.pi, int(self.n_blades), endpoint=False)
+        # based on the RPM and the time, calculate the current position of the blades
+        self.phi_blades += self.RPM/60.0 * self.t * 2.0*np.pi
+        # calculate the rotation vector of the propeller in the propeller coordinate system
+        self.rot_vec = self.Tprop2aircraft.T.dot(parameter_dict['rotation_vector'])
+        # select Gamma matrices based on mach number
+        self.i_aero  = 0
         # calculate the forces Pmac at the propeller hub
         Pmac = self.calc_Pmac()
-        
-        # initialize empty force vector
+        # initialize empty force vector and convert into aircraft-fixed coordinate system
         P_prop    = np.zeros(6)
-        # convert into aircraft-fixed coordinate system
         P_prop[:3] = self.Tprop2aircraft.dot(Pmac[:3])
         P_prop[3:] = self.Tprop2aircraft.dot(Pmac[3:])
         return P_prop
@@ -290,16 +303,16 @@ class VLM4PropLoads(object):
         Tblade2body[3:6,3:6] = calc_drehmatrix(0.0, 0.0, phi)
         return Tblade2body, Tblade2body.T
     
-    def calc_Pmac(self, dphi=0.0):
+    def calc_Pmac(self):
         # calculate the motion of the propeller
-        dUmac_dt_aircraft = np.array([-self.Vtas*np.sin(self.alpha), 0.0, self.Vtas*np.cos(self.alpha), 0.0, 0.0, 0.0])
+        dUmac_dt_aircraft = np.array([-self.Vtas*np.sin(self.alpha), self.Vtas*np.sin(self.beta), self.Vtas*np.cos(self.alpha)*np.cos(self.beta), 0.0, 0.0, 0.0])
         dUmac_dt_rpm = np.concatenate(([0.0, 0.0, 0.0], self.rot_vec * self.RPM / 60.0 * 2.0 * np.pi ))
         # loop over all blades
         self.Pk = []; self.Pmac = []; self.dUmac_dt = []
         logging.debug('                                     Fx       Fy       Fz       Mx       My       Mz')
         for i_blade in range(self.n_blades):
             # calculate the motion seen by the blade
-            phi_i = self.phi_blades[i_blade] + dphi
+            phi_i = self.phi_blades[i_blade]
             Tblade2body, Tbody2blade = self.blade2body(phi_i)
             dUmac_dt_blade = Tbody2blade.dot(dUmac_dt_aircraft) + dUmac_dt_rpm
             self.dUmac_dt.append(dUmac_dt_blade)
