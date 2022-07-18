@@ -101,7 +101,7 @@ class jcl:
                            'attachment_point':[800002, 800003, 800001], # IDs of FE attachment nodes
                            'para': [para_LG, para_LG, para_LG],         # parameters for generic landing gear module, see above
                           }
-        self.engine= {'method': 'thrust_only', # activates an engine model: 'thrust_only', 'propellerdisk', 'PyPropMAt' or 'VLM4Prop'
+        self.engine= {'method': 'thrust_only', # activates an engine model: 'thrust_only', 'propellerdisk', 'PyPropMat' or 'VLM4Prop'
                       # Note: 'PyPropMAt' and 'VLM4Prop' require sensors with the same key to measure the local onflow.
                       'key': ['E-P', 'E-S' ],
                       'attachment_point':[54100003, 64100003], # IDs of FE attachment nodes
