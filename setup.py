@@ -40,6 +40,7 @@ def my_setup():
                             'mpi4py',
                             'pytest',
                             'pytest-cov',
+                            'pyyaml',
                             ],
           )
 
