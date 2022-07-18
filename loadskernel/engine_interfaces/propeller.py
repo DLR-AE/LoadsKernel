@@ -52,8 +52,8 @@ class PyPropMat4Loads(object):
     def calc_loads(self, parameter_dict):
         """
         Convert signs from structural coordinates (aft-right-up) to propeller coordinates (forward-right-down):
-        positive alpha = wind from below = negative theta
-        positive beta = wind from the right side = positive psi
+        positive alpha = wind from below = positive theta
+        positive beta = wind from the right side = negative psi
         positive structural q = pitch-up = positive propeller q
         positive structural r = yaw to the left = negative proller r
         
@@ -63,8 +63,8 @@ class PyPropMat4Loads(object):
         diameter    =  parameter_dict['diameter']
         Vtas        =  parameter_dict['Vtas']
         q_dyn       =  parameter_dict['q_dyn']
-        theta       = -parameter_dict['alpha']
-        psi         =  parameter_dict['beta']
+        theta       =  parameter_dict['alpha']
+        psi         = -parameter_dict['beta']
         q           =  parameter_dict['pqr'][1]
         r           = -parameter_dict['pqr'][2]
         
@@ -109,7 +109,7 @@ class PyPropMat4Loads(object):
         # Yawing moment Mz, equation 4 in [1], convert signs (see above)
         P_prop[5] -= q_dyn*S*diameter * (Cn_theta*theta + Cn_psi*psi + Cn_q*q*diameter/(2.0*Vtas) + Cn_r*r*diameter/(2.0*Vtas))
         
-        # Check: An onflow from below (pos. alpha = neg. Theta) creates an downward lift (neg. Fz / P_prop[2])
+        # Check: An onflow from below (pos. alpha = neg. Theta) creates an upward lift (pos. Fz / P_prop[2])
         return P_prop
 
 def read_propeller_input(filename):
