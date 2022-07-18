@@ -20,7 +20,7 @@ except:
 class PyPropMat4Loads(object):
     """
     This class calculates the aerodynamic forces and moments of a propeller following equations 1 to 4 in [1].
-    The the aerodynamic derivatives are calculated using pyPropMat provided by Christopher Koch, AE-SIM from [2]. 
+    The the aerodynamic derivatives are calculated using PyPropMat provided by Christopher Koch, AE-SIM from [2]. 
     
     Inputs:
     - filename of the input-file for PyPropMat (*.yaml)
@@ -245,8 +245,8 @@ class VLM4PropLoads(object):
     Sign conventions:
     - The forces Pmac are given in the propeller coordinate system (up-right-forward). 
     - The forces P_prop are given in the aircraft coordinate system (aft-right-up). 
-    - Alpha positiv = w positive, wind from below
-    - Beta  positiv = v positive, wind from the right side
+    - Alpha positive = w positive, wind from below
+    - Beta  positive = v positive, wind from the right side
     """
     
     def __init__(self, model, i_atmo):
