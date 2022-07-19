@@ -12,6 +12,7 @@ from matplotlib import pyplot as plt
 import loadskernel.read_geom as read_geom
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
+import loadskernel.engine_interfaces.propeller as propeller
 
 def build_x2grid(jcl_aero, aerogrid, coord):
     
@@ -60,16 +61,17 @@ def build_x2grid(jcl_aero, aerogrid, coord):
             x2grid['set_j'][i_surf].append(aerogrid['set_j'][pos_panel])
         
     return x2grid, coord   
-     
 
-def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4', i_file=0):
+def build_aerogrid(filename, method_caero = 'CQUAD4', i_file=0):
     if method_caero == 'CQUAD4':
         # all corner points are defined as grid points by ModGen
-        caero_grid = read_geom.Modgen_GRID(filename_caero_bdf)
+        caero_grid = read_geom.Modgen_GRID(filename)
         # four grid points are assembled to one panel, this is expressed as CQUAD4s 
-        caero_panels = read_geom.Modgen_CQUAD4(filename_caero_bdf)
+        caero_panels = read_geom.Modgen_CQUAD4(filename)
     elif method_caero in ['CAERO1', 'CAERO7']:
-        caero_grid, caero_panels = read_geom.CAERO(filename_caero_bdf, i_file)
+        caero_grid, caero_panels = read_geom.CAERO(filename, i_file)
+    elif method_caero in ['VLM4Prop']:
+        caero_grid, caero_panels, cam_rad = propeller.read_propeller_input(filename)
     else:
         logging.error( "Error: Method %s not implemented. Available options are 'CQUAD4', 'CAERO1' and 'CAERO7'" % method_caero)
     logging.info( ' - from corner points and aero panels, constructing aerogrid')
@@ -145,7 +147,9 @@ def build_aerogrid(filename_caero_bdf, method_caero = 'CQUAD4', i_file=0):
                 'coord_desc': 'bodyfixed',
                 'cornerpoint_panels': caero_panels['cornerpoints'],
                 'cornerpoint_grids': np.hstack((caero_grid['ID'][:,None],caero_grid['offset']))
-               }   
+               }
+    if method_caero in ['VLM4Prop']:
+        aerogrid['cam_rad'] = cam_rad
     return aerogrid
 
 def build_macgrid(aerogrid, b_ref):

@@ -32,7 +32,7 @@ class Unsteady(Common):
         Pk_idrag         = self.idrag(wj, q_dyn)
         Pk_unsteady, dlag_states_dt = self.unsteady(X, t, wj, Uf, dUf_dt, onflow, q_dyn, Vtas)
         
-        Pextra, Pb_ext, Pf_ext = self.engine(X)
+        Pextra, Pb_ext, Pf_ext = self.engine(X, Vtas, q_dyn , Uf, dUf_dt, t)
         
         # -------------------------------  
         # --- correction coefficients ---   

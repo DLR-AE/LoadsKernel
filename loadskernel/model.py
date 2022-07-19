@@ -13,6 +13,7 @@ import loadskernel.read_geom as read_geom
 import loadskernel.read_cfdgrids as read_cfdgrids
 from loadskernel import grid_trafo
 from loadskernel.atmosphere import isa as atmo_isa
+from loadskernel.engine_interfaces import propeller
 
 import panelaero.VLM as VLM
 import panelaero.DLM as DLM
@@ -41,6 +42,7 @@ class Model:
         self.build_sensorgrid()
         self.build_atmo()
         self.build_aero()
+        self.build_prop()
         self.build_splines()
         self.build_cfdgrid()
         self.mass_specific_part()
@@ -400,6 +402,17 @@ class Model:
         self.aero['betas'] =  betas
         #self.aero.pop('Qjj_unsteady') # remove unsteady AICs to save memory
     
+    def build_prop(self):
+        if hasattr(self.jcl, 'engine'):
+            if self.jcl.engine['method'] == 'VLM4Prop':
+                logging.info( 'Building VLM4Prop model...')
+                self.prop = propeller.VLM4PropModel(self.jcl.engine['propeller_input_file'], self.coord, self.atmo)
+                self.prop.build_aerogrid()
+                self.prop.build_pacgrid()
+                self.prop.build_AICs_steady(self.jcl.engine['Ma'])
+            else:
+                logging.error( 'Unknown aerodynamic propeller method: ' + str(self.jcl.engine['method']))
+
     def build_splines(self):
         # ----------------
         # ---- splines ---
