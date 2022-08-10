@@ -66,7 +66,7 @@ class BuildMass:
   
         return Mb, cggrid, cggrid_norm 
 
-    def init_guyanreduction(self):
+    def prepare_stiffness_matrices_for_guyan(self):
         # In a first step, the positions of the a- and o-set DoFs are prepared.
         # Then the equations are solved for the stiffness matrix.
         # References: 
@@ -185,7 +185,7 @@ class BuildMass:
         # Free DoFs (f-set) indexed with respect to n-set
         self.pos_fn = [self.pos_n.index(i) for i in self.pos_f]
 
-    def init_modalanalysis(self):
+    def get_dofs_from_uset(self):
         # Prepare some data required for modal analysis which is not mass case dependent. 
         # The uset is actually geometry dependent and should go into the geometry section.
         # However, it is only required for modal analysis...
@@ -195,7 +195,7 @@ class BuildMass:
             logging.error( 'No USET found in OP2-file {} !'.format( self.jcl.geom['filename_uset'] ))
         self.get_sets_from_bitposes(op2_data['uset'])
     
-    def init_CoFE(self):
+    def get_dofs_from_CoFE(self):
         # Prepare some data required for modal analysis which is not mass case dependent. 
         with open(self.jcl.geom['filename_CoFE']) as fid: CoFE_data = scipy.io.loadmat(fid)
                 
@@ -208,6 +208,9 @@ class BuildMass:
        
         # Free DoFs (f-set) indexed with respect to n-set
         self.pos_fn = CoFE_data['nf_n'].squeeze()-1
+    
+    def get_dofs_from_B2000(self):
+       print('play around with B2000 here') 
     
     def prepare_stiffness_matrices(self):
         logging.info('Prepare stiffness matrices for independent and free DoFs (f-set)')

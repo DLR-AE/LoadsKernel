@@ -88,6 +88,9 @@ class Model:
             elif self.jcl.mass['method'] in ['mona']: 
                 self.KGG = read_geom.nastran_op4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True)
                 self.GM  = None
+            elif self.jcl.mass['method'] in ['B2000']: 
+                self.KGG = read_geom.read_csv(self.jcl.geom['filename_KGG'], sparse_output=True)
+                self.GM  = read_geom.read_csv(self.jcl.geom['filename_GM'], sparse_output=True)
             else:
                 self.KGG = None
                 self.GM  = None
@@ -466,7 +469,7 @@ class Model:
                 
     def mass_specific_part(self):
         logging.info( 'Building mass model...')
-        if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan', 'CoFE']:
+        if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan', 'CoFE', 'B2000']:
             self.mass = {'key': [],
                          'Mb': [],
                          'MGG': [],
@@ -503,14 +506,17 @@ class Model:
             bm = build_mass.BuildMass(self.jcl, self.strcgrid, self.coord, self.KGG, self.GM )
             
             if self.jcl.mass['method'] == 'modalanalysis': 
-                bm.init_modalanalysis()
+                bm.get_dofs_from_uset()
                 bm.prepare_stiffness_matrices()
             elif self.jcl.mass['method'] == 'guyan':
-                bm.init_modalanalysis()
+                bm.get_dofs_from_uset()
                 bm.prepare_stiffness_matrices()
-                bm.init_guyanreduction()
+                bm.prepare_stiffness_matrices_for_guyan()
             elif self.jcl.mass['method'] == 'CoFE':
-                bm.init_CoFE()
+                bm.get_dofs_from_CoFE()
+                bm.prepare_stiffness_matrices()
+            elif self.jcl.mass['method'] == 'B2000':
+                bm.get_dofs_from_B2000()
                 bm.prepare_stiffness_matrices()
             
             # loop over mass configurations
@@ -526,12 +532,14 @@ class Model:
         elif self.jcl.mass['method'] == 'CoFE':
             with open(self.jcl.geom['filename_CoFE']) as fid: CoFE_data = scipy.io.loadmat(fid)
             MGG = CoFE_data['MGG']
+        elif self.jcl.mass['method'] in ['B2000']: 
+            MGG = read_geom.read_csv(self.jcl.geom['filename_KGG'], sparse_output=True)
         
         if self.jcl.mass['method'] == 'mona': 
             Mb, cggrid, cggrid_norm = bm.cg_from_SOL103(i_mass)
             bm.modes_from_SOL103(i_mass)
             bm.MGG = MGG
-        elif self.jcl.mass['method'] in ['modalanalysis', 'CoFE']: 
+        elif self.jcl.mass['method'] in ['modalanalysis', 'CoFE', 'B2000']: 
             bm.prepare_mass_matrices(MGG)
             Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass)
             bm.modalanalysis(i_mass)
