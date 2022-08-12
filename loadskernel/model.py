@@ -90,7 +90,8 @@ class Model:
                 self.GM  = None
             elif self.jcl.mass['method'] in ['B2000']: 
                 self.KGG = read_geom.read_csv(self.jcl.geom['filename_KGG'], sparse_output=True)
-                self.GM  = read_geom.read_csv(self.jcl.geom['filename_GM'], sparse_output=True)
+                self.Rtrans  = read_geom.read_csv(self.jcl.geom['filename_Rtrans'], sparse_output=True)
+                self.GM  = None
             else:
                 self.KGG = None
                 self.GM  = None
@@ -516,8 +517,8 @@ class Model:
                 bm.get_dofs_from_CoFE()
                 bm.prepare_stiffness_matrices()
             elif self.jcl.mass['method'] == 'B2000':
-                bm.get_dofs_from_B2000()
-                bm.prepare_stiffness_matrices()
+                bm.Rtrans = self.Rtrans
+                bm.prepare_stiffness_matrices_from_B2000()
             
             # loop over mass configurations
             for i_mass in range(len(self.jcl.mass['key'])):
@@ -530,16 +531,17 @@ class Model:
         if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'mona']: 
             MGG = read_geom.nastran_op4(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
         elif self.jcl.mass['method'] == 'CoFE':
-            with open(self.jcl.geom['filename_CoFE']) as fid: CoFE_data = scipy.io.loadmat(fid)
+            with open(self.jcl.geom['filename_CoFE']) as fid: 
+                CoFE_data = scipy.io.loadmat(fid)
             MGG = CoFE_data['MGG']
         elif self.jcl.mass['method'] in ['B2000']: 
-            MGG = read_geom.read_csv(self.jcl.geom['filename_KGG'], sparse_output=True)
+            MGG = read_geom.read_csv(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True)
         
         if self.jcl.mass['method'] == 'mona': 
             Mb, cggrid, cggrid_norm = bm.cg_from_SOL103(i_mass)
             bm.modes_from_SOL103(i_mass)
             bm.MGG = MGG
-        elif self.jcl.mass['method'] in ['modalanalysis', 'CoFE', 'B2000']: 
+        elif self.jcl.mass['method'] in ['modalanalysis', 'CoFE']: 
             bm.prepare_mass_matrices(MGG)
             Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass)
             bm.modalanalysis(i_mass)
@@ -547,6 +549,10 @@ class Model:
             bm.prepare_mass_matrices(MGG)
             Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass)
             bm.guyanreduction(i_mass)
+        elif self.jcl.mass['method'] in ['B2000']: 
+            bm.prepare_mass_matrices_from_B2000(MGG)
+            Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass)
+            bm.modalanalysis_B2000(i_mass)
         else:
             logging.error( 'Unknown mass method: ' + str(self.jcl.mass['method']))
         Mff, Kff, Dff, PHIf_strc, Mhh, Khh, Dhh, PHIh_strc = bm.calc_modal_matrices()

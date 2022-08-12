@@ -209,8 +209,33 @@ class BuildMass:
         # Free DoFs (f-set) indexed with respect to n-set
         self.pos_fn = CoFE_data['nf_n'].squeeze()-1
     
-    def get_dofs_from_B2000(self):
-       print('play around with B2000 here') 
+       
+    def prepare_stiffness_matrices_from_B2000(self):
+        self.KFF = self.Rtrans.dot(self.KGG).dot(self.Rtrans.T)
+        
+    def prepare_mass_matrices_from_B2000(self, MGG):
+        self.MGG = MGG
+        self.MFF = self.Rtrans.dot(MGG).dot(self.Rtrans.T)
+        
+        
+    def modalanalysis_B2000(self, i_mass):
+        modes_selection = copy.deepcopy(self.jcl.mass['modes'][i_mass])
+        if self.jcl.mass['omit_rb_modes']: 
+            modes_selection += 6
+        eigenvalue, eigenvector = self.calc_elastic_modes(self.KFF, self.MFF, modes_selection.max())
+        logging.info( 'From these {} modes, the following {} modes are selected: {}'.format(modes_selection.max(), len(modes_selection), modes_selection))
+        self.eigenvalues_f = eigenvalue[modes_selection - 1]
+        # reconstruct modal matrix for g-set / strcgrid
+        self.PHIstrc_f = np.zeros((6*self.strcgrid['n'], len(modes_selection)))
+        i = 0 # counter selected modes
+        for i_mode in modes_selection - 1:
+            # deformation of f-set due to i_mode is the ith column of the eigenvector
+            Uf = eigenvector[:,i_mode].real.reshape((-1,1))
+            Ug = self.Rtrans.T.dot(Uf)
+            self.PHIstrc_f[:,i] = Ug.squeeze()
+            i += 1
+        return
+       
     
     def prepare_stiffness_matrices(self):
         logging.info('Prepare stiffness matrices for independent and free DoFs (f-set)')
