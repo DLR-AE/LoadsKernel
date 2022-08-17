@@ -4,7 +4,7 @@ import copy, getpass, platform, time, logging, csv
 from collections import OrderedDict
 
 import loadskernel.io_functions as io_functions
-import loadskernel.io_functions.nastran_functions
+import loadskernel.io_functions.write_mona
 import loadskernel.io_functions.specific_functions
 from loadskernel.grid_trafo import *
 
@@ -36,10 +36,10 @@ class AuxiliaryOutput:
         logging.info( 'saving all nodal loads as Nastarn cards...')
         with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
-                io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_trimcase]['Pg'][0,:], self.jcl.trimcase[i_trimcase]['subcase'])
+                io_functions.write_mona.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_trimcase]['Pg'][0,:], self.jcl.trimcase[i_trimcase]['subcase'])
         with open(filename+'_subcases', 'w') as fid:         
             for i_trimcase in range(len(self.jcl.trimcase)):
-                io_functions.nastran_functions.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
+                io_functions.write_mona.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
     
     def write_trimresults(self, filename_csv):
         trimresults = []
@@ -178,11 +178,11 @@ class AuxiliaryOutput:
         with open(filename+'_Pg', 'w') as fid: 
             for subcase_ID in crit_ids:
                 idx = subcases_IDs.index(subcase_ID)
-                io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx][:], subcases_IDs[idx])
+                io_functions.write_mona.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx][:], subcases_IDs[idx])
         with open(filename+'_subcases', 'w') as fid:  
             for subcase_ID in crit_ids:
                 idx = subcases_IDs.index(subcase_ID)
-                io_functions.nastran_functions.write_subcases(fid, subcases_IDs[idx], subcases[idx])
+                io_functions.write_mona.write_subcases(fid, subcases_IDs[idx], subcases[idx])
     
     def write_critical_sectionloads(self, filename): 
         crit_trimcases = np.unique(self.crit_trimcases)

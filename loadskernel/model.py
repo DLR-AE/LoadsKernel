@@ -9,7 +9,9 @@ import loadskernel.build_aero_functions as build_aero_functions
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
-import loadskernel.io_functions.read_geom as read_geom
+import loadskernel.io_functions.read_mona as read_geom
+import loadskernel.io_functions.read_op4 as read_op4
+import loadskernel.io_functions.read_b2000 as read_b2000
 import loadskernel.io_functions.read_cfdgrids as read_cfdgrids
 from loadskernel import grid_trafo
 from loadskernel.atmosphere import isa as atmo_isa
@@ -83,14 +85,14 @@ class Model:
             grid_trafo.grid_trafo(self.strcgrid, self.coord, 0)
             logging.info('The structural model consists of {} grid points and {} coordinate systems.'.format(self.strcgrid['n'], len(self.coord['ID']) ))
             if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
-                self.KGG = read_geom.nastran_op4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
-                self.GM  = read_geom.nastran_op4(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True)
+                self.KGG = read_op4.load_matrix(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
+                self.GM  = read_op4.load_matrix(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True)
             elif self.jcl.mass['method'] in ['mona']: 
-                self.KGG = read_geom.nastran_op4(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True)
+                self.KGG = read_op4.load_matrix(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True)
                 self.GM  = None
             elif self.jcl.mass['method'] in ['B2000']: 
-                self.KGG = read_geom.read_csv(self.jcl.geom['filename_KGG'], sparse_output=True)
-                self.Rtrans  = read_geom.read_csv(self.jcl.geom['filename_Rtrans'], sparse_output=True)
+                self.KGG = read_b2000.read_csv(self.jcl.geom['filename_KGG'], sparse_output=True)
+                self.Rtrans  = read_b2000.read_csv(self.jcl.geom['filename_Rtrans'], sparse_output=True)
                 self.GM  = None
             else:
                 self.KGG = None
@@ -322,7 +324,7 @@ class Model:
         self.aero = {'key':[], 'Qjj':[],'interp_wj_corrfac_alpha': []}
         if self.jcl.aero['method_AIC'] == 'nastran':
             for i_aero in range(len(self.jcl.aero['key'])):
-                Ajj = read_geom.nastran_op4(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)
+                Ajj = read_op4.load_matrix(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)
                 if 'given_AIC_is_transposed' in self.jcl.aero and self.jcl.aero['given_AIC_is_transposed']:
                     Qjj = np.linalg.inv(np.real(Ajj))
                 else:
@@ -383,7 +385,7 @@ class Model:
         self.aero['Qjj_unsteady'] = np.zeros((len(self.jcl.aero['key']), len(self.jcl.aero['k_red']), self.aerogrid['n'], self.aerogrid['n'] ), dtype=complex)
         for i_aero in range(len(self.jcl.aero['key'])):
             for i_k in range(len(self.jcl.aero['k_red'])):
-                Ajj = read_geom.nastran_op4(self.jcl.aero['filename_AIC_unsteady'][i_aero][i_k], sparse_output=False, sparse_format=False)  
+                Ajj = read_op4.load_matrix(self.jcl.aero['filename_AIC_unsteady'][i_aero][i_k], sparse_output=False, sparse_format=False)  
                 if 'given_AIC_is_transposed' in self.jcl.aero and self.jcl.aero['given_AIC_is_transposed']:
                     Qjj = np.linalg.inv(Ajj)
                 else:
@@ -529,13 +531,13 @@ class Model:
     def build_mass(self, bm, i_mass):
         logging.info( 'Mass configuration {} of {}: {} '.format(i_mass+1, len(self.jcl.mass['key']), self.jcl.mass['key'][i_mass]))
         if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'mona']: 
-            MGG = read_geom.nastran_op4(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
+            MGG = read_op4.load_matrix(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
         elif self.jcl.mass['method'] == 'CoFE':
             with open(self.jcl.geom['filename_CoFE']) as fid: 
                 CoFE_data = scipy.io.loadmat(fid)
             MGG = CoFE_data['MGG']
         elif self.jcl.mass['method'] in ['B2000']: 
-            MGG = read_geom.read_csv(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True)
+            MGG = read_b2000.read_csv(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True)
         
         if self.jcl.mass['method'] == 'mona': 
             Mb, cggrid, cggrid_norm = bm.cg_from_SOL103(i_mass)

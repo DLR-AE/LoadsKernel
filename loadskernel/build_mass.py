@@ -4,7 +4,7 @@ import numpy as np
 import sys, copy, logging
 import matplotlib.pyplot as plt
 
-import loadskernel.io_functions.read_geom as read_geom
+import loadskernel.io_functions.read_mona as read_geom
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
 import loadskernel.io_functions.read_op2 as read_op2

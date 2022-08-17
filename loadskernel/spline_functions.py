@@ -9,7 +9,7 @@ import scipy
 import scipy.sparse as sp
 import time, logging
 
-from loadskernel.read_geom import nastran_number_converter
+from loadskernel.io_functions.read_mona import nastran_number_converter
 import loadskernel.grid_trafo as grid_trafo
 
 def spline_nastran(filename, strcgrid, aerogrid):
