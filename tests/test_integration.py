@@ -10,7 +10,7 @@ Second, for the multiprocessing test case, we add MPI to the environment, which 
 sys.path.append("../loads-kernel")
 sys.path.append("/scratch/panel-aero")
 my_env = {**os.environ, 
-          'PYTHONPATH': '../loads-kernel:/scratch/panel-aero:' + os.environ['PYTHONPATH'],
+          'PYTHONPATH': '../loads-kernel:/scratch/panel-aero:',
           'PATH': '/work/voss_ar/Software/mpich-3.4.2/bin:' + os.environ['PATH'],
           'LD_LIBRARY_PATH': '/work/voss_ar/Software/mpich-3.4.2/lib:',}
 
