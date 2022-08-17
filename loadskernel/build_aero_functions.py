@@ -9,7 +9,7 @@ import numpy as np
 import logging
 from matplotlib import pyplot as plt
 
-import loadskernel.read_geom as read_geom
+import loadskernel.io_functions.read_geom as read_geom
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
 import loadskernel.engine_interfaces.propeller as propeller

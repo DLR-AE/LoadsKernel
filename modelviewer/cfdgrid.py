@@ -1,9 +1,9 @@
 
 
 import scipy.io.netcdf as netcdf
-import loadskernel.read_cfdgrids
+import loadskernel.io_functions.read_cfdgrids
 
-class TauGrid(loadskernel.read_cfdgrids.ReadCfdgrids):
+class TauGrid(loadskernel.io_functions.read_cfdgrids.ReadCfdgrids):
     def  __init__(self):
         pass
 
@@ -16,7 +16,7 @@ class TauGrid(loadskernel.read_cfdgrids.ReadCfdgrids):
         ncfile_grid = netcdf.NetCDFFile(self.filename_grid, 'r')
         self.markers = ncfile_grid.variables['marker'][:].tolist()
 
-class SU2Grid(loadskernel.read_cfdgrids.ReadCfdgrids):
+class SU2Grid(loadskernel.io_functions.read_cfdgrids.ReadCfdgrids):
     def  __init__(self):
         pass
 

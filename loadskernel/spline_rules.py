@@ -7,7 +7,7 @@ Created on Fri Nov 21 10:32:03 2014
 
 import numpy as np
 import logging
-import loadskernel.read_geom as read_geom
+import loadskernel.io_functions.read_geom as read_geom
 
 
 def nearest_neighbour(grid_i,  set_i,  grid_d, set_d):

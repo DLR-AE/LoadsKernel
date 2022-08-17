@@ -9,8 +9,8 @@ import loadskernel.build_aero_functions as build_aero_functions
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
-import loadskernel.read_geom as read_geom
-import loadskernel.read_cfdgrids as read_cfdgrids
+import loadskernel.io_functions.read_geom as read_geom
+import loadskernel.io_functions.read_cfdgrids as read_cfdgrids
 from loadskernel import grid_trafo
 from loadskernel.atmosphere import isa as atmo_isa
 from loadskernel.engine_interfaces import propeller
