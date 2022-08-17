@@ -4,7 +4,7 @@ Created on Fri Nov 28 10:53:48 2014
 
 @author: voss_ar
 """
-import loadskernel.build_mass as build_mass
+from loadskernel.fem_interfaces import nastran_interface, nastran_f06_interface, cofe_interface, b2000_interface
 import loadskernel.build_aero_functions as build_aero_functions
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
@@ -47,7 +47,7 @@ class Model:
         self.build_prop()
         self.build_splines()
         self.build_cfdgrid()
-        self.mass_specific_part()
+        self.build_structural_dynamics()
         
     def build_coord(self):
         self.coord = {'ID': [0, 9300],
@@ -84,22 +84,10 @@ class Model:
             # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
             grid_trafo.grid_trafo(self.strcgrid, self.coord, 0)
             logging.info('The structural model consists of {} grid points and {} coordinate systems.'.format(self.strcgrid['n'], len(self.coord['ID']) ))
-            if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
-                self.KGG = read_op4.load_matrix(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
-                self.GM  = read_op4.load_matrix(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True)
-            elif self.jcl.mass['method'] in ['mona']: 
-                self.KGG = read_op4.load_matrix(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True)
-                self.GM  = None
-            elif self.jcl.mass['method'] in ['B2000']: 
-                self.KGG = read_b2000.read_csv(self.jcl.geom['filename_KGG'], sparse_output=True)
-                self.Rtrans  = read_b2000.read_csv(self.jcl.geom['filename_Rtrans'], sparse_output=True)
-                self.GM  = None
-            else:
-                self.KGG = None
-                self.GM  = None
         
         elif self.jcl.geom['method'] == 'CoFE':
-            with open(self.jcl.geom['filename_CoFE']) as fid: CoFE_data = scipy.io.loadmat(fid)
+            with open(self.jcl.geom['filename_CoFE']) as fid: 
+                CoFE_data = scipy.io.loadmat(fid)
             n = CoFE_data['gnum'].squeeze().__len__()
             self.strcgrid = {'ID': CoFE_data['gnum'].squeeze(),
                              'CD': np.zeros(n), # is this correct?
@@ -108,9 +96,6 @@ class Model:
                              'set': CoFE_data['gnum2gdof'].T-1, # convert indexing from Matlab to Python
                              'offset': CoFE_data['gcoord'].T,
                              }
-            if self.jcl.mass['method'] in ['CoFE']:
-                self.KGG = CoFE_data['KGG']
-                self.GM  = CoFE_data['GM'].T # convert from CoFE to Nastran
     
     def build_strcshell(self):
         if 'filename_shell' in self.jcl.geom and not self.jcl.geom['filename_shell'] == []:
@@ -470,9 +455,9 @@ class Model:
             rules = spline_rules.nearest_neighbour(self.splinegrid, '', self.cfdgrid, '') 
             self.PHIcfd_strc = spline_functions.spline_rb(self.splinegrid, '', self.cfdgrid, '', rules, self.coord, dimensions=[self.strcgrid['n']*6, self.cfdgrid['n']*6], sparse_output=True) 
                 
-    def mass_specific_part(self):
-        logging.info( 'Building mass model...')
-        if self.jcl.mass['method'] in ['mona', 'modalanalysis', 'guyan', 'CoFE', 'B2000']:
+    def build_structural_dynamics(self):
+        logging.info( 'Building stiffness and mass model...')
+        if self.jcl.mass['method'] in ['mona', 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000']:
             self.mass = {'key': [],
                          'Mb': [],
                          'MGG': [],
@@ -506,58 +491,57 @@ class Model:
                          'Dhh': [],
                          'n_modes': []
                         }
-            bm = build_mass.BuildMass(self.jcl, self.strcgrid, self.coord, self.KGG, self.GM )
             
-            if self.jcl.mass['method'] == 'modalanalysis': 
-                bm.get_dofs_from_uset()
-                bm.prepare_stiffness_matrices()
-            elif self.jcl.mass['method'] == 'guyan':
-                bm.get_dofs_from_uset()
-                bm.prepare_stiffness_matrices()
-                bm.prepare_stiffness_matrices_for_guyan()
-            elif self.jcl.mass['method'] == 'CoFE':
-                bm.get_dofs_from_CoFE()
-                bm.prepare_stiffness_matrices()
-            elif self.jcl.mass['method'] == 'B2000':
-                bm.Rtrans = self.Rtrans
-                bm.prepare_stiffness_matrices_from_B2000()
+            # select the fem interface
+            if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
+                fem_interface = nastran_interface.NastranInterface(self.jcl, self.strcgrid, self.coord)
+            elif self.jcl.mass['method'] in ['mona', 'f06']: 
+                fem_interface = nastran_f06_interface.Nastranf06Interface(self.jcl, self.strcgrid, self.coord)
+            elif self.jcl.mass['method'] in ['B2000']: 
+                fem_interface = b2000_interface.B2000Interface(self.jcl, self.strcgrid, self.coord)
+            elif self.jcl.mass['method'] in ['CoFE']:
+                fem_interface = cofe_interface.CoFEInterface(self.jcl, self.strcgrid, self.coord)
+            
+            # the stiffness matrix is needed for all methods / fem interfaces
+            fem_interface.get_stiffness_matrix()
+            
+            # do further processing of the stiffness matrix 
+            if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'CoFE', 'B2000']:
+                fem_interface.get_dofs()
+                fem_interface.prepare_stiffness_matrices()
+            if self.jcl.mass['method'] in ['guyan']:
+                fem_interface.prepare_stiffness_matrices_for_guyan()
             
             # loop over mass configurations
             for i_mass in range(len(self.jcl.mass['key'])):
-                self.mass['key'].append(self.jcl.mass['key'][i_mass])
-                self.build_mass(bm, i_mass)
+                self.build_mass_matrices(fem_interface, i_mass)
                 self.build_translation_matrices(i_mass)
-                
-    def build_mass(self, bm, i_mass):
-        logging.info( 'Mass configuration {} of {}: {} '.format(i_mass+1, len(self.jcl.mass['key']), self.jcl.mass['key'][i_mass]))
-        if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'mona']: 
-            MGG = read_op4.load_matrix(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True, sparse_format=True) 
-        elif self.jcl.mass['method'] == 'CoFE':
-            with open(self.jcl.geom['filename_CoFE']) as fid: 
-                CoFE_data = scipy.io.loadmat(fid)
-            MGG = CoFE_data['MGG']
-        elif self.jcl.mass['method'] in ['B2000']: 
-            MGG = read_b2000.read_csv(self.jcl.mass['filename_MGG'][i_mass], sparse_output=True)
-        
-        if self.jcl.mass['method'] == 'mona': 
-            Mb, cggrid, cggrid_norm = bm.cg_from_SOL103(i_mass)
-            bm.modes_from_SOL103(i_mass)
-            bm.MGG = MGG
-        elif self.jcl.mass['method'] in ['modalanalysis', 'CoFE']: 
-            bm.prepare_mass_matrices(MGG)
-            Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass)
-            bm.modalanalysis(i_mass)
-        elif self.jcl.mass['method'] == 'guyan': 
-            bm.prepare_mass_matrices(MGG)
-            Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass)
-            bm.guyanreduction(i_mass)
-        elif self.jcl.mass['method'] in ['B2000']: 
-            bm.prepare_mass_matrices_from_B2000(MGG)
-            Mb, cggrid, cggrid_norm = bm.calc_cg(i_mass)
-            bm.modalanalysis_B2000(i_mass)
         else:
             logging.error( 'Unknown mass method: ' + str(self.jcl.mass['method']))
-        Mff, Kff, Dff, PHIf_strc, Mhh, Khh, Dhh, PHIh_strc = bm.calc_modal_matrices()
+                
+    def build_mass_matrices(self, fem_interface, i_mass):
+        logging.info( 'Mass configuration {} of {}: {} '.format(i_mass+1, len(self.jcl.mass['key']), self.jcl.mass['key'][i_mass]))
+        
+        # the mass matrix is needed for all methods / fem interfaces
+        MGG = fem_interface.get_mass_matrix(i_mass)
+        
+        # getting the eigenvalues and -vectors depends on the method / fem solver
+        if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'CoFE', 'B2000']:
+            Mb, cggrid, cggrid_norm = fem_interface.calc_cg()
+            fem_interface.prepare_mass_matrices()
+            if self.jcl.mass['method'] in ['modalanalysis', 'CoFE', 'B2000']:
+                fem_interface.modalanalysis()
+            elif self.jcl.mass['method'] in ['guyan']:
+                fem_interface.guyanreduction()
+        elif self.jcl.mass['method'] in ['mona', 'f06']:
+            Mb, cggrid, cggrid_norm = fem_interface.cg_from_SOL103()
+            fem_interface.modes_from_SOL103()
+        
+        # calculate all generalized matrices
+        Mff, Kff, Dff, PHIf_strc, Mhh, Khh, Dhh, PHIh_strc = fem_interface.calc_modal_matrices()
+        
+        # store everything        
+        self.mass['key'].append(self.jcl.mass['key'][i_mass])
         self.mass['Mb'].append(Mb)
         self.mass['MGG'].append(MGG)
         self.mass['cggrid'].append(cggrid)
@@ -573,6 +557,11 @@ class Model:
         self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
                 
     def build_translation_matrices(self, i_mass):
+        """
+        In this function, we do a lot of splining. Depending on the intended solution sequence, 
+        different matrices are required. 
+        """
+         
         cggrid          = self.mass['cggrid'][i_mass]
         cggrid_norm     = self.mass['cggrid_norm'][i_mass]
         MGG             = self.mass['MGG'][i_mass]
