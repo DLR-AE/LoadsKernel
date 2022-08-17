@@ -9,7 +9,7 @@ import loadskernel.build_aero_functions as build_aero_functions
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
-import loadskernel.io_functions.read_mona as read_geom
+import loadskernel.io_functions.read_mona as read_mona
 import loadskernel.io_functions.read_op4 as read_op4
 import loadskernel.io_functions.read_b2000 as read_b2000
 import loadskernel.io_functions.read_cfdgrids as read_cfdgrids
@@ -61,7 +61,7 @@ class Model:
         if self.jcl.geom['method'] == 'mona':
             
             for i_file in range(len(self.jcl.geom['filename_grid'])):
-                subgrid = read_geom.Modgen_GRID(self.jcl.geom['filename_grid'][i_file]) 
+                subgrid = read_mona.Modgen_GRID(self.jcl.geom['filename_grid'][i_file]) 
                 if i_file == 0:
                     self.strcgrid = subgrid
                 else:
@@ -72,7 +72,7 @@ class Model:
                     self.strcgrid['set'] = np.vstack((self.strcgrid['set'],subgrid['set']+self.strcgrid['set'].max()+1))
                     self.strcgrid['offset'] = np.vstack((self.strcgrid['offset'],subgrid['offset']))
                     
-                self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_grid'][i_file], self.coord, self.strcgrid)
+                self.coord = read_mona.Modgen_CORD2R(self.jcl.geom['filename_grid'][i_file], self.coord, self.strcgrid)
             
             # sort stucture grid to be in accordance with matricies such as Mgg from Nastran
             sort_vector = self.strcgrid['ID'].argsort()
@@ -100,7 +100,7 @@ class Model:
     def build_strcshell(self):
         if 'filename_shell' in self.jcl.geom and not self.jcl.geom['filename_shell'] == []:
             for i_file in range(len(self.jcl.geom['filename_shell'])):
-                panels = read_geom.Modgen_CQUAD4(self.jcl.geom['filename_shell'][i_file]) 
+                panels = read_mona.Modgen_CQUAD4(self.jcl.geom['filename_shell'][i_file]) 
                 if i_file == 0:
                     self.strcshell = panels
                 else:
@@ -114,16 +114,16 @@ class Model:
         if self.jcl.geom['method'] in ['mona', 'CoFE']:
             if 'filename_mongrid' in self.jcl.geom and not self.jcl.geom['filename_mongrid'] == '':
                 logging.info( 'Building Monitoring Stations from GRID data...')
-                self.mongrid = read_geom.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
+                self.mongrid = read_mona.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
                 # we dont't get names for the monstations from simple grid points, so we make up a name
                 self.mongrid['name'] = [ 'MON{:s}'.format(str(ID)) for ID in self.mongrid['ID'] ]
-                self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_moncoord'], self.coord)
+                self.coord = read_mona.Modgen_CORD2R(self.jcl.geom['filename_moncoord'], self.coord)
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
                 
             elif 'filename_monpnt' in self.jcl.geom and not self.jcl.geom['filename_monpnt'] == '':
                 logging.info( 'Reading Monitoring Stations from MONPNTs...')
-                self.mongrid = read_geom.Nastran_MONPNT1(self.jcl.geom['filename_monpnt']) 
-                self.coord = read_geom.Modgen_CORD2R(self.jcl.geom['filename_monpnt'], self.coord)
+                self.mongrid = read_mona.Nastran_MONPNT1(self.jcl.geom['filename_monpnt']) 
+                self.coord = read_mona.Modgen_CORD2R(self.jcl.geom['filename_monpnt'], self.coord)
                 rules = spline_rules.monstations_from_aecomp(self.mongrid, self.jcl.geom['filename_monpnt'])
             else: 
                 logging.error( 'No Monitoring Stations are created!')
@@ -245,7 +245,7 @@ class Model:
         if 'filename_deriv_4_W2GJ' in self.jcl.aero and self.jcl.aero['filename_deriv_4_W2GJ']:
             # parsing of several files possible, must be in correct sequence
             for i_file in range(len(self.jcl.aero['filename_deriv_4_W2GJ'])):
-                subgrid = read_geom.Modgen_W2GJ(self.jcl.aero['filename_deriv_4_W2GJ'][i_file]) 
+                subgrid = read_mona.Modgen_W2GJ(self.jcl.aero['filename_deriv_4_W2GJ'][i_file]) 
                 if i_file == 0:
                     self.camber_twist =  subgrid
                 else:
@@ -253,7 +253,7 @@ class Model:
                     self.camber_twist['cam_rad'] = np.hstack((self.camber_twist['cam_rad'], subgrid['cam_rad']))
         elif 'filename_DMI_W2GJ' in self.jcl.aero and self.jcl.aero['filename_DMI_W2GJ']:
             for i_file in range(len(self.jcl.aero['filename_DMI_W2GJ'])):
-                DMI = read_geom.Nastran_DMI(self.jcl.aero['filename_DMI_W2GJ'][i_file]) 
+                DMI = read_mona.Nastran_DMI(self.jcl.aero['filename_DMI_W2GJ'][i_file]) 
                 if i_file == 0:
                     data = DMI['data'].toarray().squeeze()
                 else:

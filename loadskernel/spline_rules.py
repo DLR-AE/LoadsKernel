@@ -7,7 +7,7 @@ Created on Fri Nov 21 10:32:03 2014
 
 import numpy as np
 import logging
-import loadskernel.io_functions.read_mona as read_geom
+import loadskernel.io_functions.read_mona as read_mona
 
 
 def nearest_neighbour(grid_i,  set_i,  grid_d, set_d):
@@ -55,7 +55,7 @@ def monstations_from_bdf(mongrid, filenames):
     ID_d = []
     ID_i = []
     for i_station in range(mongrid['n']):
-        tmp = read_geom.Modgen_GRID(filenames[i_station]) 
+        tmp = read_mona.Modgen_GRID(filenames[i_station]) 
         ID_d.append(tmp['ID'])
         ID_i.append(mongrid['ID'][i_station])
                 
@@ -67,9 +67,9 @@ def monstations_from_bdf(mongrid, filenames):
                 
                 
 def monstations_from_aecomp(mongrid, filename):
-    aecomp = read_geom.Nastran_AECOMP(filename)
+    aecomp = read_mona.Nastran_AECOMP(filename)
     # Assumption: only SET1 is used in AECOMP, AELIST and CAERO are not yet implemented
-    sets = read_geom.Nastran_SET1(filename)
+    sets = read_mona.Nastran_SET1(filename)
     ID_d = []
     ID_i = []
     for i_station in range(mongrid['n']):

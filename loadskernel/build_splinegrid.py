@@ -7,12 +7,12 @@ Created on Fri May  8 18:11:26 2015
 
 import numpy as np
 
-import loadskernel.io_functions.read_mona as read_geom
+import loadskernel.io_functions.read_mona as read_mona
 
 def build_splinegrid(strcgrid, filenames):
-    #subgrid = read_geom.Modgen_GRID(filename)
+    #subgrid = read_mona.Modgen_GRID(filename)
     for i_file in range(len(filenames)):
-        subgrid = read_geom.Modgen_GRID(filenames[i_file]) 
+        subgrid = read_mona.Modgen_GRID(filenames[i_file]) 
         if i_file == 0:
             subgrid_IDs = subgrid['ID']
         else:

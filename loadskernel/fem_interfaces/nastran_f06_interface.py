@@ -1,19 +1,25 @@
 import numpy as np
 import copy
 
-import loadskernel.io_functions.read_mona as read_geom
+import loadskernel.io_functions.read_mona as read_mona
+import loadskernel.io_functions.read_op4 as read_op4
 from loadskernel.fem_interfaces.nastran_interface import NastranInterface
 
 class Nastranf06Interface(NastranInterface):
     
+    def get_stiffness_matrix(self):
+        self.KGG = read_op4.load_matrix(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
+        self.GM  = None
+
+    
     def modes_from_SOL103(self):
         # Mff, Kff and PHIstrc_f
-        eigenvalues, eigenvectors, node_ids_all = read_geom.NASTRAN_f06_modal(self.jcl.mass['filename_S103'][self.i_mass])
+        eigenvalues, eigenvectors, node_ids_all = read_mona.NASTRAN_f06_modal(self.jcl.mass['filename_S103'][self.i_mass])
         nodes_selection = self.strcgrid['ID']
         modes_selection = copy.deepcopy(self.jcl.mass['modes'][self.i_mass])
         if self.jcl.mass['omit_rb_modes']:
             modes_selection += 6
-        eigenvalues, eigenvectors = read_geom.reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection)
+        eigenvalues, eigenvectors = read_mona.reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection)
         PHIf_strc = np.zeros((len(self.jcl.mass['modes'][self.i_mass]), len(self.strcgrid['ID'])*6))
         for i_mode in range(len(modes_selection)):
             eigenvector = eigenvectors[str(modes_selection[i_mode])][:,1:]
@@ -22,7 +28,7 @@ class Nastranf06Interface(NastranInterface):
         self.eigenvalues_f = np.array(eigenvalues['GeneralizedStiffness'])
           
     def cg_from_SOL103(self):   
-        massmatrix_0, inertia, offset_cg, CID = read_geom.Nastran_weightgenerator(self.jcl.mass['filename_S103'][self.i_mass])  
+        massmatrix_0, inertia, offset_cg, CID = read_mona.Nastran_weightgenerator(self.jcl.mass['filename_S103'][self.i_mass])  
         cggrid = {"ID": np.array([9000+self.i_mass]),
                   "offset": np.array([offset_cg]),
                   "set": np.array([[0, 1, 2, 3, 4, 5]]),
