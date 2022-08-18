@@ -101,14 +101,23 @@ class jcl:
                            'attachment_point':[800002, 800003, 800001], # IDs of FE attachment nodes
                            'para': [para_LG, para_LG, para_LG],         # parameters for generic landing gear module, see above
                           }
-        self.engine= {'method': 'thrust_only', # activates an engine model
+        self.engine= {'method': 'thrust_only', # activates an engine model: 'thrust_only', 'propellerdisk', 'PyPropMat' or 'VLM4Prop'
+                      # Note: 'PyPropMAt' and 'VLM4Prop' require sensors with the same key to measure the local onflow.
                       'key': ['E-P', 'E-S' ],
                       'attachment_point':[54100003, 64100003], # IDs of FE attachment nodes
                       #'design_thrust': [47.0, 47.0],    # N
                       'thrust_vector':   [[-1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]], # body coordinate system
                       'rotation_vector': [[-1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]], # body coordinate system
-                      'rotation_inertia': [1.613, 1.613], # Nms^2 
+                      'rotation_inertia': [0.18, 0.18], # Nms^2 
+                      'diameter': [1.7, 1.7],           # propeller area in m^2
+                      'n_blades': [2, 2],               # number of blades
+                      'Ma': [0.25],                     # Mach number for VLM4Prop
+                      'propeller_input_file':'HAP_O6_PROP_pitch.yaml', # Input-file ('.yaml') for PyPropMAt and VLM4Prop
+                      
                      }
+        self.sensor= {'key': ['wind', 'E-P', 'E-S' ], # In case a wind sensor is specified here, this sensor is used to measure alpha and beta.
+                      'attachment_point':[200013, 54100003, 64100003], # IDs of FE attachment nodes
+                      }
         # This section controls the automatic plotting and selection of dimensioning load cases. 
         # Simply put a list of names of the monitoring stations (e.g. ['MON1', 'MON2',...]) into the dictionary 
         # of possible load plots listed below. This will generate a pdf document and nastran force and moment 

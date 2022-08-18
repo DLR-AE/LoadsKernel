@@ -381,9 +381,6 @@ class Plotting:
         self.ug1_cs.points.from_array(points)
         self.ug1_cs.modified()
 
-    # -------------
-    # --- cells ---
-    #--------------
     def hide_cell(self):
         self.src_cell.remove()
         self.show_cell=False
@@ -432,7 +429,6 @@ class Plotting:
     def update_cell_display(self, cell_data):
         self.src_cell.outputs[0].cell_data.scalars.from_array(cell_data)
         self.src_cell.update()
-    
     
     def hide_iges(self):
         for src in self.src_iges:

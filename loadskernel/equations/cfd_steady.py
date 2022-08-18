@@ -35,7 +35,7 @@ class CfdSteady(Steady):
         Pk_idrag    = Pk_rbm*0.0
         Pk_unsteady = Pk_rbm*0.0 
         
-        Pextra, Pb_ext, Pf_ext = self.engine(X)
+        Pextra, Pb_ext, Pf_ext = self.engine(X, Vtas, q_dyn , Uf, dUf_dt, t)
         
         # -------------------------------  
         # --- correction coefficients ---   

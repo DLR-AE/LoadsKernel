@@ -22,7 +22,7 @@ def load_pickle(file_object):
     return pickle.load(file_object)
     
 def dump_pickle(data, file_object):
-    pickle.dump(data, file_object, pickle.HIGHEST_PROTOCOL)
+    pickle.dump(data, file_object, protocol=4)
 
 def open_hdf5(filename):
     return h5py.File(filename, 'w')

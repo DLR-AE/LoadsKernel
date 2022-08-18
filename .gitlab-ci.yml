@@ -13,12 +13,9 @@ test:
   tags:
     - lk
   script:
-    - set +e  # switch off break on error
-    - source /opt/AE/share/python/switching/py_env.sh anaconda3
-    - set -e  # switch on break on error
     - which python
     - which pytest
-
+    - which mpiexec
     - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml
     - coverage xml -o coverage.xml
     - coverage report
@@ -30,7 +27,6 @@ test:
       - testresult.xml
       - coverage/
     reports:
-      cobertura: coverage.xml
       junit: testresult.xml
 
 pages:

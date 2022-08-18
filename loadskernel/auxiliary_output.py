@@ -4,7 +4,7 @@ import copy, getpass, platform, time, logging, csv
 from collections import OrderedDict
 
 import loadskernel.io_functions as io_functions
-import loadskernel.io_functions.nastran_functions
+import loadskernel.io_functions.write_mona
 import loadskernel.io_functions.specific_functions
 from loadskernel.grid_trafo import *
 
@@ -36,10 +36,10 @@ class AuxiliaryOutput:
         logging.info( 'saving all nodal loads as Nastarn cards...')
         with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
-                io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_trimcase]['Pg'][0,:], self.jcl.trimcase[i_trimcase]['subcase'])
+                io_functions.write_mona.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_trimcase]['Pg'][0,:], self.jcl.trimcase[i_trimcase]['subcase'])
         with open(filename+'_subcases', 'w') as fid:         
             for i_trimcase in range(len(self.jcl.trimcase)):
-                io_functions.nastran_functions.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
+                io_functions.write_mona.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
     
     def write_trimresults(self, filename_csv):
         trimresults = []
@@ -166,17 +166,23 @@ class AuxiliaryOutput:
         # This is quite a complicated sorting because the subcases from dyn2stat may contain non-numeric characters. 
         # A "normal" sorting returns an undesired sequence, leading IDs in a non-ascending sequence. This a not allowed by Nastran. 
         subcases_IDs = list(self.dyn2stat_data['subcases_ID'][:])
-        subcases = list(self.dyn2stat_data['subcases'][:])
+        if type(self.dyn2stat_data['subcases']) == list:
+            # This is an exception if source is not a hdf5 file. 
+            # For example, the monstations have been pre-processed by a merge script and are lists already.
+            subcases = self.dyn2stat_data['subcases']
+        else:
+            # make sure this is a list of strings
+            subcases = list(self.dyn2stat_data['subcases'].asstr()[:])
         crit_ids = [subcases_IDs[subcases.index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases) ]
         crit_ids = np.sort(crit_ids)
         with open(filename+'_Pg', 'w') as fid: 
             for subcase_ID in crit_ids:
                 idx = subcases_IDs.index(subcase_ID)
-                io_functions.nastran_functions.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx][:], subcases_IDs[idx])
+                io_functions.write_mona.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx][:], subcases_IDs[idx])
         with open(filename+'_subcases', 'w') as fid:  
             for subcase_ID in crit_ids:
                 idx = subcases_IDs.index(subcase_ID)
-                io_functions.nastran_functions.write_subcases(fid, subcases_IDs[idx], subcases[idx])
+                io_functions.write_mona.write_subcases(fid, subcases_IDs[idx], subcases[idx])
     
     def write_critical_sectionloads(self, filename): 
         crit_trimcases = np.unique(self.crit_trimcases)

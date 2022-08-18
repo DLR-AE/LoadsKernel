@@ -9,7 +9,7 @@ import scipy
 import scipy.sparse as sp
 import time, logging
 
-from loadskernel.read_geom import nastran_number_converter
+from loadskernel.io_functions.read_mona import nastran_number_converter
 import loadskernel.grid_trafo as grid_trafo
 
 def spline_nastran(filename, strcgrid, aerogrid):
@@ -33,7 +33,7 @@ def spline_nastran(filename, strcgrid, aerogrid):
             tmp = 4
         else:
             logging.error('DOF not implemented!')
-        col = aerogrid['set_k'][np.where(np.int(line_split[3].split('-')[0]) == aerogrid['ID'])[0][0],tmp]
+        col = aerogrid['set_k'][np.where(int(line_split[3].split('-')[0]) == aerogrid['ID'])[0][0],tmp]
         
         i_line += 1
         while True:
@@ -57,7 +57,7 @@ def spline_nastran(filename, strcgrid, aerogrid):
                     tmp = 5
                 else:
                     logging.error('DOF not implemented!')                
-                row = strcgrid['set'][np.where(np.int(line_split[0]) == strcgrid['ID'])[0][0],tmp]
+                row = strcgrid['set'][np.where(int(line_split[0]) == strcgrid['ID'])[0][0],tmp]
                 PHI[col,row] = nastran_number_converter(line_split[2], 'float')
                 
                 line_split = line_split[3:]
@@ -198,6 +198,7 @@ class Spline_rbf:
         else:
             dimensions_i = 6*len(grid_i['set'+set_i])
             dimensions_d = 6*len(grid_d['set'+set_d])
+        t_start = time.time()
         logging.debug(' - expanding spline matrix to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i))
         # coo sparse matrices are good for inserting new data
         PHI_coo = sp.coo_matrix((dimensions_d , dimensions_i))
@@ -205,7 +206,8 @@ class Spline_rbf:
         PHI_coo = sparse_insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])
         PHI_coo = sparse_insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,2], grid_i['set'+set_i][:,2])
         # better sparse format than coo
-        self.PHI_expanded = PHI_coo.tobsr() 
+        self.PHI_expanded = PHI_coo.tocsr() 
+        logging.debug(' - done in {:.2f} sec'.format(time.time() - t_start))
                 
     def eval_rbf(self, r):
             

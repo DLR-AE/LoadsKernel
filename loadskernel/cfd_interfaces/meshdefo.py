@@ -7,7 +7,7 @@ import logging, h5py, shutil
 import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
 
-class meshdefo:
+class Meshdefo:
     def  __init__(self, jcl, model, plotting=False):
         self.jcl        = jcl
         self.model      = model
@@ -26,7 +26,7 @@ class meshdefo:
             hingeline = 'y'
         for x2_key in self.model.x2grid['key']:        
             i_x2 = self.model.x2grid['key'].index(x2_key) # get position i_x2 of current control surface
-            logging.info('Apply control surface deflections of {} for {} [deg] to cfdgrid'.format(x2_key, Ux2[i_x2]/np.pi*180.0))   
+            logging.info('Apply control surface deflections of {} for {:0.4f} [deg] to cfdgrid'.format(x2_key, Ux2[i_x2]/np.pi*180.0))   
             if hingeline == 'y':
                 Ujx2 += np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
             elif hingeline == 'z':
@@ -37,7 +37,8 @@ class meshdefo:
         logging.info('Apply flexible deformations to cfdgrid')
         # set-up spline grid
         if self.jcl.spline['splinegrid'] == True:
-            splinegrid = self.model.splinegrid
+            # make sure that there are no double points in the spline grid as this would cause a singularity of the spline matrix.
+            splinegrid = build_splinegrid.grid_thin_out_radius(self.model.splinegrid, 0.01)
         else:
             #splinegrid = build_splinegrid.grid_thin_out_random(model.strcgrid, 0.5)
             splinegrid = build_splinegrid.grid_thin_out_radius(self.model.strcgrid, 0.4)

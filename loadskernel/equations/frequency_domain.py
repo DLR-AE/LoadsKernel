@@ -11,7 +11,7 @@ from scipy.stats import norm
 import logging, copy
 
 from loadskernel import solution_tools
-from loadskernel.build_mass import BuildMass
+from loadskernel.fem_interfaces import fem_helper
 from loadskernel.equations.common import Common
 from loadskernel.interpolate import MatrixInterpolation
 
@@ -121,7 +121,7 @@ class GustExcitation(Common):
         omega = 2.0*np.pi*f
         Qhh_1 = self.Qhh_1_interp(self.f2k(f))
         Qhh_2 = self.Qhh_2_interp(self.f2k(f))
-        TF = np.linalg.inv(-self.Mhh*omega**2 + np.complex(0,1)*omega*(self.Dhh - Qhh_2) + self.Khh - Qhh_1)
+        TF = np.linalg.inv(-self.Mhh*omega**2 + complex(0,1)*omega*(self.Dhh - Qhh_2) + self.Khh - Qhh_1)
         return TF
 
     def build_AIC_interpolators(self):
@@ -373,7 +373,7 @@ class KMethod(GustExcitation):
     def build_AIC_interpolators(self):
         Qhh = []
         for Qjj_unsteady, k_red in zip(self.model.aero['Qjj_unsteady'][self.i_aero], self.model.aero['k_red']):
-            Qhh.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1 + np.complex(0,1)*k_red/(self.model.macgrid['c_ref']/2.0)*self.Djh_2))) )
+            Qhh.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1 + complex(0,1)*k_red/(self.model.macgrid['c_ref']/2.0)*self.Djh_2))) )
         self.Qhh_interp = interp1d( self.model.aero['k_red'], Qhh, kind='cubic', axis=0, fill_value="extrapolate")
         
     def build_systems(self):
@@ -412,7 +412,7 @@ class KMethod(GustExcitation):
             eigenvalue, eigenvector = linalg.eig(self.A[:,:,i_f], self.B[:,:,i_f])
             # sorting
             idx_pos = np.where(eigenvalue.real >= 0.0)[0]
-            MAC = BuildMass.calc_MAC(BuildMass, eigenvectors[-1], eigenvector[:, idx_pos], plot=False)
+            MAC = fem_helper.calc_MAC(eigenvectors[-1], eigenvector[:, idx_pos], plot=False)
             idx_sort = [MAC[x, :].argmax() for x in range(MAC.shape[0])]
             
             eigenvalue = eigenvalue[idx_pos][idx_sort]
@@ -561,7 +561,7 @@ class PKMethod(KMethod):
         eigenvalue, eigenvector = linalg.eig(A)
         #idx_pos = np.where(eigenvalue.imag >= 0.0)[0]  # nur oszillierende Eigenbewegungen
         #idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
-        MAC = BuildMass.calc_MAC(BuildMass, eigenvector_old, eigenvector, plot=False)
+        MAC = fem_helper.calc_MAC(eigenvector_old, eigenvector, plot=False)
         idx_pos = self.get_best_match(MAC)
         eigenvalues = eigenvalue[idx_pos]#[idx_sort]
         eigenvectors = eigenvector[:,idx_pos]#[:, idx_sort]

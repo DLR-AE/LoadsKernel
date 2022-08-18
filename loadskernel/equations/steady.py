@@ -8,7 +8,7 @@ from scipy import linalg
 import logging
 
 from loadskernel.solution_tools import * 
-from loadskernel.equations.common import Common
+from loadskernel.equations.common import Common, ConvergenceError
 
 class Steady(Common):
 
@@ -35,7 +35,7 @@ class Steady(Common):
         
         Pk_unsteady = Pk_rbm*0.0
         
-        Pextra, Pb_ext, Pf_ext = self.engine(X)
+        Pextra, Pb_ext, Pf_ext = self.engine(X, Vtas, q_dyn , Uf, dUf_dt, t)
         
         # -------------------------------  
         # --- correction coefficients ---   
@@ -233,9 +233,23 @@ class Steady(Common):
             response = self.equations(X, time, 'trim_full_output')
             logging.info('Inner iteration {:>3d}, calculate structural deformations...'.format(self.counter))
             Uf_new = linalg.solve(self.Kff, response['Pf'])
-
+            
+            # Add a relaxation factor between each loop to reduce overshoot and/or oscillations.
+            # In case the solution hasn't converged in a reasonable time (say 8 loops), increase the relaxation.
+            # A low relaxation factor is slower but more robust, f_relax = 1.0 implies no relaxation.
+            # After 16 inner loops, decrease the convergence criterion epsilon.
+            if inner_loops < 8:
+                f_relax = 0.8
+            else:
+                f_relax = 0.5
+            if inner_loops < 16:
+                epsilon = self.jcl.general['b_ref']*1.0e-5
+            else:
+                epsilon = self.jcl.general['b_ref']*1.0e-4
+            logging.info('Relaxation factor: {}'.format(f_relax))
+            logging.info('Epsilon: {:0.6g}'.format(epsilon))
+            
             # recover Uf_old from last step and blend with Uf_now
-            f_relax = 0.8
             Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(1, n_modes+1)]
             Uf_old = np.array(Uf_old, dtype='float')
             Uf_new = Uf_new*f_relax + Uf_old*(1.0-f_relax)
@@ -250,13 +264,13 @@ class Steady(Common):
             defo_new = Ug_f_body[self.model.strcgrid['set'][:,(0,1,2)]].max() # Groesste Verformung, meistens Fluegelspitze
             ddefo = defo_new - self.defo_old
             self.defo_old = np.copy(defo_new)
-            if np.abs(ddefo) < self.jcl.general['b_ref']*1.0e-5:
+            if np.abs(ddefo) < epsilon:
                 converged = True
-                logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}, converged.'.format(self.counter, defo_new, ddefo))
+                logging.info('Inner iteration {:d}, defo_new: {:0.6g}, ddefo: {:0.6g}, converged.'.format(self.counter, defo_new, ddefo))
             else:
-                logging.info('Inner iteration {:>3d}, defo_new: {:< 10.6g}, ddefo: {:< 10.6g}'.format(self.counter, defo_new, ddefo))
+                logging.info('Inner iteration {:d}, defo_new: {:0.6g}, ddefo: {:0.6g}'.format(self.counter, defo_new, ddefo))
             if inner_loops > 20:
-                raise ConvergenceError('No convergence of structural deformation achieved after {} inner loops. Check convergence of Tau solution and/or convergence criterion "ddefo".'.format(inner_loops))
+                raise ConvergenceError('No convergence of structural deformation achieved after {} inner loops. Check convergence of CFD solution and/or convergence criterion "ddefo".'.format(inner_loops))
         # get the current values from Y and substract tamlab.figure()
         # fsolve only finds the roots; Y = 0
         Y_target_ist = response['Y'][np.where((self.trimcond_Y[:,1] == 'target'))[0]]

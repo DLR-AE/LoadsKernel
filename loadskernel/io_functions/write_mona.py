@@ -36,7 +36,7 @@ def number_nastarn_converter(number):
 def write_SET1(fid, SID, entrys):
     entries_str = ''
     for entry in entrys:
-        entries_str += '{:>8d}'.format(np.int(entry))
+        entries_str += '{:>8d}'.format(int(entry))
     if len(entries_str) <= 56:
         line = 'SET1    {:>8d}{:s}\n'.format(SID, entries_str)
         fid.write(line)
@@ -56,16 +56,16 @@ def write_force_and_moment_cards(fid, grid, Pg, SID):
     # FORCE and MOMENT cards with all values equal to zero are ommitted to avoid problems when importing to Nastran.
     for i in range(grid['n']):
         if np.any(np.abs(Pg[grid['set'][i,0:3]]) >= 1e-8):
-            line = 'FORCE   ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, np.int(grid['ID'][i]), np.int(grid['CD'][i]), str(1.0), number_nastarn_converter(Pg[grid['set'][i,0]]), number_nastarn_converter(Pg[grid['set'][i,1]]), number_nastarn_converter(Pg[grid['set'][i,2]]) )
+            line = 'FORCE   ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, int(grid['ID'][i]), int(grid['CD'][i]), str(1.0), number_nastarn_converter(Pg[grid['set'][i,0]]), number_nastarn_converter(Pg[grid['set'][i,1]]), number_nastarn_converter(Pg[grid['set'][i,2]]) )
             fid.write(line)
         if np.any(np.abs(Pg[grid['set'][i,3:6]]) >= 1e-8):
-            line = 'MOMENT  ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, np.int(grid['ID'][i]), np.int(grid['CD'][i]), str(1.0), number_nastarn_converter(Pg[grid['set'][i,3]]), number_nastarn_converter(Pg[grid['set'][i,4]]), number_nastarn_converter(Pg[grid['set'][i,5]]) )
+            line = 'MOMENT  ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, int(grid['ID'][i]), int(grid['CD'][i]), str(1.0), number_nastarn_converter(Pg[grid['set'][i,3]]), number_nastarn_converter(Pg[grid['set'][i,4]]), number_nastarn_converter(Pg[grid['set'][i,5]]) )
             fid.write(line)
             
 def write_subcases(fid, subcase, desc):
-    line = 'SUBCASE {}\n'.format(np.int(subcase))
+    line = 'SUBCASE {}\n'.format(int(subcase))
     fid.write(line)
     line = '    SUBT={}\n'.format(str(desc))
     fid.write(line)
-    line = '    LOAD={}\n'.format(np.int(subcase))
+    line = '    LOAD={}\n'.format(int(subcase))
     fid.write(line)

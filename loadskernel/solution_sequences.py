@@ -305,7 +305,17 @@ class SolutionSequences(TrimConditions):
         else:
             logging.info('running trim for ' + str(len(xfree_0)) + ' variables...')
             try:
-                xfree, info, status, msg= so.fsolve(equations.eval_equations_iteratively, xfree_0, args=(0.0, 'trim'), full_output=True, epsfcn=1.0e-3, xtol=1.0e-3 )
+                """
+                Because the iterative trim is typically used in combination with CFD, some solver settings need to be modified.
+                - The jacobian matrix is constructed using finite differences. With CFD, a sufficiently large step size should 
+                be used to obtain meaningful gradients (signal-to-noise ratio). This is controlled with parameter 'epsfcn=1.0e-3'.
+                - Because both the aerodynamic solution and the aero-structural coupling are iterative procedures, the residuals 
+                add up and the tolerance of the trim solution has to be increased. This is controlled with parameter 'xtol=1.0e-3'.
+                - Approaching the trim point in small steps improves the robustness of the CFD solution. This is controlled with 
+                parameter 'factor=0.1'.
+                """
+                xfree, info, status, msg= so.fsolve(equations.eval_equations_iteratively, xfree_0, args=(0.0, 'trim'), 
+                                                    full_output=True, epsfcn=1.0e-3, xtol=1.0e-3, factor=0.1 )
             except TauError as e:
                 self.response = {}
                 self.successful = False
