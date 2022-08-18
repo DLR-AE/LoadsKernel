@@ -8,12 +8,21 @@ class B2000Interface(NastranInterface):
     
     def get_stiffness_matrix(self):
         self.KGG = read_b2000.read_csv(self.jcl.geom['filename_KGG'], sparse_output=True)
-        self.Rtrans  = read_b2000.read_csv(self.jcl.geom['filename_Rtrans'], sparse_output=True)
         self.GM  = None
 
-    def get_mass_matrix(self):
+    def get_mass_matrix(self, i_mass):
+        self.i_mass = i_mass
         self.MGG = read_b2000.read_csv(self.jcl.mass['filename_MGG'][self.i_mass], sparse_output=True)
         return self.MGG
+    
+    def get_dofs(self):
+        """
+        Instead of the u-set, B2000 uses a matrix R to relate the g-set to the f-set.
+        Example: 
+        Kff = R.T * Kgg * R 
+        ug = R * uf
+        """
+        self.Rtrans  = read_b2000.read_csv(self.jcl.geom['filename_Rtrans'], sparse_output=True)
     
     def prepare_stiffness_matrices(self):
         self.KFF = self.Rtrans.dot(self.KGG).dot(self.Rtrans.T)
