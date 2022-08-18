@@ -102,6 +102,11 @@ class TestDiscus2cTimedom(TestDiscus2c):
     job_name = 'jcl_Discus2c_timedom'
     path_input = '/scratch/loads-kernel-examples/Discus2c/JCLs/'
     path_reference='/work/voss_ar/loads-kernel-examples/reference_output/'
+    
+class TestDiscus2cB2000(TestDiscus2c):
+    job_name = 'jcl_Discus2c_B2000'
+    path_input = '/scratch/loads-kernel-examples/Discus2c/JCLs/'
+    path_reference='/work/voss_ar/loads-kernel-examples/reference_output/'
   
 class TestAllegraTimedom(TestDiscus2c):
     job_name = 'jcl_ALLEGRA_timedom'
