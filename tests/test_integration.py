@@ -16,7 +16,7 @@ my_env = {**os.environ,
 
 from loadskernel import program_flow
 import loadskernel.io_functions as io_functions
-from helper_functions import HelperFunctions
+from tests.helper_functions import HelperFunctions
 
 @pytest.fixture(scope='class')
 def get_test_dir(tmpdir_factory):
