@@ -11,7 +11,7 @@ from scipy.stats import norm
 import logging, copy
 
 from loadskernel import solution_tools
-from loadskernel.build_mass import BuildMass
+from loadskernel.fem_interfaces import fem_helper
 from loadskernel.equations.common import Common
 from loadskernel.interpolate import MatrixInterpolation
 
@@ -412,7 +412,7 @@ class KMethod(GustExcitation):
             eigenvalue, eigenvector = linalg.eig(self.A[:,:,i_f], self.B[:,:,i_f])
             # sorting
             idx_pos = np.where(eigenvalue.real >= 0.0)[0]
-            MAC = BuildMass.calc_MAC(BuildMass, eigenvectors[-1], eigenvector[:, idx_pos], plot=False)
+            MAC = fem_helper.calc_MAC(eigenvectors[-1], eigenvector[:, idx_pos], plot=False)
             idx_sort = [MAC[x, :].argmax() for x in range(MAC.shape[0])]
             
             eigenvalue = eigenvalue[idx_pos][idx_sort]
@@ -561,7 +561,7 @@ class PKMethod(KMethod):
         eigenvalue, eigenvector = linalg.eig(A)
         #idx_pos = np.where(eigenvalue.imag >= 0.0)[0]  # nur oszillierende Eigenbewegungen
         #idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
-        MAC = BuildMass.calc_MAC(BuildMass, eigenvector_old, eigenvector, plot=False)
+        MAC = fem_helper.calc_MAC(eigenvector_old, eigenvector, plot=False)
         idx_pos = self.get_best_match(MAC)
         eigenvalues = eigenvalue[idx_pos]#[idx_sort]
         eigenvectors = eigenvector[:,idx_pos]#[:, idx_sort]

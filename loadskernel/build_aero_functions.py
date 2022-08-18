@@ -9,7 +9,7 @@ import numpy as np
 import logging
 from matplotlib import pyplot as plt
 
-import loadskernel.read_geom as read_geom
+import loadskernel.io_functions.read_mona as read_mona
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
 import loadskernel.engine_interfaces.propeller as propeller
@@ -17,7 +17,7 @@ import loadskernel.engine_interfaces.propeller as propeller
 def build_x2grid(jcl_aero, aerogrid, coord):
     
     for i_file in range(len(jcl_aero['filename_aesurf'])):
-        sub_aesurf = read_geom.Modgen_AESURF(jcl_aero['filename_aesurf'][i_file])
+        sub_aesurf = read_mona.Modgen_AESURF(jcl_aero['filename_aesurf'][i_file])
         if i_file == 0:
             aesurf = sub_aesurf
         else:
@@ -25,10 +25,10 @@ def build_x2grid(jcl_aero, aerogrid, coord):
                 aesurf[key] += sub_aesurf[key]
                 
     for i_file in range(len(jcl_aero['filename_aesurf'])):             
-        coord = read_geom.Modgen_CORD2R(jcl_aero['filename_aesurf'][i_file], coord) 
+        coord = read_mona.Modgen_CORD2R(jcl_aero['filename_aesurf'][i_file], coord) 
         
     for i_file in range(len(jcl_aero['filename_aelist'])):
-        sub_aelist = read_geom.Modgen_AELIST(jcl_aero['filename_aelist'][i_file]) 
+        sub_aelist = read_mona.Modgen_AELIST(jcl_aero['filename_aelist'][i_file]) 
         if i_file == 0:
             aelist = sub_aelist
         else:
@@ -65,11 +65,11 @@ def build_x2grid(jcl_aero, aerogrid, coord):
 def build_aerogrid(filename, method_caero = 'CQUAD4', i_file=0):
     if method_caero == 'CQUAD4':
         # all corner points are defined as grid points by ModGen
-        caero_grid = read_geom.Modgen_GRID(filename)
+        caero_grid = read_mona.Modgen_GRID(filename)
         # four grid points are assembled to one panel, this is expressed as CQUAD4s 
-        caero_panels = read_geom.Modgen_CQUAD4(filename)
+        caero_panels = read_mona.Modgen_CQUAD4(filename)
     elif method_caero in ['CAERO1', 'CAERO7']:
-        caero_grid, caero_panels = read_geom.CAERO(filename, i_file)
+        caero_grid, caero_panels = read_mona.CAERO(filename, i_file)
     elif method_caero in ['VLM4Prop']:
         caero_grid, caero_panels, cam_rad = propeller.read_propeller_input(filename)
     else:
