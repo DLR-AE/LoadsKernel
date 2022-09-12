@@ -21,10 +21,11 @@ class jcl:
                      'filename_moncoord':'monstations_coords.bdf',  # additional CORDs for monitoring stations
                      'filename_monstations': ['monstation_MON1.bdf', 'monstation_MON2.bdf'], # bdf file with GRID-cards, 1st file -> 1st monstation
                      # The following matrices are required for some mass methods. However, they are geometry dependent...
-                     'filename_KGG':'KGG.dat',      # KGG via DMAP Alter und OP4                  - required for mass method = 'modalanalysis' or 'guyan'
-                     'filename_uset': 'uset.op2',   # USET via DMAP Alter und OP4                 - required for mass method = 'modalanalysis' or 'guyan'
-                     'filename_GM': 'GM.dat',       # matrix GM via DMAP Alter und OP4            - required for mass method = 'modalanalysis' or 'guyan'
-                     'filename_aset': 'aset.bdf',   # bdf file(s) with ASET1-card                 - required for mass method = 'guyan'
+                     'filename_KGG':'KGG.dat',          # KGG via DMAP Alter und OP4                  - required for mass method = 'modalanalysis', 'guyan' or 'B2000'
+                     'filename_uset': 'uset.op2',       # USET via DMAP Alter und OP4                 - required for mass method = 'modalanalysis', 'guyan' 
+                     'filename_GM': 'GM.dat',           # matrix GM via DMAP Alter und OP4            - required for mass method = 'modalanalysis', 'guyan'
+                     'filename_aset': 'aset.bdf',       # bdf file(s) with ASET1-card                 - required for mass method = 'guyan'
+                     'filename_Rtrans': 'Rtrans.csv',   # matrix R_trans frum B2000                   - required for mass method = 'B2000'
                     }
         self.aero = {'method': 'mona_steady', # 'mona_steady', 'mona_unsteady', 'nonlin_steady', 'cfd_steady' or 'freq_dom'
                      'flex': True, # True or False, aerodynamic feedback of elastic structure
@@ -36,7 +37,7 @@ class jcl:
                      'filename_aesurf': ['filename.AESURF'],                 # bdf file(s) with AESURF-cards
                      'filename_aelist': ['filename.AELIST'],                 # bdf file(s) with AELIST-cards
                      'hingeline': 'z',                                       # The hingeline of a CS is given by a CORD. Either the y- or the z-axis is taken as hingeline. 'y', 'z' 
-                     'method_AIC': 'vlm',                                    # 'vlm' (internal), 'dlm' (octave) or 'nastran' (external form matrices)
+                     'method_AIC': 'vlm',                                    # 'vlm' (panel-aero), 'dlm' (panel-aero) or 'nastran' (external form matrices)
                      'key':['VC', 'MC'],
                      'Ma': [0.8, 0.9],
                      'filename_AIC': ['AIC_VC.dat', 'AIC_MC.dat'],           # provide OP4 files with AICs if method_AIC = 'nastran'
@@ -47,7 +48,7 @@ class jcl:
                      'viscous_drag': 'coefficients',                         # Correction coefficient at MAC, Cd = Cd0 + dCd/dalpha^2 * alpha^2
                      'Cd_0': [0.005],
                      'Cd_alpha^2': [0.018*6.28**2.0], 
-                     'induced_drag':True,                                    # True or False, calculates local induced drag e.g. for roll-yaw-coupling
+                     'induced_drag': False,                                    # True or False, calculates local induced drag e.g. for roll-yaw-coupling
                      # Additional parameters for CFD
                      'para_path':'/scratch/tau/',
                      'para_file':'para',
@@ -68,9 +69,9 @@ class jcl:
                        'splinegrid': True,                      # True or False
                        'filename_splinegrid': ['splinegrid.bdf']  # bdf file(s) with GRIDs
                       }
-        self.mass =    {'method': 'mona', # 'mona', 'CoFE', 'modalanalysis' or 'guyan'
+        self.mass =    {'method': 'modalanalysis', # 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000'
                         'key': ['M1', 'M2'],
-                        'filename_MGG':['MGG_M1.dat', 'MGG_M2.dat'],         # MGG via DMAP Alter und OP4 - always required
+                        'filename_MGG':['MGG_M1.dat', 'MGG_M2.dat'],         # MGG via DMAP Alter and OP4 - always required
                         'filename_S103':['SOL103_M1.f06', 'SOL103_M1.f06'],  # eigenvalues and eigenvectors from .f06-file - required for 'mona'
                         'filename_CoFE':['M1.mat', 'M2.mat'],  # eigenvalues and eigenvectors from .f06-file - required for 'mona'
                         'omit_rb_modes': False, # True or False, omits first six modes
@@ -113,7 +114,6 @@ class jcl:
                       'n_blades': [2, 2],               # number of blades
                       'Ma': [0.25],                     # Mach number for VLM4Prop
                       'propeller_input_file':'HAP_O6_PROP_pitch.yaml', # Input-file ('.yaml') for PyPropMAt and VLM4Prop
-                      
                      }
         self.sensor= {'key': ['wind', 'E-P', 'E-S' ], # In case a wind sensor is specified here, this sensor is used to measure alpha and beta.
                       'attachment_point':[200013, 54100003, 64100003], # IDs of FE attachment nodes
@@ -155,18 +155,21 @@ class jcl:
         # a time simulation is triggered if the simcase contains at least 'dt' and 't_final'
         self.simcase = [{'dt': 0.01,            # time step size in [s]
                          't_final': 2.0,        # final simulation time  in [s]
-                         'gust': True,          # True or False, enables 1-cosine gust according to CS-25
-                         'turbulence': False,   # True or False, enables continuous turbulence excitation
-                         'limit_turbulence': False, # True or False, calculates limit turbulence according to CS-25
+                         'gust': False,         # True or False, enables 1-cosine gust according to CS-25
                          'gust_gradient': 9.0,  # gust gradient H in [m]
                          'gust_orientation': 0, # orientation of the gust in [deg], 0/360 = gust from bottom, 180 = gust from top, 
                          # 90 = gust from the right, 270 = gust from the left, arbitrary values possible (rotation of gust direction vector about Nastran's x-axis pointing backwards)
                          'gust_para':{'Z_mo': 12500.0, 'MLW': 65949.0, 'MTOW': 73365.0, 'MZFW': 62962.0, 'MD': 0.87, 'T1': 0.00}, # gust parameters according to CS-25
                          'WG_TAS': 0.1,         # alternatively, give gust velocity / Vtas directly
-                         'cs_signal': False,    # True or False, allows playback of control surface signals via efcs
+                         'turbulence': False,   # True or False, enables continuous turbulence excitation
+                         'limit_turbulence': False, # True or False, calculates limit turbulence according to CS-25
+                         'cs_signal': False,    # True or False, enables playback of control surface signals via efcs
                          'controller': False,   # True or False, enables a generic controller e.g. to maintain p, q and r
                          'landinggear':False,   # True or False, enables a generic landing gear
-                         'support': [0,1,2,3,4,5]      # list of DoF to be constrained
+                         'support': [0,1,2,3,4,5],      # list of DoF to be constrained
+                         'flutter': False,      # True or False, enables flutter check with k, ke or pk method
+                         'flutter_para':{'method': 'k', 'k_red':np.linspace(2.0, 0.001, 1000)},  # flutter parameters for k and ke method
+                         'flutter_para':{'method': 'pk', 'Vtas':np.linspace(100.0, 500.0, 100)}, # flutter parameters for pk method
                         },
                        ] 
         # End
