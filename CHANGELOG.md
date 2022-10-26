@@ -1,3 +1,6 @@
+# Note
+New releases are marked in the repository using tags. Simply checkout the master branch for the lastest version or use git checkout if you require a specific release, for example 'git checkout 2022.08'.
+
 # Release 2022.08
 - Python 3.8 compatibility
 - Improved mesh deformation based on the local meshes of the mpi pcrocess
