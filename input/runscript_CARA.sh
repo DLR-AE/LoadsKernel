@@ -4,7 +4,7 @@
 #SBATCH --tasks=1
 #SBACTH --tasks-per-node=1
 #SBATCH --cpus-per-task=64
-#SBATCH --time=24:00:00
+#SBATCH --time=23:00:00
 #SBATCH --partition=naples256
 #SBATCH --mem=239G
 #SBATCH --account=1234567
