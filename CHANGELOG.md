@@ -1,3 +1,6 @@
+# Release 2022.10
+- Administrative changes only (improved the Readme, added issue templates, created this changelog, etc.)
+
 # Release 2022.08
 - Python 3.8 compatibility
 - Improved mesh deformation based on the local meshes of the mpi pcrocess
