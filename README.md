@@ -5,9 +5,11 @@ For more information, see: https://wiki.dlr.de/display/AE/Lastenrechnung%3A+Load
 
 # References
 
-Voß, A., “An Implementation of the Vortex Lattice and the Doublet Lattice Method,” Institut für Aeroelastik, Deutsches Zentrum für Luft- und Raumfahrt, Göttingen, Germany, Technical Report DLR-IB-AE-GO-2020-137, Oktober 2020, https://elib.dlr.de/136536/.
+[1] Voß, A., “Loads Kernel User Guide, Version 1.01,” Institut für Aeroelastik, Deutsches Zentrum für Luft- und Raumfahrt, Göttingen, Germany, Technical Report DLR-IB-AE-GO-2020-136, Nov. 2021, https://elib.dlr.de/140268/.
 
-Voß, A., “Loads Kernel User Guide, Version 1.01,” Institut für Aeroelastik, Deutsches Zentrum für Luft- und Raumfahrt, Göttingen, Germany, Technical Report DLR-IB-AE-GO-2020-136, Nov. 2021, https://elib.dlr.de/140268/.
+[2] Voß, A., “An Implementation of the Vortex Lattice and the Doublet Lattice Method,” Institut für Aeroelastik, Deutsches Zentrum für Luft- und Raumfahrt, Göttingen, Germany, Technical Report DLR-IB-AE-GO-2020-137, Oktober 2020, https://elib.dlr.de/136536/.
+
+If you use this software for your scientific work, we kindly ask you to include a reference [1,2] in your publications. Thank you!
 
 # Continuous Integration
 
@@ -62,6 +64,11 @@ cd ./loads-kernel
 pip install --user -e . 
 ```
 
-## Feedback
+# License
+This software is developed for scientific applications and is delivered as open source without any liability (BSD 3-Clause, please see [LICENSE](LICENSE) for details). A validation against test data and/or other simulation tools is highly recommended and in the responsibility of the user. 
+
+If you use this software for your scientific work, we kindly ask you to include a reference [1,2] in your publications. Thank you!
+
+# Feedback
 Please provide your feedback via merge requests (please see [CONTRIBUTING.md](CONTRIBUTING.md)
-for details) or contact contact Arne Voß, arne.voss@dlr.de.
+for details) or contact Arne Voß, arne.voss@dlr.de.
