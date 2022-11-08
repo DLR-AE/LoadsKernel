@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 import loadskernel.io_functions.read_mona as read_mona
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
-import loadskernel.engine_interfaces.propeller as propeller
+import loadskernel.engine_interfaces.propeller
 
 def build_x2grid(jcl_aero, aerogrid, coord):
     
@@ -71,7 +71,7 @@ def build_aerogrid(filename, method_caero = 'CQUAD4', i_file=0):
     elif method_caero in ['CAERO1', 'CAERO7']:
         caero_grid, caero_panels = read_mona.CAERO(filename, i_file)
     elif method_caero in ['VLM4Prop']:
-        caero_grid, caero_panels, cam_rad = propeller.read_propeller_input(filename)
+        caero_grid, caero_panels, cam_rad = loadskernel.engine_interfaces.propeller.read_propeller_input(filename)
     else:
         logging.error( "Error: Method %s not implemented. Available options are 'CQUAD4', 'CAERO1' and 'CAERO7'" % method_caero)
     logging.info( ' - from corner points and aero panels, constructing aerogrid')

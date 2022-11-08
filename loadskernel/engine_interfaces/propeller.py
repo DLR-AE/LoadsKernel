@@ -1,17 +1,15 @@
-'''
-Created on Jul 4, 2022
+# encoding=utf8
 
-@author: voss_ar
-'''
 import logging, sys, yaml, copy
 import numpy as np
 
 from panelaero import VLM
-from loadskernel import build_aero_functions
 from loadskernel import spline_rules
 from loadskernel import spline_functions
 from loadskernel.solution_tools import * 
 from loadskernel import equations
+import loadskernel.build_aero_functions
+
 try:
     from pyPropMat.pyPropMat import Prop
 except:
@@ -199,7 +197,7 @@ class VLM4PropModel(object):
         self.atmo = atmo
         
     def build_aerogrid(self):
-        self.aerogrid = build_aero_functions.build_aerogrid(self.filename, method_caero='VLM4Prop')                 
+        self.aerogrid = loadskernel.build_aero_functions.build_aerogrid(self.filename, method_caero='VLM4Prop')                 
         logging.info('The aerodynamic propeller model consists of {} panels.'.format(self.aerogrid['n']))
     
     def build_pacgrid(self):

@@ -22,7 +22,12 @@ def load_pickle(file_object):
     return pickle.load(file_object)
     
 def dump_pickle(data, file_object):
-    pickle.dump(data, file_object, protocol=4)
+    if sys.version_info[0] < 3:
+        # This is the compatibility mode for Python 2
+        pickle.dump(data, file_object)
+    else:
+        # In Python 3, we can specify a more advanced protocol
+        pickle.dump(data, file_object, protocol=4)
 
 def open_hdf5(filename):
     return h5py.File(filename, 'w')
