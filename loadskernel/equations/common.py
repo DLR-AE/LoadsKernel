@@ -8,7 +8,6 @@ import importlib, logging, os, sys
 from scipy import interpolate, linalg
 
 from loadskernel.solution_tools import * 
-import loadskernel.efcs as efcs
 from loadskernel.cfd_interfaces import tau_interface, su2_interface
 from loadskernel.engine_interfaces import engine, propeller
 
@@ -73,8 +72,7 @@ class Common():
             import imp
             efcs_module = imp.load_source(self.jcl.efcs['version'], os.path.join(self.jcl.efcs['path'], self.jcl.efcs['version']+'.py' ))
         else: 
-            # Use the 'old' way, where the EFCS is stored in the program code.
-            efcs_module = importlib.import_module('loadskernel.efcs.'+self.jcl.efcs['version'])
+            logging.error('Please provide an EFCS, see ./doc/efcs_template.py for reference.')
         # init efcs
         self.efcs =  efcs_module.Efcs()
         logging.info('Init EFCS "{}"'.format(efcs_module.__name__))
