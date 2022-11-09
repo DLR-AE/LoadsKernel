@@ -72,7 +72,7 @@ class Common():
             import imp
             efcs_module = imp.load_source(self.jcl.efcs['version'], os.path.join(self.jcl.efcs['path'], self.jcl.efcs['version']+'.py' ))
         else: 
-            logging.error('Please provide an EFCS, see ./doc/efcs_template.py for reference.')
+            logging.error('Please provide an EFCS, see ./doc/jcl_template.py and efcs_template.py for reference.')
         # init efcs
         self.efcs =  efcs_module.Efcs()
         logging.info('Init EFCS "{}"'.format(efcs_module.__name__))
