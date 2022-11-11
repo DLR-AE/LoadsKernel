@@ -15,25 +15,27 @@ import loadskernel.spline_functions as spline_functions
 import loadskernel.engine_interfaces.propeller
 
 def build_x2grid(jcl_aero, aerogrid, coord):
+    # Set-up an empty control surface dictionary
+    aesurf = {'ID':[],
+              'key':[],
+              'CID':[],
+              'AELIST':[],
+              'eff':[]}
+    aelist = {'ID':[], 
+              'values':[]}
     
     for i_file in range(len(jcl_aero['filename_aesurf'])):
         sub_aesurf = read_mona.Modgen_AESURF(jcl_aero['filename_aesurf'][i_file])
-        if i_file == 0:
-            aesurf = sub_aesurf
-        else:
-            for key in aesurf.keys():
-                aesurf[key] += sub_aesurf[key]
+        for key in aesurf.keys():
+            aesurf[key] += sub_aesurf[key]
                 
     for i_file in range(len(jcl_aero['filename_aesurf'])):             
         coord = read_mona.Modgen_CORD2R(jcl_aero['filename_aesurf'][i_file], coord) 
         
     for i_file in range(len(jcl_aero['filename_aelist'])):
         sub_aelist = read_mona.Modgen_AELIST(jcl_aero['filename_aelist'][i_file]) 
-        if i_file == 0:
-            aelist = sub_aelist
-        else:
-            for key in aelist.keys():
-                aelist[key] += sub_aelist[key]
+        for key in aelist.keys():
+            aelist[key] += sub_aelist[key]
                 
     x2grid = {'ID_surf': aesurf['ID'],
                'CID': aesurf['CID'],
