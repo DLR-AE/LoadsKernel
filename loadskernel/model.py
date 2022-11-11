@@ -83,7 +83,7 @@ class Model:
             
             # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
             grid_trafo.grid_trafo(self.strcgrid, self.coord, 0)
-            logging.info('The structural model consists of {} grid points and {} coordinate systems.'.format(self.strcgrid['n'], len(self.coord['ID']) ))
+            logging.info('The structural model consists of {} grid points ({} DoFs) and {} coordinate systems.'.format(self.strcgrid['n'], self.strcgrid['n']*6, len(self.coord['ID']) ))
         
         elif self.jcl.geom['method'] == 'CoFE':
             with open(self.jcl.geom['filename_CoFE']) as fid: 
@@ -119,24 +119,44 @@ class Model:
                 self.mongrid['name'] = [ 'MON{:s}'.format(str(ID)) for ID in self.mongrid['ID'] ]
                 self.coord = read_mona.Modgen_CORD2R(self.jcl.geom['filename_moncoord'], self.coord)
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
-                
+                self.build_mongrid_matrices(rules)
             elif 'filename_monpnt' in self.jcl.geom and not self.jcl.geom['filename_monpnt'] == '':
                 logging.info( 'Reading Monitoring Stations from MONPNTs...')
                 self.mongrid = read_mona.Nastran_MONPNT1(self.jcl.geom['filename_monpnt']) 
                 self.coord = read_mona.Modgen_CORD2R(self.jcl.geom['filename_monpnt'], self.coord)
                 rules = spline_rules.monstations_from_aecomp(self.mongrid, self.jcl.geom['filename_monpnt'])
+                self.build_mongrid_matrices(rules)
             else: 
-                logging.error( 'No Monitoring Stations are created!')
-            PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
-            # The line above gives the loads coordinate system 'CP' (mostly in global coordinates). 
-            # Next, make sure that PHIstrc_mon maps the loads in the local coordinate system given in 'CD'.
-            # Previously, step this has been accomplished in the post-processing. However, using matrix operations
-            # and incorporating the coordinate transformation in the pre-processing is much more convenient. 
-            T_i, T_d = grid_trafo.calc_transformation_matrix(self.coord, 
-                                                             self.mongrid, '', 'CP',
-                                                             self.mongrid, '', 'CD',)
-            self.PHIstrc_mon = T_d.T.dot(T_i).dot(PHIstrc_mon.T).T
-            self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
+                logging.warning( 'No Monitoring Stations are created!')
+                """
+                This is an empty dummy monitoring stations, which is necessary when no monitoring stations are defined, 
+                because monstations are expected to exist for example for the calculation of cutting forces, which are in 
+                turn expected in the post processing.  However, this procedure allows the code to run without any given 
+                monitoring stations, which are not available for all models.
+                """
+                self.mongrid = {'ID':np.array([0]),
+                                'name': 'dummy',
+                                'label': 'dummy',
+                                'CP':np.array([0]),
+                                'CD':np.array([0]),
+                                'offset':np.array([0.0, 0.0, 0.0]),
+                                'set': np.arange(6).reshape((1,6)),
+                                'n':1,
+                                }
+                self.PHIstrc_mon = np.zeros((self.strcgrid['n']*6, 6))
+                
+    
+    def build_mongrid_matrices(self, rules):
+        PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
+        # The line above gives the loads coordinate system 'CP' (mostly in global coordinates). 
+        # Next, make sure that PHIstrc_mon maps the loads in the local coordinate system given in 'CD'.
+        # Previously, step this has been accomplished in the post-processing. However, using matrix operations
+        # and incorporating the coordinate transformation in the pre-processing is much more convenient. 
+        T_i, T_d = grid_trafo.calc_transformation_matrix(self.coord, 
+                                                         self.mongrid, '', 'CP',
+                                                         self.mongrid, '', 'CD',)
+        self.PHIstrc_mon = T_d.T.dot(T_i).dot(PHIstrc_mon.T).T
+        self.mongrid_rules = rules # save rules for optional writing of MONPNT1 cards
         
     def build_extragrid(self):
         if hasattr(self.jcl, 'landinggear'):
