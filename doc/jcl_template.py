@@ -11,7 +11,9 @@ class jcl:
                         'A_ref': 77,                # reference area
                         'MAC_ref': [6.0, 0.0, 0.0], # mean aerodynamic center, also used as moments reference point
                        }
-        self.efcs = {'version': 'mephisto'} # name of the corresponding class in efcs.py
+        self.efcs = {'version': 'mephisto',         # name of the corresponding module
+                     'path': '/path/to/EFCS',       # path where to find the EFCS module
+                    } 
         self.geom = {'method': 'mona',
                      'filename_grid':['grids.bdf'],     # bdf file(s) with GRIDs and CORDs (CORD1R and CORD2R)
                      'filename_shell':['shells.bdf'],   # bdf file(s) with CQUADs and CTRIAs, for visualization only, e.g. outer skin on the aircraft
