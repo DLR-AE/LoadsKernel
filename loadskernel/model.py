@@ -64,7 +64,7 @@ class Model:
                 subgrid = read_mona.Modgen_GRID(self.jcl.geom['filename_grid'][i_file]) 
                 if i_file == 0:
                     self.strcgrid = subgrid
-                else:
+                elif subgrid['n'] > 0:
                     self.strcgrid['ID'] = np.hstack((self.strcgrid['ID'],subgrid['ID']))
                     self.strcgrid['CD'] = np.hstack((self.strcgrid['CD'],subgrid['CD']))
                     self.strcgrid['CP'] = np.hstack((self.strcgrid['CP'],subgrid['CP']))
