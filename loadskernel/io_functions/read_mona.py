@@ -301,7 +301,7 @@ def CAERO(filename, i_file):
     return grids, panels      
     
 def nastran_number_converter(string_in, type, default=0):
-    if type in ['float']:
+    if type in ['float', 'f']:
         try:
             out = float(string_in)
         except:
@@ -322,15 +322,15 @@ def nastran_number_converter(string_in, type, default=0):
                     out = float(string_in.replace('+', 'E+'))
             elif string_in == '':
                 logging.warning("Could not interpret the following number: '" + string_in + "' -> setting value to "+str(default))
-                out = float(default)
+                out = default
             else: 
                 logging.error("Could not interpret the following number: " + string_in)
                 return
-    elif type in ['int', 'ID', 'CD', 'CP']:
+    elif type in ['int', 'i','ID', 'CD', 'CP']:
         try:
             out = int(string_in)
         except:
-            out = int(default)  
+            out = default
     return out
 
 def Nastran_DMI(filename):
