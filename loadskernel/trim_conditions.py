@@ -46,6 +46,8 @@ class TrimConditions:
         self.set_defaults()
         self.set_maneuver()
         self.add_engine()
+        self.add_stabilizer_setting()
+        self.add_flap_setting()
         # append inputs to X vector...
         self.trimcond_X = np.vstack((self.states , self.inputs))
         self.n_states   = self.states.__len__()
@@ -154,11 +156,26 @@ class TrimConditions:
         # ------------------
         # --- pitch only --- 
         # ------------------
-        if self.trimcase['maneuver'] == 'pitch':
+        if self.trimcase['maneuver'] in ['pitch', 'elevator']:
             logging.info('setting trim conditions to "pitch"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+                
+            # outputs
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
+        
+        # ---------------------------------------
+        # --- pitch only, but with stabilizer --- 
+        # ---------------------------------------
+        elif self.trimcase['maneuver'] in ['stabilizer']:
+            logging.info('setting trim conditions to "stabilizer"')
+            # inputs
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'stabilizer'))[0][0],1] = 'free'
             # outputs
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
@@ -346,6 +363,15 @@ class TrimConditions:
         else:
             logging.info('setting trim conditions to "default"')
 
+    def add_stabilizer_setting(self):
+        if 'stabilizer' in self.trimcase:
+            self.inputs[np.where((self.inputs[:,0] == 'stabilizer'))[0][0],2] = self.trimcase['stabilizer']
+    
+    def add_flap_setting(self):
+        if 'flap_setting' in self.trimcase:
+            self.inputs[np.where((self.inputs[:,0] == 'flap_setting'))[0][0],2] = self.trimcase['flap_setting']
+        
+        
     def add_engine(self):
         if hasattr(self.jcl, 'engine'):
             if 'thrust' in self.trimcase and self.trimcase['thrust'] in ['free', 'balanced']:

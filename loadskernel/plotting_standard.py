@@ -45,7 +45,7 @@ class LoadPlots(object):
             if 'cuttingforces_wing' in self.jcl.loadplots:
                 self.cuttingforces_wing = self.jcl.loadplots['cuttingforces_wing']
         else:
-            logging.warning('jcl.loadplots not specified in the JCL - no automatic plotting of load envelopes possible.')
+            logging.info('jcl.loadplots not specified in the JCL - no automatic plotting of load envelopes possible.')
     
     def add_responses(self, responses):
         self.responses = responses

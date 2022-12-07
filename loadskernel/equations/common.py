@@ -76,6 +76,10 @@ class Common():
         # init efcs
         self.efcs =  efcs_module.Efcs()
         logging.info('Init EFCS "{}"'.format(efcs_module.__name__))
+        
+        # in case we work with cpacs-mona, init the standard mapping
+        if self.jcl.efcs['version'] == 'cpacsmona_standard_efcs':
+            self.efcs.apply_cpasmona_standard_mapping(self.model.x2grid, self.solution.n_inputs)
 
         # get cfd splining matrices
         if self.jcl.aero['method'] == 'cfd_steady':
