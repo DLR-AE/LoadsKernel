@@ -13,5 +13,7 @@ If you contributed to this code, please list your name and affiliation here:
 
 ```
 Schulze, Matthias, Institute of Aeroelasticity, Deutsches Zentrum für Luft- und Raumfahrt e.V.
+Handojo, Vega, Institute of Aeroelasticity, Deutsches Zentrum für Luft- und Raumfahrt e.V.
+
 ```
 
