@@ -11,7 +11,7 @@ import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
 import loadskernel.io_functions.read_mona as read_mona
 import loadskernel.io_functions.read_op4 as read_op4
-import loadskernel.io_functions.read_b2000 as read_b2000
+import loadskernel.io_functions.read_bdf as read_bdf
 import loadskernel.io_functions.read_cfdgrids as read_cfdgrids
 from loadskernel import grid_trafo
 from loadskernel.atmosphere import isa as atmo_isa
@@ -29,13 +29,10 @@ class Model:
     def __init__(self, jcl, path_output):
         self.jcl = jcl
         self.path_output = path_output
-    
-    def write_aux_data(self):
-        # No input data should be written in the model set-up !
-        # Plots and graphs for quality control would be OK.
-        pass
 
     def build_model(self):
+        # init the bdf reader
+        self.bdf_reader = read_bdf.Reader()
         self.build_coord()
         self.build_strc()
         self.build_strcshell()
@@ -48,6 +45,8 @@ class Model:
         self.build_splines()
         self.build_cfdgrid()
         self.build_structural_dynamics()
+        # destroy the bdf reader, this is important when saving the model
+        delattr(self, 'bdf_reader')
         
     def build_coord(self):
         self.coord = {'ID': [0, 9300],
@@ -59,28 +58,13 @@ class Model:
     def build_strc(self):
         logging.info( 'Building structural model...')
         if self.jcl.geom['method'] == 'mona':
-            
-            for i_file in range(len(self.jcl.geom['filename_grid'])):
-                subgrid = read_mona.Modgen_GRID(self.jcl.geom['filename_grid'][i_file]) 
-                if i_file == 0:
-                    self.strcgrid = subgrid
-                else:
-                    self.strcgrid['ID'] = np.hstack((self.strcgrid['ID'],subgrid['ID']))
-                    self.strcgrid['CD'] = np.hstack((self.strcgrid['CD'],subgrid['CD']))
-                    self.strcgrid['CP'] = np.hstack((self.strcgrid['CP'],subgrid['CP']))
-                    self.strcgrid['n'] += subgrid['n']
-                    self.strcgrid['set'] = np.vstack((self.strcgrid['set'],subgrid['set']+self.strcgrid['set'].max()+1))
-                    self.strcgrid['offset'] = np.vstack((self.strcgrid['offset'],subgrid['offset']))
-                    
-                self.coord = read_mona.Modgen_CORD2R(self.jcl.geom['filename_grid'][i_file], self.coord, self.strcgrid)
-            
-            # sort stucture grid to be in accordance with matricies such as Mgg from Nastran
-            sort_vector = self.strcgrid['ID'].argsort()
-            self.strcgrid['ID'] = self.strcgrid['ID'][sort_vector]
-            self.strcgrid['CD'] = self.strcgrid['CD'][sort_vector]
-            self.strcgrid['CP'] = self.strcgrid['CP'][sort_vector]
-            self.strcgrid['offset'] = self.strcgrid['offset'][sort_vector,:]
-            
+            # parse given bdf files
+            self.bdf_reader.process_deck(self.jcl.geom['filename_grid'])
+            # assemble strcgrid, sort grids to be in accordance with matricies such as Mgg from Nastran
+            self.strcgrid = read_mona.add_GRIDS(self.bdf_reader.cards['GRID'].sort_values('ID'))
+            # build additional coordinate systems
+            read_mona.add_CORD2R(self.bdf_reader.cards['CORD2R'], self.coord)
+            read_mona.add_CORD1R(self.bdf_reader.cards['CORD1R'], self.coord, self.strcgrid)
             # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
             grid_trafo.grid_trafo(self.strcgrid, self.coord, 0)
             logging.info('The structural model consists of {} grid points ({} DoFs) and {} coordinate systems.'.format(self.strcgrid['n'], self.strcgrid['n']*6, len(self.coord['ID']) ))

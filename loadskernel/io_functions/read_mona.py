@@ -167,6 +167,18 @@ def Modgen_GRID(filename):
            }
     return grid
 
+def add_GRIDS(sorted_grids):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    n = sorted_grids.shape[0]
+    strcgrid = {}
+    strcgrid['ID']     = sorted_grids['ID'].to_numpy(dtype='int')
+    strcgrid['CD']     = sorted_grids['CD'].to_numpy(dtype='int')
+    strcgrid['CP']     = sorted_grids['CP'].to_numpy(dtype='int')
+    strcgrid['n']      = n
+    strcgrid['set']    = np.arange(n*6).reshape((n,6))
+    strcgrid['offset'] = sorted_grids[['X1', 'X2', 'X3']].to_numpy(dtype='float')
+    return strcgrid
+
 def Modgen_CQUAD4(filename):
     logging.info('Read CQUAD4/CTRIA3 data from ModGen file: %s' %filename)
     ids = []
@@ -429,7 +441,45 @@ def Modgen_CORD2R(filename, coord, grid=''):
             elif read_string == '':
                 break
         return coord
-                
+
+def add_CORD2R(unsorted_cord2r, coord):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    for index, row in unsorted_cord2r.iterrows():
+        ID = int(row['ID'])
+        RID = int(row['RID'])
+        A = unsorted_cord2r[['A1', 'A2', 'A3']].to_numpy(dtype='float').squeeze()
+        B = unsorted_cord2r[['B1', 'B2', 'B3']].to_numpy(dtype='float').squeeze()
+        C = unsorted_cord2r[['C1', 'C2', 'C3']].to_numpy(dtype='float').squeeze()
+        # build coord                
+        z = B - A
+        y = np.cross(B-A, C-A)
+        x = np.cross(y,z)
+        dircos = np.vstack((x/np.linalg.norm(x),y/np.linalg.norm(y),z/np.linalg.norm(z))).T
+        # save
+        coord['ID'].append(ID)
+        coord['RID'].append(RID)
+        coord['offset'].append(A)
+        coord['dircos'].append(dircos)
+    
+def add_CORD1R(unsorted_cord1r, coord, strcgrid):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    for index, row in unsorted_cord1r.iterrows():
+        ID = int(row['ID'])
+        RID = 0
+        A = strcgrid['offset'][np.where(strcgrid['ID'] == row['A'])[0][0]]
+        B = strcgrid['offset'][np.where(strcgrid['ID'] == row['B'])[0][0]]   
+        C = strcgrid['offset'][np.where(strcgrid['ID'] == row['C'])[0][0]]   
+        # build coord - wie bei CORD2R              
+        z = B - A
+        y = np.cross(B-A, C-A)
+        x = np.cross(y,z)
+        dircos = np.vstack((x/np.linalg.norm(x),y/np.linalg.norm(y),z/np.linalg.norm(z))).T
+        # save
+        coord['ID'].append(ID)
+        coord['RID'].append(RID)
+        coord['offset'].append(A)
+        coord['dircos'].append(dircos)
+
 def Modgen_AESURF(filename):    
     aesurf = {'ID':[],
               'key':[],
