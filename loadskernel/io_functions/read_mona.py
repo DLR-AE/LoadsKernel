@@ -480,10 +480,11 @@ def add_CORD2R(pandas_cord2r, coord):
         x = np.cross(y,z)
         dircos = np.vstack((x/np.linalg.norm(x),y/np.linalg.norm(y),z/np.linalg.norm(z))).T
         # save
-        coord['ID'].append(ID)
-        coord['RID'].append(RID)
-        coord['offset'].append(A)
-        coord['dircos'].append(dircos)
+        if ID not in coord['ID']:
+            coord['ID'].append(ID)
+            coord['RID'].append(RID)
+            coord['offset'].append(A)
+            coord['dircos'].append(dircos)
     
 def add_CORD1R(pandas_cord1r, coord, strcgrid):
     # This functions relies on the Pandas data frames from the bdf reader.
@@ -499,10 +500,11 @@ def add_CORD1R(pandas_cord1r, coord, strcgrid):
         x = np.cross(y,z)
         dircos = np.vstack((x/np.linalg.norm(x),y/np.linalg.norm(y),z/np.linalg.norm(z))).T
         # save
-        coord['ID'].append(ID)
-        coord['RID'].append(RID)
-        coord['offset'].append(A)
-        coord['dircos'].append(dircos)
+        if ID not in coord['ID']:
+            coord['ID'].append(ID)
+            coord['RID'].append(RID)
+            coord['offset'].append(A)
+            coord['dircos'].append(dircos)
 
 def Modgen_AESURF(filename):    
     aesurf = {'ID':[],
