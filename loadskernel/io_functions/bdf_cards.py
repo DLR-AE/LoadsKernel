@@ -157,4 +157,29 @@ class SET1(ListCard):
     optional_fields     = ['values']
     optional_defaults   = [  None  ]
 
+class AEFACT(ListCard):
+    expected_lines = None
+    # field of interest (any other fields are not implemented)
+    field_names         = ['ID', 'values' ]
+    field_positions     = [  0,        1  ]
+    field_types         = ['int', 'float' ]
+    optional_fields     = ['values']
+    optional_defaults   = [  None  ]
 
+class CAERO1(SimpleCard):
+    expected_lines = 2
+    # field of interest (any other fields are not implemented)
+    field_names         = ['ID', 'CP', 'NSPAN', 'NCHORD', 'LSPAN', 'LCHORD',   'X1',   'Y1',   'Z1',  'X12',   'X4',   'Y4',   'Z4',  'X43']
+    field_positions     = [  0,    2,       3,        4,       5,        6,      8,      9,     10,     11,     12,     13,     14,     15 ]
+    field_types         = ['int','int',  'int',    'int',   'int',    'int','float','float','float','float','float','float','float','float']
+    optional_fields     = ['CP', 'NSPAN', 'NCHORD']
+    optional_defaults   = [  0,       0,        0 ]
+
+class CAERO7(SimpleCard):
+    expected_lines = 3
+    # field of interest (any other fields are not implemented)
+    field_names         = ['ID', 'CP', 'NSPAN', 'NCHORD',   'X1',   'Y1',   'Z1',  'X12',   'X4',   'Y4',   'Z4',  'X43']
+    field_positions     = [  0,    2,       3,        4,      8,      9,     10,     11,     16,     17,     18,     19 ]
+    field_types         = ['int','int',  'int',    'int','float','float','float','float','float','float','float','float']
+    optional_fields     = ['CP', 'NSPAN', 'NCHORD']
+    optional_defaults   = [  0,       0,        0 ]

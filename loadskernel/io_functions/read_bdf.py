@@ -3,6 +3,14 @@ import pandas as pd
 
 from loadskernel.io_functions.bdf_cards import *
 
+"""
+This is a simple and light-weight BDF reader which consist of only two scripts (read_bdf.py & bdf_cards.py),
+and parses Nastran BDF files to Pandas data frames. It considers only those cards and fields actually needed
+for a loads analysis using Loads Kernel, providing maximum compatibility and speed and comes without further 
+dependencies.
+Some ideas and concepts are inspired by pyBDF, a comprehensive DLR in-house BDF reader by Markus Zimmer.
+"""
+
 class Reader(object):
     # This is the list (and mapping) of all implemented bdf cards.
     card_interpreters = {'GRID'   : GRID,
@@ -13,6 +21,9 @@ class Reader(object):
                          'MONPNT1': MONPNT1,
                          'AECOMP' : AECOMP,
                          'SET1'   : SET1,
+                         'AEFACT' : AEFACT,
+                         'CAERO1' : CAERO1,
+                         'CAERO7' : CAERO7,
                          }
 
     def __init__(self):
@@ -78,7 +89,7 @@ class Reader(object):
         # loop over all lines until empty
         while self.lines:
             # test the first 8 characters of the line for a known card
-            card_name = self.lines[0][:8].replace('*', '').strip().upper()
+            card_name = self.lines[0][:8].strip('*, ').upper()
             if card_name in self.known_cards:
                 # get the corresponding interpeter
                 card_class = self.card_interpreters[card_name]
