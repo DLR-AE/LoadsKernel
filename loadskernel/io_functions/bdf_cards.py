@@ -5,13 +5,17 @@ class SimpleCard(object):
     
     @classmethod
     def parse(cls, card_as_string, width):
+        card = cls.parse_known_fields(cls, card_as_string, width)
+        return card
+
+    def parse_known_fields(self, card_as_string, width):
         # create an empty dictionary to store the card
         card = {}
         # loop over all fields
-        for name, pos, type in zip(cls.field_names, cls.field_positions, cls.field_types):
+        for name, pos, type in zip(self.field_names, self.field_positions, self.field_types):
             # look for a default value
-            if name in cls.optional_fields:
-                default_value = cls.optional_defaults[cls.optional_fields.index(name)]
+            if name in self.optional_fields:
+                default_value = self.optional_defaults[self.optional_fields.index(name)]
             else:
                 default_value = None
             # get the field location in the string
@@ -28,13 +32,55 @@ class SimpleCard(object):
                 my_field = card_as_string[start:stop]
                 # convert field and store in dictionary
                 card[name] = nastran_number_converter(my_field, type, default_value)
-            elif name in cls.optional_fields:
+            elif name in self.optional_fields:
                 # store default in dictionary
                 card[name] = default_value
             else:
-                logging.error('Field {} expected but missing in {} card: {}'.format(name, cls.__name__, card_as_string))
+                logging.error('Field {} expected but missing in {} card: {}'.format(name, self.__name__, card_as_string))
+        return card
 
-        print(card)
+class ListCard(SimpleCard):
+    
+    @classmethod
+    def parse(cls, card_as_string, width):
+        """
+        For the first fields, re-use the procedure from SimpleCard. 
+        Then, parse further occurences for the last field, which yield the list items.
+        """
+        card = cls.parse_known_fields(cls, card_as_string, width)
+        card = cls.parse_list_items(cls, card, card_as_string, width)
+        return card
+        
+    def parse_list_items(self, card, card_as_string, width):
+        # get the properties of the last field
+        name = self.field_names[-1]
+        pos  = self.field_positions[-1]
+        type = self.field_types[-1]
+        # look for a default value
+        if name in self.optional_fields:
+            default_value = self.optional_defaults[self.optional_fields.index(name)]
+        else:
+            default_value = None
+        # turn the last field into a list 
+        card[name] = [card[name]]
+        """
+        This is the loop to find more occurences for the last field:
+        Case 1: See if the card is suffiently long --> append the field to list
+        Case 2: The field doesn't exists --> break the loop
+        """
+        i = 1
+        while True:
+            # get the field location in the string
+            start = (pos+i)*width
+            stop  = (pos+i+1)*width
+            
+            if len(card_as_string) > start:
+                my_field = card_as_string[start:stop]
+                # convert field and store in dictionary
+                card[name].append(nastran_number_converter(my_field, type, default_value))
+                i += 1
+            else:
+                break
         return card
     
 class GRID(SimpleCard):
@@ -81,3 +127,34 @@ class CORD1R(SimpleCard):
     field_types         = ['int','int','int','int','int']
     optional_fields     = ['RID']
     optional_defaults   = [   0 ]
+
+class MONPNT1(SimpleCard):
+    expected_lines = 2
+    # field of interest (any other fields are not implemented)
+    field_names         = ['NAME', 'COMP',  'CP',   'X',    'Y',    'Z', 'CD']
+    field_positions     = [    0,      9,    10,     11,     12,     13,  14 ]
+    field_types         = [ 'str',  'str','int','float','float','float','int']
+    optional_fields     = ['CP', 'CD']
+    optional_defaults   = [  0,    0 ]
+
+class AECOMP(ListCard):
+    expected_lines = None
+    # field of interest (any other fields are not implemented)
+    field_names         = ['NAME', 'LISTTYPE', 'LISTID']
+    field_positions     = [  0,            1,        2 ]
+    field_types         = [ 'str',      'str',    'int']
+    optional_fields     = ['LISTID']
+    optional_defaults   = [  None  ]
+
+class SET1(ListCard):
+    expected_lines = None
+    # field of interest (any other fields are not implemented)
+    field_names         = ['ID', 'values' ]
+    field_positions     = [  0,        1  ]
+    # Due to the mixture of integers and strings ('THRU') in a SET1 card, all list items are parsed as strings. 
+    field_types         = ['int',   'str' ]
+    # Blank strings (e.g. trailing spaces) shall be replaced with None.
+    optional_fields     = ['values']
+    optional_defaults   = [  None  ]
+
+

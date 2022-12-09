@@ -5,11 +5,14 @@ from loadskernel.io_functions.bdf_cards import *
 
 class Reader(object):
     # This is the list (and mapping) of all implemented bdf cards.
-    card_interpreters = {'GRID':   GRID,
-                         'CQUAD4': CQUAD4,
-                         'CTRIA3': CTRIA3,
-                         'CORD2R': CORD2R,
-                         'CORD1R': CORD1R,
+    card_interpreters = {'GRID'   : GRID,
+                         'CQUAD4' : CQUAD4,
+                         'CTRIA3' : CTRIA3,
+                         'CORD2R' : CORD2R,
+                         'CORD1R' : CORD1R,
+                         'MONPNT1': MONPNT1,
+                         'AECOMP' : AECOMP,
+                         'SET1'   : SET1,
                          }
 
     def __init__(self):
@@ -49,9 +52,12 @@ class Reader(object):
         self.read_cards_from_lines()
         
         if self.includes:
+            logging.info('Found include(s):')
             self.filenames = copy.deepcopy(self.includes)
             self.includes = []
             self.process_deck()
+        
+        self.remove_duplicate_cards()
         return
     
     def read_lines_from_files(self):
@@ -61,12 +67,14 @@ class Reader(object):
         for filename in self.filenames:
             # make sure the given filename exists, if not, skip that file
             if os.path.exists(filename):
+                logging.info('Read from file: {}'.format(filename))
                 with open(filename, 'r') as fid:
                     self.lines += fid.readlines()
             else:
-                logging.warning('File {} NOT found!'.format(filename))
+                logging.warning('File NOT found: {}'.format(filename))
     
     def read_cards_from_lines(self):
+        logging.info('Read BDF cards from {} lines...'.format(len(self.lines)))
         # loop over all lines until empty
         while self.lines:
             # test the first 8 characters of the line for a known card
@@ -84,34 +92,46 @@ class Reader(object):
                 self.lines.pop(0)
             
     def convert_lines_to_string(self, expected_lines):
-        # This is the simple case where the numer of lines in already known.
+        width = self.get_width_of_fields(self.lines)
         if expected_lines is not None:
+            # This is the simple case where the numer of lines is already known.
             n_lines = expected_lines
-            # get the line to work with
-            my_lines = self.lines[:n_lines]
-            # remove line breakes at the end of the lines
-            my_lines = [line.strip('\n') for line in my_lines]
-            # Trim the lines:
-            # - remove trailing / continuation characters
-            # - remove first field, this is either the card name (which we no longer need) or the continuation character
-            # - handle that the last line or a one-line-card might have less than 9 fields  
-            width = self.get_width_of_fields(my_lines)
-            if n_lines > 1:
-                tmp = [line[width:9*width] for line in my_lines[:-1]]
-                tmp.append(my_lines[-1][width:])
-                my_lines = tmp
-            else:
-                my_lines = [my_lines[-1][width:]]
         else:
-            # This is the more complex case where the number of lines in unknown
-            # for i, line in enumerate(my_lines):
-            #     conti_character = line[9*width:].strip()
-            pass
+            """
+            This is the more complex case where the number of lines in unknown.
+            Strategy: Loop over the lines and see if the continuation character appears again in the next line.
+            This should work with any continuation character and also for implicit line continuation (where no
+            continuation character is given).
+            """
+            for i, line in enumerate(self.lines):
+                if len(self.lines) == 1 or line[9*width:].strip() != self.lines[i+1][:width].strip(): 
+                    n_lines = i+1
+                    break
+        # get the line to work with
+        my_lines = self.lines[:n_lines]
+        # remove line breakes (Linux and Windows) at the end of the lines
+        my_lines = [line.strip('\n') for line in my_lines]
+        my_lines = [line.strip('\r') for line in my_lines]
+        # Trim the lines:
+        # - remove trailing / continuation characters
+        # - remove first field, this is either the card name (which we no longer need) or the continuation character
+        # - expand a line which is missing spaces at the end, which is important for indexing the fields
+        # - handle that the last line or a one-line-card might have less than 9 fields  
+        if n_lines > 1:
+            tmp = []
+            for line in my_lines[:-1]:
+                n_missing_spaces = (8*width - len(line[width:9*width]))
+                tmp.append(line[width:9*width]+' '*n_missing_spaces)
+            tmp.append(my_lines[-1][width:])
+            my_lines = tmp
+        else:
+            my_lines = [my_lines[-1][width:]]
+        
         # Join lines to one string
         lines_as_string = ''.join(my_lines)
         # Removing consumed lines from list, pop only accepts one index
-        for i in range(n_lines):
-            self.lines.pop(i)
+        for _ in range(n_lines):
+            self.lines.pop(0)
         return lines_as_string, width
         
     def get_width_of_fields(self, lines):
@@ -126,7 +146,18 @@ class Reader(object):
     def store_card(self, card_name, card):
         # ToDo: It would be nice if the dtype would be conserved.
         new_row = pd.Series(card)
-        self.cards[card_name] = pd.concat([self.cards[card_name], new_row.to_frame().T], ignore_index=True)        
+        self.cards[card_name] = pd.concat([self.cards[card_name], new_row.to_frame().T], ignore_index=True)
+    
+    def remove_duplicate_cards(self):
+        # This function looks for duplicates in all data frames.
+        # Duplicates are identified by the first field (typically ID or NAME).
+        for card_name in self.known_cards:
+            old_size = self.cards[card_name].shape[0]
+            sort_by_field = self.card_interpreters[card_name].field_names[0]
+            self.cards[card_name].drop_duplicates(sort_by_field, inplace=True)
+            new_size = self.cards[card_name].shape[0]
+            if old_size != new_size:
+                logging.info('Dropping {} duplicate {}s'.format(old_size-new_size, card_name))
 
 
 # bdf_reader = Reader()

@@ -24,6 +24,7 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.io
 import time, logging, copy
+import pandas as pd
 
 class Model:
     def __init__(self, jcl, path_output):
@@ -83,17 +84,11 @@ class Model:
     
     def build_strcshell(self):
         if 'filename_shell' in self.jcl.geom and not self.jcl.geom['filename_shell'] == []:
-            for i_file in range(len(self.jcl.geom['filename_shell'])):
-                panels = read_mona.Modgen_CQUAD4(self.jcl.geom['filename_shell'][i_file]) 
-                if i_file == 0:
-                    self.strcshell = panels
-                else:
-                    self.strcshell['ID'] = np.hstack((self.strcshell['ID'],panels['ID']))
-                    self.strcshell['CD'] = np.hstack((self.strcshell['CD'],panels['CD']))
-                    self.strcshell['CP'] = np.hstack((self.strcshell['CP'],panels['CP']))
-                    self.strcshell['cornerpoints'] += panels['cornerpoints']
-                    self.strcshell['n'] += panels['n']
-    
+            # parse given bdf files
+            self.bdf_reader.process_deck(self.jcl.geom['filename_shell'])
+            # assemble strcshell from CTRIA3 and CQUAD4 elements
+            self.newshell = read_mona.add_panels(pd.concat([self.bdf_reader.cards['CQUAD4'], self.bdf_reader.cards['CTRIA3']], ignore_index=True))
+
     def build_mongrid(self):
         if self.jcl.geom['method'] in ['mona', 'CoFE']:
             if 'filename_mongrid' in self.jcl.geom and not self.jcl.geom['filename_mongrid'] == '':
@@ -106,9 +101,18 @@ class Model:
                 self.build_mongrid_matrices(rules)
             elif 'filename_monpnt' in self.jcl.geom and not self.jcl.geom['filename_monpnt'] == '':
                 logging.info( 'Reading Monitoring Stations from MONPNTs...')
-                self.mongrid = read_mona.Nastran_MONPNT1(self.jcl.geom['filename_monpnt']) 
-                self.coord = read_mona.Modgen_CORD2R(self.jcl.geom['filename_monpnt'], self.coord)
-                rules = spline_rules.monstations_from_aecomp(self.mongrid, self.jcl.geom['filename_monpnt'])
+                # parse given bdf files
+                self.bdf_reader.process_deck(self.jcl.geom['filename_monpnt'])
+                # assemble mongrid
+                self.mongrid = read_mona.add_MONPNT1(self.bdf_reader.cards['MONPNT1'])
+                # build additional coordinate systems
+                read_mona.add_CORD2R(self.bdf_reader.cards['CORD2R'], self.coord)
+                read_mona.add_CORD1R(self.bdf_reader.cards['CORD1R'], self.coord, self.strcgrid)
+                # get aecomp and sets
+                aecomp = read_mona.add_AECOMP(self.bdf_reader.cards['AECOMP'])
+                sets = read_mona.add_SET1(self.bdf_reader.cards['SET1'])
+                
+                rules = spline_rules.monstations_from_aecomp(self.mongrid, aecomp, sets)
                 self.build_mongrid_matrices(rules)
             else: 
                 logging.warning( 'No Monitoring Stations are created!')
@@ -129,7 +133,6 @@ class Model:
                                 }
                 self.PHIstrc_mon = np.zeros((self.strcgrid['n']*6, 6))
                 
-    
     def build_mongrid_matrices(self, rules):
         PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
         # The line above gives the loads coordinate system 'CP' (mostly in global coordinates). 

@@ -4,11 +4,13 @@ Created on Fri Nov 21 16:29:57 2014
 
 @author: voss_ar
 """
-import string
+import string, copy
 import numpy as np
 import scipy.sparse as sp
 import math as math
 import os, logging
+import pandas as pd
+from itertools import compress
 
 def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=False):
     '''
@@ -167,16 +169,16 @@ def Modgen_GRID(filename):
            }
     return grid
 
-def add_GRIDS(sorted_grids):
+def add_GRIDS(pandas_grids):
     # This functions relies on the Pandas data frames from the bdf reader.
-    n = sorted_grids.shape[0]
+    n = pandas_grids.shape[0]
     strcgrid = {}
-    strcgrid['ID']     = sorted_grids['ID'].to_numpy(dtype='int')
-    strcgrid['CD']     = sorted_grids['CD'].to_numpy(dtype='int')
-    strcgrid['CP']     = sorted_grids['CP'].to_numpy(dtype='int')
+    strcgrid['ID']     = pandas_grids['ID'].to_numpy(dtype='int')
+    strcgrid['CD']     = pandas_grids['CD'].to_numpy(dtype='int')
+    strcgrid['CP']     = pandas_grids['CP'].to_numpy(dtype='int')
     strcgrid['n']      = n
     strcgrid['set']    = np.arange(n*6).reshape((n,6))
-    strcgrid['offset'] = sorted_grids[['X1', 'X2', 'X3']].to_numpy(dtype='float')
+    strcgrid['offset'] = pandas_grids[['X1', 'X2', 'X3']].to_numpy(dtype='float')
     return strcgrid
 
 def Modgen_CQUAD4(filename):
@@ -202,6 +204,23 @@ def Modgen_CQUAD4(filename):
               "n": len(ids)
              }
     return panels
+
+def add_panels(pandas_panels):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    cornerpoints = []
+    # Loop over the rows to check for NaNs, which occur in case of three (CTRIA) instead of four (CQUAD) cornerpoints.
+    # This could be done in one line using list comprehensions, this loop with several intermediate steps is more intuitive.
+    for index, row in pandas_panels[['G1', 'G2', 'G3', 'G4']].iterrows():
+        is_cornerpoint = [pd.notna(x) for x in row]
+        cornerpoints.append(row[is_cornerpoint].to_list())
+    strcshell = {}
+    n = pandas_panels.shape[0]
+    strcshell['ID']             = pandas_panels['ID'].to_numpy(dtype='int')
+    strcshell['cornerpoints']   = cornerpoints
+    strcshell['CD']             = np.zeros(n) # Assumption: panels are given in global coord system
+    strcshell['CP']             = np.zeros(n)
+    strcshell['n']              = n
+    return strcshell
     
 def CAERO(filename, i_file):
     logging.info('Read CAERO1 and/or CAERO7 cards from Nastran/ZAERO bdf: %s' %filename)
@@ -317,9 +336,7 @@ def nastran_number_converter(string_in, type, default=0):
         try:
             out = float(string_in)
         except:
-            
-            string_in = string_in.replace(' ', '') # remove leading spaces
-            for c in ['\n', '\r']: string_in = string_in.strip(c) # remove end of line
+            for c in ['\n', '\r', ' ']: string_in = string_in.strip(c) # remove end of line
             if '-' in string_in[1:]:
                 if string_in[0] in ['-', '+']:
                     sign = string_in[0]
@@ -333,7 +350,7 @@ def nastran_number_converter(string_in, type, default=0):
                 else:
                     out = float(string_in.replace('+', 'E+'))
             elif string_in == '':
-                logging.warning("Could not interpret the following number: '" + string_in + "' -> setting value to "+str(default))
+                logging.debug("Could not interpret the following number: '" + string_in + "' -> setting value to "+str(default))
                 out = default
             else: 
                 logging.error("Could not interpret the following number: " + string_in)
@@ -343,6 +360,13 @@ def nastran_number_converter(string_in, type, default=0):
             out = int(string_in)
         except:
             out = default
+    elif type in ['str']:
+        # An dieser Stelle reicht es nicht mehr aus, nur die Leerzeichen zu entfernen...
+        whitelist = string.ascii_letters + string.digits
+        out = ''.join(filter(whitelist.__contains__, string_in))
+        if out == '':
+            out = default
+            
     return out
 
 def Nastran_DMI(filename):
@@ -442,14 +466,14 @@ def Modgen_CORD2R(filename, coord, grid=''):
                 break
         return coord
 
-def add_CORD2R(unsorted_cord2r, coord):
+def add_CORD2R(pandas_cord2r, coord):
     # This functions relies on the Pandas data frames from the bdf reader.
-    for index, row in unsorted_cord2r.iterrows():
+    for index, row in pandas_cord2r.iterrows():
         ID = int(row['ID'])
         RID = int(row['RID'])
-        A = unsorted_cord2r[['A1', 'A2', 'A3']].to_numpy(dtype='float').squeeze()
-        B = unsorted_cord2r[['B1', 'B2', 'B3']].to_numpy(dtype='float').squeeze()
-        C = unsorted_cord2r[['C1', 'C2', 'C3']].to_numpy(dtype='float').squeeze()
+        A = row[['A1', 'A2', 'A3']].to_numpy(dtype='float').squeeze()
+        B = row[['B1', 'B2', 'B3']].to_numpy(dtype='float').squeeze()
+        C = row[['C1', 'C2', 'C3']].to_numpy(dtype='float').squeeze()
         # build coord                
         z = B - A
         y = np.cross(B-A, C-A)
@@ -461,9 +485,9 @@ def add_CORD2R(unsorted_cord2r, coord):
         coord['offset'].append(A)
         coord['dircos'].append(dircos)
     
-def add_CORD1R(unsorted_cord1r, coord, strcgrid):
+def add_CORD1R(pandas_cord1r, coord, strcgrid):
     # This functions relies on the Pandas data frames from the bdf reader.
-    for index, row in unsorted_cord1r.iterrows():
+    for index, row in pandas_cord1r.iterrows():
         ID = int(row['ID'])
         RID = 0
         A = strcgrid['offset'][np.where(strcgrid['ID'] == row['A'])[0][0]]
@@ -558,6 +582,38 @@ def Nastran_SET1(filename, keyword='SET1', type='int', default=0):
             if read_string == '':
                 break
         return sets
+
+def add_SET1(pandas_sets):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    # Due to the mixture of integers and strings ('THRU') in a SET1 card, all list items were parsed as strings. 
+    # This function parses the strings to integers and handles the 'THRU' option.
+    set_values = []
+    for _, row in pandas_sets[['values']].iterrows():
+        # create a copy of the current row to work with
+        my_row = copy.deepcopy(row[0])
+        # remove all None values
+        my_row = [item for item in my_row if item is not None]
+        values = []
+        while my_row:
+            if my_row[0] == 'THRU':
+                # Replace 'THRU' with the intermediate values
+                startvalue = values[-1]+1
+                stoppvalue = nastran_number_converter(my_row[1], 'int', default=None)
+                values += list(range(startvalue, stoppvalue+1) )
+                # remove consumed values from row
+                my_row.pop(0)
+                my_row.pop(0)
+            else:
+                # Parse list item as interger
+                values.append(nastran_number_converter(my_row[0], 'int', default=None))
+                # remove consumed values from row
+                my_row.pop(0)
+        set_values.append(np.array(values))    
+
+    sets = {}
+    sets['ID']      = pandas_sets['ID'].to_list()
+    sets['values']  = set_values
+    return sets
         
 def Nastran_AECOMP(filename):
     aecomp = {'name': [], 'list_type':[], 'list_id':[]}
@@ -570,6 +626,21 @@ def Nastran_AECOMP(filename):
             aecomp['list_type'].append(str.replace(line[16:24], ' ', ''))
             aecomp['list_id'].append(nastran_number_converter(line[24:32], 'int'))
     
+    return aecomp
+
+def add_AECOMP(pandas_aecomps):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    list_id = []
+    # Loop over the rows to check for NaNs and None, which occur in case an empty field was in the list.
+    # Then, select only the valid list items.
+    for _, row in pandas_aecomps[['LISTID']].iterrows():
+        is_id = [pd.notna(x) for x in row[0]]
+        list_id.append(list(compress(row[0], is_id)))
+    
+    aecomp = {}
+    aecomp['name']      = pandas_aecomps['NAME'].to_list()
+    aecomp['list_type'] = pandas_aecomps['LISTTYPE'].to_list()
+    aecomp['list_id']   = list_id
     return aecomp
 
 def Nastran_MONPNT1(filename):    
@@ -613,6 +684,21 @@ def Nastran_MONPNT1(filename):
                'set': np.arange(n*6).reshape((n,6)),
                'n':n,
               }
+    return mongrid
+
+def add_MONPNT1(pandas_monpnts):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    n = pandas_monpnts.shape[0]
+    mongrid = {}
+    # Eigentlich haben MONPNTs keine IDs sondern nur Namen...
+    mongrid['ID']     = np.arange(1,n+1)
+    mongrid['name']   = pandas_monpnts['NAME'].to_list()
+    mongrid['comp']   = pandas_monpnts['COMP'].to_list()
+    mongrid['CD']     = pandas_monpnts['CD'].to_numpy(dtype='int')
+    mongrid['CP']     = pandas_monpnts['CP'].to_numpy(dtype='int')
+    mongrid['n']      = n
+    mongrid['set']    = np.arange(n*6).reshape((n,6))
+    mongrid['offset'] = pandas_monpnts[['X', 'Y', 'Z']].to_numpy(dtype='float')
     return mongrid
 
 def Modgen_W2GJ(filename):
