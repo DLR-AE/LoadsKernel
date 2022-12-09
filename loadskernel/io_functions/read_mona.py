@@ -330,13 +330,86 @@ def CAERO(filename, i_file):
     grids['ID'] = np.array(grids['ID'])
     grids['offset'] = np.array(grids['offset'])
     return grids, panels      
-    
+
+def get_panels_from_CAERO(pandas_caero, pandas_aefact, i_file):
+    logging.info('Constructing aero panels from CAERO cards')
+    # from CAERO cards, construct corner points... '
+    # then, combine four corner points to one panel
+    grid_ID = i_file * 100000 # the file number is used to set a range of grid IDs 
+    grids = {'ID':[], 'offset':[]}
+    panels = {"ID": [], 'CP':[], 'CD':[], "cornerpoints": []}
+    for index, caerocard in pandas_caero.iterrows():
+        # get the four corner points of the CAERO card
+        X1 = caerocard[['X1', 'Y1', 'Z1']].to_numpy(dtype='float')
+        X4 = caerocard[['X4', 'Y4', 'Z4']].to_numpy(dtype='float')
+        X2 = X1 + np.array([caerocard['X12'], 0.0, 0.0])
+        X3 = X4 + np.array([caerocard['X43'], 0.0, 0.0])
+        # calculate LE, Root and Tip vectors [x,y,z]^T
+        LE   = X4 - X1
+        Root = X2 - X1
+        Tip  = X3 - X4
+        n_span  = int(caerocard['NSPAN'])
+        n_chord = int(caerocard['NCHORD'])
+        if caerocard['NCHORD'] == 0:
+            # look in AEFACT cards for the appropriate card and get spacing
+            if pd.notna(caerocard['LCHORD']):
+                d_chord = [v for v in pandas_aefact.loc[pandas_aefact['ID']==caerocard['LCHORD'],'values'].values[0] if v is not None]
+                n_chord = len(d_chord)-1 # n_boxes = n_division-1
+            else:
+                logging.error('Assumption of equal spaced CAERO7 panels is violated!')
+        else:
+            # assume equidistant spacing
+            d_chord = np.linspace(0.0, 1.0, n_chord+1 ) 
+     
+        if caerocard['NSPAN'] == 0:
+            # look in AEFACT cards for the appropriate card and get spacing
+            if pd.notna(caerocard['LSPAN']):
+                d_span = [v for v in pandas_aefact.loc[pandas_aefact['ID']==caerocard['LSPAN'],'values'].values[0] if v is not None]
+                n_span = len(d_span)-1 # n_boxes = n_division-1
+            else:
+                logging.error('Assumption of equal spaced CAERO7 panels is violated!')
+        else:
+            # assume equidistant spacing
+            d_span = np.linspace(0.0, 1.0, n_span+1 ) 
+         
+        # build matrix of corner points
+        # index based on n_divisions
+        grids_map = np.zeros((n_chord+1,n_span+1), dtype='int')
+        for i_strip in range(n_span+1):
+            for i_row in range(n_chord+1):
+                offset = X1 \
+                       + LE * d_span[i_strip] \
+                       + (Root*(1.0-d_span[i_strip]) + Tip*d_span[i_strip]) * d_chord[i_row]
+                grids['ID'].append(grid_ID)
+                grids['offset'].append(offset)
+                grids_map[i_row,i_strip ] = grid_ID
+                grid_ID += 1
+        # build panels from cornerpoints
+        # index based on n_boxes
+        panel_ID =  int(caerocard['ID'])                  
+        for i_strip in range(n_span):
+            for i_row in range(n_chord):
+                panels['ID'].append(panel_ID)
+                panels['CP'].append(caerocard['CP']) # applying CP of CAERO card to all grids
+                panels['CD'].append(caerocard['CP'])
+                panels['cornerpoints'].append([ grids_map[i_row, i_strip], grids_map[i_row+1, i_strip], grids_map[i_row+1, i_strip+1], grids_map[i_row, i_strip+1] ])
+                panel_ID += 1 
+    panels['ID'] = np.array(panels['ID'])
+    panels['CP'] = np.array(panels['CP'])
+    panels['CD'] = np.array(panels['CD'])
+    panels['cornerpoints'] = np.array(panels['cornerpoints'])
+    grids['ID'] = np.array(grids['ID'])
+    grids['offset'] = np.array(grids['offset'])
+    return grids, panels
+
 def nastran_number_converter(string_in, type, default=0):
     if type in ['float', 'f']:
         try:
             out = float(string_in)
         except:
-            for c in ['\n', '\r', ' ']: string_in = string_in.strip(c) # remove end of line
+            # remove all spaces, which might also occur in between the sign and the number (e.g. in ModGen)
+            string_in = string_in.replace(' ', '')
+            for c in ['\n', '\r']: string_in = string_in.strip(c) # remove end of line
             if '-' in string_in[1:]:
                 if string_in[0] in ['-', '+']:
                     sign = string_in[0]

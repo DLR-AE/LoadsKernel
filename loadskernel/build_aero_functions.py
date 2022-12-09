@@ -8,8 +8,10 @@ Created on Mon Nov 24 09:07:55 2014
 import numpy as np
 import logging
 from matplotlib import pyplot as plt
+import pandas as pd
 
 import loadskernel.io_functions.read_mona as read_mona
+import loadskernel.io_functions.read_bdf as read_bdf
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
 import loadskernel.engine_interfaces.propeller
@@ -71,7 +73,15 @@ def build_aerogrid(filename, method_caero = 'CQUAD4', i_file=0):
         # four grid points are assembled to one panel, this is expressed as CQUAD4s 
         caero_panels = read_mona.Modgen_CQUAD4(filename)
     elif method_caero in ['CAERO1', 'CAERO7']:
-        caero_grid, caero_panels = read_mona.CAERO(filename, i_file)
+        # parse given bdf files
+        bdf_reader = read_bdf.Reader()
+        bdf_reader.process_deck(filename)
+        # Adjust the counting of CAERO7 (ZAERO) panels to CAERO1 (Nastran)
+        bdf_reader.cards['CAERO7']['NSPAN']  -= 1
+        bdf_reader.cards['CAERO7']['NCHORD'] -= 1
+        # combine CAERO7 and CAERO1 and use the same function to assemble aerodynamic panels
+        combined_caero = pd.concat([bdf_reader.cards['CAERO1'], bdf_reader.cards['CAERO7']], ignore_index=True)
+        caero_grid, caero_panels = read_mona.get_panels_from_CAERO(combined_caero, bdf_reader.cards['AEFACT'], i_file)
     elif method_caero in ['VLM4Prop']:
         caero_grid, caero_panels, cam_rad = loadskernel.engine_interfaces.propeller.read_propeller_input(filename)
     else:

@@ -172,8 +172,8 @@ class CAERO1(SimpleCard):
     field_names         = ['ID', 'CP', 'NSPAN', 'NCHORD', 'LSPAN', 'LCHORD',   'X1',   'Y1',   'Z1',  'X12',   'X4',   'Y4',   'Z4',  'X43']
     field_positions     = [  0,    2,       3,        4,       5,        6,      8,      9,     10,     11,     12,     13,     14,     15 ]
     field_types         = ['int','int',  'int',    'int',   'int',    'int','float','float','float','float','float','float','float','float']
-    optional_fields     = ['CP', 'NSPAN', 'NCHORD']
-    optional_defaults   = [  0,       0,        0 ]
+    optional_fields     = ['CP', 'NSPAN', 'NCHORD', 'LSPAN', 'LCHORD']
+    optional_defaults   = [  0,       0,        0,    None,     None ]
 
 class CAERO7(SimpleCard):
     expected_lines = 3
