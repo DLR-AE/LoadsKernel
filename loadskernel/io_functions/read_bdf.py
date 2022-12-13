@@ -24,6 +24,8 @@ class Reader(object):
                          'AEFACT' : AEFACT,
                          'CAERO1' : CAERO1,
                          'CAERO7' : CAERO7,
+                         'AESURF' : AESURF,
+                         'AELIST' : AELIST,
                          }
 
     def __init__(self):

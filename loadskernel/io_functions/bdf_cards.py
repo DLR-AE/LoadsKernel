@@ -157,6 +157,10 @@ class SET1(ListCard):
     optional_fields     = ['values']
     optional_defaults   = [  None  ]
 
+class AELIST(SET1):
+    # The AELIST is identical to SET1.
+    pass
+
 class AEFACT(ListCard):
     expected_lines = None
     # field of interest (any other fields are not implemented)
@@ -183,3 +187,13 @@ class CAERO7(SimpleCard):
     field_types         = ['int','int',  'int',    'int','float','float','float','float','float','float','float','float']
     optional_fields     = ['CP', 'NSPAN', 'NCHORD']
     optional_defaults   = [  0,       0,        0 ]
+
+class AESURF(SimpleCard):
+    expected_lines = 1
+    # field of interest (any other fields are not implemented)
+    field_names         = ['ID', 'LABEL', 'CID', 'AELIST', 'EFF' ]
+    field_positions     = [  0,       1,     2,        3,     7  ]
+    field_types         = ['int'  ,'str', 'int',    'int','float']
+    optional_fields     = ['EFF']
+    optional_defaults   = [ 1.0 ]
+

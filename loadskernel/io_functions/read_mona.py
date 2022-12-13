@@ -302,8 +302,9 @@ def nastran_number_converter(string_in, type, default=0):
             out = default
     elif type in ['str']:
         # An dieser Stelle reicht es nicht mehr aus, nur die Leerzeichen zu entfernen...
-        whitelist = string.ascii_letters + string.digits
-        out = ''.join(filter(whitelist.__contains__, string_in))
+        # whitelist = string.ascii_letters + string.digits
+        # out = ''.join(filter(whitelist.__contains__, string_in))
+        out = string_in.strip('*, ')
         if out == '':
             out = default
             
@@ -405,6 +406,15 @@ def Modgen_AESURF(filename):
             aesurf['CID'].append(nastran_number_converter(line[24:32], 'int'))
             aesurf['AELIST'].append(nastran_number_converter(line[32:40], 'int'))
             aesurf['eff'].append(nastran_number_converter(line[56:64], 'float'))
+    return aesurf
+
+def add_AESURF(pandas_aesurfs):
+    aesurf = {}
+    aesurf['ID']        = pandas_aesurfs['ID'].to_list()
+    aesurf['key']       = pandas_aesurfs['LABEL'].to_list()
+    aesurf['CID']       = pandas_aesurfs['CID'].to_list()
+    aesurf['AELIST']    = pandas_aesurfs['AELIST'].to_list()
+    aesurf['eff']       = pandas_aesurfs['EFF'].to_list()
     return aesurf
 
 def add_SET1(pandas_sets):

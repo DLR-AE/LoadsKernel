@@ -17,28 +17,14 @@ import loadskernel.spline_functions as spline_functions
 import loadskernel.engine_interfaces.propeller
 
 def build_x2grid(jcl_aero, aerogrid, coord):
-    # Set-up an empty control surface dictionary
-    aesurf = {'ID':[],
-              'key':[],
-              'CID':[],
-              'AELIST':[],
-              'eff':[]}
-    aelist = {'ID':[], 
-              'values':[]}
+    # parse given bdf files
+    bdf_reader = read_bdf.Reader()
+    bdf_reader.process_deck(jcl_aero['filename_aesurf'])
+    aesurf = read_mona.add_AESURF(bdf_reader.cards['AESURF'])
+    aelist = read_mona.add_SET1(bdf_reader.cards['AELIST'])
+    # build additional coordinate systems
+    read_mona.add_CORD2R(bdf_reader.cards['CORD2R'], coord)
     
-    for i_file in range(len(jcl_aero['filename_aesurf'])):
-        sub_aesurf = read_mona.Modgen_AESURF(jcl_aero['filename_aesurf'][i_file])
-        for key in aesurf.keys():
-            aesurf[key] += sub_aesurf[key]
-                
-    for i_file in range(len(jcl_aero['filename_aesurf'])):             
-        coord = read_mona.Modgen_CORD2R(jcl_aero['filename_aesurf'][i_file], coord) 
-        
-    for i_file in range(len(jcl_aero['filename_aelist'])):
-        sub_aelist = read_mona.Modgen_AELIST(jcl_aero['filename_aelist'][i_file]) 
-        for key in aelist.keys():
-            aelist[key] += sub_aelist[key]
-                
     x2grid = {'ID_surf': aesurf['ID'],
                'CID': aesurf['CID'],
                'key': aesurf['key'],
