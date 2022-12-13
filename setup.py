@@ -34,14 +34,15 @@ def my_setup():
                             'numpy',
                             'scipy',
                             'psutil',
-                            'pyfmi',
                             'h5py',
                             'tables',
                             'mpi4py',
                             'pytest',
                             'pytest-cov',
                             'pyyaml',
+                            'pandas',
                             ],
+          extras_require={'FMI': ['pyfmi']},
           )
 
 if __name__ == '__main__':
