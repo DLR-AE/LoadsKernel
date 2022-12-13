@@ -19,7 +19,7 @@ import loadskernel.engine_interfaces.propeller
 def build_x2grid(jcl_aero, aerogrid, coord):
     # parse given bdf files
     bdf_reader = read_bdf.Reader()
-    bdf_reader.process_deck(jcl_aero['filename_aesurf'])
+    bdf_reader.process_deck(jcl_aero['filename_aesurf'] + jcl_aero['filename_aelist'])
     aesurf = read_mona.add_AESURF(bdf_reader.cards['AESURF'])
     aelist = read_mona.add_SET1(bdf_reader.cards['AELIST'])
     # build additional coordinate systems
