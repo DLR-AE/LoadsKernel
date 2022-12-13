@@ -168,7 +168,6 @@ class Kernel(ProgramFlowHelper):
         t_start = time.time()
         model = model_modul.Model(self.jcl, self.path_output)
         model.build_model()
-        model.write_aux_data()
 
         logging.info('--> Saving model data.')
         del model.jcl

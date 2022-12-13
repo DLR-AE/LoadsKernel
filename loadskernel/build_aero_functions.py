@@ -8,35 +8,23 @@ Created on Mon Nov 24 09:07:55 2014
 import numpy as np
 import logging
 from matplotlib import pyplot as plt
+import pandas as pd
 
 import loadskernel.io_functions.read_mona as read_mona
+import loadskernel.io_functions.read_bdf as read_bdf
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
 import loadskernel.engine_interfaces.propeller
 
 def build_x2grid(jcl_aero, aerogrid, coord):
-    # Set-up an empty control surface dictionary
-    aesurf = {'ID':[],
-              'key':[],
-              'CID':[],
-              'AELIST':[],
-              'eff':[]}
-    aelist = {'ID':[], 
-              'values':[]}
+    # parse given bdf files
+    bdf_reader = read_bdf.Reader()
+    bdf_reader.process_deck(jcl_aero['filename_aesurf'] + jcl_aero['filename_aelist'])
+    aesurf = read_mona.add_AESURF(bdf_reader.cards['AESURF'])
+    aelist = read_mona.add_SET1(bdf_reader.cards['AELIST'])
+    # build additional coordinate systems
+    read_mona.add_CORD2R(bdf_reader.cards['CORD2R'], coord)
     
-    for i_file in range(len(jcl_aero['filename_aesurf'])):
-        sub_aesurf = read_mona.Modgen_AESURF(jcl_aero['filename_aesurf'][i_file])
-        for key in aesurf.keys():
-            aesurf[key] += sub_aesurf[key]
-                
-    for i_file in range(len(jcl_aero['filename_aesurf'])):             
-        coord = read_mona.Modgen_CORD2R(jcl_aero['filename_aesurf'][i_file], coord) 
-        
-    for i_file in range(len(jcl_aero['filename_aelist'])):
-        sub_aelist = read_mona.Modgen_AELIST(jcl_aero['filename_aelist'][i_file]) 
-        for key in aelist.keys():
-            aelist[key] += sub_aelist[key]
-                
     x2grid = {'ID_surf': aesurf['ID'],
                'CID': aesurf['CID'],
                'key': aesurf['key'],
@@ -64,14 +52,25 @@ def build_x2grid(jcl_aero, aerogrid, coord):
         
     return x2grid, coord   
 
-def build_aerogrid(filename, method_caero = 'CQUAD4', i_file=0):
+def build_aerogrid(filename, method_caero = 'CAERO1'):
     if method_caero == 'CQUAD4':
+        # parse given bdf files
+        bdf_reader = read_bdf.Reader()
+        bdf_reader.process_deck(filename)
         # all corner points are defined as grid points by ModGen
-        caero_grid = read_mona.Modgen_GRID(filename)
+        caero_grid = read_mona.add_GRIDS(bdf_reader.cards['GRID'].sort_values('ID'))
         # four grid points are assembled to one panel, this is expressed as CQUAD4s 
-        caero_panels = read_mona.Modgen_CQUAD4(filename)
+        caero_panels = read_mona.add_shell_elements(bdf_reader.cards['CQUAD4'].sort_values('ID'))
     elif method_caero in ['CAERO1', 'CAERO7']:
-        caero_grid, caero_panels = read_mona.CAERO(filename, i_file)
+        # parse given bdf files
+        bdf_reader = read_bdf.Reader()
+        bdf_reader.process_deck(filename)
+        # Adjust the counting of CAERO7 (ZAERO) panels to CAERO1 (Nastran)
+        bdf_reader.cards['CAERO7']['NSPAN']  -= 1
+        bdf_reader.cards['CAERO7']['NCHORD'] -= 1
+        # combine CAERO7 and CAERO1 and use the same function to assemble aerodynamic panels
+        combined_caero = pd.concat([bdf_reader.cards['CAERO1'], bdf_reader.cards['CAERO7']], ignore_index=True)
+        caero_grid, caero_panels = read_mona.add_panels_from_CAERO(combined_caero.sort_values('ID'), bdf_reader.cards['AEFACT'])
     elif method_caero in ['VLM4Prop']:
         caero_grid, caero_panels, cam_rad = loadskernel.engine_interfaces.propeller.read_propeller_input(filename)
     else:

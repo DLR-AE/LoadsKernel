@@ -11,7 +11,7 @@ import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
 import loadskernel.io_functions.read_mona as read_mona
 import loadskernel.io_functions.read_op4 as read_op4
-import loadskernel.io_functions.read_b2000 as read_b2000
+import loadskernel.io_functions.read_bdf as read_bdf
 import loadskernel.io_functions.read_cfdgrids as read_cfdgrids
 from loadskernel import grid_trafo
 from loadskernel.atmosphere import isa as atmo_isa
@@ -24,18 +24,16 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.io
 import time, logging, copy
+import pandas as pd
 
 class Model:
     def __init__(self, jcl, path_output):
         self.jcl = jcl
         self.path_output = path_output
-    
-    def write_aux_data(self):
-        # No input data should be written in the model set-up !
-        # Plots and graphs for quality control would be OK.
-        pass
 
     def build_model(self):
+        # init the bdf reader
+        self.bdf_reader = read_bdf.Reader()
         self.build_coord()
         self.build_strc()
         self.build_strcshell()
@@ -48,6 +46,8 @@ class Model:
         self.build_splines()
         self.build_cfdgrid()
         self.build_structural_dynamics()
+        # destroy the bdf reader, this is important when saving the model
+        delattr(self, 'bdf_reader')
         
     def build_coord(self):
         self.coord = {'ID': [0, 9300],
@@ -59,28 +59,13 @@ class Model:
     def build_strc(self):
         logging.info( 'Building structural model...')
         if self.jcl.geom['method'] == 'mona':
-            
-            for i_file in range(len(self.jcl.geom['filename_grid'])):
-                subgrid = read_mona.Modgen_GRID(self.jcl.geom['filename_grid'][i_file]) 
-                if i_file == 0:
-                    self.strcgrid = subgrid
-                elif subgrid['n'] > 0:
-                    self.strcgrid['ID'] = np.hstack((self.strcgrid['ID'],subgrid['ID']))
-                    self.strcgrid['CD'] = np.hstack((self.strcgrid['CD'],subgrid['CD']))
-                    self.strcgrid['CP'] = np.hstack((self.strcgrid['CP'],subgrid['CP']))
-                    self.strcgrid['n'] += subgrid['n']
-                    self.strcgrid['set'] = np.vstack((self.strcgrid['set'],subgrid['set']+self.strcgrid['set'].max()+1))
-                    self.strcgrid['offset'] = np.vstack((self.strcgrid['offset'],subgrid['offset']))
-                    
-                self.coord = read_mona.Modgen_CORD2R(self.jcl.geom['filename_grid'][i_file], self.coord, self.strcgrid)
-            
-            # sort stucture grid to be in accordance with matricies such as Mgg from Nastran
-            sort_vector = self.strcgrid['ID'].argsort()
-            self.strcgrid['ID'] = self.strcgrid['ID'][sort_vector]
-            self.strcgrid['CD'] = self.strcgrid['CD'][sort_vector]
-            self.strcgrid['CP'] = self.strcgrid['CP'][sort_vector]
-            self.strcgrid['offset'] = self.strcgrid['offset'][sort_vector,:]
-            
+            # parse given bdf files
+            self.bdf_reader.process_deck(self.jcl.geom['filename_grid'])
+            # assemble strcgrid, sort grids to be in accordance with matricies such as Mgg from Nastran
+            self.strcgrid = read_mona.add_GRIDS(self.bdf_reader.cards['GRID'].sort_values('ID'))
+            # build additional coordinate systems
+            read_mona.add_CORD2R(self.bdf_reader.cards['CORD2R'], self.coord)
+            read_mona.add_CORD1R(self.bdf_reader.cards['CORD1R'], self.coord, self.strcgrid)
             # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
             grid_trafo.grid_trafo(self.strcgrid, self.coord, 0)
             logging.info('The structural model consists of {} grid points ({} DoFs) and {} coordinate systems.'.format(self.strcgrid['n'], self.strcgrid['n']*6, len(self.coord['ID']) ))
@@ -99,17 +84,11 @@ class Model:
     
     def build_strcshell(self):
         if 'filename_shell' in self.jcl.geom and not self.jcl.geom['filename_shell'] == []:
-            for i_file in range(len(self.jcl.geom['filename_shell'])):
-                panels = read_mona.Modgen_CQUAD4(self.jcl.geom['filename_shell'][i_file]) 
-                if i_file == 0:
-                    self.strcshell = panels
-                else:
-                    self.strcshell['ID'] = np.hstack((self.strcshell['ID'],panels['ID']))
-                    self.strcshell['CD'] = np.hstack((self.strcshell['CD'],panels['CD']))
-                    self.strcshell['CP'] = np.hstack((self.strcshell['CP'],panels['CP']))
-                    self.strcshell['cornerpoints'] += panels['cornerpoints']
-                    self.strcshell['n'] += panels['n']
-    
+            # parse given bdf files
+            self.bdf_reader.process_deck(self.jcl.geom['filename_shell'])
+            # assemble strcshell from CTRIA3 and CQUAD4 elements
+            self.newshell = read_mona.add_shell_elements(pd.concat([self.bdf_reader.cards['CQUAD4'], self.bdf_reader.cards['CTRIA3']], ignore_index=True))
+
     def build_mongrid(self):
         if self.jcl.geom['method'] in ['mona', 'CoFE']:
             if 'filename_mongrid' in self.jcl.geom and not self.jcl.geom['filename_mongrid'] == '':
@@ -117,14 +96,26 @@ class Model:
                 self.mongrid = read_mona.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
                 # we dont't get names for the monstations from simple grid points, so we make up a name
                 self.mongrid['name'] = [ 'MON{:s}'.format(str(ID)) for ID in self.mongrid['ID'] ]
-                self.coord = read_mona.Modgen_CORD2R(self.jcl.geom['filename_moncoord'], self.coord)
+                # build additional coordinate systems
+                self.bdf_reader.process_deck(self.jcl.geom['filename_moncoord'])
+                read_mona.add_CORD2R(self.bdf_reader.cards['CORD2R'], self.coord)
+                read_mona.add_CORD1R(self.bdf_reader.cards['CORD1R'], self.coord, self.strcgrid)
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
                 self.build_mongrid_matrices(rules)
             elif 'filename_monpnt' in self.jcl.geom and not self.jcl.geom['filename_monpnt'] == '':
                 logging.info( 'Reading Monitoring Stations from MONPNTs...')
-                self.mongrid = read_mona.Nastran_MONPNT1(self.jcl.geom['filename_monpnt']) 
-                self.coord = read_mona.Modgen_CORD2R(self.jcl.geom['filename_monpnt'], self.coord)
-                rules = spline_rules.monstations_from_aecomp(self.mongrid, self.jcl.geom['filename_monpnt'])
+                # parse given bdf files
+                self.bdf_reader.process_deck(self.jcl.geom['filename_monpnt'])
+                # assemble mongrid
+                self.mongrid = read_mona.add_MONPNT1(self.bdf_reader.cards['MONPNT1'])
+                # build additional coordinate systems
+                read_mona.add_CORD2R(self.bdf_reader.cards['CORD2R'], self.coord)
+                read_mona.add_CORD1R(self.bdf_reader.cards['CORD1R'], self.coord, self.strcgrid)
+                # get aecomp and sets
+                aecomp = read_mona.add_AECOMP(self.bdf_reader.cards['AECOMP'])
+                sets = read_mona.add_SET1(self.bdf_reader.cards['SET1'])
+                
+                rules = spline_rules.monstations_from_aecomp(self.mongrid, aecomp, sets)
                 self.build_mongrid_matrices(rules)
             else: 
                 logging.warning( 'No Monitoring Stations are created!')
@@ -145,7 +136,6 @@ class Model:
                                 }
                 self.PHIstrc_mon = np.zeros((self.strcgrid['n']*6, 6))
                 
-    
     def build_mongrid_matrices(self, rules):
         PHIstrc_mon = spline_functions.spline_rb(self.mongrid, '', self.strcgrid, '', rules, self.coord, sparse_output=True)
         # The line above gives the loads coordinate system 'CP' (mostly in global coordinates). 
@@ -218,33 +208,11 @@ class Model:
             
     def build_aerogrid(self):
         # grids
-        for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
-            if 'method_caero' in self.jcl.aero:
-                subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file], method_caero = self.jcl.aero['method_caero'], i_file=i_file) 
-            else: # use default method defined in function
-                subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file]) 
-            if i_file == 0:
-                self.aerogrid =  subgrid
-            else:
-                self.aerogrid['ID'] = np.hstack((self.aerogrid['ID'],subgrid['ID']))
-                self.aerogrid['l'] = np.hstack((self.aerogrid['l'],subgrid['l']))
-                self.aerogrid['A'] = np.hstack((self.aerogrid['A'],subgrid['A']))
-                self.aerogrid['N'] = np.vstack((self.aerogrid['N'],subgrid['N']))
-                self.aerogrid['offset_l'] = np.vstack((self.aerogrid['offset_l'],subgrid['offset_l']))
-                self.aerogrid['offset_k'] = np.vstack((self.aerogrid['offset_k'],subgrid['offset_k']))
-                self.aerogrid['offset_j'] = np.vstack((self.aerogrid['offset_j'],subgrid['offset_j']))
-                self.aerogrid['offset_P1'] = np.vstack((self.aerogrid['offset_P1'],subgrid['offset_P1']))
-                self.aerogrid['offset_P3'] = np.vstack((self.aerogrid['offset_P3'],subgrid['offset_P3']))
-                self.aerogrid['r'] = np.vstack((self.aerogrid['r'],subgrid['r']))
-                self.aerogrid['set_l'] = np.vstack((self.aerogrid['set_l'],subgrid['set_l']+self.aerogrid['set_l'].max()+1))
-                self.aerogrid['set_k'] = np.vstack((self.aerogrid['set_k'],subgrid['set_k']+self.aerogrid['set_k'].max()+1))
-                self.aerogrid['set_j'] = np.vstack((self.aerogrid['set_j'],subgrid['set_j']+self.aerogrid['set_j'].max()+1))
-                self.aerogrid['CD'] = np.hstack((self.aerogrid['CD'],subgrid['CD']))
-                self.aerogrid['CP'] = np.hstack((self.aerogrid['CP'],subgrid['CP']))
-                self.aerogrid['n'] += subgrid['n']
-                self.aerogrid['cornerpoint_panels'] = np.vstack((self.aerogrid['cornerpoint_panels'],subgrid['cornerpoint_panels']))
-                self.aerogrid['cornerpoint_grids'] = np.vstack((self.aerogrid['cornerpoint_grids'],subgrid['cornerpoint_grids']))
-    
+        if 'method_caero' in self.jcl.aero:
+            self.aerogrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'], method_caero = self.jcl.aero['method_caero']) 
+        else: # use default method defined in function
+            self.aerogrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf']) 
+
     def build_aero_matrices(self):
         # cast normal vector of panels into a matrix of form (n, n*6)
         self.aerogrid['Nmat'] = sp.lil_matrix((self.aerogrid['n'], self.aerogrid['n']*6), dtype=float)
