@@ -181,7 +181,7 @@ def add_GRIDS(pandas_grids):
     strcgrid['offset'] = pandas_grids[['X1', 'X2', 'X3']].to_numpy(dtype='float')
     return strcgrid
 
-def add_panels(pandas_panels):
+def add_shell_elements(pandas_panels):
     # This functions relies on the Pandas data frames from the bdf reader.
     cornerpoints = []
     # Loop over the rows to check for NaNs, which occur in case of three (CTRIA) instead of four (CQUAD) cornerpoints.
@@ -198,7 +198,7 @@ def add_panels(pandas_panels):
     strcshell['n']              = n
     return strcshell
     
-def get_panels_from_CAERO(pandas_caero, pandas_aefact):
+def add_panels_from_CAERO(pandas_caero, pandas_aefact):
     logging.info('Constructing aero panels from CAERO cards')
     # from CAERO cards, construct corner points... '
     # then, combine four corner points to one panel
@@ -389,25 +389,6 @@ def add_CORD1R(pandas_cord1r, coord, strcgrid):
             coord['offset'].append(A)
             coord['dircos'].append(dircos)
 
-def Modgen_AESURF(filename):    
-    aesurf = {'ID':[],
-              'key':[],
-              'CID':[],
-              'AELIST':[],
-              'eff':[],
-             }
-    with open(filename, 'r') as fid:
-        lines = fid.readlines()
-    for line in lines:
-        if str.find(line, 'AESURF') !=-1 and line[0] != '$':
-            # extract information from AESURF card
-            aesurf['ID'].append(nastran_number_converter(line[8:16], 'int'))
-            aesurf['key'].append(str.replace(line[16:24], ' ', ''))
-            aesurf['CID'].append(nastran_number_converter(line[24:32], 'int'))
-            aesurf['AELIST'].append(nastran_number_converter(line[32:40], 'int'))
-            aesurf['eff'].append(nastran_number_converter(line[56:64], 'float'))
-    return aesurf
-
 def add_AESURF(pandas_aesurfs):
     aesurf = {}
     aesurf['ID']        = pandas_aesurfs['ID'].to_list()
@@ -478,41 +459,3 @@ def add_MONPNT1(pandas_monpnts):
     mongrid['set']    = np.arange(n*6).reshape((n,6))
     mongrid['offset'] = pandas_monpnts[['X', 'Y', 'Z']].to_numpy(dtype='float')
     return mongrid
-
-def Modgen_W2GJ(filename):
-    logging.info('Read W2GJ data (correction of camber and twist) from ModGen file: %s' %filename)
-    ID = []
-    cam_rad = []
-    with open(filename, 'r') as fid:
-        lines = fid.readlines()
-    for line in lines:
-        if str.find(line, 'CAM_RAD') !=-1 and line[0] != '$':
-            pos_ID = line.split().index('ID-CAE1')
-            pos_BOX = line.split().index('ID-BOX')
-            pos_CAM_RAD = line.split().index('CAM_RAD')
-        elif line[0] != '$':
-            # ID of every single aero panel
-            ID.append(nastran_number_converter(line.split()[pos_ID], 'int') + nastran_number_converter(line.split()[pos_BOX], 'int') - 1)
-            cam_rad.append(nastran_number_converter(line.split()[pos_CAM_RAD], 'float'))
-
-    camber_twist = {'ID': np.array(ID),
-                    'cam_rad':np.array(cam_rad),
-                   }
-    return camber_twist
-
-def Nastran_NodeLocationReport(filename):
-    IDs = set()
-    with open(filename, 'r') as fid:
-        while True:
-            read_string = fid.readline()
-            if str.find(read_string, 'Node ID') !=-1 and read_string[0] != '$':
-                while True:
-                    read_string = fid.readline()
-                    if read_string.split() != [] and nastran_number_converter(read_string.split()[0], 'ID') != 0:
-                        IDs.add(nastran_number_converter(read_string.split()[0], 'ID'))
-                    else:
-                        break
-            elif read_string == '':
-                break
-
-        return list(IDs)     

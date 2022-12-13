@@ -60,7 +60,7 @@ def build_aerogrid(filename, method_caero = 'CAERO1'):
         # all corner points are defined as grid points by ModGen
         caero_grid = read_mona.add_GRIDS(bdf_reader.cards['GRID'].sort_values('ID'))
         # four grid points are assembled to one panel, this is expressed as CQUAD4s 
-        caero_panels = read_mona.add_panels(bdf_reader.cards['CQUAD4'].sort_values('ID'))
+        caero_panels = read_mona.add_shell_elements(bdf_reader.cards['CQUAD4'].sort_values('ID'))
     elif method_caero in ['CAERO1', 'CAERO7']:
         # parse given bdf files
         bdf_reader = read_bdf.Reader()
@@ -70,7 +70,7 @@ def build_aerogrid(filename, method_caero = 'CAERO1'):
         bdf_reader.cards['CAERO7']['NCHORD'] -= 1
         # combine CAERO7 and CAERO1 and use the same function to assemble aerodynamic panels
         combined_caero = pd.concat([bdf_reader.cards['CAERO1'], bdf_reader.cards['CAERO7']], ignore_index=True)
-        caero_grid, caero_panels = read_mona.get_panels_from_CAERO(combined_caero.sort_values('ID'), bdf_reader.cards['AEFACT'])
+        caero_grid, caero_panels = read_mona.add_panels_from_CAERO(combined_caero.sort_values('ID'), bdf_reader.cards['AEFACT'])
     elif method_caero in ['VLM4Prop']:
         caero_grid, caero_panels, cam_rad = loadskernel.engine_interfaces.propeller.read_propeller_input(filename)
     else:
