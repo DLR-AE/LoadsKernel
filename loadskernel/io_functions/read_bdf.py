@@ -117,7 +117,7 @@ class Reader(object):
             continuation character is given).
             """
             for i, line in enumerate(self.lines):
-                if len(self.lines) == 1 or line[9*width:].strip() != self.lines[i+1][:width].strip(): 
+                if len(self.lines) == i+1 or line[9*width:].strip() != self.lines[i+1][:width].strip(): 
                     n_lines = i+1
                     break
         # get the line to work with
