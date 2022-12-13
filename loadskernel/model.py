@@ -96,7 +96,10 @@ class Model:
                 self.mongrid = read_mona.Modgen_GRID(self.jcl.geom['filename_mongrid']) 
                 # we dont't get names for the monstations from simple grid points, so we make up a name
                 self.mongrid['name'] = [ 'MON{:s}'.format(str(ID)) for ID in self.mongrid['ID'] ]
-                self.coord = read_mona.Modgen_CORD2R(self.jcl.geom['filename_moncoord'], self.coord)
+                # build additional coordinate systems
+                self.bdf_reader.process_deck(self.jcl.geom['filename_moncoord'])
+                read_mona.add_CORD2R(self.bdf_reader.cards['CORD2R'], self.coord)
+                read_mona.add_CORD1R(self.bdf_reader.cards['CORD1R'], self.coord, self.strcgrid)
                 rules = spline_rules.monstations_from_bdf(self.mongrid, self.jcl.geom['filename_monstations'])
                 self.build_mongrid_matrices(rules)
             elif 'filename_monpnt' in self.jcl.geom and not self.jcl.geom['filename_monpnt'] == '':
