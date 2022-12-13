@@ -331,11 +331,11 @@ def CAERO(filename, i_file):
     grids['offset'] = np.array(grids['offset'])
     return grids, panels      
 
-def get_panels_from_CAERO(pandas_caero, pandas_aefact, i_file):
+def get_panels_from_CAERO(pandas_caero, pandas_aefact):
     logging.info('Constructing aero panels from CAERO cards')
     # from CAERO cards, construct corner points... '
     # then, combine four corner points to one panel
-    grid_ID = i_file * 100000 # the file number is used to set a range of grid IDs 
+    grid_ID = 1 # the file number is used to set a range of grid IDs 
     grids = {'ID':[], 'offset':[]}
     panels = {"ID": [], 'CP':[], 'CD':[], "cornerpoints": []}
     for index, caerocard in pandas_caero.iterrows():

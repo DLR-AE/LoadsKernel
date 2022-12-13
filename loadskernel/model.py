@@ -205,33 +205,11 @@ class Model:
             
     def build_aerogrid(self):
         # grids
-        for i_file in range(len(self.jcl.aero['filename_caero_bdf'])):
-            if 'method_caero' in self.jcl.aero:
-                subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file], method_caero = self.jcl.aero['method_caero'], i_file=i_file) 
-            else: # use default method defined in function
-                subgrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'][i_file]) 
-            if i_file == 0:
-                self.aerogrid =  subgrid
-            else:
-                self.aerogrid['ID'] = np.hstack((self.aerogrid['ID'],subgrid['ID']))
-                self.aerogrid['l'] = np.hstack((self.aerogrid['l'],subgrid['l']))
-                self.aerogrid['A'] = np.hstack((self.aerogrid['A'],subgrid['A']))
-                self.aerogrid['N'] = np.vstack((self.aerogrid['N'],subgrid['N']))
-                self.aerogrid['offset_l'] = np.vstack((self.aerogrid['offset_l'],subgrid['offset_l']))
-                self.aerogrid['offset_k'] = np.vstack((self.aerogrid['offset_k'],subgrid['offset_k']))
-                self.aerogrid['offset_j'] = np.vstack((self.aerogrid['offset_j'],subgrid['offset_j']))
-                self.aerogrid['offset_P1'] = np.vstack((self.aerogrid['offset_P1'],subgrid['offset_P1']))
-                self.aerogrid['offset_P3'] = np.vstack((self.aerogrid['offset_P3'],subgrid['offset_P3']))
-                self.aerogrid['r'] = np.vstack((self.aerogrid['r'],subgrid['r']))
-                self.aerogrid['set_l'] = np.vstack((self.aerogrid['set_l'],subgrid['set_l']+self.aerogrid['set_l'].max()+1))
-                self.aerogrid['set_k'] = np.vstack((self.aerogrid['set_k'],subgrid['set_k']+self.aerogrid['set_k'].max()+1))
-                self.aerogrid['set_j'] = np.vstack((self.aerogrid['set_j'],subgrid['set_j']+self.aerogrid['set_j'].max()+1))
-                self.aerogrid['CD'] = np.hstack((self.aerogrid['CD'],subgrid['CD']))
-                self.aerogrid['CP'] = np.hstack((self.aerogrid['CP'],subgrid['CP']))
-                self.aerogrid['n'] += subgrid['n']
-                self.aerogrid['cornerpoint_panels'] = np.vstack((self.aerogrid['cornerpoint_panels'],subgrid['cornerpoint_panels']))
-                self.aerogrid['cornerpoint_grids'] = np.vstack((self.aerogrid['cornerpoint_grids'],subgrid['cornerpoint_grids']))
-    
+        if 'method_caero' in self.jcl.aero:
+            self.aerogrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'], method_caero = self.jcl.aero['method_caero']) 
+        else: # use default method defined in function
+            self.aerogrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf']) 
+
     def build_aero_matrices(self):
         # cast normal vector of panels into a matrix of form (n, n*6)
         self.aerogrid['Nmat'] = sp.lil_matrix((self.aerogrid['n'], self.aerogrid['n']*6), dtype=float)
