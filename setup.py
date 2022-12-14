@@ -1,8 +1,9 @@
 """
-Setup file, currently supports:
-
-- installation via "pip install --user -e <repo_path>"
-- installation via "python setup.py develop --user"
+Setup file 
+Install Loads Kernel via: 
+- pip install --user -e <repo_path>
+In case Panel-Aero is not yet installed: 
+- pip install git+https://gitlab.dlr.de/loads-kernel/panel-aero.git
 """
 
 from setuptools import setup, find_packages
@@ -24,7 +25,7 @@ def my_setup():
                         'loadscompare': ['graphics/*.*'],},
           python_requires='>=3.8',
           install_requires=[
-                            'Panel-Aero @ git+https://gitlab.dlr.de/loads-kernel/panel-aero.git',
+                            'Panel-Aero',
                             'matplotlib',
                             'mayavi',
                             'traits', 
