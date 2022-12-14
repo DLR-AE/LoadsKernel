@@ -2,9 +2,26 @@ variables:
   GIT_STRATEGY: clone
 
 stages:
+  - build
   - test
   - deploy
 
+.virtenv: &virtualenv
+  # To make things faster, re-use existing site packages. 
+  # Python's venv comes with an older version of pip, so don't use it.
+  - python -m venv virtualenv --system-site-packages --without-pip
+  - . virtualenv/bin/activate
+
+build:
+  # This stage only tests if the installation is possible.
+  # The evironment created herein will be discared and re-created in the test stage.
+  stage: build
+  tags:
+    - lk
+  script:
+    - *virtualenv
+    - pip install git+https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/panel-aero.git
+    - pip install .
 
 test:
   stage: test
@@ -12,10 +29,19 @@ test:
   coverage: '/^TOTAL.+?(\d+\%)$/'
   tags:
     - lk
+  dependencies:
+    - build
   script:
+    # Set-up the environement
+    - *virtualenv
+    - pip install git+https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/panel-aero.git
+    - pip install .
     - which python
     - which pytest
     - which mpiexec
+    # Get the examples repository
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
+    # Run the actual testing
     - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml
     - coverage xml -o coverage.xml
     - coverage report
@@ -39,6 +65,7 @@ pages:
   dependencies:
     - test
   script:
+    # Publish the coverage results
     - mkdir public
     - mv coverage public/coverage
   artifacts:
