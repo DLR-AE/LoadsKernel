@@ -35,7 +35,8 @@ test:
     # Set-up the environement
     - *virtualenv
     - pip install git+https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/panel-aero.git
-    - pip install .
+    # Install with -e (in editable mode) to allow the tracking of the test coverage
+    - pip install -e .
     - which python
     - which pytest
     - which mpiexec
