@@ -281,7 +281,7 @@ class LoadPlots(object):
             i_max = np.argmax(loads[:,:,i_cuttingforce], 1)
             i_min = np.argmin(loads[:,:,i_cuttingforce], 1)
             self.subplot.cla()
-            if len(self.jcl.trimcase) > 50:
+            if loads.shape[1] > 50:
                 logging.debug('plotting of every load case skipped due to large number (>50) of cases')
             else:
                 self.subplot.plot(offsets[:,1],loads[:,:,i_cuttingforce], color='cornflowerblue', linestyle='-', marker='.', zorder=-2)
