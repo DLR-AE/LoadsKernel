@@ -87,7 +87,7 @@ class Model:
             # parse given bdf files
             self.bdf_reader.process_deck(self.jcl.geom['filename_shell'])
             # assemble strcshell from CTRIA3 and CQUAD4 elements
-            self.newshell = read_mona.add_shell_elements(pd.concat([self.bdf_reader.cards['CQUAD4'], self.bdf_reader.cards['CTRIA3']], ignore_index=True))
+            self.strcshell = read_mona.add_shell_elements(pd.concat([self.bdf_reader.cards['CQUAD4'], self.bdf_reader.cards['CTRIA3']], ignore_index=True))
 
     def build_mongrid(self):
         if self.jcl.geom['method'] in ['mona', 'CoFE']:
