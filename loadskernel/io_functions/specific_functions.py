@@ -168,27 +168,6 @@ def load_next(file_object):
         file_object.close()
         logging.critical( 'End of file; file closed; Nothing to return.')
         return
-        
-def copy_para_file(jcl, timcase):
-    para_path = check_path(jcl.aero['para_path'])
-    src = para_path+jcl.aero['para_file']
-    dst = para_path+'para_subcase_{}'.format(timcase['subcase'])
-    shutil.copyfile(src, dst)
-    
-def check_para_path(jcl):
-    jcl.aero['para_path'] = check_path(jcl.aero['para_path'])
-
-def check_tau_folders(jcl):
-    para_path = check_path(jcl.aero['para_path'])
-    # check and create default folders for Tau
-    if not os.path.exists(os.path.join(para_path, 'log')):
-        os.makedirs(os.path.join(para_path, 'log'))
-    if not os.path.exists(os.path.join(para_path, 'sol')):
-        os.makedirs(os.path.join(para_path, 'sol'))
-    if not os.path.exists(os.path.join(para_path, 'defo')):
-        os.makedirs(os.path.join(para_path, 'defo'))
-    if not os.path.exists(os.path.join(para_path, 'dualgrid')):
-        os.makedirs(os.path.join(para_path, 'dualgrid'))
 
 def check_path(path):
     if not os.path.exists(path):

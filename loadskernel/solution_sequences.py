@@ -9,7 +9,7 @@ import scipy.optimize as so
 import logging, copy
 from scipy.integrate import ode
 
-from loadskernel.integrate import RungeKutta4, ExplicitEuler
+from loadskernel.integrate import RungeKutta4, ExplicitEuler, AdamsBashforth
 import loadskernel.io_functions.specific_functions as specific_io
 
 from loadskernel.equations.steady     import Steady
@@ -288,9 +288,6 @@ class SolutionSequences(TrimConditions):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = Steady(self)
         elif self.jcl.aero['method'] in [ 'cfd_steady', 'cfd_unsteady']:
-            specific_io.check_para_path(self.jcl)
-            specific_io.copy_para_file(self.jcl, self.trimcase)
-            specific_io.check_tau_folders(self.jcl)
             equations = CfdSteady(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
@@ -374,7 +371,10 @@ class SolutionSequences(TrimConditions):
         dt = self.simcase['dt']
         t_final = self.simcase['t_final']
         logging.info('Running time simulation for ' + str(t_final) + ' sec...')
-        integrator = self.select_integrator(equations, 'Adams-Bashforth')
+        if self.jcl.aero['method'] in [ 'cfd_unsteady']:
+            integrator = self.select_integrator(equations, 'AdamsBashforth_FixedTimeStep')
+        else: 
+            integrator = self.select_integrator(equations, 'AdamsBashforth')
         integrator.set_initial_value(X0, 0.0)
         xt = []
         t = []
@@ -398,7 +398,7 @@ class SolutionSequences(TrimConditions):
             logging.warning('Integration failed!')
             return
     
-    def select_integrator(self, equations, integration_scheme='Adams-Bashforth'):
+    def select_integrator(self, equations, integration_scheme='AdamsBashforth'):
         """
         Select an ode integration scheme:
         - two methods from scipy.integrate.ode (Adams-Bashforth and RK45) with variable time step size and 
@@ -410,7 +410,9 @@ class SolutionSequences(TrimConditions):
             integrator = RungeKutta4(equations.ode_arg_sorter).set_integrator(stepwidth=1e-4)
         elif integration_scheme == 'Euler_FixedTimeStep':
             integrator = ExplicitEuler(equations.ode_arg_sorter).set_integrator(stepwidth=1e-4)
-        elif integration_scheme == 'Adams-Bashforth':
+        elif integration_scheme == 'AdamsBashforth_FixedTimeStep':
+            integrator = AdamsBashforth(equations.ode_arg_sorter).set_integrator(stepwidth=1e-4)
+        elif integration_scheme == 'AdamsBashforth':
             integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-4, atol=1e-4, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
         elif integration_scheme == 'RK45':
             integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=1e-4)

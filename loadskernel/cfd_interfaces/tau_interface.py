@@ -11,10 +11,32 @@ except:
     pass
 
 import numpy as np
-import logging, os, subprocess, shlex, sys, platform
+import logging, os, subprocess, shlex, sys, platform, shutil
 import scipy.io.netcdf as netcdf
 
 import loadskernel.cfd_interfaces.meshdefo as meshdefo
+from loadskernel.io_functions.specific_functions import check_path
+
+def copy_para_file(jcl, trimcase):
+    para_path = check_path(jcl.aero['para_path'])
+    src = para_path+jcl.aero['para_file']
+    dst = para_path+'para_subcase_{}'.format(trimcase['subcase'])
+    shutil.copyfile(src, dst)
+    
+def check_para_path(jcl):
+    jcl.aero['para_path'] = check_path(jcl.aero['para_path'])
+
+def check_cfd_folders(jcl):
+    para_path = check_path(jcl.aero['para_path'])
+    # check and create default folders for Tau
+    if not os.path.exists(os.path.join(para_path, 'log')):
+        os.makedirs(os.path.join(para_path, 'log'))
+    if not os.path.exists(os.path.join(para_path, 'sol')):
+        os.makedirs(os.path.join(para_path, 'sol'))
+    if not os.path.exists(os.path.join(para_path, 'defo')):
+        os.makedirs(os.path.join(para_path, 'defo'))
+    if not os.path.exists(os.path.join(para_path, 'dualgrid')):
+        os.makedirs(os.path.join(para_path, 'dualgrid'))
 
 class TauInterface(object):
     
@@ -41,6 +63,11 @@ class TauInterface(object):
             logging.error('Wrong MPI implementation detected (Tau requires OpenMPI).')
         # Set-up a list of hosts on which MPI shall be executed.
         self.setup_mpi_hosts(n_workers=1)
+        
+        # Set-up file system structure
+        check_para_path(self.jcl)
+        copy_para_file(self.jcl, self.trimcase)
+        check_cfd_folders(self.jcl)
     
     def setup_mpi_hosts(self, n_workers):
         # Set-up a list of hosts on which MPI shall be executed.

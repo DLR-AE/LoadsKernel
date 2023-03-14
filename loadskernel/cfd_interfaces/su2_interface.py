@@ -6,6 +6,7 @@ import loadskernel.cfd_interfaces.meshdefo as meshdefo
 import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
 from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
+from loadskernel.cfd_interfaces.tau_interface import check_para_path, copy_para_file, check_cfd_folders
 
 try:
     import SU2, pysu2
@@ -18,6 +19,7 @@ class SU2Interface(meshdefo.Meshdefo):
         self.model      = solution.model
         self.jcl        = solution.jcl
         self.trimcase   = solution.trimcase
+        self.simcase    = solution.simcase
         # get some indices
         self.i_atmo     = self.model.atmo['key'].index(self.trimcase['altitude'])
         self.i_mass     = self.model.mass['key'].index(self.trimcase['mass'])
@@ -39,6 +41,11 @@ class SU2Interface(meshdefo.Meshdefo):
         else:
             logging.error('pysu2 was/could NOT be imported! Model equations of type "{}" will NOT work.'.format(self.jcl.aero['method']))
         self.FluidSolver = None
+        
+        # Set-up file system structure
+        check_para_path(self.jcl)
+        copy_para_file(self.jcl, self.trimcase)
+        check_cfd_folders(self.jcl)
         
     def prepare_meshdefo(self, Uf, Ux2):
         """
@@ -135,7 +142,11 @@ class SU2Interface(meshdefo.Meshdefo):
                                                         self.model.mass['cggrid'][self.i_mass]['offset'][0,2])
             config['MACH_MOTION'] = self.trimcase['Ma']
             # there is no restart for the first execution
-            config['RESTART_SOL'] = 'NO'
+            # config['RESTART_SOL'] = 'NO'
+            # detrimine cfd solution output
+            config['OUTPUT_FILES']= ['RESTART', 'RESTART_ASCII', 'TECPLOT', 'SURFACE_TECPLOT']
+            # set intemediate outputs
+            # config['OUTPUT_WRT_FREQ']= 1
             
             # do the update
             # config.write() maintains the original layout of the file but doesn't add new parameters
@@ -150,7 +161,7 @@ class SU2Interface(meshdefo.Meshdefo):
             self.FluidSolver = pysu2.CSinglezoneDriver(para_filename, 1, self.comm)
             self.get_local_mesh()
     
-    def update_timedom_para(self, simcase):
+    def update_timedom_para(self):
         """
         In this section, the time domain-related parameters are updated. 
         """
@@ -162,7 +173,46 @@ class SU2Interface(meshdefo.Meshdefo):
             config['TIME_STEP']     = self.stepwidth
             config['TIME_ITER']     = self.simcase['t_final']/self.stepwidth
             config['MAX_TIME']      = self.simcase['t_final']
-
+            
+            """
+            Perform an unsteady restart from a steady solution currently involves the following steps
+            (as discussed here: https://github.com/su2code/SU2/discussions/1964):
+            - Link the steady solution twice (e.g. restart_00000.dat and restart_00001.dat)
+            - Restart the unsteady solution with RESTART_ITER= 2
+            - Because SU2 requires both the .dat and the .csv file, this involves four file operations.
+            """
+            config['RESTART_SOL']   = 'YES'
+            config['RESTART_ITER']  = 2
+            # create links for the .dat files...
+            filename_steady = self.jcl.aero['para_path']+'sol/restart_subcase_{}.dat'.format(self.trimcase['subcase'])
+            filename_unsteady0 = self.jcl.aero['para_path']+'sol/restart_subcase_{}_00000.dat'.format(self.trimcase['subcase'])
+            filename_unsteady1 = self.jcl.aero['para_path']+'sol/restart_subcase_{}_00001.dat'.format(self.trimcase['subcase'])
+            try:
+                os.symlink(filename_steady, filename_unsteady0)
+                os.symlink(filename_steady, filename_unsteady1)
+            except:
+                # Do nothing, the most likely cause is that the file already exists.
+                pass
+            # ...and for the .csv files
+            filename_steady = self.jcl.aero['para_path']+'sol/restart_subcase_{}.csv'.format(self.trimcase['subcase'])
+            filename_unsteady0 = self.jcl.aero['para_path']+'sol/restart_subcase_{}_00000.csv'.format(self.trimcase['subcase'])
+            filename_unsteady1 = self.jcl.aero['para_path']+'sol/restart_subcase_{}_00001.csv'.format(self.trimcase['subcase'])
+            try:
+                os.symlink(filename_steady, filename_unsteady0)
+                os.symlink(filename_steady, filename_unsteady1)
+            except:
+                pass
+            
+            """
+            In the time domain, simply rely on the the density residual to establish convergence.
+            This is because SU2 only needs a few inner iterations per time step, which are too few for a meaningful 
+            cauchy convergence.
+            """
+            if 'CONV_FIELD' in config:
+                config.pop('CONV_FIELD')
+            config['INNER_ITER'] = 3
+            config['CONV_RESIDUAL_MINVAL'] = -6
+            
             # do the update
             config.dump(para_filename)
             logging.info('SU2 parameter file updated.')
@@ -207,7 +257,7 @@ class SU2Interface(meshdefo.Meshdefo):
             config.dump(para_filename)
             logging.info('SU2 parameter file updated.')
         
-    def run_solver(self):
+    def run_solver(self, i_timestep=0):
         logging.debug('This is process {} and I wait for the mpi barrier in "run_solver()"'.format(self.myid))
         self.comm.barrier()
         logging.info('Launch SU2.')
@@ -218,12 +268,12 @@ class SU2Interface(meshdefo.Meshdefo):
             self.prepare_initial_solution()
         # run solver
         #self.FluidSolver.StartSolver()
-        self.FluidSolver.Preprocess(0)
+        self.FluidSolver.Preprocess(i_timestep)
         self.FluidSolver.Run()
         self.FluidSolver.Postprocess()
         # write outputs and restart file(s)
-        self.FluidSolver.Monitor(0) 
-        self.FluidSolver.Output(0)
+        self.FluidSolver.Monitor(i_timestep) 
+        self.FluidSolver.Output(i_timestep)
         self.comm.barrier()
         
         logging.debug('CFD computation performed in {:.2f} seconds.'.format(time.time() - t_start))

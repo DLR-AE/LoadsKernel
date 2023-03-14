@@ -134,7 +134,9 @@ class CfdUnsteady(CfdSteady):
         self.cfd_interface.update_general_para()
         self.cfd_interface.prepare_motion(X[6:12])
         self.cfd_interface.prepare_meshdefo(Uf, Ux2)
-        self.cfd_interface.run_solver()
+        # Remember to start SU2 at time step 2, because steps 0 and 1 are taken up by the steady restart solution.
+        # To establish the current time step, we can reuse the existing counter.
+        self.cfd_interface.run_solver(i_timestep=self.counter+1)
         Pcfd = self.cfd_interface.get_last_solution()
         
         Pk_rbm      = np.zeros(6*self.model.aerogrid['n'])
