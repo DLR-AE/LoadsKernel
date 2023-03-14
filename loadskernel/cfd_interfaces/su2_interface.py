@@ -23,6 +23,8 @@ class SU2Interface(meshdefo.Meshdefo):
         self.i_mass     = self.model.mass['key'].index(self.trimcase['mass'])
         # set switch for first execution
         self.first_execution = True
+        # stepwidth for time domain simulation
+        self.stepwidth = 1.0e-4
         
         # Initialize and check if MPI can be used, SU2 requires MPICH
         self.have_mpi, self.comm, self.status, self.myid = setup_mpi(debug=False)
@@ -69,11 +71,11 @@ class SU2Interface(meshdefo.Meshdefo):
         # a node that belongs to a moving surface marker.
         has_moving_marker = [marker in solver_marker_ids.keys() for marker in solver_all_moving_markers]
         # In SU2, markers are tracked by their name, not by their ID, and the ID might differ.
-        lk_markers = [cfdgrid['desc'] for cfdgrid in self.model.cfdgrids]
+        # lk_markers = [cfdgrid['desc'] for cfdgrid in self.model.cfdgrids]
         
         for marker in solver_all_moving_markers[has_moving_marker]:
             solver_marker_id = solver_marker_ids[marker]
-            lk_marker_id = lk_markers.index(marker)
+            # lk_marker_id = lk_markers.index(marker)
             
             # Check:  marker == self.cfdgrids[lk_marker_id]['desc']
             n_vertices = self.FluidSolver.GetNumberVertices(solver_marker_id)
@@ -86,92 +88,134 @@ class SU2Interface(meshdefo.Meshdefo):
                 self.FluidSolver.SetMeshDisplacement(solver_marker_id, i_vertex, disp_x, disp_y, disp_z)
         logging.debug('All surface mesh deformations set.')
     
-    def update_para(self, uvwpqr):
+    def prepare_motion(self, uvwpqr):
         """
-        In this section, the parameter file is updated. So far, I haven't found a way to do this via pysu2.
-        This also means that the solver must be initialized with the new parameter file every time.
+        Communicate the translational and rotational velocities to the CFD solver, e.g. before a new iteration step.
+        The CFD coordinate system is typically aft-right-up and the values are given m/s and in rad/s.
+        """
+        # translate the translational and rotational velocities into the right coordinate system
+        u, v, w = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[:3]
+        p, q, r = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[3:]
+        # communicate the new values to the CFD solver
+        logging.info('Sending translational and rotational velocities to SU2.')
+        self.FluidSolver.SetTranslationRate(xDot=u, yDot=v, zDot=w)
+        self.FluidSolver.SetRotationRate(rot_x=p, rot_y=q, rot_z=r)
+    
+    def update_general_para(self):
+        """
+        In this section, the parameter file is updated. So far, I haven't found a way to do this via pysu2 for all parameters.
+        This also means that the solver must be initialized with the new parameter file in case the file is updated.
         """
         # derive name of para file for this subcase
         para_filename = self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase'])
-        initialize_su2 = True
-        if self.myid == 0:
+        if self.first_execution and self.myid == 0:
             # read all existing parameters
             config = SU2.io.Config(para_filename)
-            config_old = copy.deepcopy(config)
-            if self.first_execution:
-                # set general parameters, which don't change over the course of the CFD simulation, so they are only updated 
-                # for the first execution
-                config['MESH_FILENAME'] = self.jcl.meshdefo['surface']['filename_grid']
-                config['RESTART_FILENAME'] = self.jcl.aero['para_path']+'sol/restart_subcase_{}.dat'.format(self.trimcase['subcase'])
-                config['SOLUTION_FILENAME'] = self.jcl.aero['para_path']+'sol/restart_subcase_{}.dat'.format(self.trimcase['subcase'])
-                config['SURFACE_FILENAME'] = self.jcl.aero['para_path']+'sol/surface_subcase_{}'.format(self.trimcase['subcase'])
-                config['VOLUME_FILENAME']  = self.jcl.aero['para_path']+'sol/volume_subcase_{}'.format(self.trimcase['subcase'])
-                config['CONV_FILENAME']    = self.jcl.aero['para_path']+'sol/history_subcase_{}'.format(self.trimcase['subcase'])
-                # free stream definition
-                config['FREESTREAM_TEMPERATURE'] = self.model.atmo['T'][self.i_atmo]
-                config['FREESTREAM_DENSITY']     = self.model.atmo['rho'][self.i_atmo]
-                config['FREESTREAM_PRESSURE']    = self.model.atmo['p'][self.i_atmo]
-                # make sure that the free stream onflow is zero
-                config['MACH_NUMBER'] = 0.0
-                # activate grid deformation
-                config['DEFORM_MESH'] = 'YES'
-                config['MARKER_DEFORM_MESH'] = '( '+', '.join(self.jcl.meshdefo['surface']['markers'])+' )'
-                # activate grid movement
-                config['GRID_MOVEMENT'] = 'ROTATING_FRAME'
-                config['MOTION_ORIGIN'] = '{} {} {}'.format(self.model.mass['cggrid'][self.i_mass]['offset'][0,0],
-                                                            self.model.mass['cggrid'][self.i_mass]['offset'][0,1],
-                                                            self.model.mass['cggrid'][self.i_mass]['offset'][0,2])
-                config['MACH_MOTION'] = self.trimcase['Ma']
-                # there is no restart for the first execution
-                config['RESTART_SOL'] = 'NO'
-            else: 
-                config['RESTART_SOL'] = 'YES'
-            # update the translational velocities via angle of attack and side slip, given in degree
-            # using only the translational velocities resulted in NaNs for the nodal forces
-            u, v, w = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[:3]
-            config['TRANSLATION_RATE'] = '{} {} {}'.format(u, v, w)
-            # with alpha = np.arctan(w/u) and beta = np.arctan(v/u)
-            #config['AOA']            = np.arctan(w/u)/np.pi*180.0
-            # for some reason, the sideslip angle is parsed as as string...
-            #config['SIDESLIP_ANGLE'] = '{}'.format(np.arctan(v/u)/np.pi*180.0)
-            # rotational velocities, given in rad/s in the CFD coordinate system (aft-right-up) ??
-            p, q, r = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[3:]
-            config['ROTATION_RATE'] = '{} {} {}'.format(p, q, r)
-        
-            # Find out if the configuration file changed. 
-            # If this is the case, then we need to initialize SU2 again.
-            parameter_added = [key not in config_old for key in config]
-            parameter_changed = [config_old[key] != config[key] for key in config_old]
-            if np.any(parameter_added) or np.any(parameter_changed):
-                # do the update
-                # config.write() maintains the original layout of the file but doesn't add new parameters
-                # config.dump() writes all parameters in a weird order, including default values
-                config.dump(para_filename)
-                logging.info('SU2 parameters updated.')
-                initialize_su2 = True
-            else:
-                logging.info('SU2 parameters are unchanged.')
-                initialize_su2 = False
-        
-        
+            # set general parameters, which don't change over the course of the CFD simulation, so they are only updated 
+            # for the first execution
+            config['MESH_FILENAME'] = self.jcl.meshdefo['surface']['filename_grid']
+            config['RESTART_FILENAME'] = self.jcl.aero['para_path']+'sol/restart_subcase_{}.dat'.format(self.trimcase['subcase'])
+            config['SOLUTION_FILENAME'] = self.jcl.aero['para_path']+'sol/restart_subcase_{}.dat'.format(self.trimcase['subcase'])
+            config['SURFACE_FILENAME'] = self.jcl.aero['para_path']+'sol/surface_subcase_{}'.format(self.trimcase['subcase'])
+            config['VOLUME_FILENAME']  = self.jcl.aero['para_path']+'sol/volume_subcase_{}'.format(self.trimcase['subcase'])
+            config['CONV_FILENAME']    = self.jcl.aero['para_path']+'sol/history_subcase_{}'.format(self.trimcase['subcase'])
+            # free stream definition
+            config['FREESTREAM_TEMPERATURE'] = self.model.atmo['T'][self.i_atmo]
+            config['FREESTREAM_DENSITY']     = self.model.atmo['rho'][self.i_atmo]
+            config['FREESTREAM_PRESSURE']    = self.model.atmo['p'][self.i_atmo]
+            # make sure that the free stream onflow is zero
+            config['MACH_NUMBER'] = 0.0
+            # activate grid deformation
+            config['DEFORM_MESH'] = 'YES'
+            config['MARKER_DEFORM_MESH'] = '( '+', '.join(self.jcl.meshdefo['surface']['markers'])+' )'
+            # activate grid movement
+            config['GRID_MOVEMENT'] = 'ROTATING_FRAME'
+            config['MOTION_ORIGIN'] = '{} {} {}'.format(self.model.mass['cggrid'][self.i_mass]['offset'][0,0],
+                                                        self.model.mass['cggrid'][self.i_mass]['offset'][0,1],
+                                                        self.model.mass['cggrid'][self.i_mass]['offset'][0,2])
+            config['MACH_MOTION'] = self.trimcase['Ma']
+            # there is no restart for the first execution
+            config['RESTART_SOL'] = 'NO'
+            
+            # do the update
+            # config.write() maintains the original layout of the file but doesn't add new parameters
+            # config.dump() writes all parameters in a weird order, including default values
+            config.dump(para_filename)
+            logging.info('SU2 parameter file updated.')
         # make sure that all process wait until the new parameter file is written
         self.comm.barrier()
-        initialize_su2 = self.comm.bcast(initialize_su2, root=0)
-        if initialize_su2:
-            # then initialize SU2 on all processes
+        if self.first_execution:
             logging.info('Initializing SU2.')
             self.release_memory()
             self.FluidSolver = pysu2.CSinglezoneDriver(para_filename, 1, self.comm)
             self.get_local_mesh()
-        else:
-            logging.info('Reusing SU2 instance.')
+    
+    def update_timedom_para(self, simcase):
+        """
+        In this section, the time domain-related parameters are updated. 
+        """
+        para_filename = self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase'])
+        if self.first_execution and self.myid == 0:
+            config = SU2.io.Config(para_filename)
+            config['TIME_DOMAIN']   = 'YES'
+            config['TIME_MARCHING'] = 'DUAL_TIME_STEPPING-2ND_ORDER'
+            config['TIME_STEP']     = self.stepwidth
+            config['TIME_ITER']     = self.simcase['t_final']/self.stepwidth
+            config['MAX_TIME']      = self.simcase['t_final']
 
+            # do the update
+            config.dump(para_filename)
+            logging.info('SU2 parameter file updated.')
+        
+    def update_gust_para(self, simcase, Vtas, Vgust):
+        """
+        In this section, the gust-related parameters are updated. 
+        """
+        para_filename = self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase'])
+        if self.first_execution and self.myid == 0:
+            config = SU2.io.Config(para_filename)
+            config['WIND_GUST']         = 'YES'
+            config['GUST_TYPE']         = 'ONE_M_COSINE'
+            """
+            Establish the gust direction as SU2 can handle gusts either in x, y or z-direction. Arbitrary gust 
+            orientations are currently not supported. By swithing the sign of the gust velocity, gusts from 
+            four different directions are possible. This should cover most of our applications, though.
+            """
+            if self.simcase['gust_orientation'] in [0.0, 360.0]:
+                config['GUST_DIR'] = 'Z_DIR'
+                config['GUST_AMPL'] = Vgust
+            elif self.simcase['gust_orientation'] == 180.0:
+                config['GUST_DIR'] = 'Z_DIR'
+                config['GUST_AMPL'] = -Vgust
+            elif self.simcase['gust_orientation'] == 90.0:
+                config['GUST_DIR'] = 'Y_DIR'
+                config['GUST_AMPL'] = Vgust
+            elif self.simcase['gust_orientation'] == 270.0:
+                config['GUST_DIR'] = 'Y_DIR'
+                config['GUST_AMPL'] = -Vgust
+            else:
+                logging.error( 'Gust orientation {} currently NOT supported by SU2. \
+                                Possible values: 0.0, 90.0, 180.0, 270.0 or 360.0 degrees.'.format(self.simcase['gust_orientation']))
+            # Note: In SU2 this is the full gust length, not the gust gradient H (half gust length).
+            config['GUST_WAVELENGTH']   = 2.0*self.simcase['gust_gradient']
+            config['GUST_PERIODS']      = 1.0
+            config['GUST_AMPL']         = Vgust
+            config['GUST_BEGIN_TIME']   = 0.0
+            config['GUST_BEGIN_LOC']    = -2.0*self.simcase['gust_gradient'] - self.simcase['gust_para']['T1']/Vtas
+
+            # do the update
+            config.dump(para_filename)
+            logging.info('SU2 parameter file updated.')
+        
     def run_solver(self):
         logging.debug('This is process {} and I wait for the mpi barrier in "run_solver()"'.format(self.myid))
         self.comm.barrier()
         logging.info('Launch SU2.')
-        # starts timer
+        # start timer
         t_start = time.time()
+        # initialize SU2 if this is the first run.
+        if self.first_execution == True:
+            self.prepare_initial_solution()
         # run solver
         #self.FluidSolver.StartSolver()
         self.FluidSolver.Preprocess(0)
@@ -181,8 +225,7 @@ class SU2Interface(meshdefo.Meshdefo):
         self.FluidSolver.Monitor(0) 
         self.FluidSolver.Output(0)
         self.comm.barrier()
-        if self.first_execution == True:
-            self.first_execution = False
+        
         logging.debug('CFD computation performed in {:.2f} seconds.'.format(time.time() - t_start))
         
     def get_last_solution(self):
@@ -211,10 +254,15 @@ class SU2Interface(meshdefo.Meshdefo):
         logging.debug('All nodal loads recovered, sorted and gathered in {:.2f} sec.'.format(time.time() - t_start))
         return Pcfd
     
-    def prepare_initial_solution(self):   
-        pass
+    def prepare_initial_solution(self):
+        """
+        So far, starting SU2 with different, more robust parameters was not necessary.        
+        """
+        # Change the first_execution flag
+        self.first_execution = False
     
     def release_memory(self):
+        # In case SU2 is re-initialized, release the memory taken by the old instance.
         if self.FluidSolver != None:
             self.FluidSolver.Postprocessing()
     

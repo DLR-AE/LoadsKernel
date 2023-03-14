@@ -78,22 +78,8 @@ class TauInterface(object):
         Para.update(para_dict, 'group end', 0,)
         self.pytau_close()
     
-    def update_para(self, uvwpqr):
-        Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))   
-        # Para.update(para_dict, block_key, block_id, key, key_value, sub_file, para_replace)
-        if self.first_execution:
-            # set general parameters, which don't change over the course of the CFD simulation, so they are only updated 
-            # for the first execution
-            para_dict = {'Reference Mach number': self.trimcase['Ma'],
-                         'Reference temperature': self.model.atmo['T'][self.i_atmo],
-                         'Reference density': self.model.atmo['rho'][self.i_atmo],
-                         'Number of domains': self.jcl.aero['tau_cores'],
-                         'Number of primary grid domains': self.jcl.aero['tau_cores'],
-                         'Output files prefix': './sol/subcase_{}'.format(self.trimcase['subcase']),
-                         'Grid prefix': './dualgrid/subcase_{}'.format(self.trimcase['subcase']),
-                         }
-            Para.update(para_dict)
-        
+    def prepare_motion(self, uvwpqr):
+        Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))
         # set aircraft motion related parameters
         # given in local, body-fixed reference frame, see Tau User Guide Section 18.1 "Coordinate Systems of the TAU-Code"
         # rotations in [deg], translations in grid units
@@ -110,7 +96,33 @@ class TauInterface(object):
         Para.update(para_dict, 'mdf end', 0,)
         logging.debug("Parameters updated.")
         self.pytau_close()
+    
+    def update_general_para(self):
+        if self.first_execution:
+            Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))   
+            # Para.update(para_dict, block_key, block_id, key, key_value, sub_file, para_replace)
         
+            # set general parameters, which don't change over the course of the CFD simulation, so they are only updated 
+            # for the first execution
+            para_dict = {'Reference Mach number': self.trimcase['Ma'],
+                         'Reference temperature': self.model.atmo['T'][self.i_atmo],
+                         'Reference density': self.model.atmo['rho'][self.i_atmo],
+                         'Number of domains': self.jcl.aero['tau_cores'],
+                         'Number of primary grid domains': self.jcl.aero['tau_cores'],
+                         'Output files prefix': './sol/subcase_{}'.format(self.trimcase['subcase']),
+                         'Grid prefix': './dualgrid/subcase_{}'.format(self.trimcase['subcase']),
+                         }
+            Para.update(para_dict)
+    
+            logging.debug("Parameters updated.")
+            self.pytau_close()
+        
+    def update_timedom_para(self):
+       pass
+        
+    def update_gust_para(self, simcase, v_gust):
+        pass
+    
     def pytau_close(self):
         # clean up to avoid trouble at the next run
         tau_parallel_end()
