@@ -1,6 +1,12 @@
 import numpy as np
 import logging
 
+"""
+Achtung - Verwirrungsgefahr!
+Nomenklature der Integrationsverfahren: dy = f(t,y)
+Nomenklature in den Modellgleichungen: Y = f(t,X)
+"""
+
 class RungeKutta4():
     # Klassiches Runge-Kutta Verfahren fuer ein Anfangswertprobelm 1. Ordnung
     # Implementiert wie beschieben in: https://de.wikipedia.org/wiki/Klassisches_Runge-Kutta-Verfahren 
@@ -11,6 +17,7 @@ class RungeKutta4():
         self.t = 0.0
         self.y = None
         self.dy = []
+        self.output_dict = None
         self.i = 1
 
     def successful(self):
@@ -89,7 +96,13 @@ class AdamsBashforth(RungeKutta4):
         y0 = self.y
 
         # Berechnung der Koeffizienten
-        self.dy.append(self.odefun(t0, y0))
+        out = self.odefun(t0, y0)
+        # Handhabung des Outputs, falls es sich um ein Dictionary handelt
+        if type(out) is dict:
+            self.output_dict = out
+            self.dy.append(out['dy'])
+        else:
+            self.dy.append(out)
         
         # Berechnung der Naeherungsloesung fuer y(t1)
         # Je nach dem wie viele zurückliegende Schritte verfügbar sind, wird die Ordnung des Verfahrens erhöht.
