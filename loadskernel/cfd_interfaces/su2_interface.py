@@ -210,7 +210,7 @@ class SU2Interface(meshdefo.Meshdefo):
             """
             if 'CONV_FIELD' in config:
                 config.pop('CONV_FIELD')
-            config['INNER_ITER'] = 3
+            config['INNER_ITER'] = 30
             config['CONV_RESIDUAL_MINVAL'] = -6
             
             # do the update
