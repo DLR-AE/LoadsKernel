@@ -26,7 +26,7 @@ class Meshdefo:
             hingeline = 'y'
         for x2_key in self.model.x2grid['key']:        
             i_x2 = self.model.x2grid['key'].index(x2_key) # get position i_x2 of current control surface
-            logging.info('Apply control surface deflections of {} for {:0.4f} [deg] to cfdgrid'.format(x2_key, Ux2[i_x2]/np.pi*180.0))   
+            logging.info('Apply control surface deflections of {} for {:0.4f} [deg] to cfdgrid.'.format(x2_key, Ux2[i_x2]/np.pi*180.0))   
             if hingeline == 'y':
                 Ujx2 += np.dot(self.model.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
             elif hingeline == 'z':
@@ -34,21 +34,24 @@ class Meshdefo:
         self.transfer_deformations(self.model.aerogrid, Ujx2, '_k', rbf_type='wendland2', surface_spline=False, support_radius=1.5)
                     
     def Uf(self, Uf, trimcase):
-        logging.info('Apply flexible deformations to cfdgrid')
-        # set-up spline grid
-        if self.jcl.spline['splinegrid'] == True:
-            # make sure that there are no double points in the spline grid as this would cause a singularity of the spline matrix.
-            splinegrid = build_splinegrid.grid_thin_out_radius(self.model.splinegrid, 0.01)
+        if 'flex' in self.jcl.aero and self.jcl.aero['flex']:
+            logging.info('Apply flexible deformations to cfdgrid.')
+            # set-up spline grid
+            if self.jcl.spline['splinegrid'] == True:
+                # make sure that there are no double points in the spline grid as this would cause a singularity of the spline matrix.
+                splinegrid = build_splinegrid.grid_thin_out_radius(self.model.splinegrid, 0.01)
+            else:
+                #splinegrid = build_splinegrid.grid_thin_out_random(model.strcgrid, 0.5)
+                splinegrid = build_splinegrid.grid_thin_out_radius(self.model.strcgrid, 0.4)
+            
+            # get structural deformation
+            i_mass     = self.model.mass['key'].index(trimcase['mass'])
+            PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
+            Ug_f_body = np.dot(PHIf_strc.T, Uf.T).T
+            
+            self.transfer_deformations(splinegrid, Ug_f_body, '', rbf_type='tps', surface_spline=False)
         else:
-            #splinegrid = build_splinegrid.grid_thin_out_random(model.strcgrid, 0.5)
-            splinegrid = build_splinegrid.grid_thin_out_radius(self.model.strcgrid, 0.4)
-        
-        # get structural deformation
-        i_mass     = self.model.mass['key'].index(trimcase['mass'])
-        PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
-        Ug_f_body = np.dot(PHIf_strc.T, Uf.T).T
-        
-        self.transfer_deformations(splinegrid, Ug_f_body, '', rbf_type='tps', surface_spline=False)
+            logging.info('Apply NO flexible deformations to cfdgrid.')
 
     def init_deformations(self):
         # create empty deformation vectors for cfdgrids
@@ -57,6 +60,7 @@ class Meshdefo:
             self.Ucfd.append(np.zeros(cfdgrid['n']*6))
     
     def transfer_deformations(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
+        logging.info('Transferring deformations to the CFD surface mesh.')
         if self.plotting:
             # set-up plot
             from mayavi import mlab

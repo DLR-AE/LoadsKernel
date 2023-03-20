@@ -23,6 +23,7 @@ class CfdSteady(Steady):
         # --- aerodynamics ---   
         # --------------------
         self.cfd_interface.update_general_para()
+        self.cfd_interface.init_solver()
         self.cfd_interface.prepare_motion(X[6:12])
         self.cfd_interface.prepare_meshdefo(Uf, Ux2)
         self.cfd_interface.run_solver()
@@ -76,8 +77,13 @@ class CfdSteady(Steady):
                        Vtas,
                        beta,
                      )) 
-        
-        if modus in ['trim', 'sim']:
+        dy = np.hstack((np.dot(Tbody2geo,X[6:12]), 
+                            np.dot(self.PHIcg_norm,  d2Ucg_dt2), 
+                            dUf_dt, 
+                            d2Uf_dt2, 
+                            dcommand, 
+                          ))
+        if modus in ['trim']:
             return Y
         elif modus in ['trim_full_output']:
             response = {'X': X, 
@@ -108,6 +114,7 @@ class CfdSteady(Steady):
                         'g_cg': g_cg,
                         'Pextra': Pextra,
                         'Pcfd': Pcfd,
+                        'dy': dy,
                        }
             return response
         
@@ -115,6 +122,9 @@ class CfdSteady(Steady):
         self.cfd_interface.release_memory()
 
 class CfdUnsteady(CfdSteady):
+    
+    def ode_arg_sorter(self, t, X):
+        return self.eval_equations(X, t, 'sim_full_output')
 
     def equations(self, X, t, modus):
         self.counter += 1
@@ -128,10 +138,11 @@ class CfdUnsteady(CfdSteady):
         # --------------------   
         # --- aerodynamics ---   
         # --------------------
+        self.cfd_interface.update_general_para()
         self.cfd_interface.update_timedom_para()
         if self.simcase['gust']:
-            self.cfd_interface.update_gust_para(self.simcase, self.WG_TAS*Vtas)
-        self.cfd_interface.update_general_para()
+            self.cfd_interface.update_gust_para(Vtas, self.WG_TAS*Vtas)
+        self.cfd_interface.init_solver()
         self.cfd_interface.prepare_motion(X[6:12])
         self.cfd_interface.prepare_meshdefo(Uf, Ux2)
         # Remember to start SU2 at time step 2, because steps 0 and 1 are taken up by the steady restart solution.
@@ -187,28 +198,27 @@ class CfdUnsteady(CfdSteady):
                        Vtas,
                        beta,
                      )) 
+        dy = np.hstack((np.dot(Tbody2geo,X[6:12]), 
+                            np.dot(self.PHIcg_norm,  d2Ucg_dt2), 
+                            dUf_dt, 
+                            d2Uf_dt2, 
+                            dcommand, 
+                          ))
         
-        if modus in ['trim', 'sim']:
+        if modus in ['sim']:
             return Y
-        elif modus in ['trim_full_output']:
+        
+        elif modus in ['sim_full_output']:
+            # For time domain simulations, typically not all results are required. To reduce the amount of data while maintaining compatibility with the trim, empty arrays are used.
             response = {'X': X, 
                         'Y': Y,
                         't': np.array([t]),
-                        'Pk_rbm': Pk_rbm,
-                        'Pk_cam': Pk_cam,
                         'Pk_aero': Pk_aero,
-                        'Pk_cs': Pk_cs,
-                        'Pk_f': Pk_f,
-                        'Pk_gust': Pk_gust,
-                        'Pk_unsteady': Pk_unsteady,
-                        'Pk_idrag': Pk_idrag,
                         'q_dyn': np.array([q_dyn]),
                         'Pb': Pb,
                         'Pmac': Pmac,
-                        'Pf': Pf,
                         'alpha': np.array([alpha]),
                         'beta': np.array([beta]),
-                        #'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
                         'Ux2': Ux2,
                         'dUcg_dt': dUcg_dt,
                         'd2Ucg_dt2': d2Ucg_dt2,
@@ -219,5 +229,6 @@ class CfdUnsteady(CfdSteady):
                         'g_cg': g_cg,
                         'Pextra': Pextra,
                         'Pcfd': Pcfd,
+                        'dy': dy,
                        }
-            return response   
+            return response

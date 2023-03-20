@@ -154,6 +154,9 @@ class TauInterface(object):
         # clean up to avoid trouble at the next run
         tau_parallel_end()
         tau_close()
+    
+    def init_solver(self):
+        pass
         
     def run_solver(self):
         tau_mpi_hosts = ','.join(self.tau_mpi_hosts)

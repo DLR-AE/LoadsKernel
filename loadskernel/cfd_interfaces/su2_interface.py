@@ -26,7 +26,10 @@ class SU2Interface(meshdefo.Meshdefo):
         # set switch for first execution
         self.first_execution = True
         # stepwidth for time domain simulation
-        self.stepwidth = 1.0e-4
+        if 'dt_integration' in self.simcase:
+            self.stepwidth = self.simcase['dt_integration']
+        else:
+            self.stepwidth = self.simcase['dt']
         
         # Initialize and check if MPI can be used, SU2 requires MPICH
         self.have_mpi, self.comm, self.status, self.myid = setup_mpi(debug=False)
@@ -43,9 +46,11 @@ class SU2Interface(meshdefo.Meshdefo):
         self.FluidSolver = None
         
         # Set-up file system structure
-        check_para_path(self.jcl)
-        copy_para_file(self.jcl, self.trimcase)
-        check_cfd_folders(self.jcl)
+        if self.myid == 0:
+            check_cfd_folders(self.jcl)
+            check_para_path(self.jcl)
+            copy_para_file(self.jcl, self.trimcase)
+        self.para_filename = self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase'])
         
     def prepare_meshdefo(self, Uf, Ux2):
         """
@@ -113,11 +118,9 @@ class SU2Interface(meshdefo.Meshdefo):
         In this section, the parameter file is updated. So far, I haven't found a way to do this via pysu2 for all parameters.
         This also means that the solver must be initialized with the new parameter file in case the file is updated.
         """
-        # derive name of para file for this subcase
-        para_filename = self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase'])
         if self.first_execution and self.myid == 0:
             # read all existing parameters
-            config = SU2.io.Config(para_filename)
+            config = SU2.io.Config(self.para_filename)
             # set general parameters, which don't change over the course of the CFD simulation, so they are only updated 
             # for the first execution
             config['MESH_FILENAME'] = self.jcl.meshdefo['surface']['filename_grid']
@@ -142,7 +145,7 @@ class SU2Interface(meshdefo.Meshdefo):
                                                         self.model.mass['cggrid'][self.i_mass]['offset'][0,2])
             config['MACH_MOTION'] = self.trimcase['Ma']
             # there is no restart for the first execution
-            # config['RESTART_SOL'] = 'NO'
+            config['RESTART_SOL'] = 'NO'
             # detrimine cfd solution output
             config['OUTPUT_FILES']= ['RESTART', 'RESTART_ASCII', 'TECPLOT', 'SURFACE_TECPLOT']
             # set intemediate outputs
@@ -151,23 +154,15 @@ class SU2Interface(meshdefo.Meshdefo):
             # do the update
             # config.write() maintains the original layout of the file but doesn't add new parameters
             # config.dump() writes all parameters in a weird order, including default values
-            config.dump(para_filename)
+            config.dump(self.para_filename)
             logging.info('SU2 parameter file updated.')
-        # make sure that all process wait until the new parameter file is written
-        self.comm.barrier()
-        if self.first_execution:
-            logging.info('Initializing SU2.')
-            self.release_memory()
-            self.FluidSolver = pysu2.CSinglezoneDriver(para_filename, 1, self.comm)
-            self.get_local_mesh()
     
     def update_timedom_para(self):
         """
         In this section, the time domain-related parameters are updated. 
         """
-        para_filename = self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase'])
         if self.first_execution and self.myid == 0:
-            config = SU2.io.Config(para_filename)
+            config = SU2.io.Config(self.para_filename)
             config['TIME_DOMAIN']   = 'YES'
             config['TIME_MARCHING'] = 'DUAL_TIME_STEPPING-2ND_ORDER'
             config['TIME_STEP']     = self.stepwidth
@@ -213,17 +208,19 @@ class SU2Interface(meshdefo.Meshdefo):
             config['INNER_ITER'] = 30
             config['CONV_RESIDUAL_MINVAL'] = -6
             
+            # There is no need for restart solutions, they only take up storage space. Write plotting files only. 
+            config['OUTPUT_FILES']= ['TECPLOT', 'SURFACE_TECPLOT']
+            
             # do the update
-            config.dump(para_filename)
+            config.dump(self.para_filename)
             logging.info('SU2 parameter file updated.')
         
-    def update_gust_para(self, simcase, Vtas, Vgust):
+    def update_gust_para(self, Vtas, Vgust):
         """
         In this section, the gust-related parameters are updated. 
         """
-        para_filename = self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase'])
         if self.first_execution and self.myid == 0:
-            config = SU2.io.Config(para_filename)
+            config = SU2.io.Config(self.para_filename)
             config['WIND_GUST']         = 'YES'
             config['GUST_TYPE']         = 'ONE_M_COSINE'
             """
@@ -251,16 +248,25 @@ class SU2Interface(meshdefo.Meshdefo):
             config['GUST_PERIODS']      = 1.0
             config['GUST_AMPL']         = Vgust
             config['GUST_BEGIN_TIME']   = 0.0
-            config['GUST_BEGIN_LOC']    = -2.0*self.simcase['gust_gradient'] - self.simcase['gust_para']['T1']/Vtas
+            config['GUST_BEGIN_LOC']    = -2.0*self.simcase['gust_gradient'] - self.simcase['gust_para']['T1']*Vtas
 
             # do the update
-            config.dump(para_filename)
+            config.dump(self.para_filename)
             logging.info('SU2 parameter file updated.')
-        
+    
+    def init_solver(self):
+        # make sure that all process wait until the new parameter file is written
+        self.comm.barrier()
+        if self.first_execution:
+            logging.info('Initializing SU2.')
+            self.release_memory()
+            self.FluidSolver = pysu2.CSinglezoneDriver(self.para_filename, 1, self.comm)
+            self.get_local_mesh()
+    
     def run_solver(self, i_timestep=0):
         logging.debug('This is process {} and I wait for the mpi barrier in "run_solver()"'.format(self.myid))
         self.comm.barrier()
-        logging.info('Launch SU2.')
+        logging.info('Launch SU2 for time step {}.'.format(i_timestep))
         # start timer
         t_start = time.time()
         # initialize SU2 if this is the first run.
@@ -355,6 +361,7 @@ class SU2Interface(meshdefo.Meshdefo):
         This version works on the local mesh of a mpi partition, making the calculation of the 
         mesh deformations faster.
         """
+        logging.info('Transferring deformations to the local CFD surface with {} nodes.'.format(self.local_mesh['n']))
         # build spline matrix
         PHIi_d = spline_functions.spline_rbf(grid_i, set_i, self.local_mesh, '', 
                                              rbf_type=rbf_type, surface_spline=surface_spline, 
