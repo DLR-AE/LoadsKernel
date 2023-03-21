@@ -99,7 +99,7 @@ class Common():
         # Vtas aus solution condition berechnen
         uvw = np.array(self.trimcond_X[6:9,2], dtype='float')
         Vtas = sum(uvw**2)**0.5
-        if self.simcase and self.simcase['gust']:
+        if 'gust' in self.simcase and self.simcase['gust']:
             # calculate and set the gust velocities
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD'] 
             self.s0 = self.simcase['gust_para']['T1'] * Vtas 
@@ -110,7 +110,7 @@ class Common():
             # write some user information / confirmation
             logging.info('Gust set up with initial Vtas = {:.4f}, t1 = {}, WG_tas = {:.4f}'.format(Vtas, self.simcase['gust_para']['T1'], self.WG_TAS))
             
-        elif self.simcase and (self.simcase['turbulence'] or self.simcase['limit_turbulence']):
+        elif ('turbulence' in self.simcase or 'limit_turbulence' in self.simcase) and (self.simcase['turbulence'] or self.simcase['limit_turbulence']):
             V_C = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MC']
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD'] 
             if 'u_sigma' not in self.simcase.keys():
@@ -120,11 +120,11 @@ class Common():
             logging.info('Turbulence set up with initial Vtas = {:.4f} and u_sigma = {:.4f}'.format(Vtas, self.u_sigma))
         
         # init cs_signal
-        if self.simcase and self.simcase['cs_signal']:
+        if 'cs_signal' in self.simcase and self.simcase['cs_signal']:
             self.efcs.cs_signal_init(self.trimcase['desc'])
         
         # init controller
-        if self.simcase and self.simcase['controller']:
+        if 'controller' in self.simcase and self.simcase['controller']:
             """
             The controller might be set-up in different ways, e.g. to maintain a certain angular acceleration of velocity.
             Example: self.efcs.controller_init(np.array((0.0,0.0,0.0)), 'angular accelerations')
@@ -305,7 +305,7 @@ class Common():
     
     def gust(self, X, q_dyn):
         wj = np.zeros(self.model.aerogrid['n'])
-        if self.simcase and self.simcase['gust']:
+        if 'gust' in self.simcase and self.simcase['gust']:
             # Eintauchtiefe in die Boe berechnen
             s_gust = (X[0] - self.model.aerogrid['offset_j'][:,0] - self.s0)
             # downwash der 1-cos Boe auf ein jedes Panel berechnen
@@ -350,7 +350,7 @@ class Common():
         v += vf_1 + vf_2
         w += wf_1 + wf_2
 
-        if self.simcase and self.simcase['gust']:
+        if 'gust' in self.simcase and self.simcase['gust']:
             # Eintauchtiefe in die Boe berechnen, analog zu gust()
             s_gust = (X[0] - self.model.sensorgrid['offset'][i_sensor,0] - self.s0)
             # downwash der 1-cos Boe an der Sensorposition, analog zu gust()
@@ -558,7 +558,7 @@ class Common():
         p2 = np.zeros(self.model.extragrid['n'])
         dp2 = np.zeros(self.model.extragrid['n'])
         ddp2 = np.zeros(self.model.extragrid['n'])
-        if self.simcase and self.simcase['landinggear']:
+        if 'landinggear' in self.simcase and self.simcase['landinggear']:
             # init
             PHIextra_cg = self.model.mass['PHIextra_cg'][self.i_mass]
             PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]
@@ -711,9 +711,9 @@ class Common():
         return d2Uf_dt2
     
     def get_command_derivatives(self, t, X, Vtas, gamma, alpha, beta, Nxyz, dxyz):
-        if self.simcase and self.simcase['cs_signal']:
+        if 'cs_signal' in self.simcase and self.simcase['cs_signal']:
             dcommand = self.efcs.cs_signal(t)
-        elif self.simcase and self.simcase['controller']:
+        elif 'controller' in self.simcase and self.simcase['controller']:
             feedback = {'pqr':          X[self.solution.idx_states[9:12]],
                         'PhiThetaPsi':  X[self.solution.idx_states[3:6]],
                         'z':            X[self.solution.idx_states[2]],
