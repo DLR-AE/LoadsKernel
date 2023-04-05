@@ -8,37 +8,78 @@ Created on Wed May  6 20:12:08 2015
 import numpy as np
 import scipy.sparse as sp
 import loadskernel.spline_functions
+from itertools import groupby
+
+def all_equal(iterable):
+    # As suggested on stackoverflow, this is the fastest way to check if all element in an array are equal
+    # https://stackoverflow.com/questions/3844801/check-if-all-elements-in-a-list-are-identical
+    g = groupby(iterable)
+    return next(g, True) and not next(g, False)
 
 def grid_trafo(grid, coord, dest_coord):
-    
-    for i_point in range(len(grid['ID'])):
-        pos_coord = coord['ID'].index(grid['CP'][i_point])
+    """
+    This function transforms a grid into a new coordiante system.
+    The coordiante transformatin can be speed up by using a matrix operation, but only in case all point are 
+    in the same coordinate system. To handle different coorinate systems in one grid (e.g. Nastran GRID points 
+    given with different CP), the coordinate transformation has to be applied gridpoint-wise.
+    """
+    if all_equal(grid['CP']):
+        # get the right transformation matrices
+        pos_coord_orig = coord['ID'].index(grid['CP'][0])
         pos_coord_dest = coord['ID'].index(dest_coord)
-        offset_tmp = np.dot(coord['dircos'][pos_coord],grid['offset'][i_point])+coord['offset'][pos_coord]
-        offset = np.dot(coord['dircos'][pos_coord_dest].T,offset_tmp)+coord['offset'][pos_coord_dest]
-        grid['offset'][i_point] = offset
-        grid['CP'][i_point] = dest_coord
-        grid['CD'][i_point] = dest_coord
-    
-def force_trafo(grid, coord, forcevector):
-    # Especially with monitoring stations, coordinate system CP and CD might differ. 
-    # It is assumed the force and moments vector is in the coordinate system defined with CP.
-    forcevector_local = np.zeros(np.shape(forcevector))
+        # perform transformation
+        offset_tmp  = coord['dircos'][pos_coord_orig].dot(grid['offset'].T).T   + coord['offset'][pos_coord_orig]
+        offset      = coord['dircos'][pos_coord_dest].T.dot(offset_tmp.T).T     + coord['offset'][pos_coord_dest]
+        # store new offsets in grid
+        grid['offset'] = offset
+        grid['CP'] = [dest_coord]*grid['n']
+        grid['CD'] = [dest_coord]*grid['n']
+    else:
+        for i_point in range(len(grid['ID'])):
+            pos_coord_orig = coord['ID'].index(grid['CP'][i_point])
+            pos_coord_dest = coord['ID'].index(dest_coord)
+            offset_tmp = np.dot(coord['dircos'][pos_coord_orig],grid['offset'][i_point])+coord['offset'][pos_coord_orig]
+            offset = np.dot(coord['dircos'][pos_coord_dest].T,offset_tmp)+coord['offset'][pos_coord_dest]
+            grid['offset'][i_point] = offset
+            grid['CP'][i_point] = dest_coord
+            grid['CD'][i_point] = dest_coord
 
-    for i_station in range(grid['n']):
-        i_coord_source = coord['ID'].index(grid['CP'][i_station])
-        i_coord_dest = coord['ID'].index(grid['CD'][i_station])
-
+def vector_trafo(grid, coord, forcevector, dest_coord):
+    """
+    This function transforms a force (or displacement) vector into a new coordiante system. It is assumed 
+    the force and moments vector is in the coordinate system defined with CP. As above, matrix operations are 
+    applied if all source coord systems are identical.
+    """
+    if all_equal(grid['CP']):
+        # get the right transformation matrices
+        pos_coord_orig = coord['ID'].index(grid['CP'][0])
+        pos_coord_dest = coord['ID'].index(dest_coord)
+        # expand for 6 degrees of freedom 
         dircos_source = np.zeros((6,6))
-        dircos_source[0:3,0:3] = coord['dircos'][i_coord_source]
-        dircos_source[3:6,3:6] = coord['dircos'][i_coord_source]
+        dircos_source[0:3,0:3] = coord['dircos'][pos_coord_orig]
+        dircos_source[3:6,3:6] = coord['dircos'][pos_coord_orig]
         dircos_dest = np.zeros((6,6))
-        dircos_dest[0:3,0:3] = coord['dircos'][i_coord_dest]
-        dircos_dest[3:6,3:6] = coord['dircos'][i_coord_dest]
+        dircos_dest[0:3,0:3] = coord['dircos'][pos_coord_dest]
+        dircos_dest[3:6,3:6] = coord['dircos'][pos_coord_dest]
+        # perform transformation
+        forcevector_trans = dircos_dest.T.dot(dircos_source.dot(forcevector[grid['set']].T)).T.reshape(1,-1).squeeze()
 
-        forcevector_local[grid['set'][i_station]] = dircos_dest.T.dot(dircos_source.dot(forcevector[grid['set'][i_station]]))
-        
-    return forcevector_local
+    else:
+        forcevector_trans = np.zeros(np.shape(forcevector))
+        for i_station in range(grid['n']):
+            pos_coord_orig = coord['ID'].index(grid['CP'][i_station])
+            pos_coord_dest = coord['ID'].index(dest_coord)
+    
+            dircos_source = np.zeros((6,6))
+            dircos_source[0:3,0:3] = coord['dircos'][pos_coord_orig]
+            dircos_source[3:6,3:6] = coord['dircos'][pos_coord_orig]
+            dircos_dest = np.zeros((6,6))
+            dircos_dest[0:3,0:3] = coord['dircos'][pos_coord_dest]
+            dircos_dest[3:6,3:6] = coord['dircos'][pos_coord_dest]
+    
+            forcevector_trans[grid['set'][i_station]] = dircos_dest.T.dot(dircos_source.dot(forcevector[grid['set'][i_station]]))
+
+    return forcevector_trans
 
 def calc_transformation_matrix(coord, grid_i, set_i, coord_i, grid_d, set_d, coord_d, dimensions=''):
     # T_i and T_d are the translation matrices that do the projection to the coordinate systems of gird_i and grid_d
