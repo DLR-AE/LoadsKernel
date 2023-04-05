@@ -32,8 +32,8 @@ def grid_trafo(grid, coord, dest_coord):
         offset      = coord['dircos'][pos_coord_dest].T.dot(offset_tmp.T).T     + coord['offset'][pos_coord_dest]
         # store new offsets in grid
         grid['offset'] = offset
-        grid['CP'] = [dest_coord]*grid['n']
-        grid['CD'] = [dest_coord]*grid['n']
+        grid['CP'] = np.array([dest_coord]*grid['n'])
+        grid['CD'] = np.array([dest_coord]*grid['n'])
     else:
         for i_point in range(len(grid['ID'])):
             pos_coord_orig = coord['ID'].index(grid['CP'][i_point])
