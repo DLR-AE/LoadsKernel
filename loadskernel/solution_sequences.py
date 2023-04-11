@@ -367,7 +367,7 @@ class SolutionSequences(TrimConditions):
             self.add_lagstates() # add lag states to system
             equations = Unsteady(self, X0=self.response['X'])
         elif self.jcl.aero['method'] in [ 'cfd_unsteady']:
-            equations = CfdUnsteady(self)
+            equations = CfdUnsteady(self, X0=self.response['X'])
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         

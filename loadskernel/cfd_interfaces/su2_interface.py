@@ -89,8 +89,6 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
             self.Ux2(Ux2)
             # Communicate the deformation of the local mesh to the CFD solver
             self.set_deformations()
-        logging.debug('This is process {} and I wait for the mpi barrier in "prepare_meshdefo()"'.format(self.myid))
-        self.comm.barrier()
     
     def set_deformations(self):
         """
@@ -171,7 +169,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
             self.get_local_mesh()
     
     def run_solver(self, i_timestep=0):
-        logging.debug('This is process {} and I wait for the mpi barrier in "run_solver()"'.format(self.myid))
+        logging.info('Waiting until all processes are ready to perform a coordinated start...')
         self.comm.barrier()
         logging.info('Launch SU2 for time step {}.'.format(i_timestep))
         # start timer
@@ -316,7 +314,7 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
         coord_tmp['offset'].append(np.array([0.0,0.0,0.0,]))
         
         cfdgrid_tmp = copy.deepcopy(self.model.cfdgrid)
-        cfdgrid_tmp['CP'] = np.repeat(1000001, self.local_mesh['n'])
+        cfdgrid_tmp['CP'] = np.repeat(1000001, self.model.cfdgrid['n'])
 
         # transform force vector
         Pcfd_body = vector_trafo(cfdgrid_tmp, coord_tmp, Pcfd_global, dest_coord=1000000)
@@ -339,8 +337,6 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             self.Ucfd_rbm_transformation(self.XYZ, self.PhiThetaPsi)
             # Communicate the deformation of the local mesh to the CFD solver
             self.set_deformations()
-        logging.debug('This is process {} and I wait for the mpi barrier in "prepare_meshdefo()"'.format(self.myid))
-        self.comm.barrier()
     
     def Ucfd_rbm_transformation(self, XYZ, PhiThetaPsi):
         # translate position and euler angles into body coordinate system

@@ -138,7 +138,7 @@ class CfdUnsteady(CfdSteady):
         onflow                  = self.recover_onflow(X)
         alpha, beta, gamma      = self.windsensor(X, Vtas, Uf, dUf_dt)
         Ux2                     = self.get_Ux2(X)
-        delta_XYZ               = X[self.solution.idx_states[3:6]]-self.X0[self.solution.idx_states[3:6]]
+        delta_XYZ               = X[self.solution.idx_states[0:3]]-self.X0[self.solution.idx_states[0:3]]
         PhiThetaPsi             = X[self.solution.idx_states[3:6]]     
         # --------------------   
         # --- aerodynamics ---   
