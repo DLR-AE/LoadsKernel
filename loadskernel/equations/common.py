@@ -90,8 +90,10 @@ class Common():
             # initialize the interface to a cfd solver
             if self.jcl.aero['cfd_solver'].lower() == 'tau' and self.jcl.aero['method'] == 'cfd_steady':
                 self.cfd_interface = tau_interface.TauInterface(self.solution)
-            elif self.jcl.aero['cfd_solver'].lower() == 'su2':
-                self.cfd_interface = su2_interface.SU2Interface(self.solution)
+            elif self.jcl.aero['cfd_solver'].lower() == 'su2' and self.jcl.aero['method'] == 'cfd_steady':
+                self.cfd_interface = su2_interface.SU2InterfaceGridVelocity(self.solution)
+            elif self.jcl.aero['cfd_solver'].lower() == 'su2' and self.jcl.aero['method'] == 'cfd_unsteady':
+                self.cfd_interface = su2_interface.SU2InterfaceFarfieldOnflow(self.solution)
             else:
                 logging.error('Interface for CFD solver "{}" and "{}" not implemented!'.format(self.jcl.aero['cfd_solver'], self.jcl.aero['method']))
 

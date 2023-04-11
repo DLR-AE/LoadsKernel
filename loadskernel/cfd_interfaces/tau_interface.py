@@ -105,7 +105,7 @@ class TauInterface(object):
         Para.update(para_dict, 'group end', 0,)
         self.pytau_close()
     
-    def prepare_motion(self, uvwpqr):
+    def set_grid_velocities(self, uvwpqr):
         Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))
         # set aircraft motion related parameters
         # given in local, body-fixed reference frame, see Tau User Guide Section 18.1 "Coordinate Systems of the TAU-Code"

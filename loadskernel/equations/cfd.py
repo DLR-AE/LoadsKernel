@@ -18,13 +18,16 @@ class CfdSteady(Steady):
         Vtas, q_dyn             = self.recover_Vtas(X)
         onflow                  = self.recover_onflow(X)
         alpha, beta, gamma      = self.windsensor(X, Vtas, Uf, dUf_dt)
-        Ux2 = self.get_Ux2(X)        
+        Ux2                     = self.get_Ux2(X)
+        delta_XYZ               = np.array([0.0, 0.0, 0.0])
+        PhiThetaPsi             = X[self.solution.idx_states[3:6]]
         # --------------------   
         # --- aerodynamics ---   
         # --------------------
         self.cfd_interface.update_general_para()
         self.cfd_interface.init_solver()
-        self.cfd_interface.prepare_motion(X[6:12])
+        self.cfd_interface.set_grid_velocities(X[6:12])
+        self.cfd_interface.set_euler_transformation(delta_XYZ, PhiThetaPsi)
         self.cfd_interface.prepare_meshdefo(Uf, Ux2)
         self.cfd_interface.run_solver()
         Pcfd = self.cfd_interface.get_last_solution()
@@ -134,7 +137,9 @@ class CfdUnsteady(CfdSteady):
         Vtas, q_dyn             = self.recover_Vtas(X)
         onflow                  = self.recover_onflow(X)
         alpha, beta, gamma      = self.windsensor(X, Vtas, Uf, dUf_dt)
-        Ux2 = self.get_Ux2(X)        
+        Ux2                     = self.get_Ux2(X)
+        delta_XYZ               = X[self.solution.idx_states[3:6]]-self.X0[self.solution.idx_states[3:6]]
+        PhiThetaPsi             = X[self.solution.idx_states[3:6]]     
         # --------------------   
         # --- aerodynamics ---   
         # --------------------
@@ -143,7 +148,7 @@ class CfdUnsteady(CfdSteady):
         if self.simcase['gust']:
             self.cfd_interface.update_gust_para(Vtas, self.WG_TAS*Vtas)
         self.cfd_interface.init_solver()
-        self.cfd_interface.prepare_motion(X[6:12])
+        self.cfd_interface.set_euler_transformation(delta_XYZ, PhiThetaPsi)
         self.cfd_interface.prepare_meshdefo(Uf, Ux2)
         # Remember to start SU2 at time step 2, because steps 0 and 1 are taken up by the steady restart solution.
         # To establish the current time step, we can reuse the existing counter.
