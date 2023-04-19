@@ -46,8 +46,10 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         # stepwidth for time domain simulation
         if 'dt_integration' in self.simcase:
             self.stepwidth = self.simcase['dt_integration']
-        else:
+        elif 'dt' in self.simcase:
             self.stepwidth = self.simcase['dt']
+        else:
+            self.stepwidth = None
         
         # Initialize and check if MPI can be used, SU2 requires MPICH
         self.have_mpi, self.comm, self.status, self.myid = setup_mpi(debug=False)
@@ -182,6 +184,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         self.FluidSolver.Preprocess(i_timestep)
         self.FluidSolver.Run()
         self.FluidSolver.Postprocess()
+        self.FluidSolver.Update()
         # write outputs and restart file(s)
         self.FluidSolver.Monitor(i_timestep) 
         self.FluidSolver.Output(i_timestep)
