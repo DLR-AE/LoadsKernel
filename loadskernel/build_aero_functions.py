@@ -232,13 +232,14 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
     for beta in betas: Ajj_real = np.vstack(( Ajj_real, k**2/(k**2+beta**2)   ))
     for beta in betas: Ajj_imag = np.vstack(( Ajj_imag, k*beta/(k**2+beta**2) ))    
     # Plots vom Real- und Imaginaerteil der ersten m_n*n_n Panels
+    first_panel = 0
     m_n = 3
     n_n = 3
     plt.figure()
     for m_i in range(m_n):
         for n_i in  range(n_n):
-            qjj = Qjj[:,n_i,m_i]
-            qjj_aprox = np.dot(Ajj_real.T, ABCD[:,n_i,m_i]) + np.dot(Ajj_imag.T, ABCD[:,n_i,m_i])*1j
+            qjj = Qjj[:,first_panel+n_i,first_panel+m_i]
+            qjj_aprox = np.dot(Ajj_real.T, ABCD[:,first_panel+n_i,first_panel+m_i]) + np.dot(Ajj_imag.T, ABCD[:,first_panel+n_i,first_panel+m_i])*1j
             plt.subplot(m_n, n_n, m_n*m_i+n_i+1)
             plt.plot(np.real(qjj), np.imag(qjj), 'b.-')
             plt.plot(np.real(qjj_aprox), np.imag(qjj_aprox), 'r-')
