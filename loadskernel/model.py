@@ -351,9 +351,9 @@ class Model:
             for i_k in range(len(self.jcl.aero['k_red'])):
                 Ajj = read_op4.load_matrix(self.jcl.aero['filename_AIC_unsteady'][i_aero][i_k], sparse_output=False, sparse_format=False)  
                 if 'given_AIC_is_transposed' in self.jcl.aero and self.jcl.aero['given_AIC_is_transposed']:
-                    Qjj = np.linalg.inv(Ajj)
-                else:
                     Qjj = np.linalg.inv(Ajj.T)
+                else:
+                    Qjj = np.linalg.inv(Ajj)
                 self.aero['Qjj_unsteady'][i_aero,i_k,:,:] = Qjj 
         self.aero['k_red'] =  self.jcl.aero['k_red']
       
