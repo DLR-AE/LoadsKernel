@@ -230,16 +230,7 @@ class Model:
             
     def build_W2GJ(self):
         # Correctionfor camber and twist, W2GJ
-        if 'filename_deriv_4_W2GJ' in self.jcl.aero and self.jcl.aero['filename_deriv_4_W2GJ']:
-            # parsing of several files possible, must be in correct sequence
-            for i_file in range(len(self.jcl.aero['filename_deriv_4_W2GJ'])):
-                subgrid = read_mona.Modgen_W2GJ(self.jcl.aero['filename_deriv_4_W2GJ'][i_file]) 
-                if i_file == 0:
-                    self.camber_twist =  subgrid
-                else:
-                    self.camber_twist['ID'] = np.hstack((self.camber_twist['ID'], subgrid['ID']))
-                    self.camber_twist['cam_rad'] = np.hstack((self.camber_twist['cam_rad'], subgrid['cam_rad']))
-        elif 'filename_DMI_W2GJ' in self.jcl.aero and self.jcl.aero['filename_DMI_W2GJ']:
+        if 'filename_DMI_W2GJ' in self.jcl.aero and self.jcl.aero['filename_DMI_W2GJ']:
             for i_file in range(len(self.jcl.aero['filename_DMI_W2GJ'])):
                 DMI = read_mona.Nastran_DMI(self.jcl.aero['filename_DMI_W2GJ'][i_file]) 
                 if i_file == 0:
