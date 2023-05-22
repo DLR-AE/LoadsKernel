@@ -99,10 +99,9 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         """
         logging.info('Sending surface deformations to SU2.')
         for x in range(self.local_mesh['n']):
-            disp_x, disp_y, disp_z = self.Ucfd[self.local_mesh['set'][x,:3]]
-            self.FluidSolver.SetMeshDisplacement(self.local_mesh['MarkerID'][x], 
-                                                 self.local_mesh['VertexIndex'][x], 
-                                                 disp_x, disp_y, disp_z)
+            self.FluidSolver.SetMarkerCustomDisplacement(self.local_mesh['MarkerID'][x], 
+                                                         self.local_mesh['VertexIndex'][x], 
+                                                         self.Ucfd[self.local_mesh['set'][x,:3]])
 
     def set_grid_velocities(self, uvwpqr):
         """
@@ -201,7 +200,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         Pcfd_send = np.zeros(self.model.cfdgrid['n']*6)
         Pcfd_rcv  = np.zeros(( self.comm.Get_size() , self.model.cfdgrid['n']*6))
         for x in range(self.local_mesh['n']):
-            fxyz = self.FluidSolver.GetFlowLoad(self.local_mesh['MarkerID'][x], self.local_mesh['VertexIndex'][x])
+            fxyz = self.FluidSolver.GetMarkerFlowLoad(self.local_mesh['MarkerID'][x], self.local_mesh['VertexIndex'][x])
             Pcfd_send[self.local_mesh['set_global'][x,:3]] += fxyz
         self.comm.barrier()
         self.comm.Allgatherv(Pcfd_send, Pcfd_rcv)
@@ -219,7 +218,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
     def release_memory(self):
         # In case SU2 is re-initialized, release the memory taken by the old instance.
         if self.FluidSolver != None:
-            self.FluidSolver.Postprocessing()
+            self.FluidSolver.Finalize()
     
     def get_local_mesh(self):
         """
@@ -232,8 +231,8 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         set         - the degrees of freedom of the grid point in the local CFD mesh
         set_global  - the degrees of freedom of the grid point in the global CFD mesh
         """
-        solver_all_moving_markers = np.array(self.FluidSolver.GetAllDeformMeshMarkersTag())
-        solver_marker_ids = self.FluidSolver.GetAllBoundaryMarkers()
+        solver_all_moving_markers = np.array(self.FluidSolver.GetDeformableMarkerTags())
+        solver_marker_ids = self.FluidSolver.GetMarkerIndices()
         # The surface marker and the partitioning of the solver usually don't agree.
         # Thus, it is necessary to figure out if the partition of the current mpi process has
         # a node that belongs to a moving surface marker.
@@ -246,14 +245,15 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         # Loops to get the coordinates of every vertex that belongs the partition of this mpi process
         for marker in solver_all_moving_markers[has_moving_marker]:
             solver_marker_id = solver_marker_ids[marker]
-            n_vertices = self.FluidSolver.GetNumberVertices(solver_marker_id)
+            n_vertices = self.FluidSolver.GetNumberMarkerNodes(solver_marker_id)
             n += n_vertices
             for i_vertex in range(n_vertices):
-                GlobalIndex = self.FluidSolver.GetVertexGlobalIndex(solver_marker_id, i_vertex)
+                i_point = self.FluidSolver.GetMarkerNode(solver_marker_id, i_vertex)
+                GlobalIndex = self.FluidSolver.GetNodeGlobalIndex(i_point)
                 tmp_global_id.append(GlobalIndex)
                 tmp_marker_id.append(solver_marker_id)
                 tmp_vertex_id.append(i_vertex)
-                tmp_offset.append( self.FluidSolver.GetInitialMeshCoord(solver_marker_id, i_vertex) )
+                tmp_offset.append(self.FluidSolver.InitialCoordinates().Get(i_point))
                 tmp_set_global.append( self.model.cfdgrid['set'][np.where(GlobalIndex == self.model.cfdgrid['ID'])[0],:] )
 
         # Store the local mesh, use a pattern similar to a any other grids
