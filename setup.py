@@ -15,7 +15,7 @@ def my_setup():
           url='https://wiki.dlr.de/display/AE/Loads+Kernel%3A+Lastenrechnung',
           author='Arne Voß',
           author_email='arne.voss@dlr.de',
-          license='internal use',
+          license='BSD 3-Clause License',
           packages=find_packages(),
           entry_points={'console_scripts': ['loads-kernel=loadskernel.program_flow:command_line_interface',
                                             'model-viewer=modelviewer.view:command_line_interface',
@@ -25,7 +25,7 @@ def my_setup():
                         'loadscompare': ['graphics/*.*'],},
           python_requires='>=3.8',
           install_requires=[
-                            'Panel-Aero',
+                            'Panel-Aero @ git+https://github.com/DLR-AE/PanelAero.git',
                             'matplotlib',
                             'mayavi',
                             'traits', 
