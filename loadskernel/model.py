@@ -193,7 +193,7 @@ class Model:
     
     def build_aero(self):
         logging.info( 'Building aero model...')
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady', 'freq_dom']:
+        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_steady', 'cfd_unsteady', 'freq_dom']:
             self.build_aerogrid()
             self.build_aero_matrices()
             self.build_W2GJ()
@@ -416,7 +416,7 @@ class Model:
         # -------------------
         # ---- mesh defo ---
         # -------------------  
-        if self.jcl.aero['method'] == 'cfd_steady':
+        if self.jcl.aero['method'] in [ 'cfd_steady', 'cfd_unsteady']:
             cfdgrids = read_cfdgrids.ReadCfdgrids(self.jcl)
             cfdgrids.read_surface(merge_domains=True)
             cfdgrids.read_surface(merge_domains=False)
@@ -550,7 +550,7 @@ class Model:
         rules = spline_rules.rules_point(cggrid, self.strcgrid)
         PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
         
-        if self.jcl.aero['method'] == 'cfd_steady':
+        if self.jcl.aero['method'] in [ 'cfd_steady', 'cfd_unsteady']:
             rules = spline_rules.rules_point(cggrid, self.cfdgrid)
             PHIcfd_cg = spline_functions.spline_rb(cggrid, '', self.cfdgrid, '', rules, self.coord)
             # some pre-multiplications to speed-up main processing

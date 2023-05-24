@@ -9,11 +9,11 @@ import scipy.optimize as so
 import logging, copy
 from scipy.integrate import ode
 
-from loadskernel.integrate import RungeKutta4, ExplicitEuler
+from loadskernel.integrate import RungeKutta4, ExplicitEuler, AdamsBashforth
 import loadskernel.io_functions.specific_functions as specific_io
 
 from loadskernel.equations.steady     import Steady
-from loadskernel.equations.cfd_steady import CfdSteady
+from loadskernel.equations.cfd import CfdSteady, CfdUnsteady
 from loadskernel.equations.nonlin_steady import NonlinSteady
 from loadskernel.equations.unsteady   import Unsteady
 from loadskernel.equations.landing    import Landing
@@ -232,7 +232,7 @@ class SolutionSequences(TrimConditions):
     def exec_trim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'freq_dom']:
             self.direct_trim()
-        elif self.jcl.aero['method'] in [ 'cfd_steady']:
+        elif self.jcl.aero['method'] in [ 'cfd_steady', 'cfd_unsteady']:
             self.iterative_trim()
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
@@ -287,10 +287,7 @@ class SolutionSequences(TrimConditions):
     def iterative_trim(self):
         if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid']:
             equations = Steady(self)
-        elif self.jcl.aero['method'] in [ 'cfd_steady']:
-            specific_io.check_para_path(self.jcl)
-            specific_io.copy_para_file(self.jcl, self.trimcase)
-            specific_io.check_tau_folders(self.jcl)
+        elif self.jcl.aero['method'] in [ 'cfd_steady', 'cfd_unsteady']:
             equations = CfdSteady(self)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
@@ -344,7 +341,7 @@ class SolutionSequences(TrimConditions):
         self.response['X'] = self.response['X'][0,:]
         self.response['Y'] = self.response['Y'][0,:]
         # select solution sequence
-        if self.jcl.aero['method'] in [ 'mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady']:
+        if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_unsteady']:
             self.exec_sim_time_dom()
         elif self.jcl.aero['method'] in ['freq_dom']:
             self.exec_sim_freq_dom()
@@ -352,43 +349,89 @@ class SolutionSequences(TrimConditions):
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
     def exec_sim_time_dom(self):
-        if self.jcl.aero['method'] in [ 'mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
-            equations = Steady(self, X0=self.response['X'], simcase=self.simcase)
+        """
+        Select the right set of equations. 
+        If required, add new states, e.g. for the landing gear or unsteady aerodynamics.
+        """
+        if self.jcl.aero['method'] in ['mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
+            equations = Steady(self, X0=self.response['X'])
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
-            equations = NonlinSteady(self, X0=self.response['X'], simcase=self.simcase)
+            equations = NonlinSteady(self, X0=self.response['X'])
         elif self.simcase['landinggear'] and self.jcl.landinggear['method'] in ['generic', 'skid']:
             self.add_landinggear() # add landing gear to system
-            equations = Landing(self, X0=self.response['X'], simcase=self.simcase)
-        elif self.jcl.aero['method'] in [ 'mona_unsteady']:
+            equations = Landing(self, X0=self.response['X'])
+        elif self.jcl.aero['method'] in ['mona_unsteady']:
             if 'disturbance' in self.simcase.keys():
                 logging.info('Adding disturbance of {} to state(s) '.format(self.simcase['disturbance']))
                 self.response['X'][11+self.simcase['disturbance_mode']] += self.simcase['disturbance']
             self.add_lagstates() # add lag states to system
-            equations = Unsteady(self, X0=self.response['X'], simcase=self.simcase)
+            equations = Unsteady(self, X0=self.response['X'])
+        elif self.jcl.aero['method'] in [ 'cfd_unsteady']:
+            equations = CfdUnsteady(self, X0=self.response['X'])
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
-
+        
+        """
+        There are two ways of time intergartion. 
+        
+        In most cases, the Adams Bashforth method provided by scipy.integrate.ode is used:
+        Advantages
+        + Good accuracy controll by adaptive time step size
+        + Tested by continuous integration chain with a long history of numerically equivalet results
+        Disadvantages 
+        - Accepts only the derivative 'dy' and doesn't handle any additional outputs (like the response at the given time step).
+          This requires a second run at the selected time steps to obatin the full outputs / response dictionary.
+        - Adaptive step size not suitable for CFD applications
+        
+        Self-implemented Adams Bashforth integration sheme:
+        Advantages
+        + Fixed time step size
+        + Handles dictionary outputs of the ode functions
+        Disadvantages 
+        - Not fully tested
+        """
+        
         X0 = self.response['X']
+        if 'dt_integration' in self.simcase:
+            dt_integration = self.simcase['dt_integration']
+        else:
+            dt_integration = self.simcase['dt']
         dt = self.simcase['dt']
         t_final = self.simcase['t_final']
-        logging.info('Running time simulation for ' + str(t_final) + ' sec...')
-        integrator = self.select_integrator(equations, 'Adams-Bashforth')
-        integrator.set_initial_value(X0, 0.0)
         xt = []
         t = []
-        while integrator.successful() and integrator.t < t_final:  
-            integrator.integrate(integrator.t+dt)
-            xt.append(integrator.y)
-            t.append(integrator.t)
+        
+        logging.info('Running time simulation for ' + str(t_final) + ' sec...')
+        if self.jcl.aero['method'] in ['cfd_unsteady']:
+            integrator = self.select_integrator(equations, 'AdamsBashforth_FixedTimeStep', dt_integration)
+            integrator.set_initial_value(X0, 0.0)
             
+            while integrator.successful() and integrator.t < t_final:
+                integrator.integrate(integrator.t+dt)
+                xt.append(integrator.y)
+                t.append(integrator.t)
+                for key in integrator.output_dict.keys():
+                    self.response[key] = np.vstack((self.response[key],integrator.output_dict[key]))
+                
+        else: 
+            integrator = self.select_integrator(equations, 'AdamsBashforth')
+            integrator.set_initial_value(X0, 0.0)
+        
+            while integrator.successful() and integrator.t < t_final:  
+                integrator.integrate(integrator.t+dt)
+                xt.append(integrator.y)
+                t.append(integrator.t)
+            
+            if integrator.successful():
+                logging.info('Simulation finished. Running (again) with full outputs at selected time steps...')
+                equations.eval_equations(self.response['X'], 0.0, modus='sim_full_output')
+                for i_step in np.arange(0,len(t)):
+                    response_step = equations.eval_equations(xt[i_step], t[i_step], modus='sim_full_output')
+                    for key in response_step.keys():
+                        self.response[key] = np.vstack((self.response[key],response_step[key]))
+        
+        # Handle unsucessful time integration
         if integrator.successful():
-            logging.info('Simulation finished.')
-            logging.info('Running (again) with full outputs at selected time steps...')
-            equations.eval_equations(self.response['X'], 0.0, modus='sim_full_output')
-            for i_step in np.arange(0,len(t)):
-                response_step = equations.eval_equations(xt[i_step], t[i_step], modus='sim_full_output')
-                for key in response_step.keys():
-                    self.response[key] = np.vstack((self.response[key],response_step[key]))
             self.successful = True
         else:
             self.response = {}
@@ -396,19 +439,21 @@ class SolutionSequences(TrimConditions):
             logging.warning('Integration failed!')
             return
     
-    def select_integrator(self, equations, integration_scheme='Adams-Bashforth'):
+    def select_integrator(self, equations, integration_scheme='AdamsBashforth', stepwidth=1e-4):
         """
         Select an ode integration scheme:
         - two methods from scipy.integrate.ode (Adams-Bashforth and RK45) with variable time step size and 
-        - two own implementations (RK4 and Euler) with fixed time step size 
+        - three own implementations (RK4, Euler and AdamsBashforth) with fixed time step size 
         are available.
         Recommended: 'Adams-Bashforth'
         """
         if integration_scheme == 'RK4_FixedTimeStep':
-            integrator = RungeKutta4(equations.ode_arg_sorter).set_integrator(stepwidth=1e-4)
+            integrator = RungeKutta4(equations.ode_arg_sorter).set_integrator(stepwidth)
         elif integration_scheme == 'Euler_FixedTimeStep':
-            integrator = ExplicitEuler(equations.ode_arg_sorter).set_integrator(stepwidth=1e-4)
-        elif integration_scheme == 'Adams-Bashforth':
+            integrator = ExplicitEuler(equations.ode_arg_sorter).set_integrator(stepwidth)
+        elif integration_scheme == 'AdamsBashforth_FixedTimeStep':
+            integrator = AdamsBashforth(equations.ode_arg_sorter).set_integrator(stepwidth)
+        elif integration_scheme == 'AdamsBashforth':
             integrator = ode(equations.ode_arg_sorter).set_integrator('vode', method='adams', nsteps=2000, rtol=1e-4, atol=1e-4, max_step=5e-4) # non-stiff: 'adams', stiff: 'bdf'
         elif integration_scheme == 'RK45':
             integrator = ode(equations.ode_arg_sorter).set_integrator('dopri5', nsteps=2000, rtol=1e-2, atol=1e-8, max_step=1e-4)
@@ -416,11 +461,11 @@ class SolutionSequences(TrimConditions):
             
     def exec_sim_freq_dom(self):
         if self.simcase['gust']:
-            equations = GustExcitation(self, X0=self.response['X'], simcase=self.simcase)
+            equations = GustExcitation(self, X0=self.response['X'])
         elif self.simcase['turbulence']:
-            equations = TurbulenceExcitation(self, X0=self.response['X'], simcase=self.simcase)
+            equations = TurbulenceExcitation(self, X0=self.response['X'])
         elif self.simcase['limit_turbulence']:
-            equations = LimitTurbulence(self, X0=self.response['X'], simcase=self.simcase)
+            equations = LimitTurbulence(self, X0=self.response['X'])
             self.response['Pmon_turb'] = 0.0
             self.response['correlations'] = 0.0
             self.response['X'] = np.expand_dims(self.response['X'], axis=0)
@@ -434,13 +479,13 @@ class SolutionSequences(TrimConditions):
     def exec_flutter(self):
         # select solution sequence
         if self.simcase['flutter_para']['method'] == 'k':
-            equations = KMethod(self, X0=self.response['X'][0,:], simcase=self.simcase)
+            equations = KMethod(self, X0=self.response['X'][0,:])
         elif self.simcase['flutter_para']['method'] == 'ke':
-            equations = KEMethod(self, X0=self.response['X'][0,:], simcase=self.simcase)
+            equations = KEMethod(self, X0=self.response['X'][0,:])
         elif self.simcase['flutter_para']['method'] == 'pk':
-            equations = PKMethod(self, X0=self.response['X'][0,:], simcase=self.simcase)
+            equations = PKMethod(self, X0=self.response['X'][0,:])
         elif self.simcase['flutter_para']['method'] == 'statespace':
-            equations = StateSpaceAnalysis(self, X0=self.response['X'][0,:], simcase=self.simcase)
+            equations = StateSpaceAnalysis(self, X0=self.response['X'][0,:])
         response_flutter = equations.eval_equations()
         logging.info('Flutter analysis finished.')
         for key in response_flutter.keys():

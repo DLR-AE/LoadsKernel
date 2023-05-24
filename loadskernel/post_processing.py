@@ -7,8 +7,8 @@ Created on Mon Mar 30 13:34:50 2015
 import numpy as np
 import copy, logging
 
-from loadskernel.solution_tools import *
-from loadskernel.grid_trafo import *
+from loadskernel.solution_tools import calc_drehmatrix
+from loadskernel.grid_trafo import grid_trafo, vector_trafo
 
 class PostProcessing:
     #===========================================================================
@@ -21,7 +21,6 @@ class PostProcessing:
         self.trimcase = trimcase
         self.response = response
         
-    
     def force_summation_method(self):
         logging.info('calculating forces & moments on structural set (force summation method)...')
         response   = self.response
@@ -133,16 +132,11 @@ class PostProcessing:
             Ug_f_body = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T
             strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
             strcgrid_tmp['CD'] = np.repeat(1000000, self.model.strcgrid['n'])
-            response['Ug_f'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, Ug_f_body)
-            response['Pg_aero_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'][i_step,:])
-            #response['Pg_gust_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_gust'][i_step,:])
-            #response['Pg_unsteady_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_unsteady'][i_step,:])
-            #response['Pg_cs_global'][i_step,:]   = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_cs'][i_step,:])
-            #response['Pg_idrag_global'][i_step,:]   = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_idrag'][i_step,:])
-            response['Pg_iner_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'][i_step,:])
-            response['Pg_ext_global'][i_step,:]  = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_ext'][i_step,:])
-            response['Pg_cfd_global'][i_step,:]  = force_trafo(strcgrid_tmp, coord_tmp, response['Pg_cfd'][i_step,:])
-            #response['Pg_global'][i_step,:] = force_trafo(strcgrid_tmp, coord_tmp, response['Pg'][i_step,:])
+            response['Ug_f'][i_step,:] = vector_trafo(strcgrid_tmp, coord_tmp, Ug_f_body, dest_coord=1000000)
+            response['Pg_aero_global'][i_step,:] = vector_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'][i_step,:], dest_coord=1000000)
+            response['Pg_iner_global'][i_step,:] = vector_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'][i_step,:], dest_coord=1000000)
+            response['Pg_ext_global'][i_step,:]  = vector_trafo(strcgrid_tmp, coord_tmp, response['Pg_ext'][i_step,:], dest_coord=1000000)
+            response['Pg_cfd_global'][i_step,:]  = vector_trafo(strcgrid_tmp, coord_tmp, response['Pg_cfd'][i_step,:], dest_coord=1000000)
             response['Ug'][i_step,:] = response['Ug_r'][i_step,:] + response['Ug_f'][i_step,:]
 
     def cuttingforces(self):

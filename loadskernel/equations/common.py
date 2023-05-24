@@ -12,13 +12,13 @@ from loadskernel.cfd_interfaces import tau_interface, su2_interface
 from loadskernel.engine_interfaces import engine, propeller
 
 class Common():
-    def __init__(self, solution, X0='', simcase=''):
+    def __init__(self, solution, X0=''):
         logging.info('Init model equations of type "{}"'.format(self.__class__.__name__))
         self.model      = solution.model
         self.jcl        = solution.jcl
         self.trimcase   = solution.trimcase
         self.X0         = X0
-        self.simcase    = simcase
+        self.simcase    = solution.simcase
         self.trimcond_X = solution.trimcond_X
         self.trimcond_Y = solution.trimcond_Y
         self.solution   = solution
@@ -81,31 +81,38 @@ class Common():
         if self.jcl.efcs['version'] == 'cpacsmona_standard_efcs':
             self.efcs.apply_cpasmona_standard_mapping(self.model.x2grid, self.solution.n_inputs)
 
-        # get cfd splining matrices
-        if self.jcl.aero['method'] == 'cfd_steady':
+        # get cfd splining matrices and cfd solver interface
+        if self.jcl.aero['method'] in ['cfd_steady', 'cfd_unsteady']:
+            # get cfd splining matrices
             self.PHIcfd_strc = self.model.PHIcfd_strc
             self.PHIcfd_cg   = self.model.mass['PHIcfd_cg'][self.i_mass] 
             self.PHIcfd_f    = self.model.mass['PHIcfd_f'][self.i_mass]
-            if self.jcl.aero['cfd_solver'].lower() == 'tau':
+            # initialize the interface to a cfd solver
+            if self.jcl.aero['cfd_solver'].lower() == 'tau' and self.jcl.aero['method'] == 'cfd_steady':
                 self.cfd_interface = tau_interface.TauInterface(self.solution)
-            elif self.jcl.aero['cfd_solver'].lower() == 'su2':
-                self.cfd_interface = su2_interface.SU2Interface(self.solution)
+            elif self.jcl.aero['cfd_solver'].lower() == 'su2' and self.jcl.aero['method'] == 'cfd_steady':
+                self.cfd_interface = su2_interface.SU2InterfaceGridVelocity(self.solution)
+            elif self.jcl.aero['cfd_solver'].lower() == 'su2' and self.jcl.aero['method'] == 'cfd_unsteady':
+                self.cfd_interface = su2_interface.SU2InterfaceFarfieldOnflow(self.solution)
             else:
-                logging.error('Interface for CFD solver "{}" no implemented!'.format(self.jcl.aero['cfd_solver']))
+                logging.error('Interface for CFD solver "{}" and "{}" not implemented!'.format(self.jcl.aero['cfd_solver'], self.jcl.aero['method']))
 
         # set-up 1-cos gust   
         # Vtas aus solution condition berechnen
         uvw = np.array(self.trimcond_X[6:9,2], dtype='float')
         Vtas = sum(uvw**2)**0.5
-        if self.simcase and self.simcase['gust']:
+        if 'gust' in self.simcase and self.simcase['gust']:
+            # calculate and set the gust velocities
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD'] 
             self.s0 = self.simcase['gust_para']['T1'] * Vtas 
             if 'WG_TAS' not in self.simcase.keys():
                 self.WG_TAS, U_ds, V_gust = design_gust_cs_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], self.model.atmo['rho'][self.i_atmo], Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
             else:
                 self.WG_TAS = self.simcase['WG_TAS']
+            # write some user information / confirmation
             logging.info('Gust set up with initial Vtas = {:.4f}, t1 = {}, WG_tas = {:.4f}'.format(Vtas, self.simcase['gust_para']['T1'], self.WG_TAS))
-        elif self.simcase and (self.simcase['turbulence'] or self.simcase['limit_turbulence']):
+            
+        elif ('turbulence' in self.simcase or 'limit_turbulence' in self.simcase) and (self.simcase['turbulence'] or self.simcase['limit_turbulence']):
             V_C = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MC']
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD'] 
             if 'u_sigma' not in self.simcase.keys():
@@ -115,11 +122,11 @@ class Common():
             logging.info('Turbulence set up with initial Vtas = {:.4f} and u_sigma = {:.4f}'.format(Vtas, self.u_sigma))
         
         # init cs_signal
-        if self.simcase and self.simcase['cs_signal']:
+        if 'cs_signal' in self.simcase and self.simcase['cs_signal']:
             self.efcs.cs_signal_init(self.trimcase['desc'])
         
         # init controller
-        if self.simcase and self.simcase['controller']:
+        if 'controller' in self.simcase and self.simcase['controller']:
             """
             The controller might be set-up in different ways, e.g. to maintain a certain angular acceleration of velocity.
             Example: self.efcs.controller_init(np.array((0.0,0.0,0.0)), 'angular accelerations')
@@ -300,7 +307,7 @@ class Common():
     
     def gust(self, X, q_dyn):
         wj = np.zeros(self.model.aerogrid['n'])
-        if self.simcase and self.simcase['gust']:
+        if 'gust' in self.simcase and self.simcase['gust']:
             # Eintauchtiefe in die Boe berechnen
             s_gust = (X[0] - self.model.aerogrid['offset_j'][:,0] - self.s0)
             # downwash der 1-cos Boe auf ein jedes Panel berechnen
@@ -345,7 +352,7 @@ class Common():
         v += vf_1 + vf_2
         w += wf_1 + wf_2
 
-        if self.simcase and self.simcase['gust']:
+        if 'gust' in self.simcase and self.simcase['gust']:
             # Eintauchtiefe in die Boe berechnen, analog zu gust()
             s_gust = (X[0] - self.model.sensorgrid['offset'][i_sensor,0] - self.s0)
             # downwash der 1-cos Boe an der Sensorposition, analog zu gust()
@@ -553,7 +560,7 @@ class Common():
         p2 = np.zeros(self.model.extragrid['n'])
         dp2 = np.zeros(self.model.extragrid['n'])
         ddp2 = np.zeros(self.model.extragrid['n'])
-        if self.simcase and self.simcase['landinggear']:
+        if 'landinggear' in self.simcase and self.simcase['landinggear']:
             # init
             PHIextra_cg = self.model.mass['PHIextra_cg'][self.i_mass]
             PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]
@@ -706,9 +713,9 @@ class Common():
         return d2Uf_dt2
     
     def get_command_derivatives(self, t, X, Vtas, gamma, alpha, beta, Nxyz, dxyz):
-        if self.simcase and self.simcase['cs_signal']:
+        if 'cs_signal' in self.simcase and self.simcase['cs_signal']:
             dcommand = self.efcs.cs_signal(t)
-        elif self.simcase and self.simcase['controller']:
+        elif 'controller' in self.simcase and self.simcase['controller']:
             feedback = {'pqr':          X[self.solution.idx_states[9:12]],
                         'PhiThetaPsi':  X[self.solution.idx_states[3:6]],
                         'z':            X[self.solution.idx_states[2]],
