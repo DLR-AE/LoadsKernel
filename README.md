@@ -1,4 +1,9 @@
 # Loads Kernel
+
+<p align="left">
+<img width="200" src="./graphics/LK_logo2.png">
+</p>
+
 The Loads Kernel Software allows for the calculation of quasi-steady and dynamic maneuver loads, unsteady gust loads in the time and frequency domain as well as dynamic landing loads based on a generic landing gear module.
 
 # References
