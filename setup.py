@@ -10,7 +10,7 @@ from setuptools import setup, find_packages
 
 def my_setup():
     setup(name='Loads-Kernel',
-          version='2022.10',
+          version='2023.06',
           description='The Loads Kernel Software allows for the calculation of quasi-steady and dynamic maneuver loads, unsteady gust loads in the time and frequency domain as well as dynamic landing loads based on a generic landing gear module.',
           url='https://wiki.dlr.de/display/AE/Loads+Kernel%3A+Lastenrechnung',
           author='Arne Voß',
