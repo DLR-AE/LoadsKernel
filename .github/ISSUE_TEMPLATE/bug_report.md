@@ -1,5 +1,13 @@
+---
+name: Bug report
+about: Create a report to help us improve
+title: ''
+labels: ''
+assignees: ''
 
-*Note: If this is a general question or difficulty in installing or using the software, please ask in the [Discussions](https://github.com/DLR-AE/PanelAero/discussions) section or contact arne.voss@dlr.de or someone else for help instead.*
+---
+
+*Note: If this is a general question or difficulty in installing or using the software, please ask in the [Discussions](https://github.com/DLR-AE/LoadsKernel/discussions) section.*
 
 # Describe the bug
 *Please give a short and clear description of what the bug is and what you expected to happen. Please provide instructions and data to reproduce the problem (model, jcl, etc.). Please provide the smallest working example that reproduces the problem.*
