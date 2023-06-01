@@ -46,8 +46,6 @@ def rules_aeropanel(aerogrid):
                    "ID_d": single_ids,
                     }
     return splinerules
-        
-
 
 def monstations_from_bdf(mongrid, filenames):
     if mongrid['n'] != len(filenames):
@@ -65,8 +63,7 @@ def monstations_from_bdf(mongrid, filenames):
                     }
     return splinerules
                 
-                
-def monstations_from_aecomp(mongrid, filename):
+def monstations_from_aecomp_old(mongrid, filename):
     aecomp = read_mona.Nastran_AECOMP(filename)
     # Assumption: only SET1 is used in AECOMP, AELIST and CAERO are not yet implemented
     sets = read_mona.Nastran_SET1(filename)
@@ -83,7 +80,22 @@ def monstations_from_aecomp(mongrid, filename):
                    "ID_d": ID_d,
                     }
     return splinerules
+
+def monstations_from_aecomp(mongrid, aecomp, sets):
+    ID_d = []
+    ID_i = []
+    for i_station in range(mongrid['n']):
+        i_aecomp = aecomp['name'].index( mongrid['comp'][i_station])
+        i_sets = [sets['ID'].index(x) for x in aecomp['list_id'][i_aecomp]]
+        # combine the IDs in case multiple sets are given by one AECOMP card
+        combined_ids = []
+        for i_set in i_sets: 
+            combined_ids += list(sets['values'][i_set])
+        ID_d.append(combined_ids)
+        ID_i.append(mongrid['ID'][i_station])
                 
-                
-                
-                
+    splinerules = {"method": 'rb',
+                   "ID_i": ID_i,
+                   "ID_d": ID_d,
+                    }
+    return splinerules

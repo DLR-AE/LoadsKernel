@@ -168,7 +168,6 @@ class Kernel(ProgramFlowHelper):
         t_start = time.time()
         model = model_modul.Model(self.jcl, self.path_output)
         model.build_model()
-        model.write_aux_data()
 
         logging.info('--> Saving model data.')
         del model.jcl
@@ -219,9 +218,9 @@ class Kernel(ProgramFlowHelper):
             fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
         
         for i in range(len(self.jcl.trimcase)):
-            if self.restart and i in [response['i'] for response in responses]:
+            if self.restart and i in [response['i'][()] for response in responses]:
                 logging.info('Restart option: found existing response.')
-                response = responses[[response['i'] for response in responses].index(i)]
+                response = responses[[response['i'][()] for response in responses].index(i)]
             else:
                 jcl = copy.deepcopy(self.jcl)                    
                 response = self.main_common(model, jcl, i)

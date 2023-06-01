@@ -1,10 +1,9 @@
 '''
-Created on Aug 2, 2019
-
-@author: voss_ar
+This is a template for an EFCS. For each aircraft, an EFCS must be written which maps the pilot 
+commands to control surface deflections Ux2. This is because every aircraft has different control 
+surfaces (e.g. one or two elevators, multiple ailerons, etc.)  
 '''
 import numpy as np
-import logging
 
 class Efcs:
     def __init__(self):

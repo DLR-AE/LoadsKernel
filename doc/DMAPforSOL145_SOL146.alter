@@ -1,0 +1,45 @@
+$ Switch (0/1) between parabolic or quartic formulation of the DLM
+NASTRAN QUARTICDLM=0
+
+$ Depending on the number of AICs, a sufficient number of files must be assigned
+ASSIGN OUTPUT4 ='AJJ01.dat', STATUS=NEW,UNIT=74,FORM=FORMATTED
+ASSIGN OUTPUT4 ='AJJ02.dat', STATUS=NEW,UNIT=75,FORM=FORMATTED
+ASSIGN OUTPUT4 ='AJJ03.dat', STATUS=NEW,UNIT=76,FORM=FORMATTED
+[...]
+
+$ This DMAP alter seems to work with both SOL 145 and 146
+SOL 146
+
+$-----------------------------------------------------------------------
+$ DMAP Export Ajj 
+$ with Qjj = Ajj^-1 and Ajj = AJJT
+$-----------------------------------------------------------------------
+COMPILE PFAERO, SOUIN=MSCSOU,LIST,NOREF
+ALTER 4$
+TYPE PARM, ,I,N,IUN=74 $
+ALTER ' $  USER INPUT CORRECTION FACTORS TO THE AERODYNAMIC' (,5) $ AFTER LINE
+OUTPUT4 AJJT///IUN/3//9$
+IUN = IUN +1 $
+ENDALTER
+$------------------------------------------------------------------------
+CEND
+
+ECHO=NONE
+
+BEGIN BULK
+PARAM,GUSTAERO,-1
+$
+$------><------><------><------><------><------><------><------><------>
+$ MKAERO      Ma
+$             k1      k2      k3      k4    etc. 
+MKAERO1      0.4
+           0.001    0.01    0.03     0.1   [...]
+$------><------><------><------><------><------><------><------><------>
+$ AERO     coord       V   c_ref     rho
+AERO         360   170.0    6.73   1.225
+CORD2R       360       0     0.0     0.0     0.0     0.0     0.0     1.0+
++            1.0     0.0     0.0
+$------><------><------><------><------><------><------><------><------>
+$
+$ Aerodynamic and structural model
+$ [...]

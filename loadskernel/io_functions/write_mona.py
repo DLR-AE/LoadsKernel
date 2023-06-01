@@ -6,7 +6,7 @@ Created on Apr 9, 2019
 import numpy as np
 import  logging
 
-def number_nastarn_converter(number):
+def number_nastran_converter(number):
     if np.abs(number) < 1e-8:
         number = 0.0 # set tiny number to zero
     if number.is_integer():
@@ -56,10 +56,10 @@ def write_force_and_moment_cards(fid, grid, Pg, SID):
     # FORCE and MOMENT cards with all values equal to zero are ommitted to avoid problems when importing to Nastran.
     for i in range(grid['n']):
         if np.any(np.abs(Pg[grid['set'][i,0:3]]) >= 1e-8):
-            line = 'FORCE   ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, int(grid['ID'][i]), int(grid['CD'][i]), str(1.0), number_nastarn_converter(Pg[grid['set'][i,0]]), number_nastarn_converter(Pg[grid['set'][i,1]]), number_nastarn_converter(Pg[grid['set'][i,2]]) )
+            line = 'FORCE   ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, int(grid['ID'][i]), int(grid['CD'][i]), str(1.0), number_nastran_converter(Pg[grid['set'][i, 0]]), number_nastran_converter(Pg[grid['set'][i, 1]]), number_nastran_converter(Pg[grid['set'][i, 2]]))
             fid.write(line)
         if np.any(np.abs(Pg[grid['set'][i,3:6]]) >= 1e-8):
-            line = 'MOMENT  ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, int(grid['ID'][i]), int(grid['CD'][i]), str(1.0), number_nastarn_converter(Pg[grid['set'][i,3]]), number_nastarn_converter(Pg[grid['set'][i,4]]), number_nastarn_converter(Pg[grid['set'][i,5]]) )
+            line = 'MOMENT  ' + '{:>8d}{:>8d}{:>8d}{:>8.7s}{:>8s}{:>8s}{:>8s}\n'.format(SID, int(grid['ID'][i]), int(grid['CD'][i]), str(1.0), number_nastran_converter(Pg[grid['set'][i, 3]]), number_nastran_converter(Pg[grid['set'][i, 4]]), number_nastran_converter(Pg[grid['set'][i, 5]]))
             fid.write(line)
             
 def write_subcases(fid, subcase, desc):

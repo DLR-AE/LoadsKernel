@@ -4,11 +4,13 @@ Created on Fri Nov 21 16:29:57 2014
 
 @author: voss_ar
 """
-import string
+import string, copy
 import numpy as np
 import scipy.sparse as sp
 import math as math
 import os, logging
+import pandas as pd
+from itertools import compress
 
 def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=False):
     '''
@@ -167,126 +169,93 @@ def Modgen_GRID(filename):
            }
     return grid
 
-def Modgen_CQUAD4(filename):
-    logging.info('Read CQUAD4/CTRIA3 data from ModGen file: %s' %filename)
-    ids = []
-    cornerpoints_points = []
-    with open(filename, 'r') as fid:
-        while True:
-            read_string = fid.readline()
-            if str.find(read_string, 'CQUAD4') !=-1 and read_string[0] != '$':
-                ids.append(nastran_number_converter(read_string[8:16], 'ID'),)
-                cornerpoints_points.append([nastran_number_converter(read_string[24:32], 'ID'), nastran_number_converter(read_string[32:40], 'ID'), nastran_number_converter(read_string[40:48], 'ID'), nastran_number_converter(read_string[48:56], 'ID')])
-            elif str.find(read_string, 'CTRIA3') !=-1 and read_string[0] != '$':
-                ids.append(nastran_number_converter(read_string[8:16], 'ID'),)
-                cornerpoints_points.append([nastran_number_converter(read_string[24:32], 'ID'), nastran_number_converter(read_string[32:40], 'ID'), nastran_number_converter(read_string[40:48], 'ID')])
-            elif read_string == '':
-                break
-    ids = np.array(ids)
-    panels = {"ID": ids,
-              "cornerpoints": cornerpoints_points, # cornerpoints is a list to allow for both quad and tria elements
-              "CP": np.zeros(ids.shape), # Assumption: panels are given in global coord system
-              "CD": np.zeros(ids.shape),
-              "n": len(ids)
-             }
-    return panels
+def add_GRIDS(pandas_grids):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    n = pandas_grids.shape[0]
+    strcgrid = {}
+    strcgrid['ID']     = pandas_grids['ID'].to_numpy(dtype='int')
+    strcgrid['CD']     = pandas_grids['CD'].to_numpy(dtype='int')
+    strcgrid['CP']     = pandas_grids['CP'].to_numpy(dtype='int')
+    strcgrid['n']      = n
+    strcgrid['set']    = np.arange(n*6).reshape((n,6))
+    strcgrid['offset'] = pandas_grids[['X1', 'X2', 'X3']].to_numpy(dtype='float')
+    return strcgrid
+
+def add_shell_elements(pandas_panels):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    cornerpoints = []
+    # Loop over the rows to check for NaNs, which occur in case of three (CTRIA) instead of four (CQUAD) cornerpoints.
+    # This could be done in one line using list comprehensions, this loop with several intermediate steps is more intuitive.
+    for index, row in pandas_panels[['G1', 'G2', 'G3', 'G4']].iterrows():
+        is_cornerpoint = [pd.notna(x) for x in row]
+        cornerpoints.append(row[is_cornerpoint].to_list())
+    strcshell = {}
+    n = pandas_panels.shape[0]
+    strcshell['ID']             = pandas_panels['ID'].to_numpy(dtype='int')
+    strcshell['cornerpoints']   = cornerpoints
+    strcshell['CD']             = np.zeros(n) # Assumption: panels are given in global coord system
+    strcshell['CP']             = np.zeros(n)
+    strcshell['n']              = n
+    return strcshell
     
-def CAERO(filename, i_file):
-    logging.info('Read CAERO1 and/or CAERO7 cards from Nastran/ZAERO bdf: %s' %filename)
-    caerocards = []
-    with open(filename, 'r') as fid:
-        while True:
-            read_string = fid.readline()
-            if str.find(read_string, 'CAERO1') !=-1 and read_string[0] != '$':
-                # read first line of CAERO card
-                caerocard = {'EID': nastran_number_converter(read_string[8:16], 'ID'),
-                             'CP': nastran_number_converter(read_string[24:32], 'ID'),
-                             'n_span': nastran_number_converter(read_string[32:40], 'ID'), # n_boxes
-                             'n_chord': nastran_number_converter(read_string[40:48], 'ID'), # n_boxes
-                             'l_span': nastran_number_converter(read_string[48:56], 'ID'),
-                             'l_chord': nastran_number_converter(read_string[56:64], 'ID'),
-                            }
-                # read second line of CAERO card
-                read_string = fid.readline()  
-                caerocard['X1'] = np.array([nastran_number_converter(read_string[ 8:16], 'float'), nastran_number_converter(read_string[16:24], 'float'), nastran_number_converter(read_string[24:32], 'float')])
-                caerocard['length12'] = nastran_number_converter(read_string[32:40], 'float')
-                caerocard['X2'] = caerocard['X1'] + np.array([caerocard['length12'], 0.0, 0.0])
-                caerocard['X4'] =np.array([nastran_number_converter(read_string[40:48], 'float'), nastran_number_converter(read_string[48:56], 'float'), nastran_number_converter(read_string[56:64], 'float')])
-                caerocard['length43'] = nastran_number_converter(read_string[64:72], 'float')
-                caerocard['X3'] = caerocard['X4'] + np.array([caerocard['length43'], 0.0, 0.0])
-                caerocards.append(caerocard)
-            if str.find(read_string, 'CAERO7') !=-1 and read_string[0] != '$':
-                # The CAERO7 cards of ZAERO is nearly identical to Nastran'S CAERO1 card. 
-                # However, it uses 3 lines, which makes the card more readable to the human eye.
-                # Also, not the number of boxes but the number of divisions is given (n_boxes = n_division-1)
-                # read first line of CAERO card
-                caerocard = {'EID': nastran_number_converter(read_string[8:16], 'ID'),
-                             'CP': nastran_number_converter(read_string[24:32], 'ID'),
-                             'n_span': nastran_number_converter(read_string[32:40], 'ID') - 1,
-                             'n_chord': nastran_number_converter(read_string[40:48], 'ID') - 1,
-                            }
-                if np.any([caerocard['n_span'] == 0, caerocard['n_chord'] == 0]):
-                    logging.error('Assumption of equal spaced CAERO7 panels is violated!')
-                # read second line of CAERO card
-                read_string = fid.readline()  
-                caerocard['X1'] = np.array([nastran_number_converter(read_string[ 8:16], 'float'), nastran_number_converter(read_string[16:24], 'float'), nastran_number_converter(read_string[24:32], 'float')])
-                caerocard['length12'] = nastran_number_converter(read_string[32:40], 'float')
-                caerocard['X2'] = caerocard['X1'] + np.array([caerocard['length12'], 0.0, 0.0])
-                # read third line of CAERO card
-                read_string = fid.readline()  
-                caerocard['X4'] =np.array([nastran_number_converter(read_string[ 8:16], 'float'), nastran_number_converter(read_string[16:24], 'float'), nastran_number_converter(read_string[24:32], 'float')])
-                caerocard['length43'] = nastran_number_converter(read_string[32:40], 'float')
-                caerocard['X3'] = caerocard['X4'] + np.array([caerocard['length43'], 0.0, 0.0])
-                caerocards.append(caerocard)
-            elif read_string == '':
-                break
-    logging.info('Read AEFACT cards from Nastran bdf: %s' %filename)
-    aefacts = Nastran_AEFACT(filename)        
-    logging.info(' - from CAERO cards, constructing corner points and aero panels')
+def add_panels_from_CAERO(pandas_caero, pandas_aefact):
+    logging.info('Constructing aero panels from CAERO cards')
     # from CAERO cards, construct corner points... '
     # then, combine four corner points to one panel
-    grid_ID = i_file * 100000 # the file number is used to set a range of grid IDs 
+    grid_ID = 1 # the file number is used to set a range of grid IDs 
     grids = {'ID':[], 'offset':[]}
     panels = {"ID": [], 'CP':[], 'CD':[], "cornerpoints": []}
-    for caerocard in caerocards:
-         # calculate LE, Root and Tip vectors [x,y,z]^T
-         LE   = caerocard['X4'] - caerocard['X1']
-         Root = caerocard['X2'] - caerocard['X1']
-         Tip  = caerocard['X3'] - caerocard['X4']
+    for index, caerocard in pandas_caero.iterrows():
+        # get the four corner points of the CAERO card
+        X1 = caerocard[['X1', 'Y1', 'Z1']].to_numpy(dtype='float')
+        X4 = caerocard[['X4', 'Y4', 'Z4']].to_numpy(dtype='float')
+        X2 = X1 + np.array([caerocard['X12'], 0.0, 0.0])
+        X3 = X4 + np.array([caerocard['X43'], 0.0, 0.0])
+        # calculate LE, Root and Tip vectors [x,y,z]^T
+        LE   = X4 - X1
+        Root = X2 - X1
+        Tip  = X3 - X4
+        n_span  = int(caerocard['NSPAN'])
+        n_chord = int(caerocard['NCHORD'])
+        if caerocard['NCHORD'] == 0:
+            # look in AEFACT cards for the appropriate card and get spacing
+            if pd.notna(caerocard['LCHORD']):
+                d_chord = [v for v in pandas_aefact.loc[pandas_aefact['ID']==caerocard['LCHORD'],'values'].values[0] if v is not None]
+                n_chord = len(d_chord)-1 # n_boxes = n_division-1
+            else:
+                logging.error('Assumption of equal spaced CAERO7 panels is violated!')
+        else:
+            # assume equidistant spacing
+            d_chord = np.linspace(0.0, 1.0, n_chord+1 ) 
+     
+        if caerocard['NSPAN'] == 0:
+            # look in AEFACT cards for the appropriate card and get spacing
+            if pd.notna(caerocard['LSPAN']):
+                d_span = [v for v in pandas_aefact.loc[pandas_aefact['ID']==caerocard['LSPAN'],'values'].values[0] if v is not None]
+                n_span = len(d_span)-1 # n_boxes = n_division-1
+            else:
+                logging.error('Assumption of equal spaced CAERO7 panels is violated!')
+        else:
+            # assume equidistant spacing
+            d_span = np.linspace(0.0, 1.0, n_span+1 ) 
          
-         if caerocard['n_chord'] == 0:
-             # look in AEFACT cards for the appropriate card and get spacing
-             d_chord = aefacts['values'][aefacts['ID'].index(caerocard['l_chord'])]
-             caerocard['n_chord'] = len(d_chord)-1 # n_boxes = n_division-1
-         else:
-             # assume equidistant spacing
-             d_chord = np.linspace(0.0, 1.0, caerocard['n_chord']+1 ) 
-             
-         if caerocard['n_span'] == 0:
-             # look in AEFACT cards for the appropriate card and get spacing
-             d_span = aefacts['values'][aefacts['ID'].index(caerocard['l_span'])]
-             caerocard['n_span'] = len(d_span)-1 # n_boxes = n_division-1
-         else:
-              # assume equidistant spacing
-             d_span = np.linspace(0.0, 1.0, caerocard['n_span']+1 ) 
-         
-         # build matrix of corner points
-         # index based on n_divisions
-         grids_map = np.zeros((caerocard['n_chord']+1,caerocard['n_span']+1), dtype='int')
-         for i_strip in range(caerocard['n_span']+1):
-             for i_row in range(caerocard['n_chord']+1):
-                 offset = caerocard['X1'] \
-                        + LE * d_span[i_strip] \
-                        + (Root*(1.0-d_span[i_strip]) + Tip*d_span[i_strip]) * d_chord[i_row]
-                 grids['ID'].append(grid_ID)
-                 grids['offset'].append(offset)
-                 grids_map[i_row,i_strip ] = grid_ID
-                 grid_ID += 1
-         # build panels from cornerpoints
-         # index based on n_boxes
-         panel_ID =  caerocard['EID']                  
-         for i_strip in range(caerocard['n_span']):
-             for i_row in range(caerocard['n_chord']):
+        # build matrix of corner points
+        # index based on n_divisions
+        grids_map = np.zeros((n_chord+1,n_span+1), dtype='int')
+        for i_strip in range(n_span+1):
+            for i_row in range(n_chord+1):
+                offset = X1 \
+                       + LE * d_span[i_strip] \
+                       + (Root*(1.0-d_span[i_strip]) + Tip*d_span[i_strip]) * d_chord[i_row]
+                grids['ID'].append(grid_ID)
+                grids['offset'].append(offset)
+                grids_map[i_row,i_strip ] = grid_ID
+                grid_ID += 1
+        # build panels from cornerpoints
+        # index based on n_boxes
+        panel_ID =  int(caerocard['ID'])                  
+        for i_strip in range(n_span):
+            for i_row in range(n_chord):
                 panels['ID'].append(panel_ID)
                 panels['CP'].append(caerocard['CP']) # applying CP of CAERO card to all grids
                 panels['CD'].append(caerocard['CP'])
@@ -298,15 +267,15 @@ def CAERO(filename, i_file):
     panels['cornerpoints'] = np.array(panels['cornerpoints'])
     grids['ID'] = np.array(grids['ID'])
     grids['offset'] = np.array(grids['offset'])
-    return grids, panels      
-    
+    return grids, panels
+
 def nastran_number_converter(string_in, type, default=0):
-    if type in ['float']:
+    if type in ['float', 'f']:
         try:
             out = float(string_in)
         except:
-            
-            string_in = string_in.replace(' ', '') # remove leading spaces
+            # remove all spaces, which might also occur in between the sign and the number (e.g. in ModGen)
+            string_in = string_in.replace(' ', '')
             for c in ['\n', '\r']: string_in = string_in.strip(c) # remove end of line
             if '-' in string_in[1:]:
                 if string_in[0] in ['-', '+']:
@@ -321,16 +290,24 @@ def nastran_number_converter(string_in, type, default=0):
                 else:
                     out = float(string_in.replace('+', 'E+'))
             elif string_in == '':
-                logging.warning("Could not interpret the following number: '" + string_in + "' -> setting value to "+str(default))
-                out = float(default)
+                logging.debug("Could not interpret the following number: '" + string_in + "' -> setting value to "+str(default))
+                out = default
             else: 
                 logging.error("Could not interpret the following number: " + string_in)
                 return
-    elif type in ['int', 'ID', 'CD', 'CP']:
+    elif type in ['int', 'i','ID', 'CD', 'CP']:
         try:
             out = int(string_in)
         except:
-            out = int(default)  
+            out = default
+    elif type in ['str']:
+        # An dieser Stelle reicht es nicht mehr aus, nur die Leerzeichen zu entfernen...
+        # whitelist = string.ascii_letters + string.digits
+        # out = ''.join(filter(whitelist.__contains__, string_in))
+        out = string_in.strip('*, ')
+        if out == '':
+            out = default
+            
     return out
 
 def Nastran_DMI(filename):
@@ -372,233 +349,113 @@ def Nastran_DMI(filename):
                 break
     return DMI                
   
-def Modgen_CORD2R(filename, coord, grid=''):
-#    coord = {'ID':[],
-#             'RID':[],
-#             'offset':[],
-#             'dircos':[],
-#            }
-    with open(filename, 'r') as fid:
-        while True:
-            read_string = fid.readline()
-            if str.find(read_string, 'CORD2R') !=-1 and read_string[0] != '$':
-                # extract information from CORD2R card
-                line1 = read_string
-                line2 = fid.readline()
-                ID = nastran_number_converter(line1[8:16], 'int')
-                RID = nastran_number_converter(line1[16:24], 'int')
-                A = np.array([nastran_number_converter(line1[24:32], 'float'), nastran_number_converter(line1[32:40], 'float'), nastran_number_converter(line1[40:48], 'float')])
-                B = np.array([nastran_number_converter(line1[48:56], 'float'), nastran_number_converter(line1[56:64], 'float'), nastran_number_converter(line1[64:72], 'float')])
-                C = np.array([nastran_number_converter(line2[8:16], 'float'), nastran_number_converter(line2[16:24], 'float'), nastran_number_converter(line2[24:32], 'float')])
-                # build coord                
-                z = B - A
-                y = np.cross(B-A, C-A)
-                x = np.cross(y,z)
-                dircos = np.vstack((x/np.linalg.norm(x),y/np.linalg.norm(y),z/np.linalg.norm(z))).T
-                # save
-                coord['ID'].append(ID)
-                coord['RID'].append(RID)
-                coord['offset'].append(A)
-                coord['dircos'].append(dircos)
-                
-            elif str.find(read_string, 'CORD1R') !=-1 and read_string[0] != '$':
-                # CHORD1R ist aehnlich zu CORD2R, anstelle von offsets werden als grid points angegeben 
-                if grid == '':
-                    logging.warning(read_string)
-                    logging.warning('Found CORD1R card, but no grid is given. Coord is ignored.')
-                else:
-                    line1 = read_string
-                    ID = nastran_number_converter(line1[8:16], 'int')
-                    RID = 0
-                    ID_A = nastran_number_converter(line1[16:24], 'int')
-                    A =  grid['offset'][np.where(grid['ID'] == ID_A)[0][0]]
-                    ID_B = nastran_number_converter(line1[24:32], 'int')
-                    B = grid['offset'][np.where(grid['ID'] == ID_B)[0][0]]   
-                    ID_C = nastran_number_converter(line1[32:40], 'int')
-                    C = grid['offset'][np.where(grid['ID'] == ID_C)[0][0]]   
-                    # build coord - wie bei CORD2R              
-                    z = B - A
-                    y = np.cross(B-A, C-A)
-                    x = np.cross(y,z)
-                    dircos = np.vstack((x/np.linalg.norm(x),y/np.linalg.norm(y),z/np.linalg.norm(z))).T
-                    # save
-                    coord['ID'].append(ID)
-                    coord['RID'].append(RID)
-                    coord['offset'].append(A)
-                    coord['dircos'].append(dircos)
-            elif read_string == '':
-                break
-        return coord
-                
-def Modgen_AESURF(filename):    
-    aesurf = {'ID':[],
-              'key':[],
-              'CID':[],
-              'AELIST':[],
-              'eff':[],
-             }
-    with open(filename, 'r') as fid:
-        lines = fid.readlines()
-    for line in lines:
-        if str.find(line, 'AESURF') !=-1 and line[0] != '$':
-            # extract information from AESURF card
-            aesurf['ID'].append(nastran_number_converter(line[8:16], 'int'))
-            aesurf['key'].append(str.replace(line[16:24], ' ', ''))
-            aesurf['CID'].append(nastran_number_converter(line[24:32], 'int'))
-            aesurf['AELIST'].append(nastran_number_converter(line[32:40], 'int'))
-            aesurf['eff'].append(nastran_number_converter(line[56:64], 'float'))
+def add_CORD2R(pandas_cord2r, coord):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    for index, row in pandas_cord2r.iterrows():
+        ID = int(row['ID'])
+        RID = int(row['RID'])
+        A = row[['A1', 'A2', 'A3']].to_numpy(dtype='float').squeeze()
+        B = row[['B1', 'B2', 'B3']].to_numpy(dtype='float').squeeze()
+        C = row[['C1', 'C2', 'C3']].to_numpy(dtype='float').squeeze()
+        # build coord                
+        z = B - A
+        y = np.cross(B-A, C-A)
+        x = np.cross(y,z)
+        dircos = np.vstack((x/np.linalg.norm(x),y/np.linalg.norm(y),z/np.linalg.norm(z))).T
+        # save
+        if ID not in coord['ID']:
+            coord['ID'].append(ID)
+            coord['RID'].append(RID)
+            coord['offset'].append(A)
+            coord['dircos'].append(dircos)
+    
+def add_CORD1R(pandas_cord1r, coord, strcgrid):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    for index, row in pandas_cord1r.iterrows():
+        ID = int(row['ID'])
+        RID = 0
+        A = strcgrid['offset'][np.where(strcgrid['ID'] == row['A'])[0][0]]
+        B = strcgrid['offset'][np.where(strcgrid['ID'] == row['B'])[0][0]]   
+        C = strcgrid['offset'][np.where(strcgrid['ID'] == row['C'])[0][0]]   
+        # build coord - wie bei CORD2R              
+        z = B - A
+        y = np.cross(B-A, C-A)
+        x = np.cross(y,z)
+        dircos = np.vstack((x/np.linalg.norm(x),y/np.linalg.norm(y),z/np.linalg.norm(z))).T
+        # save
+        if ID not in coord['ID']:
+            coord['ID'].append(ID)
+            coord['RID'].append(RID)
+            coord['offset'].append(A)
+            coord['dircos'].append(dircos)
+
+def add_AESURF(pandas_aesurfs):
+    aesurf = {}
+    aesurf['ID']        = pandas_aesurfs['ID'].to_list()
+    aesurf['key']       = pandas_aesurfs['LABEL'].to_list()
+    aesurf['CID']       = pandas_aesurfs['CID'].to_list()
+    aesurf['AELIST']    = pandas_aesurfs['AELIST'].to_list()
+    aesurf['eff']       = pandas_aesurfs['EFF'].to_list()
     return aesurf
 
-def Nastran_AEFACT(filename):
-    # AEFACTs have the same nomenklatur as SET1s
-    # Thus, reuse the Nastran_SET1() function with a different keyword
-    # However, AEFACTs are mostly used with float numbers.
-    return Nastran_SET1(filename, keyword='AEFACT', type='float', default=999)
+def add_SET1(pandas_sets):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    # Due to the mixture of integers and strings ('THRU') in a SET1 card, all list items were parsed as strings. 
+    # This function parses the strings to integers and handles the 'THRU' option.
+    set_values = []
+    for _, row in pandas_sets[['values']].iterrows():
+        # create a copy of the current row to work with
+        my_row = copy.deepcopy(row[0])
+        # remove all None values
+        my_row = [item for item in my_row if item is not None]
+        values = []
+        while my_row:
+            if my_row[0] == 'THRU':
+                # Replace 'THRU' with the intermediate values
+                startvalue = values[-1]+1
+                stoppvalue = nastran_number_converter(my_row[1], 'int', default=None)
+                values += list(range(startvalue, stoppvalue+1) )
+                # remove consumed values from row
+                my_row.pop(0)
+                my_row.pop(0)
+            else:
+                # Parse list item as interger
+                values.append(nastran_number_converter(my_row[0], 'int', default=None))
+                # remove consumed values from row
+                my_row.pop(0)
+        set_values.append(np.array(values))    
 
-def Modgen_AELIST(filename):
-    # AELISTs have the same nomenklatur as SET1s
-    # Thus, reuse the Nastran_SET1() function with a different keyword
-    return Nastran_SET1(filename, keyword='AELIST')
-
-def Nastran_SET1(filename, keyword='SET1', type='int', default=0):
-    
-    sets = {'ID':[], 'values':[]}
-    next_line = False
-    with open(filename, 'r') as fid:
-        while True:
-            read_string = fid.readline()
-            if str.find(read_string[:8], keyword) !=-1 and '+' in read_string[-9:] and read_string[:1] != '$':
-                # this is the first line
-                row = read_string[8:]
-                next_line = True
-            elif next_line and read_string[:1] == '+' and '+' in read_string[-9:]:
-                # these are the middle lines
-                row += read_string[8:]
-            elif np.all(next_line and read_string[:1] == '+') or np.all(str.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
-                if np.all(str.find(read_string[:8], keyword) !=-1 and read_string[:1] != '$'):
-                    # this is the first AND the last line, no more IDs to come
-                    row = read_string[8:]
-                else:
-                    # this is the last line, no more IDs to come
-                    row += read_string[8:]
-                for c in ['\n', '\r', '+']: row = row.replace(c, '')
-                next_line = False
-                # start conversion from string to list containing ID values
-                sets['ID'].append(nastran_number_converter(row[:8], 'int', default))
-                row = row[8:]
-                
-                values = []
-                while len(row)>0:
-                    if str.replace(row[:8], ' ', '') == 'THRU':
-                        startvalue = values[-1]+1
-                        stoppvalue = nastran_number_converter(row[8:16], type, default)
-                        values += list(range(startvalue, stoppvalue+1) )
-                        row = row[16:]
-                    else:
-                        values.append(nastran_number_converter(row[:8], type, default))
-                        row = row[8:]
-                if keyword in ['SET1', 'AELIST']:
-                    # SET cards give ranges of grid points with ID >= 1. 
-                    # Blank fields are interpreted as 0 and need to be sorted out.
-                    sets['values'].append( np.array([x for x in values if x != 0]) )
-                elif keyword in ['AEFACT']:
-                    sets['values'].append( np.array([x for x in values if x != 999]) )
-                else:
-                    sets['values'].append(values)
-            if read_string == '':
-                break
-        return sets
+    sets = {}
+    sets['ID']      = pandas_sets['ID'].to_list()
+    sets['values']  = set_values
+    return sets
         
-def Nastran_AECOMP(filename):
-    aecomp = {'name': [], 'list_type':[], 'list_id':[]}
-    with open(filename, 'r') as fid:
-        lines = fid.readlines()
-    for line in lines:
-        if str.find(line, 'AECOMP') !=-1 and line[0] != '$':
-            # Assumption: only one list is given per AECOMP
-            aecomp['name'].append(str.replace(line[8:16], ' ', ''))
-            aecomp['list_type'].append(str.replace(line[16:24], ' ', ''))
-            aecomp['list_id'].append(nastran_number_converter(line[24:32], 'int'))
+def add_AECOMP(pandas_aecomps):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    list_id = []
+    # Loop over the rows to check for NaNs and None, which occur in case an empty field was in the list.
+    # Then, select only the valid list items.
+    for _, row in pandas_aecomps[['LISTID']].iterrows():
+        is_id = [pd.notna(x) for x in row[0]]
+        list_id.append(list(compress(row[0], is_id)))
     
+    aecomp = {}
+    aecomp['name']      = pandas_aecomps['NAME'].to_list()
+    aecomp['list_type'] = pandas_aecomps['LISTTYPE'].to_list()
+    aecomp['list_id']   = list_id
     return aecomp
 
-def Nastran_MONPNT1(filename):    
-    ID = []
-    name = []
-    label = []
-    comp = []
-    CP = []
-    CD = []
-    offset = []
-    i_ID = 1
-    with open(filename, 'r') as fid:
-        while True:
-            read_string = fid.readline()
-            if str.find(read_string, 'MONPNT1') !=-1 and read_string[0] != '$':
-                # extract information from MONPNT1 card
-                # erste Zeile
-                ID.append(i_ID) # Eigentlich haben MONPNTs keine IDs sondern nur Namen...
-                i_ID += 1
-                # An dieser Stelle reicht es nicht mehr aus, nur die Leerzeichen zu entfernen...
-                whitelist = string.ascii_letters + string.digits
-                name.append(''.join(filter(whitelist.__contains__, read_string[8:16])))
-                label.append(''.join(filter(whitelist.__contains__, read_string[16:72])))
-                # zweite Zeile
-                read_string = fid.readline()
-                comp.append(str.replace(read_string[16:24], ' ', ''))
-                CP.append(nastran_number_converter(read_string[24:32], 'int'))
-                CD.append(nastran_number_converter(read_string[56:64], 'int'))
-                offset.append([nastran_number_converter(read_string[32:40], 'float'), nastran_number_converter(read_string[40:48], 'float'), nastran_number_converter(read_string[48:56], 'float')])
-            elif read_string == '':
-                break
-    
-    n = len(ID)
-    mongrid = {'ID':np.array(ID),
-               'name':name,
-               'label':label,
-               'comp':comp,
-               'CP':np.array(CP),
-               'CD':np.array(CD),
-               'offset':np.array(offset),
-               'set': np.arange(n*6).reshape((n,6)),
-               'n':n,
-              }
+def add_MONPNT1(pandas_monpnts):
+    # This functions relies on the Pandas data frames from the bdf reader.
+    n = pandas_monpnts.shape[0]
+    mongrid = {}
+    # Eigentlich haben MONPNTs keine IDs sondern nur Namen...
+    mongrid['ID']     = np.arange(1,n+1)
+    mongrid['name']   = pandas_monpnts['NAME'].to_list()
+    mongrid['comp']   = pandas_monpnts['COMP'].to_list()
+    mongrid['CD']     = pandas_monpnts['CD'].to_numpy(dtype='int')
+    mongrid['CP']     = pandas_monpnts['CP'].to_numpy(dtype='int')
+    mongrid['n']      = n
+    mongrid['set']    = np.arange(n*6).reshape((n,6))
+    mongrid['offset'] = pandas_monpnts[['X', 'Y', 'Z']].to_numpy(dtype='float')
     return mongrid
-
-def Modgen_W2GJ(filename):
-    logging.info('Read W2GJ data (correction of camber and twist) from ModGen file: %s' %filename)
-    ID = []
-    cam_rad = []
-    with open(filename, 'r') as fid:
-        lines = fid.readlines()
-    for line in lines:
-        if str.find(line, 'CAM_RAD') !=-1 and line[0] != '$':
-            pos_ID = line.split().index('ID-CAE1')
-            pos_BOX = line.split().index('ID-BOX')
-            pos_CAM_RAD = line.split().index('CAM_RAD')
-        elif line[0] != '$':
-            # ID of every single aero panel
-            ID.append(nastran_number_converter(line.split()[pos_ID], 'int') + nastran_number_converter(line.split()[pos_BOX], 'int') - 1)
-            cam_rad.append(nastran_number_converter(line.split()[pos_CAM_RAD], 'float'))
-
-    camber_twist = {'ID': np.array(ID),
-                    'cam_rad':np.array(cam_rad),
-                   }
-    return camber_twist
-
-def Nastran_NodeLocationReport(filename):
-    IDs = set()
-    with open(filename, 'r') as fid:
-        while True:
-            read_string = fid.readline()
-            if str.find(read_string, 'Node ID') !=-1 and read_string[0] != '$':
-                while True:
-                    read_string = fid.readline()
-                    if read_string.split() != [] and nastran_number_converter(read_string.split()[0], 'ID') != 0:
-                        IDs.add(nastran_number_converter(read_string.split()[0], 'ID'))
-                    else:
-                        break
-            elif read_string == '':
-                break
-
-        return list(IDs)     

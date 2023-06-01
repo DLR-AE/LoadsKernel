@@ -1,17 +1,15 @@
-'''
-Created on Jul 4, 2022
+# encoding=utf8
 
-@author: voss_ar
-'''
 import logging, sys, yaml, copy
 import numpy as np
 
 from panelaero import VLM
-from loadskernel import build_aero_functions
 from loadskernel import spline_rules
 from loadskernel import spline_functions
 from loadskernel.solution_tools import * 
 from loadskernel import equations
+import loadskernel.build_aero_functions
+
 try:
     from pyPropMat.pyPropMat import Prop
 except:
@@ -35,8 +33,8 @@ class PyPropMat4Loads(object):
     - Theta and q are defined a a positive rotation about the y-axis.
     - Psi and r are defined a a positive rotation about the z-axis.
     
-    [1] Rodden, W., and Rose, T., “Propeller/nacelle whirl flutter addition to MSC/nastran,” in 
-    Proceedings of the 1989 MSC World User’s Conference, 1989.
+    [1] Rodden, W., and Rose, T. Propeller/nacelle whirl flutter addition to MSC/nastran, in 
+    Proceedings of the 1989 MSC World User's Conference, 1989.
     
     [2] https://phabricator.ae.go.dlr.de/diffusion/180/
     """
@@ -199,7 +197,7 @@ class VLM4PropModel(object):
         self.atmo = atmo
         
     def build_aerogrid(self):
-        self.aerogrid = build_aero_functions.build_aerogrid(self.filename, method_caero='VLM4Prop')                 
+        self.aerogrid = loadskernel.build_aero_functions.build_aerogrid(self.filename, method_caero='VLM4Prop')                 
         logging.info('The aerodynamic propeller model consists of {} panels.'.format(self.aerogrid['n']))
     
     def build_pacgrid(self):
@@ -322,7 +320,7 @@ class VLM4PropLoads(object):
             self.Pk.append(Pk_rbm + Pk_cam)
             # sum the forces at the origin and rotate back into aircraft system
             self.Pmac.append(Tblade2body.dot(self.model.Dkx1.T.dot(Pk_rbm + Pk_cam)))
-            logging.debug('Forces from blade {} at {:>5.1f}°: {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f}'.format(
+            logging.debug('Forces from blade {} at {:>5.1f} : {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f} {:> 8.1f}'.format(
                 i_blade, phi_i/np.pi*180.0, 
                 self.Pmac[i_blade][0], self.Pmac[i_blade][1], self.Pmac[i_blade][2], 
                 self.Pmac[i_blade][3], self.Pmac[i_blade][4], self.Pmac[i_blade][5], ))

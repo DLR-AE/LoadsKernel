@@ -184,7 +184,7 @@ class AuxiliaryOutput:
                 idx = subcases_IDs.index(subcase_ID)
                 io_functions.write_mona.write_subcases(fid, subcases_IDs[idx], subcases[idx])
     
-    def write_critical_sectionloads(self, filename): 
+    def write_critical_sectionloads(self, base_filename): 
         crit_trimcases = np.unique(self.crit_trimcases)
         crit_monstations = {}
         for key, monstation in self.monstations.items():
@@ -204,8 +204,9 @@ class AuxiliaryOutput:
                     crit_monstations[key]['loads'] += [monstation['loads'][pos_to_copy]]
                     crit_monstations[key]['t'] += [monstation['t'][pos_to_copy]]
         logging.info('saving critical monstation(s).')
-        with open(filename, 'wb') as f:
+        with open(base_filename + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(crit_monstations, f)
+        io_functions.specific_functions.dump_hdf5(base_filename + '.hdf5', crit_monstations)
         
     def save_cpacs_header(self):
         

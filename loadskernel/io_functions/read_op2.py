@@ -96,7 +96,7 @@ class OP2(object):
 
     def __init__(self, filename=None):
         self._fileh = None
-        if isinstance(filename, str):
+        if isinstance(filename, str) or isinstance(filename, unicode):
             self._op2_open(filename)
 
     def __del__(self):
