@@ -273,6 +273,16 @@ class jcl:
                           'support': [0,1,2,3,4,5],
                           # Thrust per engine in N or 'balanced'
                           'thrust':'balanced',
+                          # Euler angle Phi in rad
+                          'phi': 0.0/180.0*np.pi,
+                          # Euler angle Theta in rad
+                          'theta': 0.0/180.0*np.pi,
+                          # Pilot command Xi in rad
+                          'command_xi': 0.0/180.0*np.pi,
+                          # Pilot command Eta in rad
+                          'command_eta': 0.0/180.0*np.pi,
+                          # Pilot command Zeta in rad
+                          'command_zeta': 0.0/180.0*np.pi,
                           # --- End of experimental section ---
                          },
                         ]
@@ -307,7 +317,9 @@ class jcl:
                          # True or False, enables a generic controller e.g. to maintain p, q and r
                          'controller': False,
                          # True or False, enables a generic landing gear
-                         'landinggear':False,
+                         'landinggear': False,
+                         # True or False, enables calculation of rigid and elastic derivatives 
+                         'derivatives': False,
                          # List of DoF to be constrained
                          'support': [0,1,2,3,4,5],
                          # True or False, enables flutter check with k, ke or pk method
