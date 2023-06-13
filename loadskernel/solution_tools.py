@@ -32,7 +32,7 @@ def gravitation_on_earth(PHInorm_cg, Tgeo2body):
     g_cg = np.dot(PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
     return g_cg
 
-def design_gust_cs_25_341(gust_gradient, altitude, rho, V, Z_mo, V_D, MLW, MTOW, MZFW):
+def design_gust_cs_25_341(gust_gradient, altitude, rho, V, Z_mo, V_D, MLW, MTOW, MZFW, Fg):
     # Gust Calculation from CS 25.341 (a)
     # adapted from matlab-script by Vega Handojo, DLR-AE-LAE, 2015
     
@@ -48,8 +48,12 @@ def design_gust_cs_25_341(gust_gradient, altitude, rho, V, Z_mo, V_D, MLW, MTOW,
     MZFW = float(MZFW)   # Maximum Zero Fuel Weight
 
     p0, rho0, T0, a0 = atmo_isa(0.0)
-    
-    fg = calc_fg(altitude, Z_mo, MLW, MTOW, MZFW)
+
+    # Check if flight alleviation factor fg is provided by user as input, else calculate fg according to CS 25.341 (a)(6)
+    if Fg != 0.0:
+        fg = Fg
+    else:
+        fg = calc_fg(altitude, Z_mo, MLW, MTOW, MZFW)
         
     # reference gust velocity (EAS) [m/s]
     if altitude <= 4572:
@@ -118,5 +122,4 @@ def calc_fg(altitude, Z_mo, MLW, MTOW, MZFW):
         fg = 1.0
     else:
         fg = fg_sl + (1.0-fg_sl)*altitude/Z_mo
-    
     return fg
