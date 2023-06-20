@@ -106,7 +106,8 @@ class Common():
             V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD'] 
             self.s0 = self.simcase['gust_para']['T1'] * Vtas 
             if 'WG_TAS' not in self.simcase.keys():
-                self.WG_TAS, U_ds, V_gust = design_gust_cs_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], self.model.atmo['rho'][self.i_atmo], Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
+                self.WG_TAS, U_ds, V_gust = design_gust_cs_25_341(self.simcase, self.model.atmo['h'][self.i_atmo], self.model.atmo['rho'][self.i_atmo], Vtas, V_D)
+                #self.WG_TAS, U_ds, V_gust = design_gust_cs_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], self.model.atmo['rho'][self.i_atmo], Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'], self.simcase['Fg'])
             else:
                 self.WG_TAS = self.simcase['WG_TAS']
             # write some user information / confirmation
@@ -114,13 +115,13 @@ class Common():
             
         elif ('turbulence' in self.simcase or 'limit_turbulence' in self.simcase) and (self.simcase['turbulence'] or self.simcase['limit_turbulence']):
             V_C = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MC']
-            V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD'] 
+            V_D = self.model.atmo['a'][self.i_atmo] * self.simcase['gust_para']['MD']
             if 'u_sigma' not in self.simcase.keys():
                 self.u_sigma = turbulence_cs_25_341(self.model.atmo['h'][self.i_atmo], self.simcase['gust_para']['Z_mo'], Vtas, V_C, V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
             else:
                 self.u_sigma = self.simcase['u_sigma']
             logging.info('Turbulence set up with initial Vtas = {:.4f} and u_sigma = {:.4f}'.format(Vtas, self.u_sigma))
-        
+
         # init cs_signal
         if 'cs_signal' in self.simcase and self.simcase['cs_signal']:
             self.efcs.cs_signal_init(self.trimcase['desc'])

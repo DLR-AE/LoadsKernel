@@ -32,26 +32,27 @@ def gravitation_on_earth(PHInorm_cg, Tgeo2body):
     g_cg = np.dot(PHInorm_cg[0:3,0:3], np.dot(Tgeo2body[0:3,0:3],g)) # bodyfixed
     return g_cg
 
-def design_gust_cs_25_341(gust_gradient, altitude, rho, V, Z_mo, V_D, MLW, MTOW, MZFW, Fg):
+def design_gust_cs_25_341(simcase, altitude, rho, V, V_D):#gust_gradient, altitude, rho, V, Z_mo, V_D, MLW, MTOW, MZFW, Fg):
     # Gust Calculation from CS 25.341 (a)
     # adapted from matlab-script by Vega Handojo, DLR-AE-LAE, 2015
-    
+
     # convert (possible) integer to float
-    gust_gradient = float(gust_gradient)
-    altitude = float(altitude)     # Altitude
-    rho = float(rho)     # Air density
-    V = float(V)         # Speed
-    Z_mo = float(Z_mo)   # Maximum operating altitude
-    V_D = float(V_D)     # Design Dive speed
-    MLW = float(MLW)     # Maximum Landing Weight
-    MTOW = float(MTOW)   # Maximum Take-Off Weight
-    MZFW = float(MZFW)   # Maximum Zero Fuel Weight
+    gust_gradient = float(simcase['gust_gradient'])
+    altitude = float(altitude)                   # Altitude
+    rho = float(rho)                             # Air density
+    V = float(V)                                 # Speed
+    Z_mo = float(simcase['gust_para']['Z_mo'])   # Maximum operating altitude
+    V_D = float(V_D)                             # Design Dive speed
+    MLW = float(simcase['gust_para']['MLW'])     # Maximum Landing Weight
+    MTOW = float(simcase['gust_para']['MTOW'])   # Maximum Take-Off Weight
+    MZFW = float(simcase['gust_para']['MZFW'])   # Maximum Zero Fuel Weight
 
     p0, rho0, T0, a0 = atmo_isa(0.0)
 
-    # Check if flight alleviation factor fg is provided by user as input, else calculate fg according to CS 25.341 (a)(6)
-    if Fg != 0.0:
-        fg = Fg
+    # Check if flight alleviation factor fg is provided by user as input, else calculate fg according to CS 25.341(a)(6)
+    if 'Fg' in simcase['gust_para'].keys():
+        fg = float(simcase['gust_para']['Fg'])
+        print('INFO: Warning: Fg is set to predefined user value, calculations do not follow CS 25.341 (a)(6) anymore')
     else:
         fg = calc_fg(altitude, Z_mo, MLW, MTOW, MZFW)
         
