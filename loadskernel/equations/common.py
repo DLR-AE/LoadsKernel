@@ -107,7 +107,6 @@ class Common():
             self.s0 = self.simcase['gust_para']['T1'] * Vtas 
             if 'WG_TAS' not in self.simcase.keys():
                 self.WG_TAS, U_ds, V_gust = design_gust_cs_25_341(self.simcase, self.model.atmo['h'][self.i_atmo], self.model.atmo['rho'][self.i_atmo], Vtas, V_D)
-                #self.WG_TAS, U_ds, V_gust = design_gust_cs_25_341(self.simcase['gust_gradient'], self.model.atmo['h'][self.i_atmo], self.model.atmo['rho'][self.i_atmo], Vtas, self.simcase['gust_para']['Z_mo'], V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'], self.simcase['Fg'])
             else:
                 self.WG_TAS = self.simcase['WG_TAS']
             # write some user information / confirmation
