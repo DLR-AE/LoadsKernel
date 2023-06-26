@@ -6,6 +6,7 @@ Created on Thu Nov 27 17:44:58 2014
 """
 import numpy as np
 from loadskernel.atmosphere import isa as atmo_isa
+import logging
 
 def calc_drehmatrix_angular( phi=0.0, theta=0.0, psi=0.0 ):
     # Alle Winkel in [rad] !
@@ -52,7 +53,7 @@ def design_gust_cs_25_341(simcase, altitude, rho, V, V_D):#gust_gradient, altitu
     # Check if flight alleviation factor fg is provided by user as input, else calculate fg according to CS 25.341(a)(6)
     if 'Fg' in simcase['gust_para'].keys():
         fg = float(simcase['gust_para']['Fg'])
-        print('INFO: Warning: Fg is set to predefined user value, calculations do not follow CS 25.341 (a)(6) anymore')
+        logging.info('CS25_Uds is set up with flight profile alleviation factor Fg = {}'.format(fg))
     else:
         fg = calc_fg(altitude, Z_mo, MLW, MTOW, MZFW)
         
