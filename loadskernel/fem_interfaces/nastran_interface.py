@@ -145,30 +145,38 @@ class NastranInterface(object):
         for i_mode in modes_selection - 1:
             # deformation of a-set due to i_mode is the ith column of the eigenvector
             Ua = eigenvector[:,i_mode].real.reshape((-1,1))
-            # calc ommitted grids with Guyan
-            Uo = self.Goa.dot(Ua)
-            # assemble deflections of a and o to f
-            Uf = np.zeros((len(self.pos_f),1))
-            Uf[self.pos_f2a] = Ua
-            Uf[self.pos_f2o] = Uo
-            # deflection of s-set is zero, because that's the sense of an SPC ...
-            Us = np.zeros((len(self.pos_s),1))
-            # assemble deflections of s and f to n
-            Un = np.zeros((6*self.strcgrid['n'],1))
-            Un[self.pos_f] = Uf
-            Un[self.pos_s] = Us
-            Un = Un[self.pos_n]
-            # calc remaining deflections with GM
-            Um = self.GM.T.dot(Un)
-            # assemble everything to Ug
-            Ug = np.zeros((6*self.strcgrid['n'],1))
-            Ug[self.pos_f] = Uf
-            Ug[self.pos_s] = Us
-            Ug[self.pos_m] = Um
+            Uf = self.project_aset_to_fset(Ua)
+            Ug = self.project_fset_to_gset(Uf)
             # store vector in modal matrix
             self.PHIstrc_f[:,i] = Ug.squeeze()
             i += 1
         return
+    
+    def project_aset_to_fset(self, Ua):
+        # calc ommitted grids with Guyan
+        Uo = self.Goa.dot(Ua)
+        # assemble deflections of a and o to f
+        Uf = np.zeros((len(self.pos_f),1))
+        Uf[self.pos_f2a] = Ua
+        Uf[self.pos_f2o] = Uo
+        return Uf
+    
+    def project_fset_to_gset(self, Uf):
+        # deflection of s-set is zero, because that's the sense of an SPC ...
+        Us = np.zeros((len(self.pos_s),1))
+        # assemble deflections of s and f to n
+        Un = np.zeros((6*self.strcgrid['n'],1))
+        Un[self.pos_f] = Uf
+        Un[self.pos_s] = Us
+        Un = Un[self.pos_n]
+        # calc remaining deflections with GM
+        Um = self.GM.T.dot(Un)
+        # assemble everything to Ug
+        Ug = np.zeros((6*self.strcgrid['n'],1))
+        Ug[self.pos_f] = Uf
+        Ug[self.pos_s] = Us
+        Ug[self.pos_m] = Um
+        return Ug
     
     def modalanalysis(self):
         modes_selection = copy.deepcopy(self.jcl.mass['modes'][self.i_mass])
@@ -183,20 +191,7 @@ class NastranInterface(object):
         for i_mode in modes_selection - 1:
             # deformation of f-set due to i_mode is the ith column of the eigenvector
             Uf = eigenvector[:,i_mode].real.reshape((-1,1))
-            # deflection of s-set is zero, because that's the sense of an SPC ...
-            Us = np.zeros((len(self.pos_s),1))
-            # assemble deflections of s and f to n
-            Un = np.zeros((6*self.strcgrid['n'],1))
-            Un[self.pos_f] = Uf
-            Un[self.pos_s] = Us
-            Un = Un[self.pos_n]
-            # calc remaining deflections with GM
-            Um = self.GM.T.dot(Un)
-            # assemble everything to Ug
-            Ug = np.zeros((6*self.strcgrid['n'],1))
-            Ug[self.pos_f] = Uf
-            Ug[self.pos_s] = Us
-            Ug[self.pos_m] = Um
+            Ug = self.project_fset_to_gset(Uf)
             # store vector in modal matrix
             self.PHIstrc_f[:,i] = Ug.squeeze()
             i += 1
