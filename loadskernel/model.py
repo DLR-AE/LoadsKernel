@@ -207,11 +207,12 @@ class Model:
         logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(self.aerogrid['n'], len(self.x2grid['ID']) ))
             
     def build_aerogrid(self):
-        # grids
+        # parse given bdf files
+        self.bdf_reader.process_deck(self.jcl.aero['filename_caero_bdf'])
         if 'method_caero' in self.jcl.aero:
-            self.aerogrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf'], method_caero = self.jcl.aero['method_caero']) 
+            self.aerogrid = build_aero_functions.build_aerogrid(self.bdf_reader, method_caero = self.jcl.aero['method_caero']) 
         else: # use default method defined in function
-            self.aerogrid = build_aero_functions.build_aerogrid(self.jcl.aero['filename_caero_bdf']) 
+            self.aerogrid = build_aero_functions.build_aerogrid(self.bdf_reader) 
 
     def build_aero_matrices(self):
         # cast normal vector of panels into a matrix of form (n, n*6)
@@ -264,7 +265,8 @@ class Model:
     
     def build_cs(self):
         # control surfaces
-        self.x2grid, self.coord = build_aero_functions.build_x2grid(self.jcl.aero, self.aerogrid, self.coord)            
+        self.bdf_reader.process_deck(self.jcl.aero['filename_aesurf'] + self.jcl.aero['filename_aelist'])
+        self.x2grid, self.coord = build_aero_functions.build_x2grid(self.bdf_reader, self.aerogrid, self.coord)            
         self.Djx2 = []
         for i_surf in range(len(self.x2grid['ID_surf'])):
             

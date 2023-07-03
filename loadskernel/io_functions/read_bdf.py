@@ -29,6 +29,8 @@ class Reader(object):
                          }
 
     def __init__(self):
+        # This is the storage for processed files
+        self.processed_files = []
         # This is the line storage
         self.lines = []
         # This is the include storage
@@ -78,16 +80,21 @@ class Reader(object):
         self.lines = []
         # loop over all filenames and read all lines
         for filename in self.filenames:
+            # to save time, make sure the same file is not parsed twice
+            if filename in self.processed_files:
+                logging.info('File already processed: {}'.format(filename))
             # make sure the given filename exists, if not, skip that file
-            if os.path.exists(filename):
+            elif os.path.exists(filename):
                 logging.info('Read from file: {}'.format(filename))
                 with open(filename, 'r') as fid:
                     self.lines += fid.readlines()
+                self.processed_files += [filename]
             else:
                 logging.warning('File NOT found: {}'.format(filename))
     
     def read_cards_from_lines(self):
-        logging.info('Read BDF cards from {} lines...'.format(len(self.lines)))
+        if self.lines:
+            logging.info('Read BDF cards from {} lines...'.format(len(self.lines)))
         # loop over all lines until empty
         while self.lines:
             # test the first 8 characters of the line for a known card
