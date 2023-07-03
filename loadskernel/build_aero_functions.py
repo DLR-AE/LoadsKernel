@@ -16,10 +16,7 @@ import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
 import loadskernel.engine_interfaces.propeller
 
-def build_x2grid(jcl_aero, aerogrid, coord):
-    # parse given bdf files
-    bdf_reader = read_bdf.Reader()
-    bdf_reader.process_deck(jcl_aero['filename_aesurf'] + jcl_aero['filename_aelist'])
+def build_x2grid(bdf_reader, aerogrid, coord):
     aesurf = read_mona.add_AESURF(bdf_reader.cards['AESURF'])
     aelist = read_mona.add_SET1(bdf_reader.cards['AELIST'])
     # build additional coordinate systems
@@ -52,19 +49,13 @@ def build_x2grid(jcl_aero, aerogrid, coord):
         
     return x2grid, coord   
 
-def build_aerogrid(filename, method_caero = 'CAERO1'):
+def build_aerogrid(bdf_reader, filename='', method_caero='CAERO1'):
     if method_caero == 'CQUAD4':
-        # parse given bdf files
-        bdf_reader = read_bdf.Reader()
-        bdf_reader.process_deck(filename)
         # all corner points are defined as grid points by ModGen
         caero_grid = read_mona.add_GRIDS(bdf_reader.cards['GRID'].sort_values('ID'))
         # four grid points are assembled to one panel, this is expressed as CQUAD4s 
         caero_panels = read_mona.add_shell_elements(bdf_reader.cards['CQUAD4'].sort_values('ID'))
     elif method_caero in ['CAERO1', 'CAERO7']:
-        # parse given bdf files
-        bdf_reader = read_bdf.Reader()
-        bdf_reader.process_deck(filename)
         # Adjust the counting of CAERO7 (ZAERO) panels to CAERO1 (Nastran)
         bdf_reader.cards['CAERO7']['NSPAN']  -= 1
         bdf_reader.cards['CAERO7']['NCHORD'] -= 1
