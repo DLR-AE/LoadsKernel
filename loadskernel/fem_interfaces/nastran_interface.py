@@ -25,28 +25,24 @@ class NastranInterface(object):
         return self.MGG
         
     def get_sets_from_bitposes(self, x_dec):
-        # Reference:
-        # National Aeronautics and Space Administration, The Nastran Programmer's Manual, NASA SP-223(01). Washington, D.C.: COSMIC, 1972.
-        # Section 2.3.13.3 USET (TABLE), page 2.3-61
-        # Assumption: There is (only) the f-, s- & m-set
-        # The DoFs of f-, s- and m-set are indexed with respect to g-set
+        """
+        Reference:
+        National Aeronautics and Space Administration, The Nastran Programmer's Manual, NASA SP-223(01). Washington, D.C.: COSMIC, 1972.
+        Section 2.3.13.3 USET (TABLE), page 2.3-61
+        Assumption: There is (only) the f-, s- & m-set
+        
+        Bit positons  | decimal notation |  old sets        | new set
+        -------------------------------------------------------------
+        31, 20 and 25 | 2, 4 and 128     | 'S', 'O' and 'A' | g-set  
+        22            | 1024             | 'SB'             | s-set 
+        32            | 1                | 'M'              | m-set
+        """
+        
         logging.info('Extracting bit positions from USET to determine DoFs')
-        i = 0
-        self.pos_f = []
-        self.pos_s = []
-        self.pos_m = []
-        for x in x_dec:
-            binstring = np.binary_repr(x, width=32)
-            bitpos = binstring.index('1')+1 # +1 as python starts counting with 0
-            if bitpos in [31, 30, 25]: # 'S', 'O' and 'A'
-                self.pos_f.append(i)
-            elif bitpos==22: # 'SB'
-                self.pos_s.append(i)
-            elif bitpos==32: # 'M'
-                self.pos_m.append(i)
-            else:
-                logging.error( 'Unknown set of grid point {}'.format(bitpos))
-            i += 1
+        # The DoFs of f-, s- and m-set are indexed with respect to g-set
+        self.pos_m = [i for i, x in enumerate(x_dec) if x == 1]
+        self.pos_f = [i for i, x in enumerate(x_dec) if x in [2,4,128]]
+        self.pos_s = [i for i, x in enumerate(x_dec) if x == 1024]
         # The n-set is the sum of s-set and f-set
         self.pos_n = self.pos_s + self.pos_f
         self.pos_n.sort()
