@@ -391,7 +391,7 @@ class Model:
         # ----------------  
         # PHIk_strc with 'nearest_neighbour', 'rbf' or 'nastran'
         if self.jcl.spline['method'] in ['rbf', 'nearest_neighbour']:
-            if self.jcl.spline['splinegrid'] == True:
+            if 'splinegrid' in self.jcl.spline and self.jcl.spline['splinegrid'] == True:
                 # this optin is only valid if spline['method'] == 'rbf' or 'rb'
                 logging.info( 'Coupling aerogrid to strcgrid via splinegrid:')
                 self.splinegrid = build_splinegrid.build_splinegrid(self.strcgrid, self.jcl.spline['filename_splinegrid'])
@@ -491,6 +491,7 @@ class Model:
                 fem_interface.get_dofs()
                 fem_interface.prepare_stiffness_matrices()
             if self.jcl.mass['method'] in ['guyan']:
+                fem_interface.get_aset(self.bdf_reader)
                 fem_interface.prepare_stiffness_matrices_for_guyan()
             
             # loop over mass configurations
