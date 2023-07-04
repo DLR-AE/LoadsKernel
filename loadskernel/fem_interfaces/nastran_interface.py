@@ -45,9 +45,11 @@ class NastranInterface(object):
         self.pos_s = [i for i, x in enumerate(x_dec) if x == 1024]
         # The n-set is the sum of s-set and f-set
         self.pos_n = self.pos_s + self.pos_f
-        self.pos_n.sort()
+        # Sort the n-set by the DoFs
+        sorting = np.argsort(self.pos_n)
+        self.pos_n = [self.pos_n[i] for i in sorting]
         # Free DoFs (f-set) indexed with respect to n-set
-        self.pos_fn = [self.pos_n.index(i) for i in self.pos_f]
+        self.pos_fn = list(np.where(sorting >= len(self.pos_s))[0])
 
     def get_dofs(self):
         # Prepare some data required for modal analysis which is not mass case dependent. 
