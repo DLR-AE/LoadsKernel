@@ -26,6 +26,7 @@ class Reader(object):
                          'CAERO7' : CAERO7,
                          'AESURF' : AESURF,
                          'AELIST' : AELIST,
+                         'ASET1'  : ASET1,
                          }
 
     def __init__(self):
@@ -72,6 +73,7 @@ class Reader(object):
             self.includes = []
             self.process_deck()
         
+        self.aggregate_cards(['ASET1'])
         self.remove_duplicate_cards()
         return
     
@@ -178,6 +180,16 @@ class Reader(object):
             new_size = self.cards[card_name].shape[0]
             if old_size != new_size:
                 logging.info('Dropping {} duplicate {}s'.format(old_size-new_size, card_name))
+    
+    def aggregate_cards(self, card_names):
+        # This function aggregates selected cards by the first field (typically ID or NAME).
+        for card_name in card_names:
+            old_size = self.cards[card_name].shape[0]
+            sort_by_field = self.card_interpreters[card_name].field_names[0]
+            self.cards[card_name] = self.cards[card_name].groupby(by=sort_by_field, as_index=False).agg(sum)
+            new_size = self.cards[card_name].shape[0]
+            if old_size != new_size:
+                logging.info('Aggregating {} {}s'.format(old_size-new_size, card_name))
 
 
 # bdf_reader = Reader()
