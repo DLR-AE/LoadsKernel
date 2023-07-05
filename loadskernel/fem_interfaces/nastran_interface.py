@@ -56,7 +56,7 @@ class NastranInterface(object):
         # The uset is actually geometry dependent and should go into the geometry section.
         # However, it is only required for modal analysis...
         logging.info( 'Read USET from OP2-file {} ...'.format( self.jcl.geom['filename_uset'] ))
-        op2_data = read_op2.read_post_op2(self.jcl.geom['filename_uset'], verbose=True)
+        op2_data = read_op2.read_post_op2(self.jcl.geom['filename_uset'], verbose=False)
         if op2_data['uset'] is None:
             logging.error( 'No USET found in OP2-file {} !'.format( self.jcl.geom['filename_uset'] ))
         self.get_sets_from_bitposes(op2_data['uset'])
@@ -70,6 +70,27 @@ class NastranInterface(object):
                 + self.GM.dot(self.KGG[self.pos_m, :][:,self.pos_m].dot(self.GM.T))
         self.KFF = Knn[self.pos_fn, :][:,self.pos_fn]
 
+    def get_aset(self, bdf_reader):
+        logging.info('Preparing a- and o-set...')
+        asets = read_geom.add_SET1(bdf_reader.cards['ASET1'])
+        # Simplification: take only those GRIDs where all 6 components belong to the a-set
+        aset_values = asets['values'][asets['ID'].index(123456)]
+        # Then, take the set of the a-set because IDs might be given repeatedly
+        aset_grids = np.unique(aset_values)
+        # Convert to ndarray and then use list comprehension. This is the fastest way of finding indices.
+        gset_grids = np.array(self.strcgrid['ID'])
+        id_g2a = [np.where(gset_grids == x)[0][0] for x in aset_grids]
+        pos_a = self.strcgrid['set'][id_g2a,:].reshape((1,-1))[0]
+        # Make sure DoFs of a-set are really in f-set (e.g. due to faulty user input)
+        self.pos_a = pos_a[np.in1d(pos_a, self.pos_f)]
+        # The remainders will be omitted
+        self.pos_o = np.setdiff1d(self.pos_f, self.pos_a)
+        # Convert to ndarray and then use list comprehension. This is the fastest way of finding indices.
+        pos_f_ndarray = np.array(self.pos_f) 
+        self.pos_f2a = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_a]
+        self.pos_f2o = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_o]
+        logging.info( 'The a-set has {} DoFs and the o-set has {} DoFs'.format(len(self.pos_a), len(self.pos_o) ))
+    
     def prepare_stiffness_matrices_for_guyan(self):
         # In a first step, the positions of the a- and o-set DoFs are prepared.
         # Then the equations are solved for the stiffness matrix.
@@ -79,17 +100,6 @@ class NastranInterface(object):
         # MSC.Software Corporation, "Theoretical Basis for Reduction Methods," in MSC.Nastran Version 70 Advanced Dynamic Analysis User's Guide, Version 70., H. David N., Ed. p. 63.
 
         logging.info( "Guyan reduction of stiffness matrix Kff --> Kaa ...")
-        self.aset = read_geom.Nastran_SET1(self.jcl.geom['filename_aset'])
-        self.aset['values_unique'] = np.unique(self.aset['values'][0]) # take the set of the a-set because IDs might be given repeatedly
-        id_g2a = [np.where(self.strcgrid['ID'] == x)[0][0] for x in self.aset['values_unique']] 
-        pos_a = self.strcgrid['set'][id_g2a,:].reshape((1,-1))[0]
-        self.pos_a = pos_a[np.in1d(pos_a, self.pos_f)] # make sure DoFs of a-set are really in f-set (e.g. due to faulty user input)
-        self.pos_o = np.setdiff1d(self.pos_f, self.pos_a) # the remainders will be omitted
-        logging.info( ' - prepare a-set ({} DoFs) and o-set ({} DoFs)'.format(len(self.pos_a), len(self.pos_o) ))
-        # Convert to ndarray and then use list comprehension. This is the fastest way of finding indices.
-        pos_f_ndarray = np.array(self.pos_f) 
-        self.pos_f2a = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_a]
-        self.pos_f2o = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_o]
         logging.info( ' - partitioning')
         K = {}
         K['A']       = self.KFF[self.pos_f2a,:][:,self.pos_f2a]

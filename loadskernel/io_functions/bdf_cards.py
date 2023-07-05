@@ -197,3 +197,14 @@ class AESURF(SimpleCard):
     optional_fields     = ['EFF']
     optional_defaults   = [ 1.0 ]
 
+class ASET1(ListCard):
+    expected_lines = None
+    # field of interest (any other fields are not implemented)
+    field_names         = [ 'ID', 'values' ]
+    field_positions     = [   0,        1  ]
+    # Due to the mixture of integers and strings ('THRU') in a SET1 card, all list items are parsed as strings. 
+    field_types         = ['int',   'str' ]
+    # Blank strings (e.g. trailing spaces) shall be replaced with None.
+    optional_fields     = ['ID',   'values']
+    optional_defaults   = [ 123456,  None  ]
+
