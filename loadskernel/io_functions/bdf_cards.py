@@ -120,13 +120,13 @@ class CORD2R(SimpleCard):
     optional_defaults   = [   0 ]
 
 class CORD1R(SimpleCard):
-    expected_lines = 2
+    expected_lines = 1
     # field of interest (any other fields are not implemented)
-    field_names         = ['ID', 'RID', 'A',  'B',   'C']
-    field_positions     = [  0,     1,   2,    3,     4 ]
-    field_types         = ['int','int','int','int','int']
-    optional_fields     = ['RID']
-    optional_defaults   = [   0 ]
+    field_names         = ['ID',   'A',  'B',  'C']
+    field_positions     = [  0,     1,    2,    3 ]
+    field_types         = ['int','int','int','int']
+    optional_fields     = []
+    optional_defaults   = []
 
 class MONPNT1(SimpleCard):
     expected_lines = 2
