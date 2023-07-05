@@ -207,10 +207,14 @@ class Model:
         logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(self.aerogrid['n'], len(self.x2grid['ID']) ))
             
     def build_aerogrid(self):
-        # parse given bdf files
+        # To avoid interference with other CQUAD4 cards parsed earlier, clear those dataframes first
+        if 'method_caero' in self.jcl.aero and self.jcl.aero['method_caero']== 'CQUAD4':
+            self.bdf_reader.cards['CQUAD4'].drop(self.bdf_reader.cards['CQUAD4'].index, inplace=True)
+            self.bdf_reader.cards['GRID'].drop(self.bdf_reader.cards['GRID'].index, inplace=True)
+        # Then parse given bdf files
         self.bdf_reader.process_deck(self.jcl.aero['filename_caero_bdf'])
         if 'method_caero' in self.jcl.aero:
-            self.aerogrid = build_aero_functions.build_aerogrid(self.bdf_reader, method_caero = self.jcl.aero['method_caero']) 
+            self.aerogrid = build_aero_functions.build_aerogrid(self.bdf_reader, method_caero=self.jcl.aero['method_caero']) 
         else: # use default method defined in function
             self.aerogrid = build_aero_functions.build_aerogrid(self.bdf_reader) 
 
