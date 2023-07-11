@@ -66,10 +66,7 @@ class Model:
             # build additional coordinate systems
             read_mona.add_CORD2R(self.bdf_reader.cards['CORD2R'], self.coord)
             read_mona.add_CORD1R(self.bdf_reader.cards['CORD1R'], self.coord, self.strcgrid)
-            # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
-            grid_trafo.grid_trafo(self.strcgrid, self.coord, 0)
-            logging.info('The structural model consists of {} grid points ({} DoFs) and {} coordinate systems.'.format(self.strcgrid['n'], self.strcgrid['n']*6, len(self.coord['ID']) ))
-        
+                    
         elif self.jcl.geom['method'] == 'CoFE':
             with open(self.jcl.geom['filename_CoFE']) as fid: 
                 CoFE_data = scipy.io.loadmat(fid)
@@ -81,6 +78,19 @@ class Model:
                              'set': CoFE_data['gnum2gdof'].T-1, # convert indexing from Matlab to Python
                              'offset': CoFE_data['gcoord'].T,
                              }
+        
+        # make sure the strcgrid is in one common coordinate system with ID = 0 (basic system)
+        grid_trafo.grid_trafo(self.strcgrid, self.coord, 0)
+        # provide a matrix PHIgg for the force and deformation transformation from the grid point coordinate system 
+        # specified by CD into the basic system with ID = 0
+        _, self.PHIgg = grid_trafo.calc_transformation_matrix(self.coord, 
+                                                     self.strcgrid, '', 'CP',
+                                                     self.strcgrid, '', 'CD',)
+        # then set the coorinate sytems CD = 0
+        self.strcgrid['CD'] = np.zeros(self.strcgrid['n'])
+        
+        logging.info('The structural model consists of {} grid points ({} DoFs) and {} coordinate systems.'.format(self.strcgrid['n'], self.strcgrid['n']*6, len(self.coord['ID']) ))
+
     
     def build_strcshell(self):
         if 'filename_shell' in self.jcl.geom and not self.jcl.geom['filename_shell'] == []:
@@ -525,7 +535,9 @@ class Model:
         
         # calculate all generalized matrices
         Mff, Kff, Dff, PHIf_strc, Mhh, Khh, Dhh, PHIh_strc = fem_interface.calc_modal_matrices()
-        
+        # apply coodinate transformation so that all deformations are given in the basic coordinate system
+        PHIf_strc = self.PHIgg.dot(PHIf_strc.T).T
+        PHIh_strc = self.PHIgg.dot(PHIh_strc.T).T
         # store everything        
         self.mass['key'].append(self.jcl.mass['key'][i_mass])
         self.mass['Mb'].append(Mb)

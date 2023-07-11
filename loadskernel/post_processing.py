@@ -131,7 +131,6 @@ class PostProcessing:
             Uf = response['X'][i_step,:][12:12+n_modes]
             Ug_f_body = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T
             strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
-            strcgrid_tmp['CD'] = np.repeat(1000000, self.model.strcgrid['n'])
             response['Ug_f'][i_step,:] = vector_trafo(strcgrid_tmp, coord_tmp, Ug_f_body, dest_coord=1000000)
             response['Pg_aero_global'][i_step,:] = vector_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'][i_step,:], dest_coord=1000000)
             response['Pg_iner_global'][i_step,:] = vector_trafo(strcgrid_tmp, coord_tmp, response['Pg_iner'][i_step,:], dest_coord=1000000)

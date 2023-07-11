@@ -33,7 +33,6 @@ def grid_trafo(grid, coord, dest_coord):
         # store new offsets in grid
         grid['offset'] = offset
         grid['CP'] = np.array([dest_coord]*grid['n'])
-        grid['CD'] = np.array([dest_coord]*grid['n'])
     else:
         for i_point in range(len(grid['ID'])):
             pos_coord_orig = coord['ID'].index(grid['CP'][i_point])
@@ -42,17 +41,16 @@ def grid_trafo(grid, coord, dest_coord):
             offset = np.dot(coord['dircos'][pos_coord_dest].T,offset_tmp)+coord['offset'][pos_coord_dest]
             grid['offset'][i_point] = offset
             grid['CP'][i_point] = dest_coord
-            grid['CD'][i_point] = dest_coord
 
 def vector_trafo(grid, coord, forcevector, dest_coord):
     """
     This function transforms a force (or displacement) vector into a new coordiante system. It is assumed 
-    the force and moments vector is in the coordinate system defined with CP. As above, matrix operations are 
+    the force and moments vector is in the coordinate system defined with CD. As above, matrix operations are 
     applied if all source coord systems are identical.
     """
-    if all_equal(grid['CP']):
+    if all_equal(grid['CD']):
         # get the right transformation matrices
-        pos_coord_orig = coord['ID'].index(grid['CP'][0])
+        pos_coord_orig = coord['ID'].index(grid['CD'][0])
         pos_coord_dest = coord['ID'].index(dest_coord)
         # expand for 6 degrees of freedom 
         dircos_source = np.zeros((6,6))
@@ -67,7 +65,7 @@ def vector_trafo(grid, coord, forcevector, dest_coord):
     else:
         forcevector_trans = np.zeros(np.shape(forcevector))
         for i_station in range(grid['n']):
-            pos_coord_orig = coord['ID'].index(grid['CP'][i_station])
+            pos_coord_orig = coord['ID'].index(grid['CD'][i_station])
             pos_coord_dest = coord['ID'].index(dest_coord)
     
             dircos_source = np.zeros((6,6))

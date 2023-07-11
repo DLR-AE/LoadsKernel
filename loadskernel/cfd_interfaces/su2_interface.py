@@ -317,7 +317,7 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
         coord_tmp['offset'].append(np.array([0.0,0.0,0.0,]))
         
         cfdgrid_tmp = copy.deepcopy(self.model.cfdgrid)
-        cfdgrid_tmp['CP'] = np.repeat(1000001, self.model.cfdgrid['n'])
+        cfdgrid_tmp['CD'] = np.repeat(1000001, self.model.cfdgrid['n'])
 
         # transform force vector
         Pcfd_body = vector_trafo(cfdgrid_tmp, coord_tmp, Pcfd_global, dest_coord=1000000)
