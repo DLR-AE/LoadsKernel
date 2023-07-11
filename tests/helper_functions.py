@@ -13,7 +13,7 @@ class HelperFunctions(object):
     list_ignore_sign = ['Mff', 'Mhh', 'Kff', 'Khh', 'Mfcg', 'PHIf_strc', 'PHIh_strc', 'PHIjf', 'PHIlf', 'PHIkf', 'PHIjh', 'PHIlh', 'PHIkh']
     
 
-    def compare_lists(self, list_a, list_b, key):
+    def compare_lists(self, list_a, list_b, key=''):
         is_equal = []
         for item_a, item_b in zip(list_a, list_b):
             if type(item_a) == list:
