@@ -70,8 +70,8 @@ class TestDiscus2c(HelperFunctions):
         logging.info('Comparing response with reference')
         responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, get_test_dir)
         reference_responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, path_reference)
-        assert self.compare_lists(responses, reference_responses), "response does NOT match reference"
- 
+        assert self.compare_lists(responses, reference_responses, key=''), "response does NOT match reference"
+        
         logging.info('Comparing monstations with reference')
         monstations = io_functions.specific_functions.load_hdf5(get_test_dir + 'monstations_' + self.job_name + '.hdf5')
         reference_monstations = io_functions.specific_functions.load_hdf5(path_reference + 'monstations_' + self.job_name + '.hdf5')
