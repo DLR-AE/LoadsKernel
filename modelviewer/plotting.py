@@ -358,7 +358,7 @@ class Plotting:
         else:
             Uj = np.dot(self.model.Djx2[i_surf],[0,0,0,0,0,0]) 
         # find those panels belonging to the current control surface i_surf
-        members_of_i_surf = [np.where(self.aerogrid['ID']==x)[0][0] for x in self.model.x2grid['ID'][i_surf]]
+        members_of_i_surf = [np.where(self.aerogrid['ID']==x)[0][0] for x in self.model.x2grid[i_surf]['ID']]
         points = self.aerogrid['offset_k'][members_of_i_surf,:]+Uj[self.aerogrid['set_k'][members_of_i_surf,:][:,(0,1,2)]]
         
         if self.show_cs:

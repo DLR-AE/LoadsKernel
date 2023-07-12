@@ -214,7 +214,7 @@ class Model:
         else:
             logging.error( 'Unknown aero method: ' + str(self.jcl.aero['method']))
             
-        logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(self.aerogrid['n'], len(self.x2grid['ID']) ))
+        logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(self.aerogrid['n'], len(self.x2grid['ID_surf']) ))
             
     def build_aerogrid(self):
         # To avoid interference with other CQUAD4 cards parsed earlier, clear those dataframes first
@@ -290,11 +290,11 @@ class Model:
                          'CP':np.array([self.x2grid['CID'][i_surf]]), 
                          'set':np.array([[0,1,2,3,4,5]]),
                         }
-            surfgrid = {'ID':self.x2grid['ID'][i_surf],
-                        'offset_j':np.array(self.x2grid['offset_j'][i_surf]),
-                        'CD':self.x2grid['CD'][i_surf],
-                        'CP':self.x2grid['CP'][i_surf], 
-                        'set_j':np.array(self.x2grid['set_j'][i_surf]), 
+            surfgrid = {'ID':self.x2grid[i_surf]['ID'],
+                        'offset_j':np.array(self.x2grid[i_surf]['offset_j']),
+                        'CD':self.x2grid[i_surf]['CD'],
+                        'CP':self.x2grid[i_surf]['CP'], 
+                        'set_j':np.array(self.x2grid[i_surf]['set_j']), 
                        }
             dimensions = [6,6*len(self.aerogrid['ID'])]
             rules = spline_rules.rules_point(hingegrid, surfgrid)
