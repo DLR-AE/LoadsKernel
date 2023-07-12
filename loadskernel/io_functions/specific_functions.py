@@ -6,6 +6,7 @@ Created on Apr 9, 2019
 import pickle, h5py
 import time, importlib, sys, os, psutil, logging, shutil, re, csv
 import numpy as np
+import scipy
   
 def write_list_of_dictionaries(dictionary, filename_csv):
     with open(filename_csv, 'w') as fid:
@@ -51,13 +52,23 @@ def dump_hdf5(filename, dic):
 
 def recursively_save_dict_to_hdf5(fid, dic, path=''):
     for key, item in dic.items():
+        print(key)
+        # make sure that all key are strings (might be integers, for example)
+        key = str(key)
         if isinstance(item, dict):
             recursively_save_dict_to_hdf5(fid, item, path=path+'/'+key)
-        elif isinstance(item, (np.ndarray, int, np.number)):
+        elif isinstance(item, (np.ndarray, int, np.number, float)):
             fid.create_dataset(path+'/'+key, data=item)
+        elif isinstance(item, (scipy.sparse.csc_matrix)):
+            g = fid.create_group(path+'/'+key)
+            g.create_dataset('data',data=item.data)
+            g.create_dataset('indptr',data=item.indptr)
+            g.create_dataset('indices',data=item.indices)
+            g.attrs['shape'] = item.shape
+            
         elif isinstance(item, (str, list)):
             if isinstance(item, str) or any([isinstance(x, (str)) for x in item]):
-                # If there are string in a list, then convert the whole list. Note that the above condition also handles empty lists.
+                # If there are strings in a list, then convert the whole list. Note that the above condition also handles empty lists.
                 # Convert to an numpy array of objects
                 dt = h5py.special_dtype(vlen=str) 
                 fid.create_dataset(path+'/'+key, data=np.array(item, dtype=dt))
@@ -77,7 +88,12 @@ def load_hdf5_responses(job_name, path_output):
     response = [fid[key] for key in sorted(fid.keys(), key=int) if fid[key]['successful']]
 
     return response 
-    
+
+def load_hdf5_sparse_matrix(hdf5_group):
+    M = scipy.sparse.csr_matrix((hdf5_group['data'][()],hdf5_group['indices'][()],
+                                 hdf5_group['indptr'][()]), hdf5_group.attrs['shape'])
+    return M
+
 def load_jcl(job_name, path_input, jcl):
     if jcl == None:
         logging.info( '--> Reading parameters from JCL.')
