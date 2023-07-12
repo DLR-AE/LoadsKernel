@@ -77,7 +77,7 @@ class TrimConditions:
         # init
         i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
-        n_modes = self.model.mass['n_modes'][i_mass]
+        n_modes = self.model.mass[i_mass]['n_modes']
         vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
         theta = 0.0/180.0*np.pi # starting with a small angle of attack increases the performance and convergence of the CFD solution
         u = vtas*np.cos(theta)
@@ -414,7 +414,8 @@ class TrimConditions:
         if 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'generalized':
             logging.error('Generalized RFA not yet implemented.')
         elif 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'halfgeneralized':
-            n_modes = self.model.mass['n_modes'][self.model.mass['key'].index(self.trimcase['mass'])]
+            i_mass = self.model.mass['key'].index(self.trimcase['mass'])
+            n_modes = self.model.mass[i_mass]['n_modes']
             logging.info('adding {} x {} unsteady lag states to the system'.format(2 * n_modes,self.model.aero['n_poles']))
             self.lag_states = np.zeros((2 * n_modes * self.model.aero['n_poles'])) 
         else:
@@ -432,7 +433,7 @@ class TrimConditions:
     def set_modal_states_fix(self):
         # remove modes from trimcond_Y and _Y
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
-        n_modes = self.model.mass['n_modes'][i_mass]
+        n_modes = self.model.mass[i_mass]['n_modes']
         
         for i_mode in range(1, n_modes+1):
             self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],1] = 'fix'

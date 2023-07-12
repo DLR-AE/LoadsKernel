@@ -432,7 +432,7 @@ class Modelviewer():
             if tmp is not None:
                 old_mode = tmp.data(0)
             self.list_modes_number.clear()
-            for mode in range(1,self.model.mass['n_modes'][i_mass]+1):
+            for mode in range(1,self.model.mass[i_mass]['n_modes']+1):
                 item = QtGui.QListWidgetItem(str(mode))
                 self.list_modes_number.addItem(item)
                 if tmp is not None and int(old_mode) == mode:
@@ -446,13 +446,13 @@ class Modelviewer():
             key = self.list_modes_mass.currentItem().data(0)
             i_mass = self.model.mass['key'].index(key)
             i_mode = int(self.list_modes_number.currentItem().data(0))-1
-            uf = np.zeros((self.model.mass['n_modes'][i_mass],1))
+            uf = np.zeros((self.model.mass[i_mass]['n_modes'],1))
             uf[i_mode] = uf_i
-            ug = self.model.mass['PHIf_strc'][i_mass].T.dot(uf)
+            ug = self.model.mass[i_mass]['PHIf_strc'].T.dot(uf)
             offset_f = ug[self.model.strcgrid['set'][:,(0,1,2)]].squeeze()
             self.plotting.plot_mode(self.model.strcgrid['offset']+offset_f)
             # the eigenvalue directly corresponds to the generalized stiffness if Mass is scaled to 1.0
-            eigenvalue = self.model.mass['Kff'][i_mass].diagonal()[i_mode]
+            eigenvalue = self.model.mass[i_mass]['Kff'].diagonal()[i_mode]
             freq = np.real(eigenvalue)**0.5 /2/np.pi
             self.lb_freq.setText('Frequency: {:0.4f} Hz'.format(freq))
 
@@ -462,13 +462,13 @@ class Modelviewer():
         if self.list_mass.currentItem() is not None:
             key = self.list_mass.currentItem().data(0)
             i_mass = self.model.mass['key'].index(key)
-            self.plotting.plot_masses(self.model.mass['MGG'][i_mass], self.model.mass['Mb'][i_mass], self.model.mass['cggrid'][i_mass], rho)
-            self.lb_cg.setText('CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(self.model.mass['cggrid'][i_mass]['offset'][0,0],
-                                                                                self.model.mass['cggrid'][i_mass]['offset'][0,1],
-                                                                                self.model.mass['cggrid'][i_mass]['offset'][0,2]))
+            self.plotting.plot_masses(self.model.mass[i_mass]['MGG'], self.model.mass[i_mass]['Mb'], self.model.mass[i_mass]['cggrid'], rho)
+            self.lb_cg.setText('CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(self.model.mass[i_mass]['cggrid']['offset'][0,0],
+                                                                                self.model.mass[i_mass]['cggrid']['offset'][0,1],
+                                                                                self.model.mass[i_mass]['cggrid']['offset'][0,2]))
             # cg_mac = (x_cg - x_mac)*c_ref * 100 [%]
             # negativ bedeutet Vorlage --> stabil
-            cg_mac = (self.model.mass['cggrid'][i_mass]['offset'][0,0]-self.MAC[0])/self.model.macgrid['c_ref']*100.0
+            cg_mac = (self.model.mass[i_mass]['cggrid']['offset'][0,0]-self.MAC[0])/self.model.macgrid['c_ref']*100.0
             if cg_mac == 0.0:
                 rating = 'indifferent'
             elif cg_mac < 0.0:
@@ -476,10 +476,10 @@ class Modelviewer():
             elif cg_mac > 0.0:
                 rating = 'unstable'
             self.lb_cg_mac.setText('CG: x={:0.4f} % MAC, {}'.format(cg_mac, rating))
-            self.lb_mass.setText('Mass: {:0.2f} kg'.format(self.model.mass['Mb'][i_mass][0,0]))
-            self.lb_Ixx.setText('Ixx: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][3,3]))
-            self.lb_Iyy.setText('Iyy: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][4,4]))
-            self.lb_Izz.setText('Izz: {:0.4g} kg m^2'.format(self.model.mass['Mb'][i_mass][5,5]))
+            self.lb_mass.setText('Mass: {:0.2f} kg'.format(self.model.mass[i_mass]['Mb'][0,0]))
+            self.lb_Ixx.setText('Ixx: {:0.4g} kg m^2'.format(self.model.mass[i_mass]['Mb'][3,3]))
+            self.lb_Iyy.setText('Iyy: {:0.4g} kg m^2'.format(self.model.mass[i_mass]['Mb'][4,4]))
+            self.lb_Izz.setText('Izz: {:0.4g} kg m^2'.format(self.model.mass[i_mass]['Mb'][5,5]))
 
     def get_monstation_for_plotting(self, *args):
         if self.list_monstations.currentItem() is not None:

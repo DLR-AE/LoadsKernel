@@ -27,9 +27,9 @@ class PostProcessing:
         trimcase   = self.trimcase
         
         i_mass     = self.model.mass['key'].index(trimcase['mass'])
-        Mgg        = self.model.mass['MGG'][i_mass]
-        PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
-        PHIstrc_cg = self.model.mass['PHIstrc_cg'][i_mass]
+        Mgg        = self.model.mass[i_mass]['MGG']
+        PHIf_strc  = self.model.mass[i_mass]['PHIf_strc']
+        PHIstrc_cg = self.model.mass[i_mass]['PHIstrc_cg']
 
         response['Pg_iner']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
         response['Pg_aero']        = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
@@ -73,8 +73,8 @@ class PostProcessing:
         
         i_mass     = self.model.mass['key'].index(trimcase['mass'])
         Kgg        = self.model.KGG
-        PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
-        n_modes    = self.model.mass['n_modes'][i_mass]
+        PHIf_strc  = self.model.mass[i_mass]['PHIf_strc']
+        n_modes    = self.model.mass[i_mass]['n_modes']
 
         response['Pg'] = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
         for i_step in range(len(response['t'])):
@@ -89,8 +89,8 @@ class PostProcessing:
         trimcase   = self.trimcase
         
         i_mass     = self.model.mass['key'].index(trimcase['mass'])
-        PHIcg_norm = self.model.mass['PHIcg_norm'][i_mass]
-        n_modes    = self.model.mass['n_modes'][i_mass]
+        PHIcg_norm = self.model.mass[i_mass]['PHIcg_norm']
+        n_modes    = self.model.mass[i_mass]['n_modes']
 
         response['Pg_iner_global'] = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
         response['Pg_aero_global'] = np.zeros((len(response['t']), 6*self.model.strcgrid['n']))
@@ -118,7 +118,7 @@ class PostProcessing:
             coord_tmp['ID'].append(1000001)
             coord_tmp['RID'].append(0)
             coord_tmp['dircos'].append(np.eye(3))
-            coord_tmp['offset'].append(-self.model.mass['cggrid'][i_mass]['offset'][0])
+            coord_tmp['offset'].append(-self.model.mass[i_mass]['cggrid']['offset'][0])
             
             # apply transformation to strcgrid
             strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
@@ -129,7 +129,7 @@ class PostProcessing:
             response['Ug_r'][i_step,self.model.strcgrid['set'][:,2]] = strcgrid_tmp['offset'][:,2] - self.model.strcgrid['offset'][:,2]
             # apply transformation to flexible deformations vector
             Uf = response['X'][i_step,:][12:12+n_modes]
-            Ug_f_body = np.dot(self.model.mass['PHIf_strc'][i_mass].T, Uf.T).T
+            Ug_f_body = np.dot(self.model.mass[i_mass]['PHIf_strc'].T, Uf.T).T
             strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
             response['Ug_f'][i_step,:] = vector_trafo(strcgrid_tmp, coord_tmp, Ug_f_body, dest_coord=1000000)
             response['Pg_aero_global'][i_step,:] = vector_trafo(strcgrid_tmp, coord_tmp, response['Pg_aero'][i_step,:], dest_coord=1000000)

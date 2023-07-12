@@ -19,8 +19,8 @@ class Landing(Common):
         onflow                  = self.recover_onflow(X)
         alpha, beta, gamma      = self.windsensor(X, Vtas, Uf, dUf_dt)
         Ux2 = self.get_Ux2(X)
-        PHIextra_cg = self.model.mass['PHIextra_cg'][self.i_mass]
-        PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]        
+        PHIextra_cg = self.model.mass[self.i_mass]['PHIextra_cg']
+        PHIf_extra = self.model.mass[self.i_mass]['PHIf_extra']       
         # --------------------   
         # --- aerodynamics ---   
         # --------------------
@@ -96,7 +96,7 @@ class Landing(Common):
         elif modus in ['trim_full_output', 'sim_full_output']:
             # calculate translations, velocities and accelerations of some additional points
             # (might also be used for sensors in a closed-loop system
-            p1   = -self.model.mass['cggrid'][self.i_mass]['offset'][:,2] + self.model.extragrid['offset'][:,2] + PHIextra_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.extragrid['set'][:,2]] + PHIf_extra.T.dot(X[12:12+self.n_modes])[self.model.extragrid['set'][:,2]] # position LG attachment point over ground
+            p1   = -self.model.mass[self.i_mass]['cggrid']['offset'][:,2] + self.model.extragrid['offset'][:,2] + PHIextra_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.extragrid['set'][:,2]] + PHIf_extra.T.dot(X[12:12+self.n_modes])[self.model.extragrid['set'][:,2]] # position LG attachment point over ground
             dp1  = PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12])))[self.model.extragrid['set'][:,2]] + PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2])[self.model.extragrid['set'][:,2]] # velocity LG attachment point 
             ddp1 = PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, Y[6:12])))[self.model.extragrid['set'][:,2]] + PHIf_extra.T.dot(Y[12+self.n_modes:12+self.n_modes*2])[self.model.extragrid['set'][:,2]] # acceleration LG attachment point 
 

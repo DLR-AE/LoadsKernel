@@ -391,7 +391,7 @@ class FlutterPlots(LoadPlots):
             i_mass     = self.model.mass['key'].index(trimcase['mass'])
             i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
             #Plot boundaries
-            freqs = np.real(self.model.mass['Khh'][i_mass].diagonal())**0.5 /2/np.pi
+            freqs = np.real(self.model.mass[i_mass]['Khh'].diagonal())**0.5 /2/np.pi
             fmin = 2 * np.floor(response['freqs'][:].min() / 2)
             if fmin < -50.0 or np.isnan(fmin): 
                 fmin = -50.0
@@ -469,7 +469,6 @@ class FlutterPlots(LoadPlots):
                 logging.info('skip plotting of eigenvalues and -vectors for {}'.format(trimcase['desc']))
                 continue
             
-            i_mass     = self.model.mass['key'].index(trimcase['mass'])
             i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
             
              #Plot boundaries

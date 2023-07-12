@@ -110,9 +110,9 @@ class TauInterface(object):
         # set aircraft motion related parameters
         # given in local, body-fixed reference frame, see Tau User Guide Section 18.1 "Coordinate Systems of the TAU-Code"
         # rotations in [deg], translations in grid units
-        para_dict = {'Origin of local coordinate system':'{} {} {}'.format(self.model.mass['cggrid'][self.i_mass]['offset'][0,0],\
-                                                                           self.model.mass['cggrid'][self.i_mass]['offset'][0,1],\
-                                                                           self.model.mass['cggrid'][self.i_mass]['offset'][0,2]),
+        para_dict = {'Origin of local coordinate system':'{} {} {}'.format(self.model.mass[self.i_mass]['cggrid']['offset'][0,0],\
+                                                                           self.model.mass[self.i_mass]['cggrid']['offset'][0,1],\
+                                                                           self.model.mass[self.i_mass]['cggrid']['offset'][0,2]),
                      'Polynomial coefficients for translation x': '0 {}'.format(uvwpqr[0]),
                      'Polynomial coefficients for translation y': '0 {}'.format(uvwpqr[1]),
                      'Polynomial coefficients for translation z': '0 {}'.format(uvwpqr[2]),

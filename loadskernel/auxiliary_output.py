@@ -56,7 +56,7 @@ class AuxiliaryOutput:
             trimresult = OrderedDict({'subcase':  self.jcl.trimcase[i_case]['subcase'],
                           'desc':     self.jcl.trimcase[i_case]['desc'],})
             i_mass  = self.model.mass['key'].index(self.jcl.trimcase[i_case]['mass'])
-            n_modes = self.model.mass['n_modes'][i_mass]
+            n_modes = self.model.mass[i_mass]['n_modes']
 
             # get trimmed states
             trimresult['x'] = response['X'][0,0]

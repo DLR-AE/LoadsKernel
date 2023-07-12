@@ -30,28 +30,28 @@ class Common():
         
         self.Qjj         = self.model.aero['Qjj'][self.i_aero]  
        
-        self.PHImac_cg   = self.model.mass['PHImac_cg'][self.i_mass]
-        self.PHIcg_mac   = self.model.mass['PHIcg_mac'][self.i_mass]
-        self.PHInorm_cg  = self.model.mass['PHInorm_cg'][self.i_mass]
-        self.PHIcg_norm  = self.model.mass['PHIcg_norm'][self.i_mass]
-        self.Mb          = self.model.mass['Mb'][self.i_mass]
-        self.Mff         = self.model.mass['Mff'][self.i_mass]
-        self.Kff         = self.model.mass['Kff'][self.i_mass]
-        self.Dff         = self.model.mass['Dff'][self.i_mass]
-        self.Mhh         = self.model.mass['Mhh'][self.i_mass]
-        self.Khh         = self.model.mass['Khh'][self.i_mass]
-        self.Dhh         = self.model.mass['Dhh'][self.i_mass]
-        self.PHIf_strc   = self.model.mass['PHIf_strc'][self.i_mass]
-        self.PHIstrc_cg  = self.model.mass['PHIstrc_cg'][self.i_mass]
-        self.Mgg         = self.model.mass['MGG'][self.i_mass]
-        self.Mfcg        = self.model.mass['Mfcg'][self.i_mass]
-        self.PHIjf       = self.model.mass['PHIjf'][self.i_mass]
-        self.PHIkf       = self.model.mass['PHIkf'][self.i_mass]
-        self.PHIlf       = self.model.mass['PHIlf'][self.i_mass]
-        self.PHIjh       = self.model.mass['PHIjh'][self.i_mass]
-        self.PHIkh       = self.model.mass['PHIkh'][self.i_mass]
-        self.PHIlh       = self.model.mass['PHIlh'][self.i_mass]
-        self.n_modes     = self.model.mass['n_modes'][self.i_mass] 
+        self.PHImac_cg   = self.model.mass[self.i_mass]['PHImac_cg']
+        self.PHIcg_mac   = self.model.mass[self.i_mass]['PHIcg_mac']
+        self.PHInorm_cg  = self.model.mass[self.i_mass]['PHInorm_cg']
+        self.PHIcg_norm  = self.model.mass[self.i_mass]['PHIcg_norm']
+        self.Mb          = self.model.mass[self.i_mass]['Mb']
+        self.Mff         = self.model.mass[self.i_mass]['Mff']
+        self.Kff         = self.model.mass[self.i_mass]['Kff']
+        self.Dff         = self.model.mass[self.i_mass]['Dff']
+        self.Mhh         = self.model.mass[self.i_mass]['Mhh']
+        self.Khh         = self.model.mass[self.i_mass]['Khh']
+        self.Dhh         = self.model.mass[self.i_mass]['Dhh']
+        self.PHIf_strc   = self.model.mass[self.i_mass]['PHIf_strc']
+        self.PHIstrc_cg  = self.model.mass[self.i_mass]['PHIstrc_cg']
+        self.Mgg         = self.model.mass[self.i_mass]['MGG']
+        self.Mfcg        = self.model.mass[self.i_mass]['Mfcg']
+        self.PHIjf       = self.model.mass[self.i_mass]['PHIjf']
+        self.PHIkf       = self.model.mass[self.i_mass]['PHIkf']
+        self.PHIlf       = self.model.mass[self.i_mass]['PHIlf']
+        self.PHIjh       = self.model.mass[self.i_mass]['PHIjh']
+        self.PHIkh       = self.model.mass[self.i_mass]['PHIkh']
+        self.PHIlh       = self.model.mass[self.i_mass]['PHIlh']
+        self.n_modes     = self.model.mass[self.i_mass]['n_modes'] 
         
         self.PHIk_strc   = self.model.PHIk_strc
         self.Djx1        = self.model.Djx1
@@ -85,8 +85,8 @@ class Common():
         if self.jcl.aero['method'] in ['cfd_steady', 'cfd_unsteady']:
             # get cfd splining matrices
             self.PHIcfd_strc = self.model.PHIcfd_strc
-            self.PHIcfd_cg   = self.model.mass['PHIcfd_cg'][self.i_mass] 
-            self.PHIcfd_f    = self.model.mass['PHIcfd_f'][self.i_mass]
+            self.PHIcfd_cg   = self.model.mass[self.i_mass]['PHIcfd_cg'] 
+            self.PHIcfd_f    = self.model.mass[self.i_mass]['PHIcfd_f']
             # initialize the interface to a cfd solver
             if self.jcl.aero['cfd_solver'].lower() == 'tau' and self.jcl.aero['method'] == 'cfd_steady':
                 self.cfd_interface = tau_interface.TauInterface(self.solution)
@@ -157,10 +157,10 @@ class Common():
         self.defo_old = 0.0    
         
         if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'freq_dom']:
-            self.Djf_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat'].dot(self.model.mass['PHIjf'][self.i_mass]))
-            self.Djf_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjf'][self.i_mass])* -1.0
-            self.Djh_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat'].dot(self.model.mass['PHIjh'][self.i_mass]))
-            self.Djh_2 = self.model.aerogrid['Nmat'].dot(self.model.mass['PHIjh'][self.i_mass]) * -1.0
+            self.Djf_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat'].dot(self.model.mass[self.i_mass]['PHIjf']))
+            self.Djf_2 = self.model.aerogrid['Nmat'].dot(self.model.mass[self.i_mass]['PHIjf'])* -1.0
+            self.Djh_1 = self.model.aerogrid['Nmat'].dot(self.model.aerogrid['Rmat'].dot(self.model.mass[self.i_mass]['PHIjh']))
+            self.Djh_2 = self.model.aerogrid['Nmat'].dot(self.model.mass[self.i_mass]['PHIjh']) * -1.0
             
         if hasattr(self.jcl, 'engine'):
             self.engine_loads = engine.EngineLoads()
@@ -340,8 +340,8 @@ class Common():
         return alpha, beta, gamma
     
     def get_sensor_onflow(self, i_sensor, X, Vtas, Uf, dUf_dt):
-        PHIsensor_cg = self.model.mass['PHIsensor_cg'][self.i_mass]
-        PHIf_sensor = self.model.mass['PHIf_sensor'][self.i_mass]
+        PHIsensor_cg = self.model.mass[self.i_mass]['PHIsensor_cg']
+        PHIf_sensor = self.model.mass[self.i_mass]['PHIf_sensor']
         # rigid
         u, v, w = PHIsensor_cg.dot(X[6:12])[self.model.sensorgrid['set'][i_sensor,0:3]] # velocity sensor attachment point
         # additional wind from flexible deformation
@@ -562,9 +562,9 @@ class Common():
         ddp2 = np.zeros(self.model.extragrid['n'])
         if 'landinggear' in self.simcase and self.simcase['landinggear']:
             # init
-            PHIextra_cg = self.model.mass['PHIextra_cg'][self.i_mass]
-            PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]
-            p1   = -self.model.mass['cggrid'][self.i_mass]['offset'][:,2] + self.model.extragrid['offset'][:,2] + PHIextra_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.extragrid['set'][:,2]] + PHIf_extra.T.dot(X[12:12+self.n_modes])[self.model.extragrid['set'][:,2]] # position LG attachment point over ground
+            PHIextra_cg = self.model.mass[self.i_mass]['PHIextra_cg']
+            PHIf_extra = self.model.mass[self.i_mass]['PHIf_extra']
+            p1   = -self.model.mass[self.i_mass]['cggrid']['offset'][:,2] + self.model.extragrid['offset'][:,2] + PHIextra_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.model.extragrid['set'][:,2]] + PHIf_extra.T.dot(X[12:12+self.n_modes])[self.model.extragrid['set'][:,2]] # position LG attachment point over ground
             dp1  = PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12])))[self.model.extragrid['set'][:,2]]  + PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2])[self.model.extragrid['set'][:,2]] # velocity LG attachment point 
             
             if self.jcl.landinggear['method'] in ['generic']:
@@ -738,8 +738,8 @@ class Common():
             # get thrust setting
             thrust = X[np.where(self.trimcond_X[:,0]=='thrust')[0][0]]
             # get all matrices for the extra -set
-            PHIextra_cg = self.model.mass['PHIextra_cg'][self.i_mass]
-            PHIf_extra = self.model.mass['PHIf_extra'][self.i_mass]
+            PHIextra_cg = self.model.mass[self.i_mass]['PHIextra_cg']
+            PHIf_extra = self.model.mass[self.i_mass]['PHIf_extra']
             dUcg_dt, Uf, dUf_dt = self.recover_states(X)
             # calculate velocity at extra / engine attachment point 
             dUextra_dt = PHIextra_cg.dot(dUcg_dt) + PHIf_extra.T.dot(dUf_dt) 

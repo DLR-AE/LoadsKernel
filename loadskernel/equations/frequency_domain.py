@@ -80,7 +80,7 @@ class GustExcitation(Common):
         return response  
     
     def setup_frequence_parameters(self):
-        self.n_modes = self.model.mass['n_modes'][self.i_mass] + 5
+        self.n_modes = self.model.mass[self.i_mass]['n_modes'] + 5
         self.Vtas, self.q_dyn = self.recover_Vtas(self.X0)
         # Number of sample points
         if self.simcase['gust']:
@@ -308,8 +308,8 @@ class LimitTurbulence(TurbulenceExcitation):
         # Aerodynamic forces due to the gust / turbulence
         Hgust = self.model.PHIstrc_mon.T.dot(self.model.PHIk_strc.T.dot(Pk_gust))
         # Inertial forces due to the elastic reation of the aircraft
-        Hiner = self.model.PHIstrc_mon.T.dot( -self.model.mass['MGG'][self.i_mass].dot(
-            self.model.mass['PHIh_strc'][self.i_mass].T).dot(Hdisp*(1j*self.positiv_fftomega)**2))
+        Hiner = self.model.PHIstrc_mon.T.dot( -self.model.mass[self.i_mass]['MGG'].dot(
+            self.model.mass[self.i_mass]['PHIh_strc'].T).dot(Hdisp*(1j*self.positiv_fftomega)**2))
 
         # Force Summation Method: P = Pext + Piner
         H = Haero + Hgust + Hiner
@@ -363,7 +363,7 @@ class KMethod(GustExcitation):
         return response  
 
     def setup_frequence_parameters(self):
-        self.n_modes = self.model.mass['n_modes'][self.i_mass] + 5
+        self.n_modes = self.model.mass[self.i_mass]['n_modes'] + 5
         self.k_reds = self.simcase['flutter_para']['k_red']
         self.n_freqs = len(self.k_reds)
                 
@@ -484,7 +484,7 @@ class PKMethod(KMethod):
     
     def setup_frequence_parameters(self):
         self.n_modes_rbm = 5
-        self.n_modes_f = self.model.mass['n_modes'][self.i_mass]
+        self.n_modes_f = self.model.mass[self.i_mass]['n_modes']
         self.n_modes = self.n_modes_f + self.n_modes_rbm
         
         self.states = ["y'", "z'", "$\Phi'$", "$\Theta'$", "$\Psi'$",]

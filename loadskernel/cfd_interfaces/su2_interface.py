@@ -109,8 +109,8 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         The CFD coordinate system is typically aft-right-up and the values are given m/s and in rad/s.
         """
         # translate the translational and rotational velocities into the right coordinate system
-        u, v, w = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[:3]
-        p, q, r = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[3:]
+        u, v, w = uvwpqr.dot(self.model.mass[self.i_mass]['PHInorm_cg'])[:3]
+        p, q, r = uvwpqr.dot(self.model.mass[self.i_mass]['PHInorm_cg'])[3:]
         # communicate the new values to the CFD solver
         logging.info('Sending translational and rotational velocities to SU2.')
         self.FluidSolver.SetTranslationRate(xDot=u, yDot=v, zDot=w)
@@ -143,9 +143,9 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
             config['MARKER_DEFORM_MESH'] = '( '+', '.join(self.jcl.meshdefo['surface']['markers'])+' )'
             # activate grid movement
             config['GRID_MOVEMENT'] = 'ROTATING_FRAME'
-            config['MOTION_ORIGIN'] = '{} {} {}'.format(self.model.mass['cggrid'][self.i_mass]['offset'][0,0],
-                                                        self.model.mass['cggrid'][self.i_mass]['offset'][0,1],
-                                                        self.model.mass['cggrid'][self.i_mass]['offset'][0,2])
+            config['MOTION_ORIGIN'] = '{} {} {}'.format(self.model.mass[self.i_mass]['cggrid']['offset'][0,0],
+                                                        self.model.mass[self.i_mass]['cggrid']['offset'][0,1],
+                                                        self.model.mass[self.i_mass]['cggrid']['offset'][0,2])
             config['MACH_MOTION'] = self.trimcase['Ma']
             # there is no restart for the first execution
             config['RESTART_SOL'] = 'NO'
@@ -301,7 +301,7 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
         Pcfd_global = self.Pcfd_global()
         
         # translate position and euler angles into body coordinate system
-        PHInorm_cg = self.model.mass['PHInorm_cg'][self.i_mass]
+        PHInorm_cg = self.model.mass[self.i_mass]['PHInorm_cg']
         PhiThetaPsi_body = PHInorm_cg[0:3,0:3].dot(self.PhiThetaPsi)
         
         # setting up coordinate system
@@ -343,7 +343,7 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
     
     def Ucfd_rbm_transformation(self, XYZ, PhiThetaPsi):
         # translate position and euler angles into body coordinate system
-        PHInorm_cg = self.model.mass['PHInorm_cg'][self.i_mass]
+        PHInorm_cg = self.model.mass[self.i_mass]['PHInorm_cg']
         PhiThetaPsi_body = PHInorm_cg[0:3,0:3].dot(PhiThetaPsi)
         XYZ_body = PHInorm_cg[0:3,0:3].dot(XYZ)
         # remove any translation in x-direction
@@ -353,12 +353,12 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
         coord_tmp['ID'].append(1000000)
         coord_tmp['RID'].append(0)
         coord_tmp['dircos'].append(calc_drehmatrix(PhiThetaPsi_body[0], PhiThetaPsi_body[1], PhiThetaPsi_body[2]))
-        coord_tmp['offset'].append(self.model.mass['cggrid'][self.i_mass]['offset'][0] + XYZ_body)
+        coord_tmp['offset'].append(self.model.mass[self.i_mass]['cggrid']['offset'][0] + XYZ_body)
         
         coord_tmp['ID'].append(1000001)
         coord_tmp['RID'].append(0)
         coord_tmp['dircos'].append(np.eye(3))
-        coord_tmp['offset'].append(-self.model.mass['cggrid'][self.i_mass]['offset'][0])
+        coord_tmp['offset'].append(-self.model.mass[self.i_mass]['cggrid']['offset'][0])
         
         # apply transformation to local mesh
         local_mesh_tmp = copy.deepcopy(self.local_mesh)

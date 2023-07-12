@@ -220,7 +220,7 @@ class Steady(Common):
     def eval_equations_iteratively(self, X_free, time, modus='trim_full_output'):
         # this is a wrapper for the model equations
         i_mass = self.model.mass['key'].index(self.trimcase['mass'])
-        n_modes = self.model.mass['n_modes'][i_mass]
+        n_modes = self.model.mass[i_mass]['n_modes']
         
         # get inputs from trimcond and apply inputs from fsolve 
         X = np.array(self.trimcond_X[:,2], dtype='float')

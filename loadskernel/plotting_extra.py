@@ -92,7 +92,7 @@ class DetailedPlots(plotting_standard.LoadPlots):
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
             
             i_mass     = self.model.mass['key'].index(trimcase['mass'])
-            n_modes    = self.model.mass['n_modes'][i_mass] 
+            n_modes    = self.model.mass[i_mass]['n_modes'] 
             
             Cl = response['Pmac'][:,2] / response['q_dyn'][:].T / self.jcl.general['A_ref']
             ax11.plot(response['t'], response['Pmac'][:,2], 'b-')

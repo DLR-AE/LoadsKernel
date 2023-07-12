@@ -46,7 +46,7 @@ class Meshdefo:
             
             # get structural deformation
             i_mass     = self.model.mass['key'].index(trimcase['mass'])
-            PHIf_strc  = self.model.mass['PHIf_strc'][i_mass]
+            PHIf_strc  = self.model.mass[i_mass]['PHIf_strc']
             Ug_f_body = np.dot(PHIf_strc.T, Uf.T).T
             
             self.transfer_deformations(splinegrid, Ug_f_body, '', rbf_type='tps', surface_spline=False)

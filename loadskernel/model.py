@@ -453,39 +453,6 @@ class Model:
     def build_structural_dynamics(self):
         logging.info( 'Building stiffness and mass model...')
         if self.jcl.mass['method'] in ['mona', 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000']:
-            self.mass = {'key': [],
-                         'Mb': [],
-                         'MGG': [],
-                         'Mfcg': [],  
-                         'cggrid': [],
-                         'cggrid_norm': [],
-                         'PHIstrc_cg': [],
-                         'PHIcfd_cg': [],
-                         'PHIextra_cg': [],
-                         'PHIsensor_cg': [],
-                         'PHImac_cg': [],
-                         'PHIcg_mac': [],
-                         'PHInorm_cg': [],
-                         'PHIcg_norm': [],
-                         'PHIf_strc': [],
-                         'PHIh_strc': [],
-                         'PHIf_extra': [],
-                         'PHIf_sensor': [],
-                         'PHIjf': [],
-                         'PHIlf': [],
-                         'PHIkf': [],
-                         'PHIjh': [],
-                         'PHIlh': [],
-                         'PHIkh': [],
-                         'PHIcfd_f': [],
-                         'Mff': [],
-                         'Kff': [],
-                         'Dff': [],
-                         'Mhh': [],
-                         'Khh': [],
-                         'Dhh': [],
-                         'n_modes': []
-                        }
             
             # select the fem interface
             if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
@@ -509,6 +476,7 @@ class Model:
                 fem_interface.prepare_stiffness_matrices_for_guyan()
             
             # loop over mass configurations
+            self.mass = {'key': self.jcl.mass['key']}
             for i_mass in range(len(self.jcl.mass['key'])):
                 self.build_mass_matrices(fem_interface, i_mass)
                 self.build_translation_matrices(i_mass)
@@ -538,33 +506,33 @@ class Model:
         # apply coodinate transformation so that all deformations are given in the basic coordinate system
         PHIf_strc = self.PHIgg.dot(PHIf_strc.T).T
         PHIh_strc = self.PHIgg.dot(PHIh_strc.T).T
-        # store everything        
-        self.mass['key'].append(self.jcl.mass['key'][i_mass])
-        self.mass['Mb'].append(Mb)
-        self.mass['MGG'].append(MGG)
-        self.mass['cggrid'].append(cggrid)
-        self.mass['cggrid_norm'].append(cggrid_norm)
-        self.mass['PHIf_strc'].append(PHIf_strc)
-        self.mass['Mff'].append(Mff) 
-        self.mass['Kff'].append(Kff) 
-        self.mass['Dff'].append(Dff) 
-        self.mass['PHIh_strc'].append(PHIh_strc)
-        self.mass['Mhh'].append(Mhh) 
-        self.mass['Khh'].append(Khh) 
-        self.mass['Dhh'].append(Dhh) 
-        self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
-                
+        # store everything
+        self.mass[i_mass] = {'Mb': Mb,
+                             'MGG': MGG,
+                             'cggrid': cggrid,
+                             'cggrid_norm': cggrid_norm,
+                             'PHIf_strc': PHIf_strc,
+                             'Mff': Mff,
+                             'Kff': Kff,
+                             'Dff': Dff,
+                             'PHIh_strc': PHIh_strc,
+                             'Mhh': Mhh,
+                             'Khh': Khh,
+                             'Dhh': Dhh,
+                             'n_modes': len(self.jcl.mass['modes'][i_mass]),
+                             }
+   
     def build_translation_matrices(self, i_mass):
         """
         In this function, we do a lot of splining. Depending on the intended solution sequence, 
         different matrices are required. 
         """
          
-        cggrid          = self.mass['cggrid'][i_mass]
-        cggrid_norm     = self.mass['cggrid_norm'][i_mass]
-        MGG             = self.mass['MGG'][i_mass]
-        PHIf_strc       = self.mass['PHIf_strc'][i_mass]
-        PHIh_strc       = self.mass['PHIh_strc'][i_mass]
+        cggrid          = self.mass[i_mass]['cggrid']
+        cggrid_norm     = self.mass[i_mass]['cggrid_norm']
+        MGG             = self.mass[i_mass]['MGG']
+        PHIf_strc       = self.mass[i_mass]['PHIf_strc']
+        PHIh_strc       = self.mass[i_mass]['PHIh_strc']
                 
         rules = spline_rules.rules_point(cggrid, self.strcgrid)
         PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
@@ -574,22 +542,22 @@ class Model:
             PHIcfd_cg = spline_functions.spline_rb(cggrid, '', self.cfdgrid, '', rules, self.coord)
             # some pre-multiplications to speed-up main processing
             PHIcfd_f = self.PHIcfd_strc.dot(PHIf_strc.T)
-            self.mass['PHIcfd_cg'].append(PHIcfd_cg)
-            self.mass['PHIcfd_f'].append(PHIcfd_f)
+            self.mass[i_mass]['PHIcfd_cg'] = PHIcfd_cg
+            self.mass[i_mass]['PHIcfd_f']  = PHIcfd_f
             
         if hasattr(self, 'extragrid'):
             rules = spline_rules.rules_point(cggrid, self.extragrid)
             PHIextra_cg = spline_functions.spline_rb(cggrid, '', self.extragrid, '', rules, self.coord)
             PHIf_extra = PHIf_strc[:,self.extragrid['set_strcgrid'].reshape(1,-1)[0]]
-            self.mass['PHIextra_cg'].append(PHIextra_cg)
-            self.mass['PHIf_extra'].append(PHIf_extra) 
+            self.mass[i_mass]['PHIextra_cg'] = PHIextra_cg
+            self.mass[i_mass]['PHIf_extra']  = PHIf_extra 
         
         if hasattr(self, 'sensorgrid'):
             rules = spline_rules.rules_point(cggrid, self.sensorgrid)
             PHIsensor_cg = spline_functions.spline_rb(cggrid, '', self.sensorgrid, '', rules, self.coord)
             PHIf_sensor = PHIf_strc[:,self.sensorgrid['set_strcgrid'].reshape(1,-1)[0]]
-            self.mass['PHIsensor_cg'].append(PHIsensor_cg)
-            self.mass['PHIf_sensor'].append(PHIf_sensor) 
+            self.mass[i_mass]['PHIsensor_cg'] = PHIsensor_cg
+            self.mass[i_mass]['PHIf_sensor']  = PHIf_sensor 
 
         rules = spline_rules.rules_point(cggrid, self.macgrid)
         PHImac_cg = spline_functions.spline_rb(cggrid, '', self.macgrid, '', rules, self.coord)    
@@ -612,16 +580,16 @@ class Model:
         Mfcg=PHIf_strc.dot(-MGG.dot(PHIstrc_cg))
 
         # save all matrices to data structure
-        self.mass['Mfcg'].append(Mfcg)
-        self.mass['PHImac_cg'].append(PHImac_cg)
-        self.mass['PHIcg_mac'].append(PHIcg_mac)
-        self.mass['PHIcg_norm'].append(PHIcg_norm)
-        self.mass['PHInorm_cg'].append(PHInorm_cg)
-        self.mass['PHIstrc_cg'].append(PHIstrc_cg) 
-        self.mass['PHIjf'].append(PHIjf)
-        self.mass['PHIlf'].append(PHIlf)
-        self.mass['PHIkf'].append(PHIkf)
-        self.mass['PHIjh'].append(PHIjh)
-        self.mass['PHIlh'].append(PHIlh)
-        self.mass['PHIkh'].append(PHIkh)
+        self.mass[i_mass]['Mfcg'] = Mfcg
+        self.mass[i_mass]['PHImac_cg'] = PHImac_cg
+        self.mass[i_mass]['PHIcg_mac'] = PHIcg_mac
+        self.mass[i_mass]['PHIcg_norm'] = PHIcg_norm
+        self.mass[i_mass]['PHInorm_cg'] = PHInorm_cg
+        self.mass[i_mass]['PHIstrc_cg'] = PHIstrc_cg
+        self.mass[i_mass]['PHIjf'] = PHIjf
+        self.mass[i_mass]['PHIlf'] = PHIlf
+        self.mass[i_mass]['PHIkf'] = PHIkf
+        self.mass[i_mass]['PHIjh'] = PHIjh
+        self.mass[i_mass]['PHIlh'] = PHIlh
+        self.mass[i_mass]['PHIkh'] = PHIkh
 

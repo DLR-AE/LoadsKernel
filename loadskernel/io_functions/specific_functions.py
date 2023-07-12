@@ -52,7 +52,6 @@ def dump_hdf5(filename, dic):
 
 def recursively_save_dict_to_hdf5(fid, dic, path=''):
     for key, item in dic.items():
-        print(key)
         # make sure that all key are strings (might be integers, for example)
         key = str(key)
         if isinstance(item, dict):
