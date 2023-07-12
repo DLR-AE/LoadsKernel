@@ -173,6 +173,8 @@ class Kernel(ProgramFlowHelper):
         del model.jcl
         with open(self.path_output + 'model_' + self.job_name + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(model.__dict__, f)
+        io_functions.specific_functions.dump_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5',
+                                                  model.__dict__)
         logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
     def main_common(self, model, jcl, i):
