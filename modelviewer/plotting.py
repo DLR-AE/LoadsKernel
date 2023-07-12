@@ -300,12 +300,12 @@ class Plotting:
             offset_dest_d.append(np.dot(coord['dircos'][pos_coord],grid_d['offset'+set_d][i_point])+coord['offset'][pos_coord])
         offset_dest_d = np.array(offset_dest_d)
         
-        position_d = []
-        position_i = []
-        for i_i in range(len(splinerules['ID_i'])):
-            for i_d in range(len(splinerules['ID_d'][i_i])): 
-                position_d.append( np.where(grid_d['ID']==splinerules['ID_d'][i_i][i_d])[0][0] )
-                position_i.append( np.where(grid_i['ID']==splinerules['ID_i'][i_i])[0][0] )
+        position_i = []; position_d = []
+        
+        for ID_i in splinerules:
+            for ID_d in splinerules[ID_i]:
+                position_i.append( np.where(grid_i['ID']==ID_i)[0][0] )
+                position_d.append( np.where(grid_d['ID']==ID_d)[0][0] )
        
         x = offset_dest_i[position_i,0]
         y = offset_dest_i[position_i,1]
@@ -334,10 +334,8 @@ class Plotting:
     def plot_monstations(self, monstation_id):
         if self.show_monstations:
             self.hide_monstations()
-        pos = self.model.mongrid_rules['ID_i'].index(int(monstation_id))
-        rules = {'ID_i': [self.model.mongrid_rules['ID_i'][pos]],
-                 'ID_d': [self.model.mongrid_rules['ID_d'][pos]],
-                } 
+        # create a sub-set from all mongrid_rules
+        rules = {monstation_id: self.model.mongrid_rules[monstation_id]} 
         self.src_mongrid_i, self.src_mongrid_d, self.src_mongrid_rules \
         = self.plot_splinerules(self.model.mongrid, '', self.model.strcgrid, '', rules, self.model.coord)
         self.show_monstations=True
