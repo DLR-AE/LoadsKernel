@@ -170,7 +170,6 @@ class Kernel(ProgramFlowHelper):
         model.build_model()
 
         logging.info('--> Saving model data.')
-        del model.jcl
         with open(self.path_output + 'model_' + self.job_name + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(model.__dict__, f)
         io_functions.specific_functions.dump_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5',

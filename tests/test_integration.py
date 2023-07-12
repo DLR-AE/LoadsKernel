@@ -61,8 +61,6 @@ class TestDiscus2c(HelperFunctions):
         logging.info('Comparing model with reference')
         model = io_functions.specific_functions.load_model(self.job_name, get_test_dir)
         reference_model = io_functions.specific_functions.load_model(self.job_name, path_reference)
-        # Running the test in a temporary directory means the path_output changes constantly and can't be compared.
-        del model.path_output
         assert self.compare_dictionaries(model.__dict__, reference_model.__dict__), "model does NOT match reference"
  
     def test_mainprocessing_results(self, get_test_dir):
@@ -201,8 +199,6 @@ class TestDiscus2cParallelProcessing(HelperFunctions):
         logging.info('Comparing model with reference')
         model = io_functions.specific_functions.load_model(self.job_name, get_test_dir)
         reference_model = io_functions.specific_functions.load_model(self.job_name, path_reference)
-        # Running the test in a temporary directory means the path_output changes constantly and can't be compared.
-        del model.path_output
         assert self.compare_dictionaries(model.__dict__, reference_model.__dict__), "model does NOT match reference"
     
     def test_mainprocessing_results(self, get_test_dir):

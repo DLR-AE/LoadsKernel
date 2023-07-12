@@ -34,6 +34,7 @@ class Model:
     def build_model(self):
         # init the bdf reader
         self.bdf_reader = read_bdf.Reader()
+        # run all build function/stages 
         self.build_coord()
         self.build_strc()
         self.build_strcshell()
@@ -46,8 +47,11 @@ class Model:
         self.build_splines()
         self.build_cfdgrid()
         self.build_structural_dynamics()
-        # destroy the bdf reader, this is important when saving the model
+        # destroy the bdf reader and other stuff before saving the model
         delattr(self, 'bdf_reader')
+        delattr(self, 'path_output')
+        delattr(self, 'jcl')
+        
         
     def build_coord(self):
         self.coord = {'ID': [0, 9300],
