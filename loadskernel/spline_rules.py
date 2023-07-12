@@ -51,11 +51,8 @@ def monstations_from_aecomp(mongrid, aecomp, sets):
     splinerules = {}
     for i_station in range(mongrid['n']):
         i_aecomp = aecomp['name'].index( mongrid['comp'][i_station])
-        i_sets = [sets['ID'].index(x) for x in aecomp['list_id'][i_aecomp]]
+        i_sets = [sets['values'][sets['ID'].index(x)] for x in aecomp['list_id'][i_aecomp]]
         # combine the IDs in case multiple sets are given by one AECOMP card
-        combined_ids = []
-        for i_set in i_sets: 
-            combined_ids += list(sets['values'][i_set])
-        splinerules[mongrid['ID'][i_station]] = combined_ids
+        splinerules[mongrid['ID'][i_station]] = np.unique(np.concatenate(i_sets).ravel()).tolist()
 
     return splinerules
