@@ -107,4 +107,4 @@ def calc_transformation_matrix(coord, grid_i, set_i, coord_i, grid_d, set_d, coo
         pos_coord_d = coord['ID'].index(grid_d[coord_d][i_d])
         T_d = loadskernel.spline_functions.sparse_insert_coo( T_d, coord['dircos'][pos_coord_d], grid_d['set'+set_d][i_d,0:3], grid_d['set'+set_d][i_d,0:3] )
         T_d = loadskernel.spline_functions.sparse_insert_coo( T_d, coord['dircos'][pos_coord_d], grid_d['set'+set_d][i_d,3:6], grid_d['set'+set_d][i_d,3:6] )
-    return T_i, T_d
+    return T_i.tocsc(), T_d.tocsc()
