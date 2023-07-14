@@ -23,10 +23,10 @@ def grid_trafo(grid, coord, dest_coord):
     in the same coordinate system. To handle different coorinate systems in one grid (e.g. Nastran GRID points 
     given with different CP), the coordinate transformation has to be applied gridpoint-wise.
     """
+    pos_coord_dest = np.where(np.array(coord['ID'])==dest_coord)[0][0]
     if all_equal(grid['CP']):
         # get the right transformation matrices
-        pos_coord_orig = coord['ID'].index(grid['CP'][0])
-        pos_coord_dest = coord['ID'].index(dest_coord)
+        pos_coord_orig = np.where(np.array(coord['ID'])==grid['CP'][0])[0][0]
         # perform transformation
         offset_tmp  = coord['dircos'][pos_coord_orig].dot(grid['offset'].T).T   + coord['offset'][pos_coord_orig]
         offset      = coord['dircos'][pos_coord_dest].T.dot(offset_tmp.T).T     + coord['offset'][pos_coord_dest]
@@ -35,8 +35,7 @@ def grid_trafo(grid, coord, dest_coord):
         grid['CP'] = np.array([dest_coord]*grid['n'])
     else:
         for i_point in range(len(grid['ID'])):
-            pos_coord_orig = coord['ID'].index(grid['CP'][i_point])
-            pos_coord_dest = coord['ID'].index(dest_coord)
+            pos_coord_orig = np.where(np.array(coord['ID'])==grid['CP'][i_point])[0][0]
             offset_tmp = np.dot(coord['dircos'][pos_coord_orig],grid['offset'][i_point])+coord['offset'][pos_coord_orig]
             offset = np.dot(coord['dircos'][pos_coord_dest].T,offset_tmp)+coord['offset'][pos_coord_dest]
             grid['offset'][i_point] = offset
@@ -48,10 +47,10 @@ def vector_trafo(grid, coord, forcevector, dest_coord):
     the force and moments vector is in the coordinate system defined with CD. As above, matrix operations are 
     applied if all source coord systems are identical.
     """
+    pos_coord_dest = np.where(np.array(coord['ID'])==dest_coord)[0][0]
     if all_equal(grid['CD']):
         # get the right transformation matrices
-        pos_coord_orig = coord['ID'].index(grid['CD'][0])
-        pos_coord_dest = coord['ID'].index(dest_coord)
+        pos_coord_orig = np.where(np.array(coord['ID'])==grid['CD'][0])[0][0]
         # expand for 6 degrees of freedom 
         dircos_source = np.zeros((6,6))
         dircos_source[0:3,0:3] = coord['dircos'][pos_coord_orig]
@@ -65,8 +64,7 @@ def vector_trafo(grid, coord, forcevector, dest_coord):
     else:
         forcevector_trans = np.zeros(np.shape(forcevector))
         for i_station in range(grid['n']):
-            pos_coord_orig = coord['ID'].index(grid['CD'][i_station])
-            pos_coord_dest = coord['ID'].index(dest_coord)
+            pos_coord_orig = np.where(np.array(coord['ID'])==grid['CD'][i_station])[0][0]
     
             dircos_source = np.zeros((6,6))
             dircos_source[0:3,0:3] = coord['dircos'][pos_coord_orig]

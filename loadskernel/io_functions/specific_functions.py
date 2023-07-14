@@ -64,17 +64,14 @@ def recursively_save_dict_to_hdf5(fid, dic, path=''):
             g.create_dataset('indptr',data=item.indptr)
             g.create_dataset('indices',data=item.indices)
             g.attrs['shape'] = item.shape
+            g.attrs['is_sparse'] = True
             
         elif isinstance(item, (str, list)):
+            # In the latest version, h5py handles string and lists of strings correctly. No need for funny conversions :)
+            fid.create_dataset(path+'/'+key, data=item)
+            # If the item is a string or if there are strings in a list, then add a label.
             if isinstance(item, str) or any([isinstance(x, (str)) for x in item]):
-                # If there are strings in a list, then convert the whole list. Note that the above condition also handles empty lists.
-                # Convert to an numpy array of objects
-                dt = h5py.special_dtype(vlen=str) 
-                fid.create_dataset(path+'/'+key, data=np.array(item, dtype=dt))
-                # Alternatively, convert to an numpy array of bytes
-                #fid.create_dataset(path+'/'+key, data=np.array(item, dtype='S'))
-            else:
-                fid.create_dataset(path+'/'+key, data=item)
+                fid[path+'/'+key].attrs['is_string'] = True
         else:
             raise ValueError('Saving of data type %s not implemented!'%type(item))
 
@@ -88,8 +85,30 @@ def load_hdf5_responses(job_name, path_output):
 
     return response 
 
+def load_hdf5_dict(hdf5_object):
+    """
+    This is a convenience function that loads a given hdf5 dataset int a dictionary.
+    Currently, cascaded datasets / childeren are not supported and skipped.
+    """
+    new_dict = {}
+    for key in hdf5_object.keys():
+        if isinstance(hdf5_object[key], h5py.Group) and 'is_sparse' in hdf5_object[key].attrs and hdf5_object[key].attrs['is_sparse']:
+            new_dict[key] = load_hdf5_sparse_matrix(hdf5_object[key])
+        elif 'is_string' in hdf5_object[key].attrs and hdf5_object[key].attrs['is_string']:
+            new_dict[key] = hdf5_object[key].asstr()[()]
+        elif isinstance(hdf5_object[key], h5py.Dataset):
+            new_dict[key] = hdf5_object[key][()]
+        else:
+            new_dict[key] = hdf5_object[key]
+    
+    return new_dict
+
 def load_hdf5_sparse_matrix(hdf5_group):
-    M = scipy.sparse.csr_matrix((hdf5_group['data'][()],hdf5_group['indices'][()],
+    """
+    This is a convenience function which assembles the sparse matrix. 
+    Assumption: The matrix is in CSC sparse format.
+    """
+    M = scipy.sparse.csc_matrix((hdf5_group['data'][()],hdf5_group['indices'][()],
                                  hdf5_group['indptr'][()]), hdf5_group.attrs['shape'])
     return M
 

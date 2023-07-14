@@ -1,24 +1,26 @@
-
 import numpy as np
 import logging
 
+from loadskernel.io_functions.specific_functions import load_hdf5_dict
+
 class GatherLoads:
-    #===========================================================================
-    # In this class actually no calculation is done, it merely gathers data.
-    # From the response, the monstations are assembled in a more convenient order and format.
-    # From the response of a dynamic simulation, the peaks are identified and saved as snapshots (dyn2stat).
-    #===========================================================================
+    """
+    In this class actually no calculation is done, it merely gathers data.
+    From the response, the monstations are assembled in a more convenient order and format.
+    From the response of a dynamic simulation, the peaks are identified and saved as snapshots (dyn2stat).
+    """
     def __init__(self, jcl, model):
         self.jcl = jcl
         self.model = model
+        self.mongrid = load_hdf5_dict(self.model['mongrid'])
         # init monstation structure to be filled later
         self.monstations = {}
-        for i_station in range(self.model.mongrid['n']):
+        for i_station in range(self.mongrid['n']):
             name = self.get_monstation_name(i_station)
-            self.monstations[name] = {'ID': self.model.mongrid['ID'][i_station],
-                                      'CD': self.model.mongrid['CD'][i_station],
-                                      'CP': self.model.mongrid['CP'][i_station],
-                                      'offset': self.model.mongrid['offset'][i_station],
+            self.monstations[name] = {'ID': self.mongrid['ID'][i_station],
+                                      'CD': self.mongrid['CD'][i_station],
+                                      'CP': self.mongrid['CP'][i_station],
+                                      'offset': self.mongrid['offset'][i_station],
                                       'subcases': [],
                                       'loads':[],
                                       't':[],
@@ -31,26 +33,27 @@ class GatherLoads:
                         }     
         
     def get_monstation_name(self, i_station):
-        if not 'name' in self.model.mongrid:
-            name = 'MON{:s}'.format(str(int(self.model.mongrid['ID'][i_station]))) # make up a name
+        # either take name from mongrid or make up a name
+        if not 'name' in self.mongrid:
+            name = 'MON{:s}'.format(str(int(self.mongrid['ID'][i_station])))
         else:
-            name = self.model.mongrid['name'][i_station] # take name from mongrid
+            name = self.mongrid['name'][i_station]
         return name
     
     def gather_monstations(self, trimcase, response):
         logging.info('gathering information on monitoring stations from response(s)...')
-        for i_station in range(self.model.mongrid['n']):
+        for i_station in range(self.mongrid['n']):
             name = self.get_monstation_name(i_station)
             subcase = str(trimcase['subcase'])
             # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
             if len(response['t']) > 1:
-                loads = response['Pmon_local'][:,self.model.mongrid['set'][i_station,:]]
+                loads = response['Pmon_local'][:,self.mongrid['set'][i_station,:]]
                 # save time data per subcase
                 self.monstations[name][str(response['i'])] = {'subcase': subcase,
                                                               'loads': loads,
                                                               't': response['t'] }
             else:
-                loads = response['Pmon_local'][0,self.model.mongrid['set'][i_station,:]]
+                loads = response['Pmon_local'][0,self.mongrid['set'][i_station,:]]
                 self.monstations[name]['subcases'].append(subcase)
                 self.monstations[name]['loads'].append(loads)
                 self.monstations[name]['t'].append(response['t'][0])
@@ -58,8 +61,8 @@ class GatherLoads:
             if 'Pmon_turb' in response:
                 # Check if there are any limit turbulence loads available in the response.
                 # If yes, map them into the monstations.
-                loads = response['Pmon_turb'][0,self.model.mongrid['set'][i_station,:]]
-                correlations = response['correlations'][self.model.mongrid['set'][i_station,:],:][:,self.model.mongrid['set'][i_station,:]]
+                loads = response['Pmon_turb'][0,self.mongrid['set'][i_station,:]]
+                correlations = response['correlations'][self.mongrid['set'][i_station,:],:][:,self.mongrid['set'][i_station,:]]
 
                 self.monstations[name]['turbulence_loads'].append(loads)
                 self.monstations[name]['correlations'].append(correlations)     

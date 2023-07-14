@@ -1,11 +1,4 @@
-'''
-Created on Aug 2, 2019
-
-@author: voss_ar
-'''
-import numpy as np
 from scipy import linalg
-import logging
 
 from loadskernel.solution_tools import * 
 from loadskernel.equations.common import Common, ConvergenceError
@@ -159,68 +152,10 @@ class Steady(Common):
             
         elif modus=='trim_full_output':
             response = self.equations(X, time, 'trim_full_output')
-            # do something with this output, e.g. plotting, animations, saving, etc.            
-            logging.debug('')        
-            logging.debug('X: ')
-            logging.debug('--------------------')
-            for i_X in range(len(response['X'])):
-                logging.debug(self.trimcond_X[:,0][i_X] + ': %.4f' % float(response['X'][i_X]))
-            logging.debug('Y: ')
-            logging.debug('--------------------')
-            for i_Y in range(len(response['Y'])):
-                logging.debug(self.trimcond_Y[:,0][i_Y] + ': %.4f' % float(response['Y'][i_Y]))
-
-            Pmac_rbm  = np.dot(self.model.Dkx1.T, response['Pk_rbm'])
-            Pmac_cam  = np.dot(self.model.Dkx1.T, response['Pk_cam'])
-            Pmac_cs   = np.dot(self.model.Dkx1.T, response['Pk_cs'])
-            Pmac_f    = np.dot(self.model.Dkx1.T, response['Pk_f'])
-            Pmac_idrag = np.dot(self.model.Dkx1.T, response['Pk_idrag'])
-            
-            A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
-            AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
-            Pmac_c = response['Pmac']/response['q_dyn']/A
-            # um alpha drehen, um Cl und Cd zu erhalten
-            Cl = Pmac_c[2]*np.cos(response['alpha'])+Pmac_c[0]*np.sin(response['alpha'])
-            Cd = Pmac_c[2]*np.sin(response['alpha'])+Pmac_c[0]*np.cos(response['alpha'])
-            Cd_ind_theo = Cl**2.0/np.pi/AR
-            logging.debug('')
-            logging.debug('--------------------')
-            logging.debug('q_dyn: %.4f [Pa]' % float(response['q_dyn']))
-            logging.debug('--------------------')
-            logging.debug('aero derivatives:')
-            logging.debug('--------------------')
-            logging.debug('Cz_rbm: %.4f' % float(Pmac_rbm[2]/response['q_dyn']/A))
-            logging.debug('Cz_cam: %.4f' % float(Pmac_cam[2]/response['q_dyn']/A))
-            logging.debug('Cz_cs: %.4f' % float(Pmac_cs[2]/response['q_dyn']/A))
-            logging.debug('Cz_f: %.4f' % float(Pmac_f[2]/response['q_dyn']/A))
-            logging.debug('--------------')
-            logging.debug('Cx: %.4f' % float(Pmac_c[0]))
-            logging.debug('Cy: %.4f' % float(Pmac_c[1]))
-            logging.debug('Cz: %.4f' % float(Pmac_c[2]))
-            logging.debug('Cmx: %.6f' % float(Pmac_c[3]/self.model.macgrid['b_ref']))
-            logging.debug('Cmy: %.6f' % float(Pmac_c[4]/self.model.macgrid['c_ref']))
-            logging.debug('Cmz: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']))
-            logging.debug('alpha: %.4f [deg]' % float(response['alpha']/np.pi*180))
-            logging.debug('beta: %.4f [deg]' % float(response['beta']/np.pi*180))
-            logging.debug('Cd: %.4f' % float(Cd))
-            logging.debug('Cl: %.4f' % float(Cl))
-            logging.debug('E: %.4f' % float(Cl/Cd))
-            logging.debug('Cd_ind: %.6f' % float(Pmac_idrag[0]/response['q_dyn']/A))
-            logging.debug('Cmz_ind: %.6f' % float(Pmac_idrag[5]/response['q_dyn']/A/self.model.macgrid['b_ref']))
-            logging.debug('e: %.4f' % float(Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn']/A)))
-            logging.debug('command_xi: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])/np.pi*180.0 ))
-            logging.debug('command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 ))
-            logging.debug('command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 ))
-            logging.debug('thrust per engine: %.4f [N]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='thrust')[0][0]]) ))
-            logging.debug('CS deflections [deg]: ' + str(response['Ux2']/np.pi*180))
-            logging.debug('--------------------')
-            
             return response
         
     def eval_equations_iteratively(self, X_free, time, modus='trim_full_output'):
         # this is a wrapper for the model equations
-        i_mass = self.model.mass['key'].index(self.trimcase['mass'])
-        n_modes = self.model.mass[i_mass]['n_modes']
         
         # get inputs from trimcond and apply inputs from fsolve 
         X = np.array(self.trimcond_X[:,2], dtype='float')
@@ -250,18 +185,18 @@ class Steady(Common):
             logging.info('Epsilon: {:0.6g}'.format(epsilon))
             
             # recover Uf_old from last step and blend with Uf_now
-            Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(1, n_modes+1)]
+            Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(1, self.n_modes+1)]
             Uf_old = np.array(Uf_old, dtype='float')
             Uf_new = Uf_new*f_relax + Uf_old*(1.0-f_relax)
 
             # set new values for Uf in trimcond for next loop and store in response
-            for i_mode in range(n_modes):
+            for i_mode in range(self.n_modes):
                 self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode+1)))[0][0],2] = '{:g}'.format(Uf_new[i_mode])
                 response['X'][12+i_mode] = Uf_new[i_mode]
             
             # convergence parameter for iterative evaluation  
             Ug_f_body = np.dot(self.PHIf_strc.T, Uf_new.T).T
-            defo_new = Ug_f_body[self.model.strcgrid['set'][:,(0,1,2)]].max() # Groesste Verformung, meistens Fluegelspitze
+            defo_new = Ug_f_body[self.strcgrid['set'][:,:3]].max() # Groesste Verformung, meistens Fluegelspitze
             ddefo = defo_new - self.defo_old
             self.defo_old = np.copy(defo_new)
             if np.abs(ddefo) < epsilon:
@@ -280,56 +215,4 @@ class Steady(Common):
         if modus in ['trim']:
             return out
         elif modus=='trim_full_output':
-            # do something with this output, e.g. plotting, animations, saving, etc.            
-            logging.debug('')        
-            logging.debug('X: ')
-            logging.debug('--------------------')
-            for i_X in range(len(response['X'])):
-                logging.debug(self.trimcond_X[:,0][i_X] + ': %.4f' % float(response['X'][i_X]))
-            logging.debug('Y: ')
-            logging.debug('--------------------')
-            for i_Y in range(len(response['Y'])):
-                logging.debug(self.trimcond_Y[:,0][i_Y] + ': %.4f' % float(response['Y'][i_Y]))
-
-            Pmac_rbm  = np.dot(self.model.Dkx1.T, response['Pk_rbm'])
-            Pmac_cam  = np.dot(self.model.Dkx1.T, response['Pk_cam'])
-            Pmac_cs   = np.dot(self.model.Dkx1.T, response['Pk_cs'])
-            Pmac_f    = np.dot(self.model.Dkx1.T, response['Pk_f'])
-            Pmac_idrag = np.dot(self.model.Dkx1.T, response['Pk_idrag'])
-            
-            A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
-            AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
-            Pmac_c = response['Pmac']/response['q_dyn']/A
-            # um alpha drehen, um Cl und Cd zu erhalten
-            Cl = Pmac_c[2]*np.cos(response['alpha'])+Pmac_c[0]*np.sin(response['alpha'])
-            Cd = Pmac_c[2]*np.sin(response['alpha'])+Pmac_c[0]*np.cos(response['alpha'])
-            logging.debug('')
-            logging.debug('--------------------')
-            logging.debug('q_dyn: %.4f [Pa]' % float(response['q_dyn']))
-            logging.debug('--------------------')
-            logging.debug('aero derivatives:')
-            logging.debug('--------------------')
-            logging.debug('Cz_rbm: %.4f' % float(Pmac_rbm[2]/response['q_dyn']/A))
-            logging.debug('Cz_cam: %.4f' % float(Pmac_cam[2]/response['q_dyn']/A))
-            logging.debug('Cz_cs: %.4f' % float(Pmac_cs[2]/response['q_dyn']/A))
-            logging.debug('Cz_f: %.4f' % float(Pmac_f[2]/response['q_dyn']/A))
-            logging.debug('--------------')
-            logging.debug('Cx: %.4f' % float(Pmac_c[0]))
-            logging.debug('Cy: %.4f' % float(Pmac_c[1]))
-            logging.debug('Cz: %.4f' % float(Pmac_c[2]))
-            logging.debug('Cmx: %.6f' % float(Pmac_c[3]/self.model.macgrid['b_ref']))
-            logging.debug('Cmy: %.6f' % float(Pmac_c[4]/self.model.macgrid['c_ref']))
-            logging.debug('Cmz: %.6f' % float(Pmac_c[5]/self.model.macgrid['b_ref']))
-            logging.debug('alpha: %.4f [deg]' % float(response['alpha']/np.pi*180))
-            logging.debug('beta: %.4f [deg]' % float(response['beta']/np.pi*180))
-            logging.debug('Cd: %.4f' % float(Cd))
-            logging.debug('Cl: %.4f' % float(Cl))
-            logging.debug('Cd_ind: %.6f' % float(Pmac_idrag[0]/response['q_dyn']/A))
-            logging.debug('Cmz_ind: %.6f' % float(Pmac_idrag[5]/response['q_dyn']/A/self.model.macgrid['b_ref']))
-            logging.debug('command_xi: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_xi')[0][0]])/np.pi*180.0 ))
-            logging.debug('command_eta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_eta')[0][0]])/np.pi*180.0 ))
-            logging.debug('command_zeta: %.4f [rad] / %.4f [deg]' % (float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]]), float( response['X'][np.where(self.trimcond_X[:,0]=='command_zeta')[0][0]])/np.pi*180.0 ))
-            logging.debug('CS deflections [deg]: ' + str(response['Ux2']/np.pi*180))
-            logging.debug('--------------------')
-            
             return response

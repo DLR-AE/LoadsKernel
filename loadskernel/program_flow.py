@@ -172,8 +172,7 @@ class Kernel(ProgramFlowHelper):
         logging.info('--> Saving model data.')
         with open(self.path_output + 'model_' + self.job_name + '.pickle', 'wb') as f:
             io_functions.specific_functions.dump_pickle(model.__dict__, f)
-        io_functions.specific_functions.dump_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5',
-                                                  model.__dict__)
+        io_functions.specific_functions.dump_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5', model.__dict__)
         logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
     def main_common(self, model, jcl, i):
@@ -209,7 +208,7 @@ class Kernel(ProgramFlowHelper):
     def run_main_sequential(self):
         logging.info('--> Starting Main in sequential mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         if self.myid == 0:
             mon = gather_modul.GatherLoads(self.jcl, model)
             if self.restart:
@@ -335,7 +334,7 @@ class Kernel(ProgramFlowHelper):
         logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
     def run_post(self):
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
         logging.info('--> Loading monstations(s).')
         monstations = io_functions.specific_functions.load_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5')

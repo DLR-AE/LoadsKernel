@@ -11,6 +11,7 @@ from scipy.spatial import ConvexHull
 import logging, itertools, os
 from loadskernel.units import tas2eas
 from loadskernel.units import eas2tas
+from loadskernel.io_functions.specific_functions import load_hdf5_dict
 
 class LoadPlots(object):
     def __init__(self, jcl, model):
@@ -28,6 +29,11 @@ class LoadPlots(object):
         self.im = plt.imread(os.path.join(os.path.dirname(__file__), 'graphics', 'LK_logo2.png'))
         self.f_scale = 0.02 # vectors
         self.p_scale = 0.03 # points
+        
+        # load data from HDF5
+        self.aerogrid   = load_hdf5_dict(self.model['aerogrid'])
+        self.strcgrid   = load_hdf5_dict(self.model['strcgrid'])
+        self.splinegrid = load_hdf5_dict(self.model['splinegrid'])
         
         if hasattr(self.jcl, 'loadplots'):
             if 'potatos_fz_mx' in self.jcl.loadplots:
@@ -70,54 +76,54 @@ class LoadPlots(object):
             trimcase   = self.jcl.trimcase[response['i'][()]]
             logging.info('interactive plotting of forces and deformations for trim {:s}'.format(trimcase['desc']))
 
-            x = self.model.aerogrid['offset_k'][:,0]
-            y = self.model.aerogrid['offset_k'][:,1]
-            z = self.model.aerogrid['offset_k'][:,2]
-            fx, fy, fz = response['Pk_rbm'][0][self.model.aerogrid['set_k'][:,0]],response['Pk_rbm'][0][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][0][self.model.aerogrid['set_k'][:,2]]
+            x = self.aerogrid['offset_k'][:,0]
+            y = self.aerogrid['offset_k'][:,1]
+            z = self.aerogrid['offset_k'][:,2]
+            fx, fy, fz = response['Pk_rbm'][0][self.aerogrid['set_k'][:,0]],response['Pk_rbm'][0][self.aerogrid['set_k'][:,1]], response['Pk_rbm'][0][self.aerogrid['set_k'][:,2]]
 
             mlab.figure()
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
-            #mlab.quiver3d(x, y, z, response['Pk_rbm'][self.model.aerogrid['set_k'][:,0]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=self.f_scale)            
+            #mlab.quiver3d(x, y, z, response['Pk_rbm'][self.aerogrid['set_k'][:,0]], response['Pk_rbm'][self.aerogrid['set_k'][:,1]], response['Pk_rbm'][self.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=self.f_scale)            
             mlab.quiver3d(x, y, z, fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
             mlab.quiver3d(x+fx*self.f_scale, y+fy*self.f_scale, z+fz*self.f_scale,fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='cone', scale_mode='vector', scale_factor=0.2, resolution=16)
             mlab.title('Pk_rbm', size=0.2, height=0.95)
             
             mlab.figure() 
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_cam'][0][self.model.aerogrid['set_k'][:,0]], response['Pk_cam'][0][self.model.aerogrid['set_k'][:,1]], response['Pk_cam'][0][self.model.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=self.f_scale)            
+            mlab.quiver3d(x, y, z, response['Pk_cam'][0][self.aerogrid['set_k'][:,0]], response['Pk_cam'][0][self.aerogrid['set_k'][:,1]], response['Pk_cam'][0][self.aerogrid['set_k'][:,2]], color=(0,1,1), scale_factor=self.f_scale)            
             mlab.title('Pk_camber_twist', size=0.2, height=0.95)
             
             mlab.figure()        
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_cs'][0][self.model.aerogrid['set_k'][:,0]], response['Pk_cs'][0][self.model.aerogrid['set_k'][:,1]], response['Pk_cs'][0][self.model.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=self.f_scale)
+            mlab.quiver3d(x, y, z, response['Pk_cs'][0][self.aerogrid['set_k'][:,0]], response['Pk_cs'][0][self.aerogrid['set_k'][:,1]], response['Pk_cs'][0][self.aerogrid['set_k'][:,2]], color=(1,0,0), scale_factor=self.f_scale)
             mlab.title('Pk_cs', size=0.2, height=0.95)
             
             mlab.figure()   
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_f'][0][self.model.aerogrid['set_k'][:,0]], response['Pk_f'][0][self.model.aerogrid['set_k'][:,1]], response['Pk_f'][0][self.model.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=self.f_scale)
+            mlab.quiver3d(x, y, z, response['Pk_f'][0][self.aerogrid['set_k'][:,0]], response['Pk_f'][0][self.aerogrid['set_k'][:,1]], response['Pk_f'][0][self.aerogrid['set_k'][:,2]], color=(1,0,1), scale_factor=self.f_scale)
             mlab.title('Pk_flex', size=0.2, height=0.95)
             
             mlab.figure()
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
-            fx, fy, fz = response['Pk_idrag'][0][self.model.aerogrid['set_k'][:,0]],response['Pk_idrag'][0][self.model.aerogrid['set_k'][:,1]], response['Pk_idrag'][0][self.model.aerogrid['set_k'][:,2]]
+            fx, fy, fz = response['Pk_idrag'][0][self.aerogrid['set_k'][:,0]],response['Pk_idrag'][0][self.aerogrid['set_k'][:,1]], response['Pk_idrag'][0][self.aerogrid['set_k'][:,2]]
             mlab.quiver3d(x, y, z, fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
             mlab.quiver3d(x+fx*self.f_scale, y+fy*self.f_scale, z+fz*self.f_scale,fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(0,1,0),  mode='cone', scale_mode='vector', scale_factor=0.2, resolution=16)
             mlab.title('Pk_idrag', size=0.2, height=0.95)
             
             mlab.figure()   
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
-            mlab.quiver3d(x, y, z, response['Pk_aero'][0][self.model.aerogrid['set_k'][:,0]], response['Pk_aero'][0][self.model.aerogrid['set_k'][:,1]], response['Pk_aero'][0][self.model.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=self.f_scale)
+            mlab.quiver3d(x, y, z, response['Pk_aero'][0][self.aerogrid['set_k'][:,0]], response['Pk_aero'][0][self.aerogrid['set_k'][:,1]], response['Pk_aero'][0][self.aerogrid['set_k'][:,2]], color=(0,1,0), scale_factor=self.f_scale)
             mlab.title('Pk_aero', size=0.2, height=0.95)
             
-            x = self.model.strcgrid['offset'][:,0]
-            y = self.model.strcgrid['offset'][:,1]
-            z = self.model.strcgrid['offset'][:,2]
-            x_r = self.model.strcgrid['offset'][:,0] + response['Ug_r'][0][self.model.strcgrid['set'][:,0]]
-            y_r = self.model.strcgrid['offset'][:,1] + response['Ug_r'][0][self.model.strcgrid['set'][:,1]]
-            z_r = self.model.strcgrid['offset'][:,2] + response['Ug_r'][0][self.model.strcgrid['set'][:,2]]
-            x_f = self.model.strcgrid['offset'][:,0] + response['Ug'][0][self.model.strcgrid['set'][:,0]]
-            y_f = self.model.strcgrid['offset'][:,1] + response['Ug'][0][self.model.strcgrid['set'][:,1]]
-            z_f = self.model.strcgrid['offset'][:,2] + response['Ug'][0][self.model.strcgrid['set'][:,2]]
+            x = self.strcgrid['offset'][:,0]
+            y = self.strcgrid['offset'][:,1]
+            z = self.strcgrid['offset'][:,2]
+            x_r = self.strcgrid['offset'][:,0] + response['Ug_r'][0][self.strcgrid['set'][:,0]]
+            y_r = self.strcgrid['offset'][:,1] + response['Ug_r'][0][self.strcgrid['set'][:,1]]
+            z_r = self.strcgrid['offset'][:,2] + response['Ug_r'][0][self.strcgrid['set'][:,2]]
+            x_f = self.strcgrid['offset'][:,0] + response['Ug'][0][self.strcgrid['set'][:,0]]
+            y_f = self.strcgrid['offset'][:,1] + response['Ug'][0][self.strcgrid['set'][:,1]]
+            z_f = self.strcgrid['offset'][:,2] + response['Ug'][0][self.strcgrid['set'][:,2]]
             
             mlab.figure()
             #mlab.points3d(x, y, z, scale_factor=self.p_scale)
@@ -127,20 +133,20 @@ class LoadPlots(object):
 
             mlab.figure()   
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
-            #mlab.quiver3d(x, y, z, response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]], color=(1,1,0), scale_factor=self.f_scale)
-            fx, fy, fz = response['Pg'][0][self.model.strcgrid['set'][:,0]], response['Pg'][0][self.model.strcgrid['set'][:,1]], response['Pg'][0][self.model.strcgrid['set'][:,2]]
+            #mlab.quiver3d(x, y, z, response['Pg'][self.strcgrid['set'][:,0]], response['Pg'][self.strcgrid['set'][:,1]], response['Pg'][self.strcgrid['set'][:,2]], color=(1,1,0), scale_factor=self.f_scale)
+            fx, fy, fz = response['Pg'][0][self.strcgrid['set'][:,0]], response['Pg'][0][self.strcgrid['set'][:,1]], response['Pg'][0][self.strcgrid['set'][:,2]]
             mlab.quiver3d(x, y, z, fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(1,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
             mlab.quiver3d(x+fx*self.f_scale, y+fy*self.f_scale, z+fz*self.f_scale,fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(1,1,0),  mode='cone', scale_mode='vector', scale_factor=0.2, resolution=16)
-            mlab.points3d(self.model.splinegrid['offset'][:,0], self.model.splinegrid['offset'][:,1], self.model.splinegrid['offset'][:,2], color=(1,1,0), scale_factor=self.p_scale*1.5)
+            mlab.points3d(self.splinegrid['offset'][:,0], self.splinegrid['offset'][:,1], self.splinegrid['offset'][:,2], color=(1,1,0), scale_factor=self.p_scale*1.5)
             mlab.title('Pg', size=0.2, height=0.95)
             
             mlab.figure()   
             mlab.points3d(x, y, z, scale_factor=self.p_scale)
-            #mlab.quiver3d(x, y, z, response['Pg'][self.model.strcgrid['set'][:,0]], response['Pg'][self.model.strcgrid['set'][:,1]], response['Pg'][self.model.strcgrid['set'][:,2]], color=(1,1,0), scale_factor=self.f_scale)
-            fx, fy, fz = response['Pg_cfd'][0][self.model.strcgrid['set'][:,0]], response['Pg_cfd'][0][self.model.strcgrid['set'][:,1]], response['Pg_cfd'][0][self.model.strcgrid['set'][:,2]]
+            #mlab.quiver3d(x, y, z, response['Pg'][self.strcgrid['set'][:,0]], response['Pg'][self.strcgrid['set'][:,1]], response['Pg'][self.strcgrid['set'][:,2]], color=(1,1,0), scale_factor=self.f_scale)
+            fx, fy, fz = response['Pg_cfd'][0][self.strcgrid['set'][:,0]], response['Pg_cfd'][0][self.strcgrid['set'][:,1]], response['Pg_cfd'][0][self.strcgrid['set'][:,2]]
             mlab.quiver3d(x, y, z, fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(1,1,0),  mode='2ddash', opacity=0.4,  scale_mode='vector', scale_factor=1.0)
             mlab.quiver3d(x+fx*self.f_scale, y+fy*self.f_scale, z+fz*self.f_scale,fx*self.f_scale, fy*self.f_scale, fz*self.f_scale , color=(1,1,0),  mode='cone', scale_mode='vector', scale_factor=0.2, resolution=16)
-            mlab.points3d(self.model.splinegrid['offset'][:,0], self.model.splinegrid['offset'][:,1], self.model.splinegrid['offset'][:,2], color=(1,1,0), scale_factor=self.p_scale*1.5)
+            mlab.points3d(self.splinegrid['offset'][:,0], self.splinegrid['offset'][:,1], self.splinegrid['offset'][:,2], color=(1,1,0), scale_factor=self.p_scale*1.5)
             mlab.title('Pg_cfd', size=0.2, height=0.95)
             
             mlab.show()
@@ -387,11 +393,9 @@ class FlutterPlots(LoadPlots):
         fig, ax = plt.subplots(3, sharex=True, figsize=(8,10))
         ax_vtas = ax[2].twiny()
         for response in self.responses:
-            trimcase   = self.jcl.trimcase[response['i'][()]]
-            i_mass     = self.model.mass['key'].index(trimcase['mass'])
-            i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
+            trimcase    = self.jcl.trimcase[response['i'][()]]            
+            h           = self.model['atmo'][self.trimcase['altitude']]['h']
             #Plot boundaries
-            freqs = np.real(self.model.mass[i_mass]['Khh'].diagonal())**0.5 /2/np.pi
             fmin = 2 * np.floor(response['freqs'][:].min() / 2)
             if fmin < -50.0 or np.isnan(fmin): 
                 fmin = -50.0
@@ -399,7 +403,7 @@ class FlutterPlots(LoadPlots):
             if fmax > 50.0 or np.isnan(fmax): 
                 fmax = 50.0
             Vmin = 0
-            Vmax = 2 * np.ceil(tas2eas(response['Vtas'][:].max(), self.model.atmo['h'][i_atmo]) / 2)
+            Vmax = 2 * np.ceil(tas2eas(response['Vtas'][:].max(), h) / 2)
             if Vmax > 500.0 or np.isnan(Vmax): 
                 Vmax = 500.0
             gmin = -0.11
@@ -412,9 +416,9 @@ class FlutterPlots(LoadPlots):
             for j in range(response['freqs'].shape[1]): 
                 marker = next(markers)
                 color = next(colors)
-                ax[0].plot(tas2eas(response['Vtas'][:, j], self.model.atmo['h'][i_atmo]), response['freqs'][:, j],   marker=marker, markersize=4.0, linewidth=1.0, color=color)
-                ax[1].plot(tas2eas(response['Vtas'][:, j], self.model.atmo['h'][i_atmo]), response['damping'][:, j], marker=marker, markersize=4.0, linewidth=1.0, color=color)
-                ax[2].plot(tas2eas(response['Vtas'][:, j], self.model.atmo['h'][i_atmo]), response['damping'][:, j], marker=marker, markersize=4.0, linewidth=1.0, color=color)
+                ax[0].plot(tas2eas(response['Vtas'][:, j], h), response['freqs'][:, j],   marker=marker, markersize=4.0, linewidth=1.0, color=color)
+                ax[1].plot(tas2eas(response['Vtas'][:, j], h), response['damping'][:, j], marker=marker, markersize=4.0, linewidth=1.0, color=color)
+                ax[2].plot(tas2eas(response['Vtas'][:, j], h), response['damping'][:, j], marker=marker, markersize=4.0, linewidth=1.0, color=color)
             
             # make plots nice
             fig.suptitle(trimcase['desc'], fontsize=16)
@@ -448,7 +452,7 @@ class FlutterPlots(LoadPlots):
             ax_vtas.xaxis.set_label_position('bottom') # set the position of the second x-axis to bottom
             ax_vtas.spines['bottom'].set_position(('outward', 60))
             x1, x2 = ax[1].get_xlim()
-            ax_vtas.set_xlim(( eas2tas(x1, self.model.atmo['h'][i_atmo]), eas2tas(x2, self.model.atmo['h'][i_atmo]) ))
+            ax_vtas.set_xlim(( eas2tas(x1, h), eas2tas(x2, h) ))
             ax_vtas.minorticks_on()
             ax_vtas.set_xlabel('$V_{tas} [m/s]$')
 
@@ -461,17 +465,16 @@ class FlutterPlots(LoadPlots):
         ax_divider = make_axes_locatable(ax[2])
         ax_cbar = ax_divider.append_axes("top", size="4%", pad="1%")
         for response in self.responses:
-            trimcase   = self.jcl.trimcase[response['i'][()]]
-            simcase    = self.jcl.simcase[response['i'][()]]
+            trimcase    = self.jcl.trimcase[response['i'][()]]
+            simcase     = self.jcl.simcase[response['i'][()]]
+            h           = self.model['atmo'][self.trimcase['altitude']]['h']
             
             # this kind of plot is only feasible for methods which iterate over Vtas, e.g. not the K- or KE-methods
             if 'flutter' in simcase and simcase['flutter_para']['method'] not in ['pk', 'statespace']:
                 logging.info('skip plotting of eigenvalues and -vectors for {}'.format(trimcase['desc']))
                 continue
-            
-            i_atmo     = self.model.atmo['key'].index(trimcase['altitude'])
-            
-             #Plot boundaries
+
+            #Plot boundaries
             rmax = np.ceil(response['eigenvalues'][:].real.max())
             rmin = np.floor(response['eigenvalues'][:].real.min())
             imax = np.ceil(response['eigenvalues'][:].imag.max())
@@ -499,7 +502,7 @@ class FlutterPlots(LoadPlots):
                 
                 # make plots nice
                 fig.suptitle(t='{}, Veas={:.2f} m/s, Vtas={:.2f} m/s'.format(trimcase['desc'],
-                                                                  tas2eas(response['Vtas'][i,0], self.model.atmo['h'][i_atmo]), 
+                                                                  tas2eas(response['Vtas'][i,0], h), 
                                                                   response['Vtas'][i,0]),
                              fontsize=16)
                 ax[0].set_position([0.12, 0.1, 0.25, 0.8])
