@@ -366,7 +366,7 @@ class Model:
                             xz_symmetry=xz_symmetry)
         for key, Qjj in zip(self.jcl.aero['key'], Qjj):
             self.aero[key]['Qjj_unsteady'] = Qjj
-        self.aero['k_red'] =  self.jcl.aero['k_red']
+            self.aero[key]['k_red'] =  self.jcl.aero['k_red']
         logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
         
     def build_AICs_Nastran(self):
@@ -389,10 +389,10 @@ class Model:
                                                                   filename=self.path_output+'rfa_{}.png'.format(key))
             self.aero[key]['ABCD'] = ABCD
             self.aero[key]['RMSE'] = RMSE
-        self.aero['n_poles'] = n_poles
-        self.aero['betas'] =  betas
-        # remove unsteady AICs to save memory
-        del self.aero[key]['Qjj_unsteady']
+            self.aero[key]['n_poles'] = n_poles
+            self.aero[key]['betas'] =  betas
+            # Remove unsteady AICs to save memory. No longer critical with the HDF5 data format.
+            # del self.aero[key]['Qjj_unsteady']
     
     def build_prop(self):
         if hasattr(self.jcl, 'engine'):

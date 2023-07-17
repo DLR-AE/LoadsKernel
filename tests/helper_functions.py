@@ -12,7 +12,8 @@ class HelperFunctions(object):
     # This is usefull for the comparison of matrices related to eigenvalues and eigenvectors.  
     list_ignore_sign = ['Mff', 'Mhh', 'Kff', 'Khh', 'Mfcg', 
                         'PHIf_strc', 'PHIh_strc', 'PHIjf', 'PHIlf', 'PHIkf', 'PHIjh', 'PHIlh', 'PHIkh', 
-                        'Uf', 'dUf_dt', 'd2Uf_dt2', 'Pf', 'X', 'Y']
+                        'Uf', 'dUf_dt', 'd2Uf_dt2', 'Pf', 'X', 'Y',
+                        'eigenvalues', 'eigenvectors', 'freqs', 'jac', 'A', 'B', 'C', 'D', 'X0', 'rigid_derivatives']
     
 
     def compare_lists(self, list_a, list_b, key=''):

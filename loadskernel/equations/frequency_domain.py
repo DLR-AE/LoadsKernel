@@ -1,8 +1,3 @@
-'''
-Created on Aug 5, 2019
-
-@author: voss_ar
-'''
 import numpy as np
 from scipy import linalg
 from scipy.fftpack import fft, ifft, fftfreq
@@ -80,7 +75,7 @@ class GustExcitation(Common):
         return response  
     
     def setup_frequence_parameters(self):
-        self.n_modes = self.model.mass[self.i_mass]['n_modes'] + 5
+        self.n_modes = self.model['mass'][self.trimcase['mass']]['n_modes'][()] + 5
         self.Vtas, self.q_dyn = self.recover_Vtas(self.X0)
         # Number of sample points
         if self.simcase['gust']:
@@ -102,8 +97,8 @@ class GustExcitation(Common):
         self.positiv_fftomega = 2.0*np.pi*self.positiv_fftfreqs
         
         logging.info('Frequency domain solution with tfinal = {}x{} s, nfreq = {}, fmax={} Hz and df = {} Hz'.format(t_factor, self.simcase['t_final'], self.n_freqs//2, self.fmax/2.0, self.fmax/self.n_freqs) )
-        if self.f2k(self.freqs.max()) > np.max(self.model.aero['k_red']):
-            logging.warning('Required reduced frequency = {:0.3} but AICs given only up to {:0.3}'.format(self.f2k(self.freqs.max()), np.max(self.model.aero['k_red'])))
+        if self.f2k(self.freqs.max()) > np.max(self.aero['k_red']):
+            logging.warning('Required reduced frequency = {:0.3} but AICs given only up to {:0.3}'.format(self.f2k(self.freqs.max()), np.max(self.aero['k_red'])))
 
     def mirror_fouriersamples_even(self, fouriersamples):
         mirrored_fourier = np.zeros((fouriersamples.shape[0], self.n_freqs), dtype='complex128')
@@ -126,14 +121,14 @@ class GustExcitation(Common):
 
     def build_AIC_interpolators(self):
         # interpolation of physical AIC
-        self.Qjj_interp = MatrixInterpolation( self.model.aero['k_red'], self.model.aero['Qjj_unsteady'][self.i_aero])
+        self.Qjj_interp = MatrixInterpolation( self.aero['k_red'], self.aero['Qjj_unsteady'])
         # do some pre-multiplications first, then the interpolation
         Qhh_1 = []; Qhh_2 = []
-        for Qjj_unsteady in self.model.aero['Qjj_unsteady'][self.i_aero]:
-            Qhh_1.append(self.q_dyn * self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1))) )
-            Qhh_2.append(self.q_dyn * self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2 / self.Vtas ))) )
-        self.Qhh_1_interp = MatrixInterpolation( self.model.aero['k_red'], Qhh_1)
-        self.Qhh_2_interp = MatrixInterpolation( self.model.aero['k_red'], Qhh_2)
+        for Qjj_unsteady in self.aero['Qjj_unsteady']:
+            Qhh_1.append(self.q_dyn * self.PHIlh.T.dot(self.aerogrid['Nmat'].T.dot(self.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1))) )
+            Qhh_2.append(self.q_dyn * self.PHIlh.T.dot(self.aerogrid['Nmat'].T.dot(self.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2 / self.Vtas ))) )
+        self.Qhh_1_interp = MatrixInterpolation( self.aero['k_red'], Qhh_1)
+        self.Qhh_2_interp = MatrixInterpolation( self.aero['k_red'], Qhh_2)
     
     def calc_aero_response(self, freqs, Uh, dUh_dt):
         # Notation: [n_panels, timesteps]
@@ -149,32 +144,32 @@ class GustExcitation(Common):
     
     def calc_P_fourier(self, freqs, wj):
         Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
-        Pk_fourier = np.zeros((self.model.aerogrid['n']*6, len(freqs)), dtype='complex128')
+        Pk_fourier = np.zeros((self.aerogrid['n']*6, len(freqs)), dtype='complex128')
         for i_f in range(len(freqs)):
             # The interpolation of Qjj is computationally very expensive, especially for a large number of frequencies. 
             Qjj = self.Qjj_interp(self.f2k(freqs[i_f]))
-            Pk_fourier[:,i_f] = self.q_dyn * self.model.PHIlk.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj.dot(wj[:,i_f]))))
+            Pk_fourier[:,i_f] = self.q_dyn * self.PHIlk.T.dot(self.aerogrid['Nmat'].T.dot(self.aerogrid['Amat'].dot(Qjj.dot(wj[:,i_f]))))
             Ph_fourier[:,i_f] = self.PHIkh.T.dot(Pk_fourier[:,i_f])
         return Ph_fourier, Pk_fourier
     
     def wj_gust(self, t):
-        ac_position = np.array([t * self.Vtas]*self.model.aerogrid['n'])
-        panel_offset = np.array([self.model.aerogrid['offset_j'][:,0]]*t.__len__()).T
+        ac_position = np.array([t * self.Vtas]*self.aerogrid['n'])
+        panel_offset = np.array([self.aerogrid['offset_j'][:,0]]*t.__len__()).T
         s_gust = (ac_position - panel_offset - self.s0)
         # downwash der 1-cos Boe auf ein jedes Panel berechnen
         wj_gust = self.WG_TAS * 0.5 * (1-np.cos(np.pi * s_gust / self.simcase['gust_gradient']))
         wj_gust[np.where(s_gust <= 0.0)] = 0.0
         wj_gust[np.where(s_gust > 2*self.simcase['gust_gradient'])] = 0.0
         # Ausrichtung der Boe fehlt noch
-        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), solution_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
+        gust_direction_vector = np.sum(self.aerogrid['N'] * np.dot(np.array([0,0,1]), solution_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
         wj = wj_gust *  np.array([gust_direction_vector]*t.__len__()).T
         return wj
     
     def f2k(self, f):
-        return 2.0*np.pi * f * self.model.macgrid['c_ref']/2.0 / self.Vtas
+        return 2.0*np.pi * f * self.macgrid['c_ref']/2.0 / self.Vtas
     
     def k2f(self, k_red):
-        return k_red * self.Vtas / np.pi / self.model.macgrid['c_ref']
+        return k_red * self.Vtas / np.pi / self.macgrid['c_ref']
 
 
 class TurbulenceExcitation(GustExcitation):
@@ -220,10 +215,10 @@ class TurbulenceExcitation(GustExcitation):
         random_phases = np.random.random_sample(len(freqs)) * 2.0*np.pi
         
         # apply to all panels with phase delay according to geometrical position
-        time_delay = self.model.aerogrid['offset_j'][:,0]/self.Vtas # time delay of every panel in [s]
+        time_delay = self.aerogrid['offset_j'][:,0]/self.Vtas # time delay of every panel in [s]
         phase_delay = -np.tile(time_delay, (len(freqs), 1)).T * 2.0*np.pi * freqs # phase delay of every panel and frequency in [rad]
         # Ausrichtung der Boe fehlt noch
-        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), solution_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
+        gust_direction_vector = np.sum(self.aerogrid['N'] * np.dot(np.array([0,0,1]), solution_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
         # Notation: [n_panels, n_freq]
         wj_gust_f = psd_scaled * np.exp(1j*(random_phases+phase_delay)) * gust_direction_vector[:,None] /self.Vtas
         Ph_fourier, Pk_fourier = self.calc_P_fourier(freqs, wj_gust_f)
@@ -304,12 +299,12 @@ class LimitTurbulence(TurbulenceExcitation):
         # Aerodynamic forces due to the elastic reaction of the aircraft 
         wj_aero= self.Djh_1.dot(Hdisp) + self.Djh_2.dot(Hdisp*(1j*self.positiv_fftomega)**1) / self.Vtas
         Ph_aero, Pk_aero = self.calc_P_fourier(self.positiv_fftfreqs, wj_aero)
-        Haero = self.model.PHIstrc_mon.T.dot(self.model.PHIk_strc.T.dot(Pk_aero))
+        Haero = self.PHIstrc_mon.T.dot(self.PHIk_strc.T.dot(Pk_aero))
         # Aerodynamic forces due to the gust / turbulence
-        Hgust = self.model.PHIstrc_mon.T.dot(self.model.PHIk_strc.T.dot(Pk_gust))
+        Hgust = self.PHIstrc_mon.T.dot(self.PHIk_strc.T.dot(Pk_gust))
         # Inertial forces due to the elastic reation of the aircraft
-        Hiner = self.model.PHIstrc_mon.T.dot( -self.model.mass[self.i_mass]['MGG'].dot(
-            self.model.mass[self.i_mass]['PHIh_strc'].T).dot(Hdisp*(1j*self.positiv_fftomega)**2))
+        Hiner = self.PHIstrc_mon.T.dot( -self.Mgg.dot(
+            self.mass['PHIh_strc'].T).dot(Hdisp*(1j*self.positiv_fftomega)**2))
 
         # Force Summation Method: P = Pext + Piner
         H = Haero + Hgust + Hiner
@@ -321,8 +316,8 @@ class LimitTurbulence(TurbulenceExcitation):
         # Using H[:,None,:] * H.conj()[None,:,:] to calculate all coefficients at once would be nice but requires much memory.
         # Looping over all rows is more memory efficient and even slightly faster. 
         # Once the integral is done, the matrix is much smaller. 
-        correlations = np.zeros((self.model.mongrid['n']*6, self.model.mongrid['n']*6))
-        for i_row in range(6*self.model.mongrid['n']):
+        correlations = np.zeros((self.mongrid['n']*6, self.mongrid['n']*6))
+        for i_row in range(6*self.mongrid['n']):
             correlations[i_row,:] = np.trapz(np.real(H[i_row,:].conj() * H)*psd_karman, self.positiv_fftfreqs)
         correlations /= (A * A[:,None])
 
@@ -335,10 +330,10 @@ class LimitTurbulence(TurbulenceExcitation):
         # white noise with constant amplitude for all frequencies
         white_noise = np.ones_like(freqs)
         # apply to all panels with phase delay according to geometrical position
-        time_delay = self.model.aerogrid['offset_j'][:,0]/self.Vtas # time delay of every panel in [s]
+        time_delay = self.aerogrid['offset_j'][:,0]/self.Vtas # time delay of every panel in [s]
         phase_delay = -np.tile(time_delay, (len(freqs), 1)).T * 2.0*np.pi * freqs # phase delay of every panel and frequency in [rad]
         # Ausrichtung der Boe fehlt noch
-        gust_direction_vector = np.sum(self.model.aerogrid['N'] * np.dot(np.array([0,0,1]), solution_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
+        gust_direction_vector = np.sum(self.aerogrid['N'] * np.dot(np.array([0,0,1]), solution_tools.calc_drehmatrix( self.simcase['gust_orientation']/180.0*np.pi, 0.0, 0.0 )), axis=1)
         # Notation: [n_panels, n_freq]
         wj_gust_f = white_noise * np.exp(1j*(phase_delay)) * gust_direction_vector[:,None] /self.Vtas
         Ph_fourier, Pk_fourier = self.calc_P_fourier(freqs, wj_gust_f)
@@ -363,18 +358,18 @@ class KMethod(GustExcitation):
         return response  
 
     def setup_frequence_parameters(self):
-        self.n_modes = self.model.mass[self.i_mass]['n_modes'] + 5
+        self.n_modes = self.model['mass'][self.trimcase['mass']]['n_modes'][()] + 5
         self.k_reds = self.simcase['flutter_para']['k_red']
         self.n_freqs = len(self.k_reds)
                 
-        if self.k_reds.max() > np.max(self.model.aero['k_red']):
-            logging.warning('Required reduced frequency = {:0.3} but AICs given only up to {:0.3}'.format(self.k_reds.max(), np.max(self.model.aero['k_red'])))
+        if self.k_reds.max() > np.max(self.aero['k_red']):
+            logging.warning('Required reduced frequency = {:0.3} but AICs given only up to {:0.3}'.format(self.k_reds.max(), np.max(self.aero['k_red'])))
     
     def build_AIC_interpolators(self):
         Qhh = []
-        for Qjj_unsteady, k_red in zip(self.model.aero['Qjj_unsteady'][self.i_aero], self.model.aero['k_red']):
-            Qhh.append(self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1 + complex(0,1)*k_red/(self.model.macgrid['c_ref']/2.0)*self.Djh_2))) )
-        self.Qhh_interp = interp1d( self.model.aero['k_red'], Qhh, kind='cubic', axis=0, fill_value="extrapolate")
+        for Qjj_unsteady, k_red in zip(self.aero['Qjj_unsteady'], self.aero['k_red']):
+            Qhh.append(self.PHIlh.T.dot(self.aerogrid['Nmat'].T.dot(self.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1 + complex(0,1)*k_red/(self.macgrid['c_ref']/2.0)*self.Djh_2))) )
+        self.Qhh_interp = interp1d( self.aero['k_red'], Qhh, kind='cubic', axis=0, fill_value="extrapolate")
         
     def build_systems(self):
         self.A = np.zeros((self.n_modes, self.n_modes, self.n_freqs), dtype='complex128') # [Antwort, Anregung, Frequenz]
@@ -383,10 +378,10 @@ class KMethod(GustExcitation):
             self.A[:,:,i_f], self.B[:,:,i_f] = self.system(self.k_reds[i_f])
     
     def system(self, k_red):
-        rho = self.model.atmo['rho'][self.i_atmo]
+        rho = self.atmo['rho']
         Qhh = self.Qhh_interp(k_red)
         # Schwochow equation (7.10)
-        A = -self.Mhh - rho/2.0*(self.model.macgrid['c_ref']/2.0/k_red)**2.0*Qhh
+        A = -self.Mhh - rho/2.0*(self.macgrid['c_ref']/2.0/k_red)**2.0*Qhh
         B = -self.Khh
         return A, B
     
@@ -406,7 +401,7 @@ class KMethod(GustExcitation):
         # calculate frequencies and damping ratios
         freqs.append(1.0/eigenvalue.real**0.5 / 2.0/np.pi)  
         damping.append(eigenvalue.imag/eigenvalue.real) 
-        Vtas.append(self.model.macgrid['c_ref']/2.0/self.k_reds[0]/eigenvalue.real**0.5)
+        Vtas.append(self.macgrid['c_ref']/2.0/self.k_reds[0]/eigenvalue.real**0.5)
         
         for i_f in range(1, self.n_freqs):
             eigenvalue, eigenvector = linalg.eig(self.A[:,:,i_f], self.B[:,:,i_f])
@@ -422,7 +417,7 @@ class KMethod(GustExcitation):
             eigenvectors.append(eigenvector)
             freqs.append(1.0/eigenvalue.real**0.5 / 2.0/np.pi)
             damping.append(eigenvalue.imag/eigenvalue.real) 
-            Vtas.append(self.model.macgrid['c_ref']/2.0/self.k_reds[i_f]/eigenvalue.real**0.5)
+            Vtas.append(self.macgrid['c_ref']/2.0/self.k_reds[i_f]/eigenvalue.real**0.5)
 
         self.freqs = np.array(freqs)
         self.damping = np.array(damping)
@@ -431,11 +426,11 @@ class KMethod(GustExcitation):
 class KEMethod(KMethod):
     
     def system(self, k_red):
-        rho = self.model.atmo['rho'][self.i_atmo]
+        rho = self.atmo['rho']
         Qhh = self.Qhh_interp(k_red)
         # Nastran equation (2-120)
         A = self.Khh
-        B = (k_red/self.model.macgrid['c_ref']*2.0)**2.0 * self.Mhh + rho/2.0 * Qhh
+        B = (k_red/self.macgrid['c_ref']*2.0)**2.0 * self.Mhh + rho/2.0 * Qhh
         return A, B
     
     def calc_eigenvalues(self):
@@ -444,7 +439,7 @@ class KEMethod(KMethod):
         # sorting
         idx_pos = range(self.n_modes)
         V = ((eigenvalue.real**2 + eigenvalue.imag**2) / eigenvalue.real)**0.5
-        freq = self.k_reds[0]*V/np.pi/self.model.macgrid['c_ref']
+        freq = self.k_reds[0]*V/np.pi/self.macgrid['c_ref']
         idx_sort = np.argsort(freq)
         
         eigenvalue = eigenvalue[idx_pos][idx_sort]
@@ -471,7 +466,7 @@ class KEMethod(KMethod):
             eigenvalues.append(eigenvalue)
             eigenvectors.append(eigenvector)
             V = ((eigenvalue.real**2 + eigenvalue.imag**2) / eigenvalue.real)**0.5
-            freq = self.k_reds[i_f]*V/np.pi/self.model.macgrid['c_ref']
+            freq = self.k_reds[i_f]*V/np.pi/self.macgrid['c_ref']
             freqs.append(freq)
             Vtas.append(V)
             damping.append(-eigenvalue.imag/eigenvalue.real) 
@@ -484,7 +479,7 @@ class PKMethod(KMethod):
     
     def setup_frequence_parameters(self):
         self.n_modes_rbm = 5
-        self.n_modes_f = self.model.mass[self.i_mass]['n_modes']
+        self.n_modes_f = self.model['mass'][self.trimcase['mass']]['n_modes'][()]
         self.n_modes = self.n_modes_f + self.n_modes_rbm
         
         self.states = ["y'", "z'", "$\Phi'$", "$\Theta'$", "$\Psi'$",]
@@ -510,7 +505,7 @@ class PKMethod(KMethod):
         idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
         eigenvalues0 = eigenvalue[idx_pos][idx_sort]
         eigenvectors0 = eigenvector[:, idx_pos][:, idx_sort]
-        k0 = eigenvalues0.imag*self.model.macgrid['c_ref']/2.0/self.Vtas
+        k0 = eigenvalues0.imag*self.macgrid['c_ref']/2.0/self.Vtas
     
         eigenvalues = []; eigenvectors = []; freqs = []; damping = []; Vtas = []
         # loop over modes
@@ -526,7 +521,7 @@ class PKMethod(KMethod):
                 # iteration to match k_red with Vtas and omega of the mode under investigation
                 while e >= 1e-3:
                     eigenvalues_new, eigenvectors_new = self.calc_eigenvalues(self.system(k_old).real, eigenvectors_old)
-                    k_now = np.abs(eigenvalues_new[i_mode].imag)*self.model.macgrid['c_ref']/2.0/self.Vtas
+                    k_now = np.abs(eigenvalues_new[i_mode].imag)*self.macgrid['c_ref']/2.0/self.Vtas
                     # Use relaxation for improved convergence, which helps in some cases to avoid oscillations of the iterative solution.
                     k_new = k_old + 0.8*(k_now-k_old)
                     e = np.abs(k_new - k_old)
@@ -587,34 +582,34 @@ class PKMethod(KMethod):
         return idx_pos
                 
     def calc_Qhh_1(self, Qjj_unsteady):
-        return self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1)))
+        return self.PHIlh.T.dot(self.aerogrid['Nmat'].T.dot(self.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_1)))
     
     def calc_Qhh_2(self, Qjj_unsteady):
-        return self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2)))
+        return self.PHIlh.T.dot(self.aerogrid['Nmat'].T.dot(self.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2)))
     
     def build_AIC_interpolators(self):
         # do some pre-multiplications first, then the interpolation
         Qhh_1 = []; Qhh_2 = []
         if self.jcl.aero['method'] in ['freq_dom']:
-            for Qjj_unsteady in self.model.aero['Qjj_unsteady'][self.i_aero]:
+            for Qjj_unsteady in self.aero['Qjj_unsteady']:
                 Qhh_1.append(self.calc_Qhh_1(Qjj_unsteady))
                 Qhh_2.append(self.calc_Qhh_2(Qjj_unsteady))
         elif self.jcl.aero['method'] in ['mona_unsteady']:
-            ABCD = self.model.aero['ABCD'][self.i_aero]
-            for k_red in self.model.aero['k_red']:
-                D = np.zeros((self.model.aerogrid['n'], self.model.aerogrid['n']), dtype='complex')
+            ABCD = self.aero['ABCD']
+            for k_red in self.aero['k_red']:
+                D = np.zeros((self.aerogrid['n'], self.aerogrid['n']), dtype='complex')
                 j = 1j # imaginary number
-                for i_pole, beta in zip(np.arange(0,self.model.aero['n_poles']), self.model.aero['betas']):                
+                for i_pole, beta in zip(np.arange(0,self.aero['n_poles']), self.aero['betas']):                
                     D += ABCD[3+i_pole,:,:] * j*k_red / (j*k_red + beta)
                 Qjj_unsteady = ABCD[0,:,:] + ABCD[1,:,:]*j*k_red + ABCD[2,:,:]*(j*k_red)**2 + D
                 Qhh_1.append(self.calc_Qhh_1(Qjj_unsteady))
                 Qhh_2.append(self.calc_Qhh_2(Qjj_unsteady))
             
-        self.Qhh_1_interp = MatrixInterpolation( self.model.aero['k_red'], Qhh_1)
-        self.Qhh_2_interp = MatrixInterpolation( self.model.aero['k_red'], Qhh_2)
+        self.Qhh_1_interp = MatrixInterpolation( self.aero['k_red'], Qhh_1)
+        self.Qhh_2_interp = MatrixInterpolation( self.aero['k_red'], Qhh_2)
     
     def system(self, k_red):
-        rho = self.model.atmo['rho'][self.i_atmo]
+        rho = self.atmo['rho']
         
         Qhh_1 = self.Qhh_1_interp(k_red)
         Qhh_2 = self.Qhh_2_interp(k_red)

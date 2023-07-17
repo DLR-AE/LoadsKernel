@@ -6,6 +6,12 @@ from loadskernel.engine_interfaces import engine, propeller
 from loadskernel.io_functions.specific_functions import load_hdf5_sparse_matrix, load_hdf5_dict
 
 class Common():
+    """
+    This class is the base class for all other model equations.
+    In the init section, no calculations shall be performed but a bunch of matrices are loaded, 
+    which are required in the subsequent analyses.
+    """
+    
     def __init__(self, solution, X0=''):
         logging.info('Init model equations of type "{}"'.format(self.__class__.__name__))
         self.model      = solution.model
@@ -88,9 +94,9 @@ class Common():
         # get cfd splining matrices and cfd solver interface
         if self.jcl.aero['method'] in ['cfd_steady', 'cfd_unsteady']:
             # get cfd splining matrices
-            self.PHIcfd_strc = self.model.PHIcfd_strc
-            self.PHIcfd_cg   = self.model.mass[self.i_mass]['PHIcfd_cg'] 
-            self.PHIcfd_f    = self.model.mass[self.i_mass]['PHIcfd_f']
+            self.PHIcfd_strc = load_hdf5_sparse_matrix(self.model['PHIcfd_strc'])
+            self.PHIcfd_cg   = self.mass['PHIcfd_cg'] 
+            self.PHIcfd_f    = self.mass['PHIcfd_f']
             # initialize the interface to a cfd solver
             if self.jcl.aero['cfd_solver'].lower() == 'tau' and self.jcl.aero['method'] == 'cfd_steady':
                 self.cfd_interface = tau_interface.TauInterface(self.solution)
@@ -117,6 +123,8 @@ class Common():
             logging.info('Gust set up with initial Vtas = {:.4f}, t1 = {}, WG_tas = {:.4f}'.format(Vtas, self.simcase['gust_para']['T1'], self.WG_TAS))
             
         elif ('turbulence' in self.simcase or 'limit_turbulence' in self.simcase) and (self.simcase['turbulence'] or self.simcase['limit_turbulence']):
+            self.PHIstrc_mon    = load_hdf5_sparse_matrix(self.model['PHIstrc_mon'])
+            self.mongrid        = load_hdf5_dict(self.model['mongrid'])
             V_C = self.atmo['a'] * self.simcase['gust_para']['MC']
             V_D = self.atmo['a'] * self.simcase['gust_para']['MD']
             if 'u_sigma' not in self.simcase.keys():
@@ -165,10 +173,6 @@ class Common():
             self.Djf_2 = self.aerogrid['Nmat'].dot(self.PHIjf)* -1.0
             self.Djh_1 = self.aerogrid['Nmat'].dot(self.aerogrid['Rmat'].dot(self.PHIjh))
             self.Djh_2 = self.aerogrid['Nmat'].dot(self.PHIjh) * -1.0
-        
-        if self.jcl.aero['method'] in ['mona_unsteady']:
-            self.n_poles     = self.model['aero']['n_poles'][()]
-            self.betas       = self.model['aero']['betas'][()]
             
         if hasattr(self.jcl, 'engine'):
             self.engine_loads = engine.EngineLoads()
@@ -184,7 +188,7 @@ class Common():
         if hasattr(self.jcl, 'landinggear') or hasattr(self.jcl, 'engine'):
             self.extragrid = load_hdf5_dict(self.model['extragrid'])
             self.PHIextra_cg = self.mass['PHIextra_cg']
-            self.PHIf_extra = self.mass['PHIf_extra']
+            self.PHIf_extra  = self.mass['PHIf_extra']
             
         if hasattr(self.jcl, 'sensor'):
             self.sensorgrid = load_hdf5_dict(self.model['sensorgrid'])
@@ -421,8 +425,8 @@ class Common():
 
     def unsteady_halfgeneralized(self, X, t, Uf, dUf_dt, dUcg_dt, q_dyn, Vtas):
         n_modes     = self.n_modes
-        n_poles     = self.n_poles
-        betas       = self.betas
+        n_poles     = self.aero['n_poles']
+        betas       = self.aero['betas']
         ABCD        = self.aero['ABCD']
         c_ref       = self.jcl.general['c_ref']
         # There are lag states for the rotational motion (_1) and for the translational motion (_2).
@@ -458,7 +462,7 @@ class Common():
         Plunsteady[self.aerogrid['set_l'][:,0]] = flunsteady[0,:]
         Plunsteady[self.aerogrid['set_l'][:,1]] = flunsteady[1,:]
         Plunsteady[self.aerogrid['set_l'][:,2]] = flunsteady[2,:]
-        Pk_unsteady_B = self.model.PHIlk.T.dot(Plunsteady)
+        Pk_unsteady_B = self.PHIlk.T.dot(Plunsteady)
         
         # C - Beschleunigungsterm -entfaellt -
         
@@ -474,7 +478,7 @@ class Common():
         dlag_states_dt = np.concatenate((dlag_states_dt_1, dlag_states_dt_2))
   
         D_dot_lag = np.zeros(self.aerogrid['n'])
-        for i_pole in np.arange(0,self.model.aero['n_poles']):
+        for i_pole in np.arange(0, n_poles):
             D_dot_lag += ABCD[3+i_pole,:,:].dot(self.Djf_1).dot(lag_states_1[:,i_pole]) \
                        + ABCD[3+i_pole,:,:].dot(self.Djf_2).dot(lag_states_2[:,i_pole])
         cp_unsteady = D_dot_lag 
@@ -490,8 +494,8 @@ class Common():
     
     def unsteady_pyhsical(self, X, t, wj, q_dyn, Vtas):
         n_j         = self.aerogrid['n']
-        n_poles     = self.n_poles
-        betas       = self.betas
+        n_poles     = self.aero['n_poles']
+        betas       = self.aero['betas']
         ABCD        = self.aero['ABCD']
         c_ref       = self.jcl.general['c_ref']
     

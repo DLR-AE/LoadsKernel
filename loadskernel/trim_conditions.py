@@ -405,19 +405,20 @@ class TrimConditions:
         self.n_lg_states = self.lg_states.__len__()
         self.idx_lg_states         = list(range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lg_states))
         self.idx_lg_derivatives    = list(range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states))
-        self.idx_outputs            = list(range(self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states+self.n_outputs))
+        self.idx_outputs           = list(range(self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states+self.n_outputs))
     
     def add_lagstates(self):
         # Initialize lag states with zero and extend steady response vectors X and Y
         # Distinguish between pyhsical rfa on panel level and generalized rfa. This influences the number of lag states.
+        n_poles = self.model['aero'][self.trimcase['aero']]['n_poles'][()]
         if 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'generalized':
             logging.error('Generalized RFA not yet implemented.')
         elif 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'halfgeneralized':
-            logging.info('adding {} x {} unsteady lag states to the system'.format(2 * self.n_modes,self.model['aero']['n_poles'][()]))
-            self.lag_states = np.zeros((2 * self.n_modes * self.model['aero']['n_poles'][()])) 
+            logging.info('adding {} x {} unsteady lag states to the system'.format(2 * self.n_modes, n_poles))
+            self.lag_states = np.zeros((2 * self.n_modes * n_poles)) 
         else:
-            logging.info('adding {} x {} unsteady lag states to the system'.format(self.model['aerogrid']['n'][()],self.model['aero']['n_poles'][()]))
-            self.lag_states = np.zeros((self.model['aerogrid']['n'][()] * self.model['aero']['n_poles'][()])) 
+            logging.info('adding {} x {} unsteady lag states to the system'.format(self.model['aerogrid']['n'][()], n_poles))
+            self.lag_states = np.zeros((self.model['aerogrid']['n'][()] * n_poles)) 
         # update response with lag states
         self.response['X'] = np.hstack((self.response['X'], self.lag_states ))
         self.response['Y'] = np.hstack((self.response['Y'][self.idx_state_derivatives + self.idx_input_derivatives], self.lag_states, self.response['Y'][self.idx_outputs] ))

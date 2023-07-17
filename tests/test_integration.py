@@ -11,9 +11,8 @@ my_env = {**os.environ,
           'PATH': '/work/voss_ar/Software/mpich-3.4.2/bin:' + os.environ['PATH'],
           'LD_LIBRARY_PATH': '/work/voss_ar/Software/mpich-3.4.2/lib:',}
 
-from loadskernel import program_flow
-import loadskernel.io_functions as io_functions
-from helper_functions import HelperFunctions
+from loadskernel import program_flow, io_functions
+from tests.helper_functions import HelperFunctions
 
 """
 For the following tests, the loads-kernel-examples and the loads-kernel-reference-results are 
@@ -216,3 +215,15 @@ class TestDiscus2cParallelProcessing(HelperFunctions):
         dyn2stat_data = io_functions.specific_functions.load_hdf5(get_test_dir + 'dyn2stat_' + self.job_name + '.hdf5')
         reference_dyn2stat_data = io_functions.specific_functions.load_hdf5(path_reference + 'dyn2stat_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(dyn2stat_data, reference_dyn2stat_data), "dyn2stat does NOT match reference"
+
+# get_test_dir = '/scratch/tests/'
+# t = TestDiscus2cParallelProcessing()
+# t.test_preprocessing_functional_via_command_line_interface(get_test_dir)
+# t.test_mainprocessing_functional_via_command_line_interface(get_test_dir)
+# t.test_preprocessing_functional(get_test_dir)
+# t.test_preprocessing_results(get_test_dir)
+# t.test_mainprocessing_functional(get_test_dir)
+# t.test_mainprocessing_results(get_test_dir)
+# t.test_postprocessing_functional(get_test_dir)
+# t.test_postprocessing_results(get_test_dir)
+# print('Done.')

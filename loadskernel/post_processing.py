@@ -31,6 +31,12 @@ class PostProcessing(object):
         self.PHIk_strc  = load_hdf5_sparse_matrix(self.model['PHIk_strc'])
         self.PHIstrc_mon = load_hdf5_sparse_matrix(self.model['PHIstrc_mon'])
         
+        if hasattr(self.jcl, 'landinggear') or hasattr(self.jcl, 'engine'):
+            self.extragrid = load_hdf5_dict(self.model['extragrid'])
+        
+        if self.jcl.aero['method'] in ['cfd_steady', 'cfd_unsteady']:
+            # get cfd splining matrices
+            self.PHIcfd_strc = load_hdf5_sparse_matrix(self.model['PHIcfd_strc'])
         
     def force_summation_method(self):
         logging.info('calculating forces & moments on structural set (force summation method)...')
@@ -59,14 +65,14 @@ class PostProcessing(object):
             Pg_iner_f = - self.Mgg.dot(d2Ug_dt2_f)
             response['Pg_iner'][i_step,:] = Pg_iner_r + Pg_iner_f
             response['Pg_aero'][i_step,:] = self.PHIk_strc.T.dot(response['Pk_aero'][i_step,:])
-            #response['Pg_gust'][i_step,:] = self.model.PHIk_strc.T.dot(response['Pk_gust'][i_step,:])
-            #response['Pg_unsteady'][i_step,:]   = self.model.PHIk_strc.T.dot(response['Pk_unsteady'][i_step,:])
-            #response['Pg_cs'][i_step,:]   = self.model.PHIk_strc.T.dot(response['Pk_cs'][i_step,:])
-            #response['Pg_idrag'][i_step,:]= self.model.PHIk_strc.T.dot(response['Pk_idrag'][i_step,:])
+            #response['Pg_gust'][i_step,:] = self.PHIk_strc.T.dot(response['Pk_gust'][i_step,:])
+            #response['Pg_unsteady'][i_step,:]   = self.PHIk_strc.T.dot(response['Pk_unsteady'][i_step,:])
+            #response['Pg_cs'][i_step,:]   = self.PHIk_strc.T.dot(response['Pk_cs'][i_step,:])
+            #response['Pg_idrag'][i_step,:]= self.PHIk_strc.T.dot(response['Pk_idrag'][i_step,:])
             if self.jcl.aero['method'] == 'cfd_steady':
-                response['Pg_cfd'][i_step,:] = self.model.PHIcfd_strc.T.dot(response['Pcfd'][i_step,:])
+                response['Pg_cfd'][i_step,:] = self.PHIcfd_strc.T.dot(response['Pcfd'][i_step,:])
             if hasattr(self.jcl, 'landinggear') or hasattr(self.jcl, 'engine'):
-                response['Pg_ext'][i_step,self.model.extragrid['set_strcgrid']] = response['Pextra'][i_step,self.model.extragrid['set']]
+                response['Pg_ext'][i_step,self.extragrid['set_strcgrid']] = response['Pextra'][i_step,self.extragrid['set']]
             response['Pg'][i_step,:] = response['Pg_aero'][i_step,:] + response['Pg_iner'][i_step,:] + response['Pg_ext'][i_step,:] + response['Pg_cfd'][i_step,:]
             response['d2Ug_dt2'][i_step,:] = d2Ug_dt2_r + d2Ug_dt2_f
     

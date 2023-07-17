@@ -107,9 +107,13 @@ def load_hdf5_sparse_matrix(hdf5_group):
     """
     This is a convenience function which assembles the sparse matrix. 
     Assumption: The matrix is in CSC sparse format.
+    In case the spares-flag is False, try to read it as a normal matrix.
     """
-    M = scipy.sparse.csc_matrix((hdf5_group['data'][()],hdf5_group['indices'][()],
-                                 hdf5_group['indptr'][()]), hdf5_group.attrs['shape'])
+    if 'is_sparse' in hdf5_group.attrs and hdf5_group.attrs['is_sparse']:
+        M = scipy.sparse.csc_matrix((hdf5_group['data'][()],hdf5_group['indices'][()],
+                                     hdf5_group['indptr'][()]), hdf5_group.attrs['shape'])
+    else:
+        M = hdf5_group[()]
     return M
 
 def load_jcl(job_name, path_input, jcl):

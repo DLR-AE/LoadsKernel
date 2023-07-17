@@ -394,7 +394,7 @@ class FlutterPlots(LoadPlots):
         ax_vtas = ax[2].twiny()
         for response in self.responses:
             trimcase    = self.jcl.trimcase[response['i'][()]]            
-            h           = self.model['atmo'][self.trimcase['altitude']]['h']
+            h           = self.model['atmo'][trimcase['altitude']]['h'][()]
             #Plot boundaries
             fmin = 2 * np.floor(response['freqs'][:].min() / 2)
             if fmin < -50.0 or np.isnan(fmin): 
@@ -467,7 +467,7 @@ class FlutterPlots(LoadPlots):
         for response in self.responses:
             trimcase    = self.jcl.trimcase[response['i'][()]]
             simcase     = self.jcl.simcase[response['i'][()]]
-            h           = self.model['atmo'][self.trimcase['altitude']]['h']
+            h           = self.model['atmo'][trimcase['altitude']]['h'][()]
             
             # this kind of plot is only feasible for methods which iterate over Vtas, e.g. not the K- or KE-methods
             if 'flutter' in simcase and simcase['flutter_para']['method'] not in ['pk', 'statespace']:

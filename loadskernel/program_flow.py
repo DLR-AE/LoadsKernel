@@ -251,7 +251,7 @@ class Kernel(ProgramFlowHelper):
         """
         logging.info('--> Starting Main in multiprocessing mode for %d trimcase(s).' % len(self.jcl.trimcase))
         t_start = time.time()
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         # MPI tags can be any integer values
         tags = {'ready': 0,
                 'start': 1,
@@ -395,7 +395,7 @@ class Kernel(ProgramFlowHelper):
         # the import is performed here to avoid unnecessary import failures e.g. on a cluster.
         import loadskernel.plotting_extra as plotting_extra
         # Load the model and the response as usual
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
         
         logging.info( '--> Drawing some more detailed plots.')
@@ -471,7 +471,7 @@ class ClusterMode(Kernel):
         """
         logging.info('--> Starting main in single mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         jcl = copy.deepcopy(self.jcl)
         """
         Before starting the simulation, dump an empty / dummy response. This is a workaround in case SU2 diverges, 
@@ -503,7 +503,7 @@ class ClusterMode(Kernel):
         logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
         logging.info('cluster gather mode')
         self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        model = io_functions.specific_functions.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         responses = io_functions.specific_functions.gather_responses(self.job_name, io_functions.specific_functions.check_path(self.path_output+'responses'))
         mon = gather_modul.GatherLoads(self.jcl, model)
         fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
