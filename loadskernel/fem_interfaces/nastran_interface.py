@@ -33,7 +33,7 @@ class NastranInterface(object):
         
         Bit positons  | decimal notation |  old sets        | new set
         -------------------------------------------------------------
-        31, 20 and 25 | 2, 4 and 128     | 'S', 'O' and 'A' | g-set  
+        31, 30 and 25 | 2, 4 and 128     | 'S', 'O' and 'A' | g-set  
         22            | 1024             | 'SB'             | s-set 
         32            | 1                | 'M'              | m-set
         """
@@ -42,7 +42,9 @@ class NastranInterface(object):
         # The DoFs of f-, s- and m-set are indexed with respect to g-set
         self.pos_m = [i for i, x in enumerate(x_dec) if x == 1]
         self.pos_f = [i for i, x in enumerate(x_dec) if x in [2,4,128]]
-        self.pos_s = [i for i, x in enumerate(x_dec) if x == 1024]
+        # Not (yet) sure if this is a bug, but in some models there are IDs labled with bit positions 22 and 24, 
+        # resulting in a decimal notation of 1280. So far, they were treated like the s-set.
+        self.pos_s = [i for i, x in enumerate(x_dec) if x in [1024,1280]]
         # The n-set is the sum of s-set and f-set
         self.pos_n = self.pos_s + self.pos_f
         # Sort the n-set by the DoFs
