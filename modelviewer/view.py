@@ -20,6 +20,7 @@ from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
 import numpy as np
 
 import loadskernel.io_functions.specific_functions as specific_io
+from loadskernel.io_functions.specific_functions import load_hdf5_sparse_matrix, load_hdf5_dict
 from modelviewer.plotting import Plotting
 from modelviewer.pytran import NastranSOL101
 from modelviewer.cfdgrid import TauGrid, SU2Grid
@@ -82,7 +83,7 @@ class Modelviewer():
 
         # define file options
         self.file_opt = {}
-        self.file_opt['filters'] = "Loads Kernel files (model*.pickle);;all pickle files (*.pickle);;all files (*.*)"
+        self.file_opt['filters'] = "Loads Kernel files (model*.hdf5);;all HDF5 files (*.hdf5);;all files (*.*)"
         self.file_opt['initialdir'] = os.getcwd()
         self.file_opt['title'] = 'Open a Loads Kernel Model'
 
@@ -427,12 +428,11 @@ class Modelviewer():
     def update_modes(self):
         if self.list_modes_mass.currentItem() is not None:
             key = self.list_modes_mass.currentItem().data(0)
-            i_mass = self.model.mass['key'].index(key)
             tmp = self.list_modes_number.currentItem()
             if tmp is not None:
                 old_mode = tmp.data(0)
             self.list_modes_number.clear()
-            for mode in range(1,self.model.mass[i_mass]['n_modes']+1):
+            for mode in range(1, self.model['mass'][key]['n_modes'][()]+1):
                 item = QtGui.QListWidgetItem(str(mode))
                 self.list_modes_number.addItem(item)
                 if tmp is not None and int(old_mode) == mode:
@@ -444,15 +444,15 @@ class Modelviewer():
         self.lb_uf.setText('Scaling: {:0.2f}'.format(uf_i))
         if self.list_modes_mass.currentItem() is not None and self.list_modes_number.currentItem() is not None:
             key = self.list_modes_mass.currentItem().data(0)
-            i_mass = self.model.mass['key'].index(key)
+            mass = self.model['mass'][key]
             i_mode = int(self.list_modes_number.currentItem().data(0))-1
-            uf = np.zeros((self.model.mass[i_mass]['n_modes'],1))
+            uf = np.zeros((mass['n_modes'][()],1))
             uf[i_mode] = uf_i
-            ug = self.model.mass[i_mass]['PHIf_strc'].T.dot(uf)
-            offset_f = ug[self.model.strcgrid['set'][:,(0,1,2)]].squeeze()
-            self.plotting.plot_mode(self.model.strcgrid['offset']+offset_f)
+            ug = mass['PHIf_strc'][()].T.dot(uf)
+            offset_f = ug[self.model['strcgrid']['set'][:,:3]].squeeze()
+            self.plotting.plot_mode(self.model['strcgrid']['offset'][()]+offset_f)
             # the eigenvalue directly corresponds to the generalized stiffness if Mass is scaled to 1.0
-            eigenvalue = self.model.mass[i_mass]['Kff'].diagonal()[i_mode]
+            eigenvalue = mass['Kff'][()].diagonal()[i_mode]
             freq = np.real(eigenvalue)**0.5 /2/np.pi
             self.lb_freq.setText('Frequency: {:0.4f} Hz'.format(freq))
 
@@ -461,14 +461,16 @@ class Modelviewer():
         self.lb_rho.setText('Scaling: {:0.0f} kg/m^3'.format(rho))
         if self.list_mass.currentItem() is not None:
             key = self.list_mass.currentItem().data(0)
-            i_mass = self.model.mass['key'].index(key)
-            self.plotting.plot_masses(self.model.mass[i_mass]['MGG'], self.model.mass[i_mass]['Mb'], self.model.mass[i_mass]['cggrid'], rho)
-            self.lb_cg.setText('CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(self.model.mass[i_mass]['cggrid']['offset'][0,0],
-                                                                                self.model.mass[i_mass]['cggrid']['offset'][0,1],
-                                                                                self.model.mass[i_mass]['cggrid']['offset'][0,2]))
+            Mgg = load_hdf5_sparse_matrix(self.model['mass'][key]['MGG'])
+            Mb = self.model['mass'][key]['Mb'][()]
+            cggrid = load_hdf5_dict(self.model['mass'][key]['cggrid'])
+            self.plotting.plot_masses(Mgg, Mb , cggrid, rho)
+            self.lb_cg.setText('CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(cggrid['offset'][0,0],
+                                                                              cggrid['offset'][0,1],
+                                                                              cggrid['offset'][0,2]))
             # cg_mac = (x_cg - x_mac)*c_ref * 100 [%]
             # negativ bedeutet Vorlage --> stabil
-            cg_mac = (self.model.mass[i_mass]['cggrid']['offset'][0,0]-self.MAC[0])/self.model.macgrid['c_ref']*100.0
+            cg_mac = (cggrid['offset'][0,0]-self.MAC[0])/self.model['macgrid']['c_ref'][()]*100.0
             if cg_mac == 0.0:
                 rating = 'indifferent'
             elif cg_mac < 0.0:
@@ -476,48 +478,51 @@ class Modelviewer():
             elif cg_mac > 0.0:
                 rating = 'unstable'
             self.lb_cg_mac.setText('CG: x={:0.4f} % MAC, {}'.format(cg_mac, rating))
-            self.lb_mass.setText('Mass: {:0.2f} kg'.format(self.model.mass[i_mass]['Mb'][0,0]))
-            self.lb_Ixx.setText('Ixx: {:0.4g} kg m^2'.format(self.model.mass[i_mass]['Mb'][3,3]))
-            self.lb_Iyy.setText('Iyy: {:0.4g} kg m^2'.format(self.model.mass[i_mass]['Mb'][4,4]))
-            self.lb_Izz.setText('Izz: {:0.4g} kg m^2'.format(self.model.mass[i_mass]['Mb'][5,5]))
+            self.lb_mass.setText('Mass: {:0.2f} kg'.format(Mb[0,0]))
+            self.lb_Ixx.setText('Ixx: {:0.4g} kg m^2'.format(Mb[3,3]))
+            self.lb_Iyy.setText('Iyy: {:0.4g} kg m^2'.format(Mb[4,4]))
+            self.lb_Izz.setText('Izz: {:0.4g} kg m^2'.format(Mb[5,5]))
 
     def get_monstation_for_plotting(self, *args):
         if self.list_monstations.currentItem() is not None:
             key = self.list_monstations.currentItem().data(0)
-            monstation_id = self.model.mongrid['ID'][self.model.mongrid['name'].index(key)]
+            pos = list(self.model['mongrid']['name'].asstr()).index(key)
+            monstation_id = self.model['mongrid']['ID'][pos]
             self.plotting.plot_monstations(monstation_id)
-            self.lb_monstation_coord.setText('Coord: {}'.format(self.model.mongrid['CD'][self.model.mongrid['name'].index(key)]))
+            self.lb_monstation_coord.setText('Coord: {}'.format(self.model['mongrid']['CD'][pos]))
             
-    def calc_MAC(self, i_aero=0):
+    def calc_MAC(self, key):
         # The mean aerodynamic center is calculated from the aerodynamics.
         # This approach includes also the downwash from wing on HTP.
-        
-        Qjj = self.model.aero['Qjj'][i_aero]
+        Qjj          = self.model['aero'][key]['Qjj'][()]
+        PHIlk       = load_hdf5_sparse_matrix(self.model['PHIlk'])
+        Dkx1        = self.model['Dkx1'][()]
+        aerogrid    = load_hdf5_dict(self.model['aerogrid'])
+        macgrid     = load_hdf5_dict(self.model['macgrid'])
         # assume unit downwash
-        Ujx1 = np.dot(self.model.Djx1,[0,0,1.0,0,0,0])
-        wj = np.sum(self.model.aerogrid['N'][:] * Ujx1[self.model.aerogrid['set_j'][:,(0,1,2)]],axis=1)
-        fl = self.model.aerogrid['N'].T*self.model.aerogrid['A']*np.dot(Qjj, wj)
-        Pl = np.zeros(self.model.aerogrid['n']*6)
-        Pl[self.model.aerogrid['set_l'][:,0]] = fl[0,:]
-        Pl[self.model.aerogrid['set_l'][:,1]] = fl[1,:]
-        Pl[self.model.aerogrid['set_l'][:,2]] = fl[2,:]
-        Pmac = self.model.Dkx1.T.dot(self.model.PHIlk.T.dot(Pl))
+        Ujx1 = np.dot(self.model['Djx1'][()],[0,0,1.0,0,0,0])
+        wj = np.sum(aerogrid['N'][:] * Ujx1[aerogrid['set_j'][:,(0,1,2)]],axis=1)
+        fl = aerogrid['N'].T*aerogrid['A']*np.dot(Qjj, wj)
+        Pl = np.zeros(aerogrid['n']*6)
+        Pl[aerogrid['set_l'][:,0]] = fl[0,:]
+        Pl[aerogrid['set_l'][:,1]] = fl[1,:]
+        Pl[aerogrid['set_l'][:,2]] = fl[2,:]
+        Pmac = Dkx1.T.dot(PHIlk.T.dot(Pl))
         self.MAC = np.zeros(3)
-        self.MAC[0] = self.model.macgrid['offset'][0,0] -  Pmac[4] / Pmac[2]
-        self.MAC[1] = self.model.macgrid['offset'][0,1] +  Pmac[3] / Pmac[2]        
+        self.MAC[0] = macgrid['offset'][0,0] -  Pmac[4] / Pmac[2]
+        self.MAC[1] = macgrid['offset'][0,1] +  Pmac[3] / Pmac[2]        
         self.plotting.MAC = self.MAC
     
     def get_aero_for_plotting(self):
-         if self.list_aero.currentItem() is not None:
+        if self.list_aero.currentItem() is not None:
             key = self.list_aero.currentItem().data(0)
-            i_aero = self.model.aero['key'].index(key)
-            self.calc_MAC(i_aero)
+            self.calc_MAC(key)
             self.lb_MAC.setText('MAC: x={:0.4f}, y={:0.4f} m'.format(self.MAC[0], self.MAC[1]))
-            self.lb_MAC2.setText('(based on AIC from "{}", rigid, subsonic)'.format(self.model.aero['key'][i_aero]))
+            self.lb_MAC2.setText('(based on AIC from "{}", rigid, subsonic)'.format(key))
             if self.cb_w2gj.isChecked():
                 if self.plotting.show_aero:
                     self.plotting.hide_aero()
-                self.plotting.plot_aero(self.model.camber_twist['cam_rad']/np.pi*180.0)
+                self.plotting.plot_aero(self.model['camber_twist']['cam_rad'][()]/np.pi*180.0)
             else:
                 if self.plotting.show_aero:
                     self.plotting.hide_aero()
@@ -537,7 +542,7 @@ class Modelviewer():
         if self.list_cs.currentItem() is not None:
             # determine cs
             key = self.list_cs.currentItem().data(0)
-            i_surf = self.model.x2grid['key'].index(key)
+            i_surf = np.where(self.model['x2grid']['key'].asstr()[:] == key)[0][0]
             axis = self.cb_axis.currentText()
             # hand over for plotting
             self.plotting.plot_cs(i_surf, axis, deg)
@@ -577,17 +582,10 @@ class Modelviewer():
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'], self.file_opt['filters'])[0]
         if filename != '':
             # load model
-            path_output = os.path.split(filename)[0]
-            job_name = os.path.split(filename)[1]
-            if job_name.endswith('.pickle'):
-                job_name = job_name[:-7]
-            if job_name.startswith('model_'):
-                job_name = job_name[6:]
-            path_output = specific_io.check_path(path_output)
-            self.model = specific_io.load_model(job_name, path_output)
+            self.model = specific_io.load_hdf5(filename)
             # update fields
             self.update_fields()
-            self.calc_MAC()
+            self.calc_MAC(list(self.model['aero'].keys())[0])
             self.plotting.add_model(self.model)
             self.file_opt['initialdir'] = os.path.split(filename)[0]
             self.viewMenu.setEnabled(True)
@@ -596,21 +594,21 @@ class Modelviewer():
     def update_fields(self):
         self.list_mass.clear()
         self.list_modes_mass.clear()
-        for key in self.model.mass['key']:
+        for key in self.model['mass'].keys():
             self.list_mass.addItem(QtGui.QListWidgetItem(key))
             self.list_modes_mass.addItem(QtGui.QListWidgetItem(key))
         
         self.list_aero.clear()
-        for key in self.model.aero['key']:
+        for key in self.model['aero'].keys():
             self.list_aero.addItem(QtGui.QListWidgetItem(key))
 
         self.list_cs.clear()
-        for key in self.model.x2grid['key']:
+        for key in self.model['x2grid']['key'].asstr() :
             self.list_cs.addItem(QtGui.QListWidgetItem(key))
 
         self.list_monstations.clear()
-        if hasattr(self.model, 'mongrid'):
-            for name in self.model.mongrid['name']:
+        if 'mongrid' in self.model:
+            for name in self.model['mongrid']['name'].asstr():
                 self.list_monstations.addItem(QtGui.QListWidgetItem(str(name)))
 
     def load_nastran_results(self):
