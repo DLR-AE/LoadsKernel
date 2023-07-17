@@ -16,7 +16,7 @@ class GatherLoads:
         # init monstation structure to be filled later
         self.monstations = {}
         for i_station in range(self.mongrid['n']):
-            name = self.get_monstation_name(i_station)
+            name = self.mongrid['name'][i_station]
             self.monstations[name] = {'ID': self.mongrid['ID'][i_station],
                                       'CD': self.mongrid['CD'][i_station],
                                       'CP': self.mongrid['CP'][i_station],
@@ -30,20 +30,12 @@ class GatherLoads:
         self.dyn2stat = {'Pg': [], 
                          'subcases': [],
                          'subcases_ID': [],
-                        }     
-        
-    def get_monstation_name(self, i_station):
-        # either take name from mongrid or make up a name
-        if not 'name' in self.mongrid:
-            name = 'MON{:s}'.format(str(int(self.mongrid['ID'][i_station])))
-        else:
-            name = self.mongrid['name'][i_station]
-        return name
+                        }
     
     def gather_monstations(self, trimcase, response):
         logging.info('gathering information on monitoring stations from response(s)...')
         for i_station in range(self.mongrid['n']):
-            name = self.get_monstation_name(i_station)
+            name = self.mongrid['name'][i_station]
             subcase = str(trimcase['subcase'])
             # Unterscheidung zwischen Trim und Zeit-Simulation, da die Dimensionen der response anders sind (n_step x n_value)
             if len(response['t']) > 1:
