@@ -392,8 +392,8 @@ class Model:
             self.aero[key]['n_poles'] = n_poles
             self.aero[key]['betas'] =  betas
             # Remove unsteady AICs to save memory. No longer critical with the HDF5 data format.
-            # del self.aero[key]['Qjj_unsteady']
-    
+            del self.aero[key]['Qjj_unsteady']
+
     def build_prop(self):
         if hasattr(self.jcl, 'engine'):
             if self.jcl.engine['method'] == 'VLM4Prop':
