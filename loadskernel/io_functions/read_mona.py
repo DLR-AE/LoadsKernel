@@ -183,16 +183,10 @@ def add_GRIDS(pandas_grids):
 
 def add_shell_elements(pandas_panels):
     # This functions relies on the Pandas data frames from the bdf reader.
-    cornerpoints = []
-    # Loop over the rows to check for NaNs, which occur in case of three (CTRIA) instead of four (CQUAD) cornerpoints.
-    # This could be done in one line using list comprehensions, this loop with several intermediate steps is more intuitive.
-    for index, row in pandas_panels[['G1', 'G2', 'G3', 'G4']].iterrows():
-        is_cornerpoint = [pd.notna(x) for x in row]
-        cornerpoints.append(row[is_cornerpoint].to_list())
     strcshell = {}
     n = pandas_panels.shape[0]
     strcshell['ID']             = pandas_panels['ID'].to_numpy(dtype='int')
-    strcshell['cornerpoints']   = cornerpoints
+    strcshell['cornerpoints']   = np.array(pandas_panels[['G1', 'G2', 'G3', 'G4']])
     strcshell['CD']             = np.zeros(n) # Assumption: panels are given in global coord system
     strcshell['CP']             = np.zeros(n)
     strcshell['n']              = n

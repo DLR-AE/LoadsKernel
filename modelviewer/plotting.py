@@ -164,7 +164,7 @@ class Plotting:
             # plot shell as surface
             shells = []
             for shell in self.model['strcshell']['cornerpoints'][()]: 
-                shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell])
+                shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell[np.isfinite(shell)]])
             shell_type = tvtk.Polygon().cell_type
             self.ug_strc.set_cells(shell_type, shells)
             src_strc = mlab.pipeline.add_dataset(self.ug_strc)
@@ -396,9 +396,10 @@ class Plotting:
             # plot shell as surface
             shells = []; data = []
             for i_shell in range(self.model['strcshell']['n'][()]):
-                if self.model['strcshell']['ID'][i_shell] in show_cells:
+                shell = self.model['strcshell']['cornerpoints'][i_shell]
+                if shell in show_cells:
                     data.append(cell_data[i_shell])
-                    shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in self.model['strcshell']['cornerpoints'][i_shell]])
+                    shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell[np.isfinite(shell)]])
             shell_type = tvtk.Polygon().cell_type
             ug.set_cells(shell_type, shells)
             ug.cell_data.scalars = data

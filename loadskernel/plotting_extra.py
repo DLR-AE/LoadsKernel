@@ -319,7 +319,7 @@ class Animations(plotting_standard.LoadPlots):
                 # plot shell as surface
                 shells = []
                 for shell in self.strcshell['cornerpoints']: 
-                    shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell])
+                    shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell(np.isfinite(shell))])
                 shell_type = tvtk.Polygon().cell_type
                 self.strc_ug.set_cells(shell_type, shells)
                 src_points = mlab.pipeline.add_dataset(self.strc_ug)
