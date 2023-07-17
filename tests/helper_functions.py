@@ -4,9 +4,9 @@ import logging, h5py
 
 class HelperFunctions(object):
     
-    # List of items that are allowed to be skipped in case they don't exist in the reference.
+    # List of items that are skipped.
     # This makes the addidtion of new stuff easier and compatible with older reference results.  
-    list_skip = ['PHIgg']
+    list_skip = ['PHIgg', 'mongrid_rules', 'coupling_rules']
     
     # List of items where the sign shall be ignored.
     # This is usefull for the comparison of matrices related to eigenvalues and eigenvectors.  
@@ -29,7 +29,7 @@ class HelperFunctions(object):
     def compare_dictionaries(self, dict_a, dict_b):
         is_equal = []
         for key in dict_a:
-            if key not in dict_b and key in self.list_skip:
+            if key in self.list_skip:
                 logging.info('Skipping {}'.format(key))
             else:                
                 logging.info('Comparing {}'.format(key))

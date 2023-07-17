@@ -241,7 +241,7 @@ class Model:
             self.aerogrid['Rmat'][x*6+2,self.aerogrid['set_k'][x,4]] = 1.0 # rotation about y-axis yields z-downwash
         self.aerogrid['Rmat'] = self.aerogrid['Rmat'].tocsc()
         # cast areas of panels into matrix notation
-        self.aerogrid['Amat'] = sp.eye(self.aerogrid['n'], dtype=float, format='csc').multiply(self.aerogrid['A'])
+        self.aerogrid['Amat'] = sp.diags(self.aerogrid['A'], format='csc')
             
     def build_W2GJ(self):
         # Correctionfor camber and twist, W2GJ

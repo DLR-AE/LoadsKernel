@@ -571,6 +571,7 @@ class Modelviewer():
             if self.plotting.show_iges:
                 self.plotting.hide_iges()
             self.plotting.plot_iges(selected_meshes)
+    
     def load_model(self):
         # open file dialog
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'], self.file_opt['filters'])[0]
