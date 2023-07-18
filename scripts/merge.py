@@ -63,7 +63,7 @@ class Merge:
         k.setup_logger()
         logging.info( 'Starting Loads Merge')
         logging.info( 'user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() +')')
-        self.model = specific_io.load_model(jobs_to_merge[0], self.path_output)
+        self.model = specific_io.load_hdf5(self.path_output + 'model_' + jobs_to_merge[0] + '.hdf5')
         self.load_jobs(jobs_to_merge)
         self.build_new_dataset()
         self.plot_monstations(job_name)
