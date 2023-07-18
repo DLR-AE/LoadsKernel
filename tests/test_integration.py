@@ -58,20 +58,20 @@ class TestDiscus2c(HelperFunctions):
     def test_preprocessing_results(self, get_test_dir):
         # do comparisons
         logging.info('Comparing model with reference')
-        model = io_functions.specific_functions.load_model(self.job_name, get_test_dir)
-        reference_model = io_functions.specific_functions.load_model(self.job_name, path_reference)
-        assert self.compare_dictionaries(model.__dict__, reference_model.__dict__), "model does NOT match reference"
+        model                   = io_functions.specific_functions.load_hdf5(get_test_dir + 'model_' + self.job_name + '.hdf5')
+        reference_model         = io_functions.specific_functions.load_hdf5(path_reference + 'model_' + self.job_name + '.hdf5')
+        assert self.compare_dictionaries(model, reference_model), "model does NOT match reference"
  
     def test_mainprocessing_results(self, get_test_dir):
         # do comparisons
         logging.info('Comparing response with reference')
-        responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, get_test_dir)
-        reference_responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, path_reference)
+        responses               = io_functions.specific_functions.load_hdf5_responses(self.job_name, get_test_dir)
+        reference_responses     = io_functions.specific_functions.load_hdf5_responses(self.job_name, path_reference)
         assert self.compare_lists(responses, reference_responses), "response does NOT match reference"
         
         logging.info('Comparing monstations with reference')
-        monstations = io_functions.specific_functions.load_hdf5(get_test_dir + 'monstations_' + self.job_name + '.hdf5')
-        reference_monstations = io_functions.specific_functions.load_hdf5(path_reference + 'monstations_' + self.job_name + '.hdf5')
+        monstations             = io_functions.specific_functions.load_hdf5(get_test_dir + 'monstations_' + self.job_name + '.hdf5')
+        reference_monstations   = io_functions.specific_functions.load_hdf5(path_reference + 'monstations_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(monstations, reference_monstations), "monstations do NOT match reference"
  
         # do comparisons
@@ -144,15 +144,15 @@ class TestAllegraFlutter(HelperFunctions):
     def test_preprocessing_results(self, get_test_dir):
         # do comparisons
         logging.info('Comparing model with reference')
-        model = io_functions.specific_functions.load_model(self.job_name, get_test_dir)
-        reference_model = io_functions.specific_functions.load_model(self.job_name, path_reference)
-        assert self.compare_dictionaries(model.__dict__, reference_model.__dict__), "model does NOT match reference"
+        model                   = io_functions.specific_functions.load_hdf5(get_test_dir + 'model_' + self.job_name + '.hdf5')
+        reference_model         = io_functions.specific_functions.load_hdf5(path_reference + 'model_' + self.job_name + '.hdf5')
+        assert self.compare_dictionaries(model, reference_model), "model does NOT match reference"
       
     def test_mainprocessing_results(self, get_test_dir):
         # do comparisons
         logging.info('Comparing response with reference')
-        responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, get_test_dir)
-        reference_responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, path_reference)
+        responses               = io_functions.specific_functions.load_hdf5_responses(self.job_name, get_test_dir)
+        reference_responses     = io_functions.specific_functions.load_hdf5_responses(self.job_name, path_reference)
         assert self.compare_lists(responses, reference_responses), "response does NOT match reference"
  
 class TestAllegraLimitTurbulence(TestAllegraFlutter):
@@ -194,36 +194,24 @@ class TestDiscus2cParallelProcessing(HelperFunctions):
     def test_preprocessing_results(self, get_test_dir):
         # do comparisons
         logging.info('Comparing model with reference')
-        model = io_functions.specific_functions.load_model(self.job_name, get_test_dir)
-        reference_model = io_functions.specific_functions.load_model(self.job_name, path_reference)
-        assert self.compare_dictionaries(model.__dict__, reference_model.__dict__), "model does NOT match reference"
+        model                   = io_functions.specific_functions.load_hdf5(get_test_dir + 'model_' + self.job_name + '.hdf5')
+        reference_model         = io_functions.specific_functions.load_hdf5(path_reference + 'model_' + self.job_name + '.hdf5')
+        assert self.compare_dictionaries(model, reference_model), "model does NOT match reference"
     
     def test_mainprocessing_results(self, get_test_dir):
         # do comparisons
         logging.info('Comparing response with reference')
-        responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, get_test_dir)
-        reference_responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, path_reference)
+        responses               = io_functions.specific_functions.load_hdf5_responses(self.job_name, get_test_dir)
+        reference_responses     = io_functions.specific_functions.load_hdf5_responses(self.job_name, path_reference)
         assert self.compare_lists(responses, reference_responses), "response does NOT match reference"
 
         logging.info('Comparing monstations with reference')
-        monstations = io_functions.specific_functions.load_hdf5(get_test_dir + 'monstations_' + self.job_name + '.hdf5')
-        reference_monstations = io_functions.specific_functions.load_hdf5(path_reference + 'monstations_' + self.job_name + '.hdf5')
+        monstations             = io_functions.specific_functions.load_hdf5(get_test_dir + 'monstations_' + self.job_name + '.hdf5')
+        reference_monstations   = io_functions.specific_functions.load_hdf5(path_reference + 'monstations_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(monstations, reference_monstations), "monstations do NOT match reference"
 
         # do comparisons
         logging.info('Comparing dyn2stat with reference')
-        dyn2stat_data = io_functions.specific_functions.load_hdf5(get_test_dir + 'dyn2stat_' + self.job_name + '.hdf5')
+        dyn2stat_data           = io_functions.specific_functions.load_hdf5(get_test_dir + 'dyn2stat_' + self.job_name + '.hdf5')
         reference_dyn2stat_data = io_functions.specific_functions.load_hdf5(path_reference + 'dyn2stat_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(dyn2stat_data, reference_dyn2stat_data), "dyn2stat does NOT match reference"
-
-# get_test_dir = '/scratch/tests/'
-# t = TestDiscus2cParallelProcessing()
-# t.test_preprocessing_functional_via_command_line_interface(get_test_dir)
-# t.test_mainprocessing_functional_via_command_line_interface(get_test_dir)
-# t.test_preprocessing_functional(get_test_dir)
-# t.test_preprocessing_results(get_test_dir)
-# t.test_mainprocessing_functional(get_test_dir)
-# t.test_mainprocessing_results(get_test_dir)
-# t.test_postprocessing_functional(get_test_dir)
-# t.test_postprocessing_results(get_test_dir)
-# print('Done.')

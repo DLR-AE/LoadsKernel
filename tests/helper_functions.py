@@ -6,8 +6,7 @@ class HelperFunctions(object):
     
     # List of items that are skipped.
     # This makes the addidtion of new stuff easier and compatible with older reference results.  
-    list_skip = ['PHIgg', 'mongrid_rules', 'coupling_rules', 'x2grid', 'mass', 'aero', 'atmo', 'KGG']
-    
+    list_skip = []
     # List of items where the sign shall be ignored.
     # This is usefull for the comparison of matrices related to eigenvalues and eigenvectors.  
     list_ignore_sign = ['Mff', 'Mhh', 'Kff', 'Khh', 'Mfcg', 
