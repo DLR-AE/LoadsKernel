@@ -14,8 +14,10 @@ import numpy as np
 import logging, os, subprocess, shlex, sys, platform, shutil
 import scipy.io.netcdf as netcdf
 
-import loadskernel.cfd_interfaces.meshdefo as meshdefo
+from loadskernel.cfd_interfaces import meshdefo
+from loadskernel import spline_functions
 from loadskernel.io_functions.specific_functions import check_path
+from loadskernel.io_functions.specific_functions import load_hdf5_dict
 
 def copy_para_file(jcl, trimcase):
     para_path = check_path(jcl.aero['para_path'])
@@ -38,15 +40,26 @@ def check_cfd_folders(jcl):
     if not os.path.exists(os.path.join(para_path, 'dualgrid')):
         os.makedirs(os.path.join(para_path, 'dualgrid'))
 
-class TauInterface(object):
+class TauInterface(meshdefo.Meshdefo):
     
     def __init__(self, solution):
         self.model      = solution.model
         self.jcl        = solution.jcl
         self.trimcase   = solution.trimcase
-        # get some indices
-        self.i_atmo     = self.model.atmo['key'].index(self.trimcase['altitude'])
-        self.i_mass     = self.model.mass['key'].index(self.trimcase['mass'])
+        self.simcase    = solution.simcase
+        # load data from HDF5
+        self.mass       = load_hdf5_dict(self.model['mass'][self.trimcase['mass']])
+        self.atmo       = load_hdf5_dict(self.model['atmo'][self.trimcase['altitude']])
+        self.cggrid     = load_hdf5_dict(self.mass['cggrid'])
+        self.cfdgrid    = load_hdf5_dict(self.model['cfdgrid'])
+        self.cfdgrids   = load_hdf5_dict(self.model['cfdgrids'])
+        self.strcgrid   = load_hdf5_dict(self.model['strcgrid'])
+        self.splinegrid = load_hdf5_dict(self.model['splinegrid'])
+        self.aerogrid   = load_hdf5_dict(self.model['aerogrid'])
+        self.x2grid     = load_hdf5_dict(self.model['x2grid'])
+        self.coord      = load_hdf5_dict(self.model['coord'])
+        
+        self.Djx2       = self.model['Djx2'][()]
         # set switch for first execution
         self.first_execution = True
         # Check if Tau-Python was imported successfully, see try/except statement in the import section.
@@ -89,11 +102,10 @@ class TauInterface(object):
         self.tau_mpi_hosts = tau_mpi_hosts
     
     def prepare_meshdefo(self, Uf, Ux2):
-        defo = meshdefo.Meshdefo(self.jcl, self.model)
-        defo.init_deformations()
-        defo.Uf(Uf, self.trimcase)
-        defo.Ux2(Ux2)
-        defo.write_deformations(self.jcl.aero['para_path']+'./defo/surface_defo_subcase_' + str(self.trimcase['subcase'])) 
+        self.init_deformations()
+        self.Uf(Uf, self.trimcase)
+        self.Ux2(Ux2)
+        self.write_deformations(self.jcl.aero['para_path']+'./defo/surface_defo_subcase_' + str(self.trimcase['subcase'])) 
         
         Para = PyPara.Parafile(self.jcl.aero['para_path']+'para_subcase_{}'.format(self.trimcase['subcase']))
         # deformation related parameters
@@ -110,9 +122,9 @@ class TauInterface(object):
         # set aircraft motion related parameters
         # given in local, body-fixed reference frame, see Tau User Guide Section 18.1 "Coordinate Systems of the TAU-Code"
         # rotations in [deg], translations in grid units
-        para_dict = {'Origin of local coordinate system':'{} {} {}'.format(self.model.mass[self.i_mass]['cggrid']['offset'][0,0],\
-                                                                           self.model.mass[self.i_mass]['cggrid']['offset'][0,1],\
-                                                                           self.model.mass[self.i_mass]['cggrid']['offset'][0,2]),
+        para_dict = {'Origin of local coordinate system':'{} {} {}'.format(self.cggrid['offset'][0,0],\
+                                                                           self.cggrid['offset'][0,1],\
+                                                                           self.cggrid['offset'][0,2]),
                      'Polynomial coefficients for translation x': '0 {}'.format(uvwpqr[0]),
                      'Polynomial coefficients for translation y': '0 {}'.format(uvwpqr[1]),
                      'Polynomial coefficients for translation z': '0 {}'.format(uvwpqr[2]),
@@ -132,8 +144,8 @@ class TauInterface(object):
             # set general parameters, which don't change over the course of the CFD simulation, so they are only updated 
             # for the first execution
             para_dict = {'Reference Mach number': self.trimcase['Ma'],
-                         'Reference temperature': self.model.atmo['T'][self.i_atmo],
-                         'Reference density': self.model.atmo['rho'][self.i_atmo],
+                         'Reference temperature': self.atmo['T'],
+                         'Reference density': self.atmo['rho'],
                          'Number of domains': self.jcl.aero['tau_cores'],
                          'Number of primary grid domains': self.jcl.aero['tau_cores'],
                          'Output files prefix': './sol/subcase_{}'.format(self.trimcase['subcase']),
@@ -145,7 +157,7 @@ class TauInterface(object):
             self.pytau_close()
         
     def update_timedom_para(self):
-       pass
+        pass
         
     def update_gust_para(self, simcase, v_gust):
         pass
@@ -208,20 +220,20 @@ class TauInterface(object):
 
         # determine the positions of the points in the pval file
         # this could be relevant if not all markers in the pval file are used
-        logging.debug('Working on marker {}'.format(self.model.cfdgrid['desc']))
+        logging.debug('Working on marker {}'.format(self.cfdgrid['desc']))
         # Because our mesh IDs are sorted and the Tau output is sorted, there is no need for an additional sorting.
         # Exception: Additional surface markers are written to the Tau output, which are not used for coupling.
-        if global_id.__len__() == self.model.cfdgrid['n']:
-            pos = range(self.model.cfdgrid['n'])
+        if global_id.__len__() == self.cfdgrid['n']:
+            pos = range(self.cfdgrid['n'])
         else:
             pos = []
-            for ID in self.model.cfdgrid['ID']: 
+            for ID in self.cfdgrid['ID']: 
                 pos.append(np.where(global_id == ID)[0][0]) 
         # build force vector from cfd solution self.engine(X)                   
-        Pcfd = np.zeros(self.model.cfdgrid['n']*6)
-        Pcfd[self.model.cfdgrid['set'][:,0]] = ncfile_pval.variables['x-force'][:][pos].copy()
-        Pcfd[self.model.cfdgrid['set'][:,1]] = ncfile_pval.variables['y-force'][:][pos].copy()
-        Pcfd[self.model.cfdgrid['set'][:,2]] = ncfile_pval.variables['z-force'][:][pos].copy()
+        Pcfd = np.zeros(self.cfdgrid['n']*6)
+        Pcfd[self.cfdgrid['set'][:,0]] = ncfile_pval.variables['x-force'][:][pos].copy()
+        Pcfd[self.cfdgrid['set'][:,1]] = ncfile_pval.variables['y-force'][:][pos].copy()
+        Pcfd[self.cfdgrid['set'][:,2]] = ncfile_pval.variables['z-force'][:][pos].copy()
         return Pcfd
     
     def prepare_initial_solution(self, args_solve):   
@@ -247,6 +259,85 @@ class TauInterface(object):
     def release_memory(self):
         # Because Tau is called via a subprocess, there is no need to release memory manually.
         pass
+
+    def init_deformations(self):
+        # create empty deformation vectors for cfdgrids
+        self.Ucfd = []
+        for marker in self.cfdgrids:
+            self.Ucfd.append(np.zeros(self.cfdgrids[marker]['n'][()]*6))
+    
+    def transfer_deformations(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
+        logging.info('Transferring deformations to the CFD surface mesh.')
+        if self.plotting:
+            # set-up plot
+            from mayavi import mlab
+            p_scale = 0.05 # points
+            mlab.figure()
+            mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2] ,  scale_factor=p_scale, color=(1,1,1))
+            mlab.points3d(grid_i['offset'+set_i][:,0] + U_i[grid_i['set'+set_i][:,0]], grid_i['offset'+set_i][:,1] + U_i[grid_i['set'+set_i][:,1]], grid_i['offset'+set_i][:,2] + U_i[grid_i['set'+set_i][:,2]],  scale_factor=p_scale, color=(1,0,0))
+        for marker, Ucfd in zip(self.cfdgrids, self.Ucfd):
+            grid_d = load_hdf5_dict(self.cfdgrids[marker])
+            logging.debug('Working on marker {}'.format(grid_d['desc']))
+            # build spline matrix
+            PHIi_d = spline_functions.spline_rbf(grid_i, set_i, grid_d, '', 
+                                                 rbf_type=rbf_type, surface_spline=surface_spline, 
+                                                 support_radius=support_radius, dimensions=[U_i.size, grid_d['n']*6])
+            # store deformation of cfdgrid
+            Ucfd += PHIi_d.dot(U_i)
+            if self.plotting:
+                U_d = PHIi_d.dot(U_i)
+                mlab.points3d(grid_d['offset'][:,0], grid_d['offset'][:,1], grid_d['offset'][:,2], color=(0,0,0), mode='point')
+                mlab.points3d(grid_d['offset'][:,0] + U_d[grid_d['set'][:,0]], grid_d['offset'][:,1] + U_d[grid_d['set'][:,1]], grid_d['offset'][:,2] + U_d[grid_d['set'][:,2]], color=(0,0,1), mode='point')
+            del PHIi_d
+        if self.plotting:
+            mlab.show()
+    
+    def write_deformations(self, filename_defo):
+        self.write_defo_netcdf(filename_defo)
+
+    def write_defo_netcdf(self, filename_defo):
+        logging.info( 'Writing ' + filename_defo + '.nc')
+        f = netcdf.netcdf_file(filename_defo + '.nc', 'w')
+        f.history = 'Surface deformations created by Loads Kernel'
+        
+        # Assemble temporary output. One point may belong to multiple markers.
+        tmp_IDs = np.array([], dtype='int')
+        tmp_x = np.array([])
+        tmp_y = np.array([])
+        tmp_z = np.array([])
+        tmp_dx = np.array([])
+        tmp_dy = np.array([])
+        tmp_dz = np.array([])
+        for marker, Ucfd in zip(self.cfdgrids, self.Ucfd): 
+            cfdgrid = load_hdf5_dict(self.cfdgrids[marker])
+            tmp_IDs = np.concatenate((tmp_IDs, cfdgrid['ID']))
+            tmp_x = np.concatenate((tmp_x, cfdgrid['offset'][:,0]))
+            tmp_y = np.concatenate((tmp_y, cfdgrid['offset'][:,1]))
+            tmp_z = np.concatenate((tmp_z, cfdgrid['offset'][:,2]))
+            tmp_dx = np.concatenate((tmp_dx, Ucfd[cfdgrid['set'][:,0]]))
+            tmp_dy = np.concatenate((tmp_dy, Ucfd[cfdgrid['set'][:,1]]))
+            tmp_dz = np.concatenate((tmp_dz, Ucfd[cfdgrid['set'][:,2]]))
+        IDs, pos = np.unique(tmp_IDs, return_index=True)
+        
+        f.createDimension('no_of_points', IDs.__len__())
+        # create variables
+        global_id = f.createVariable('global_id', 'i', ('no_of_points',))
+        x = f.createVariable('x', 'd', ('no_of_points',))
+        y = f.createVariable('y', 'd', ('no_of_points',))
+        z = f.createVariable('z', 'd', ('no_of_points',))
+        dx = f.createVariable('dx', 'd', ('no_of_points',))
+        dy = f.createVariable('dy', 'd', ('no_of_points',))
+        dz = f.createVariable('dz', 'd', ('no_of_points',))
+        # fill variables with data
+        global_id[:] = IDs
+        x[:] = tmp_x[pos]
+        y[:] = tmp_y[pos]
+        z[:] = tmp_z[pos]
+        dx[:] = tmp_dx[pos]
+        dy[:] = tmp_dy[pos]
+        dz[:] = tmp_dz[pos]
+
+        f.close()
 
 class TauError(Exception):
     '''Raise when subprocess yields a returncode != 0 from Tau'''
