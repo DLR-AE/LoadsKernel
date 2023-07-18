@@ -1,7 +1,7 @@
 import numpy as np
 import logging
 
-from loadskernel.io_functions.specific_functions import load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 class GatherLoads:
     """

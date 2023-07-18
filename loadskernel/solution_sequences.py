@@ -19,7 +19,7 @@ from loadskernel.equations.state_space import StateSpaceAnalysis
 from loadskernel.equations.state_space import JacobiAnalysis
 from loadskernel.trim_conditions import TrimConditions
 from loadskernel.cfd_interfaces.tau_interface import TauError
-from loadskernel.io_functions.specific_functions import load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 class SolutionSequences(TrimConditions):
     

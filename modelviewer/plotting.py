@@ -2,7 +2,7 @@ import numpy as np
 from mayavi import mlab
 from tvtk.api import tvtk
 
-from loadskernel.io_functions.specific_functions import load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 class Plotting:
     def __init__(self):

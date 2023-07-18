@@ -11,7 +11,7 @@ from scipy.spatial import ConvexHull
 import logging, itertools, os
 from loadskernel.units import tas2eas
 from loadskernel.units import eas2tas
-from loadskernel.io_functions.specific_functions import load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 class LoadPlots(object):
     def __init__(self, jcl, model):

@@ -4,7 +4,7 @@ import logging, h5py, shutil
 
 import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
-from loadskernel.io_functions.specific_functions import load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 class Meshdefo(object):
     """

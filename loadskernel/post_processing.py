@@ -3,7 +3,7 @@ import copy, logging
 
 from loadskernel.solution_tools import calc_drehmatrix
 from loadskernel.grid_trafo import grid_trafo, vector_trafo
-from loadskernel.io_functions.specific_functions import load_hdf5_sparse_matrix, load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load_hdf5_dict
 
 class PostProcessing(object):
     """

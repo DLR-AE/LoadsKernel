@@ -3,7 +3,7 @@ import importlib, os, sys
 from loadskernel.solution_tools import * 
 from loadskernel.cfd_interfaces import tau_interface, su2_interface
 from loadskernel.engine_interfaces import engine, propeller
-from loadskernel.io_functions.specific_functions import load_hdf5_sparse_matrix, load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load_hdf5_dict
 
 class Common():
     """

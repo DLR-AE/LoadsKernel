@@ -16,8 +16,8 @@ import scipy.io.netcdf as netcdf
 
 from loadskernel.cfd_interfaces import meshdefo
 from loadskernel import spline_functions
-from loadskernel.io_functions.specific_functions import check_path
-from loadskernel.io_functions.specific_functions import load_hdf5_dict
+from loadskernel.io_functions.data_handling import check_path
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 def copy_para_file(jcl, trimcase):
     para_path = check_path(jcl.aero['para_path'])

@@ -5,9 +5,9 @@ from collections import OrderedDict
 
 import loadskernel.io_functions as io_functions
 import loadskernel.io_functions.write_mona
-import loadskernel.io_functions.specific_functions
+import loadskernel.io_functions.data_handling
 from loadskernel.grid_trafo import *
-from loadskernel.io_functions.specific_functions import load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 class AuxiliaryOutput(object):
     """
@@ -56,7 +56,7 @@ class AuxiliaryOutput(object):
             if trimresult != False:
                 trimresults.append(trimresult)
         logging.info('writing trim results to: ' + filename_csv)
-        io_functions.specific_functions.write_list_of_dictionaries(trimresults, filename_csv)
+        io_functions.data_handling.write_list_of_dictionaries(trimresults, filename_csv)
             
     def assemble_trimresult(self, i_case):
         response = self.responses[i_case]
@@ -143,7 +143,7 @@ class AuxiliaryOutput(object):
             if self.responses[i_case]['successful'][()]:
                 sucessfull_trimcases_info.append(trimcase)
         logging.info('writing successful trimcases cases to: ' + filename_csv)
-        io_functions.specific_functions.write_list_of_dictionaries(sucessfull_trimcases_info, filename_csv)
+        io_functions.data_handling.write_list_of_dictionaries(sucessfull_trimcases_info, filename_csv)
         
     def write_failed_trimcases(self, filename_csv):
         failed_trimcases_info = []
@@ -153,7 +153,7 @@ class AuxiliaryOutput(object):
             if not self.responses[i_case]['successful'][()]:
                 failed_trimcases_info.append(trimcase)
         logging.info('writing failed trimcases cases to: ' + filename_csv)
-        io_functions.specific_functions.write_list_of_dictionaries(failed_trimcases_info, filename_csv)
+        io_functions.data_handling.write_list_of_dictionaries(failed_trimcases_info, filename_csv)
     
     def write_critical_trimcases(self, filename_csv):
         # eigentlich gehoert diese Funtion eher zum post-processing als zum
@@ -168,7 +168,7 @@ class AuxiliaryOutput(object):
                 crit_trimcases_info.append(trimcase)
                 
         logging.info('writing critical trimcases cases to: ' + filename_csv)
-        io_functions.specific_functions.write_list_of_dictionaries(crit_trimcases_info, filename_csv)
+        io_functions.data_handling.write_list_of_dictionaries(crit_trimcases_info, filename_csv)
     
     def write_critical_nodalloads(self, filename): 
         logging.info( 'saving critical nodal loads as Nastarn cards...')
@@ -214,8 +214,8 @@ class AuxiliaryOutput(object):
                     crit_monstations[key]['t'] += [monstation['t'][pos_to_copy]]
         logging.info('saving critical monstation(s).')
         with open(base_filename + '.pickle', 'wb') as f:
-            io_functions.specific_functions.dump_pickle(crit_monstations, f)
-        io_functions.specific_functions.dump_hdf5(base_filename + '.hdf5', crit_monstations)
+            io_functions.data_handling.dump_pickle(crit_monstations, f)
+        io_functions.data_handling.dump_hdf5(base_filename + '.hdf5', crit_monstations)
         
     def save_cpacs_header(self):
         

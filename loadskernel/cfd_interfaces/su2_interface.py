@@ -8,7 +8,7 @@ from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
 from loadskernel.cfd_interfaces.tau_interface import check_para_path, copy_para_file, check_cfd_folders
 from loadskernel.grid_trafo import grid_trafo, vector_trafo
 from loadskernel.solution_tools import calc_drehmatrix
-from loadskernel.io_functions.specific_functions import load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 try:
     import SU2, pysu2

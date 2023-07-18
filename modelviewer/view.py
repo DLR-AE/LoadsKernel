@@ -19,8 +19,8 @@ from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
 
 import numpy as np
 
-import loadskernel.io_functions.specific_functions as specific_io
-from loadskernel.io_functions.specific_functions import load_hdf5_sparse_matrix, load_hdf5_dict
+from loadskernel.io_functions import data_handling
+from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load_hdf5_dict
 from modelviewer.plotting import Plotting
 from modelviewer.pytran import NastranSOL101
 from modelviewer.cfdgrid import TauGrid, SU2Grid
@@ -582,7 +582,7 @@ class Modelviewer():
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'], self.file_opt['filters'])[0]
         if filename != '':
             # load model
-            self.model = specific_io.load_hdf5(filename)
+            self.model = data_handling.load_hdf5(filename)
             # update fields
             self.update_fields()
             self.calc_MAC(list(self.model['aero'].keys())[0])
