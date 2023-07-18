@@ -316,16 +316,14 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
         
         # setting up coordinate system
         coord_tmp = copy.deepcopy(self.coord)
-        coord_tmp['ID'].append(1000000)
-        coord_tmp['RID'].append(0)
-        coord_tmp['dircos'].append(np.eye(3))
-        coord_tmp['offset'].append(np.array([0.0,0.0,0.0,]))
-        
-        coord_tmp['ID'].append(1000001)
-        coord_tmp['RID'].append(0)
-        coord_tmp['dircos'].append(calc_drehmatrix(PhiThetaPsi_body[0], PhiThetaPsi_body[1], PhiThetaPsi_body[2]))
-        coord_tmp['offset'].append(np.array([0.0,0.0,0.0,]))
-        
+        coord_tmp['ID']     = np.append(coord_tmp['ID'], [1000000, 1000001])
+        coord_tmp['RID']    = np.append(coord_tmp['RID'], [0, 0])
+        coord_tmp['dircos'] = np.append(coord_tmp['dircos'], [np.eye(3),
+                                                              calc_drehmatrix(PhiThetaPsi_body[0], PhiThetaPsi_body[1], PhiThetaPsi_body[2])],
+                                                              axis=0)
+        coord_tmp['offset'] = np.append(coord_tmp['offset'], [np.array([0.0,0.0,0.0,]),
+                                                              np.array([0.0,0.0,0.0,])],
+                                                              axis=0)
         cfdgrid_tmp = copy.deepcopy(self.cfdgrid)
         cfdgrid_tmp['CD'] = np.repeat(1000001, self.cfdgrid['n'])
 
@@ -343,7 +341,7 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             self.Ucfd = np.zeros(self.local_mesh['n']*6)
             # These two functions are inherited from the original Meshdefo class
             # Add flexible deformations
-            self.Uf(Uf, self.trimcase)
+            self.Uf(Uf)
             # Add control surface deformations
             self.Ux2(Ux2)
             # Add rigid body rotations
@@ -360,16 +358,13 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
         XYZ_body[0] = 0.0
         # setting up coordinate system
         coord_tmp = copy.deepcopy(self.coord)
-        coord_tmp['ID'].append(1000000)
-        coord_tmp['RID'].append(0)
-        coord_tmp['dircos'].append(calc_drehmatrix(PhiThetaPsi_body[0], PhiThetaPsi_body[1], PhiThetaPsi_body[2]))
-        coord_tmp['offset'].append(self.cggrid['offset'][0] + XYZ_body)
-        
-        coord_tmp['ID'].append(1000001)
-        coord_tmp['RID'].append(0)
-        coord_tmp['dircos'].append(np.eye(3))
-        coord_tmp['offset'].append(-self.cggrid['offset'][0])
-        
+        coord_tmp['ID']     = np.append(coord_tmp['ID'], [1000000, 1000001])
+        coord_tmp['RID']    = np.append(coord_tmp['RID'], [0, 0])
+        coord_tmp['dircos'] = np.append(coord_tmp['dircos'], [calc_drehmatrix(PhiThetaPsi_body[0], PhiThetaPsi_body[1], PhiThetaPsi_body[2]),
+                                                              np.eye(3)], axis=0)
+        coord_tmp['offset'] = np.append(coord_tmp['offset'], [self.cggrid['offset'][0] + XYZ_body,
+                                                              -self.cggrid['offset'][0]], axis=0)
+
         # apply transformation to local mesh
         local_mesh_tmp = copy.deepcopy(self.local_mesh)
         local_mesh_tmp['CP'] = np.repeat(1000001, self.local_mesh['n'])
