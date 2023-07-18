@@ -1,6 +1,4 @@
-
-# Launch script for the Loads Kernel
-import sys, logging, pytest, subprocess, shlex, os
+import logging, pytest, subprocess, shlex, os
 
 """
 This section sets the environment for the gitlab-runner, which uses the functional account 'f_jwsb'.
