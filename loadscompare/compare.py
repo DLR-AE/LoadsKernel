@@ -16,7 +16,7 @@ import os, copy
 
 from loadscompare import plotting
 import loadskernel.io_functions as io_functions
-import loadskernel.io_functions.specific_functions
+import loadskernel.io_functions.data_handling
    
 
 class Compare():
@@ -257,9 +257,9 @@ class Compare():
         if filename != '':
             if '.pickle' in filename:
                 with open(filename, 'rb') as f:
-                    dataset = io_functions.specific_functions.load_pickle(f)
+                    dataset = io_functions.data_handling.load_pickle(f)
             elif '.hdf5' in filename:
-                dataset = io_functions.specific_functions.load_hdf5(filename)
+                dataset = io_functions.data_handling.load_hdf5(filename)
             
             # save into data structure
             self.datasets['ID'].append(self.datasets['n'])  
@@ -281,9 +281,9 @@ class Compare():
             filename = QFileDialog.getSaveFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'], self.file_opt['filters'])[0]
             if filename != '' and '.pickle' in filename:
                 with open(filename, 'wb') as f:
-                    io_functions.specific_functions.dump_pickle(dataset_sel, f)
+                    io_functions.data_handling.dump_pickle(dataset_sel, f)
             if filename != '' and '.hdf5' in filename:
-                io_functions.specific_functions.dump_hdf5(filename, dataset_sel)
+                io_functions.data_handling.dump_hdf5(filename, dataset_sel)
 
     def update_fields(self):
         self.lb_dataset.clear()

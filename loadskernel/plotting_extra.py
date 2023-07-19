@@ -23,11 +23,11 @@ class DetailedPlots(plotting_standard.LoadPlots):
     
     def plot_aerogrid(self, scalars=None, colormap='plasma', value_min=None, value_max=None):
         # create the unstructured grid 
-        points = self.model.aerogrid['cornerpoint_grids'][:,(1,2,3)]
+        points = self.aerogrid['cornerpoint_grids'][:,(1,2,3)]
         ug = tvtk.UnstructuredGrid(points=points)
         shells = []
-        for shell in self.model.aerogrid['cornerpoint_panels']: 
-            shells.append([np.where(self.model.aerogrid['cornerpoint_grids'][:,0]==id)[0][0] for id in shell])
+        for shell in self.aerogrid['cornerpoint_panels']: 
+            shells.append([np.where(self.aerogrid['cornerpoint_grids'][:,0]==id)[0][0] for id in shell])
         shell_type = tvtk.Polygon().cell_type
         ug.set_cells(shell_type, shells)
         ug.cell_data.scalars = scalars
@@ -68,11 +68,10 @@ class DetailedPlots(plotting_standard.LoadPlots):
             trimcase   = self.jcl.trimcase[response['i'][()]]
             logging.info('interactive plotting of resulting pressure distributions for trim {:s}'.format(trimcase['desc']))
             Pk = response['Pk_aero'] #response['Pk_rbm'] + response['Pk_cam']
-            i_atmo = self.model.atmo['key'].index(trimcase['altitude'])
-            rho = self.model.atmo['rho'][i_atmo]
-            Vtas = trimcase['Ma'] * self.model.atmo['a'][i_atmo]
-            F = Pk[0,self.model.aerogrid['set_k'][:,2]] # * -1.0
-            cp = F / (rho/2.0*Vtas**2) / self.model.aerogrid['A']            
+            rho = self.model['atmo'][trimcase['altitude']]['rho']
+            Vtas = trimcase['Ma'] * self.model['atmo'][trimcase['altitude']]['a']
+            F = Pk[0,self.aerogrid['set_k'][:,2]] # * -1.0
+            cp = F / (rho/2.0*Vtas**2) / self.aerogrid['A']            
             self.plot_aerogrid(cp)
             
     def plot_time_data(self):
@@ -85,14 +84,13 @@ class DetailedPlots(plotting_standard.LoadPlots):
         fig6, (ax61, ax62) = plt.subplots(nrows=2, ncols=1, sharex=True,)
         if hasattr(self.jcl, 'landinggear'):
             fig7, (ax71, ax72) = plt.subplots(nrows=2, ncols=1, sharex=True,)
-        
+        Dkx1 = self.model['Dkx1'][()]
         # Loop over responses and fill plots with data
         for response in self.responses:
             trimcase   = self.jcl.trimcase[response['i'][()]]
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
-            
-            i_mass     = self.model.mass['key'].index(trimcase['mass'])
-            n_modes    = self.model.mass['n_modes'][i_mass] 
+
+            self.n_modes = self.model['mass'][self.trimcase['mass']]['n_modes'][()]
             
             Cl = response['Pmac'][:,2] / response['q_dyn'][:].T / self.jcl.general['A_ref']
             ax11.plot(response['t'], response['Pmac'][:,2], 'b-')
@@ -102,8 +100,8 @@ class DetailedPlots(plotting_standard.LoadPlots):
                 Pb_gust = []
                 Pb_unsteady = []
                 for i_step in range(len(response['t'])):        
-                    Pb_gust.append(np.dot(self.model.Dkx1.T, response['Pk_gust'][i_step,:])[2])
-                    Pb_unsteady.append(np.dot(self.model.Dkx1.T, response['Pk_unsteady'][i_step,:])[2])
+                    Pb_gust.append(np.dot(Dkx1.T, response['Pk_gust'][i_step,:])[2])
+                    Pb_unsteady.append(np.dot(Dkx1.T, response['Pk_unsteady'][i_step,:])[2])
                 ax11.plot(response['t'], Pb_gust, 'k-')
                 ax11.plot(response['t'], Pb_unsteady, 'r-')
 
@@ -129,14 +127,14 @@ class DetailedPlots(plotting_standard.LoadPlots):
             ax42.plot(response['t'], response['X'][:,10]/np.pi*180.0, 'g-')
             ax42.plot(response['t'], response['X'][:,11]/np.pi*180.0, 'r-')
 
-            ax51.plot(response['t'], response['X'][:,12+2*n_modes+0]/np.pi*180.0, 'b-')
-            ax51.plot(response['t'], response['X'][:,12+2*n_modes+1]/np.pi*180.0, 'g-')
-            ax51.plot(response['t'], response['X'][:,12+2*n_modes+2]/np.pi*180.0, 'r-')
+            ax51.plot(response['t'], response['X'][:,12+2*self.n_modes+0]/np.pi*180.0, 'b-')
+            ax51.plot(response['t'], response['X'][:,12+2*self.n_modes+1]/np.pi*180.0, 'g-')
+            ax51.plot(response['t'], response['X'][:,12+2*self.n_modes+2]/np.pi*180.0, 'r-')
 
-            ax52.plot(response['t'], response['X'][:,12+2*n_modes+3], 'k-')
+            ax52.plot(response['t'], response['X'][:,12+2*self.n_modes+3], 'k-')
             
-            ax53.plot(response['t'], response['X'][:,12+2*n_modes+4], 'b-')
-            ax53.plot(response['t'], response['X'][:,12+2*n_modes+5], 'g-')
+            ax53.plot(response['t'], response['X'][:,12+2*self.n_modes+4], 'b-')
+            ax53.plot(response['t'], response['X'][:,12+2*self.n_modes+5], 'g-')
 
             ax61.plot(response['t'], response['Uf'], 'b-')
 
@@ -320,8 +318,8 @@ class Animations(plotting_standard.LoadPlots):
             if hasattr(self.model, 'strcshell'):
                 # plot shell as surface
                 shells = []
-                for shell in self.model.strcshell['cornerpoints']: 
-                    shells.append([np.where(self.model.strcgrid['ID']==id)[0][0] for id in shell])
+                for shell in self.strcshell['cornerpoints']: 
+                    shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell(np.isfinite(shell))])
                 shell_type = tvtk.Polygon().cell_type
                 self.strc_ug.set_cells(shell_type, shells)
                 src_points = mlab.pipeline.add_dataset(self.strc_ug)
@@ -363,7 +361,7 @@ class Animations(plotting_standard.LoadPlots):
         # --------------
         # configure plot 
         #---------------
-        grid = self.model.strcgrid
+        grid = self.strcgrid
         set = ''
         
         # get deformations

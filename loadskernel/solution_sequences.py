@@ -1,17 +1,9 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Nov 27 15:35:22 2014
-
-@author: voss_ar
-"""
 import numpy as np
 import scipy.optimize as so
 import logging, copy
 from scipy.integrate import ode
 
 from loadskernel.integrate import RungeKutta4, ExplicitEuler, AdamsBashforth
-import loadskernel.io_functions.specific_functions as specific_io
-
 from loadskernel.equations.steady     import Steady
 from loadskernel.equations.cfd import CfdSteady, CfdUnsteady
 from loadskernel.equations.nonlin_steady import NonlinSteady
@@ -25,10 +17,9 @@ from loadskernel.equations.frequency_domain import KEMethod
 from loadskernel.equations.frequency_domain import PKMethod
 from loadskernel.equations.state_space import StateSpaceAnalysis
 from loadskernel.equations.state_space import JacobiAnalysis
-
 from loadskernel.trim_conditions import TrimConditions
-
 from loadskernel.cfd_interfaces.tau_interface import TauError
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 class SolutionSequences(TrimConditions):
     
@@ -97,6 +88,9 @@ class SolutionSequences(TrimConditions):
         equations.eval_equations()
         
     def calc_derivatives(self):
+        self.macgrid = load_hdf5_dict(self.model['macgrid'])
+        
+        
         self.calc_flexible_derivatives()
         self.calc_rigid_derivatives()
         self.calc_additional_derivatives('rigid')
@@ -115,9 +109,9 @@ class SolutionSequences(TrimConditions):
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
-        A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
+        A = self.jcl.general['A_ref']
         delta = 0.01   
-            
+        
         X0 = np.array(self.trimcond_X[:,2], dtype='float')
         response0 = equations.equations(X0, 0.0, 'trim_full_output')
         derivatives = []
@@ -127,7 +121,7 @@ class SolutionSequences(TrimConditions):
             xi[i] += delta
             response = equations.equations(xi, 0.0, 'trim_full_output')
             Pmac_c = (response['Pmac']-response0['Pmac'])/response['q_dyn']/A/delta
-            derivatives.append([Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref']])
+            derivatives.append([Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.macgrid['b_ref'], Pmac_c[4]/self.macgrid['c_ref'], Pmac_c[5]/self.macgrid['b_ref']])
         # write back original response and store results
         self.response['rigid_parameters'] = self.trimcond_X[:,0].tolist()
         self.response['rigid_derivatives'] = derivatives
@@ -145,9 +139,9 @@ class SolutionSequences(TrimConditions):
         response0 = self.response
         trimcond_X0 = copy.deepcopy(self.trimcond_X)
         
-        i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
-        vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
+        vtas = self.trimcase['Ma'] * self.model['atmo'][self.trimcase['altitude']]['a'][()]
         A = self.jcl.general['A_ref']
+        
         delta = 0.01   
         parameters = ['theta', 'psi', 'p', 'q', 'r', 'command_xi', 'command_eta', 'command_zeta']
         derivatives = []
@@ -166,7 +160,7 @@ class SolutionSequences(TrimConditions):
             # re-calculate new trim
             self.exec_trim()
             Pmac_c = (self.response['Pmac']-response0['Pmac'])/response0['q_dyn']/A/delta
-            derivatives.append([Pmac_c[0,0], Pmac_c[0,1], Pmac_c[0,2], Pmac_c[0,3]/self.model.macgrid['b_ref'], Pmac_c[0,4]/self.model.macgrid['c_ref'], Pmac_c[0,5]/self.model.macgrid['b_ref']])
+            derivatives.append([Pmac_c[0,0], Pmac_c[0,1], Pmac_c[0,2], Pmac_c[0,3]/self.macgrid['b_ref'], Pmac_c[0,4]/self.macgrid['c_ref'], Pmac_c[0,5]/self.macgrid['b_ref']])
             # restore trim condition for next loop 
             self.trimcond_X = copy.deepcopy(trimcond_X0)
         # write back original response and store results
@@ -177,8 +171,8 @@ class SolutionSequences(TrimConditions):
     def calc_NP(self):
         pos = self.response['flexible_parameters'].index('theta')
         self.response['NP_flex'] = np.zeros(3)
-        self.response['NP_flex'][0] = self.model.macgrid['offset'][0,0] - self.jcl.general['c_ref'] * self.response['flexible_derivatives'][pos][4] / self.response['flexible_derivatives'][pos][2]
-        self.response['NP_flex'][1] = self.model.macgrid['offset'][0,1] + self.jcl.general['b_ref'] * self.response['flexible_derivatives'][pos][3] / self.response['flexible_derivatives'][pos][2] 
+        self.response['NP_flex'][0] = self.macgrid['offset'][0,0] - self.jcl.general['c_ref'] * self.response['flexible_derivatives'][pos][4] / self.response['flexible_derivatives'][pos][2]
+        self.response['NP_flex'][1] = self.macgrid['offset'][0,1] + self.jcl.general['b_ref'] * self.response['flexible_derivatives'][pos][3] / self.response['flexible_derivatives'][pos][2] 
         logging.info('--------------------------------------------------------------------------------------')
         logging.info('Aeroelastic neutral point / aerodynamic center:')
         logging.info('NP_flex (x,y) = {:0.4g},{:0.4g}'.format(self.response['NP_flex'][0], self.response['NP_flex'][1]))
@@ -203,8 +197,7 @@ class SolutionSequences(TrimConditions):
         p * b_ref / (2 * V) = ROLL
         r * b_ref / (2 * V) = YAW
         """
-        i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
-        vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
+        vtas = self.trimcase['Ma'] * self.model['atmo'][self.trimcase['altitude']]['a'][()]
 
         self.response[key+'_parameters'] += ['p*', 'q*', 'r*']
         self.response[key+'_derivatives'].append(list(np.array(self.response[key+'_derivatives'][self.response[key+'_parameters'].index('p')]) / self.jcl.general['b_ref'] * 2.0 * vtas))

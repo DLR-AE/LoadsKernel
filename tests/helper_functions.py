@@ -6,11 +6,13 @@ class HelperFunctions(object):
     
     # List of items that are skipped.
     # This makes the addidtion of new stuff easier and compatible with older reference results.  
-    list_skip = ['PHIgg', 'mongrid_rules', 'coupling_rules']
-    
+    list_skip = []
     # List of items where the sign shall be ignored.
     # This is usefull for the comparison of matrices related to eigenvalues and eigenvectors.  
-    list_ignore_sign = ['Mff', 'Mhh', 'Kff', 'Khh', 'Mfcg', 'PHIf_strc', 'PHIh_strc', 'PHIjf', 'PHIlf', 'PHIkf', 'PHIjh', 'PHIlh', 'PHIkh']
+    list_ignore_sign = ['Mff', 'Mhh', 'Kff', 'Khh', 'Mfcg', 
+                        'PHIf_strc', 'PHIh_strc', 'PHIjf', 'PHIlf', 'PHIkf', 'PHIjh', 'PHIlh', 'PHIkh', 
+                        'Uf', 'dUf_dt', 'd2Uf_dt2', 'Pf', 'X', 'Y',
+                        'eigenvalues', 'eigenvectors', 'freqs', 'jac', 'A', 'B', 'C', 'D', 'X0', 'rigid_derivatives']
     
 
     def compare_lists(self, list_a, list_b, key=''):
@@ -18,9 +20,9 @@ class HelperFunctions(object):
         for item_a, item_b in zip(list_a, list_b):
             if type(item_a) == list:
                 is_equal += [self.compare_lists(item_a, item_b, key)]
-            elif type(item_a) in [dict, h5py._hl.group.Group]:
+            elif type(item_a) in [dict, h5py.Group]:
                 is_equal += [self.compare_dictionaries(item_a, item_b)]
-            elif type(item_a) == h5py._hl.dataset.Dataset:
+            elif type(item_a) == h5py.Dataset:
                 is_equal += [self.compare_hdf5_datasets(item_a, item_b, key)]
             else:
                 is_equal += [self.compare_items(item_a, item_b, key)]
@@ -33,13 +35,13 @@ class HelperFunctions(object):
                 logging.info('Skipping {}'.format(key))
             else:                
                 logging.info('Comparing {}'.format(key))
-                if type(dict_a[key]) in [dict, h5py._hl.group.Group]:
+                if type(dict_a[key]) in [dict, h5py.Group]:
                     # dive deeper into the dicionary
                     this_dict_is_equal = [self.compare_dictionaries(dict_a[key], dict_b[key])]
                 elif type(dict_a[key]) == list:
                     # dive deeper into list
                     this_dict_is_equal = [self.compare_lists(dict_a[key], dict_b[key], key)]
-                elif type(dict_a[key]) == h5py._hl.dataset.Dataset:
+                elif type(dict_a[key]) == h5py.Dataset:
                     # dive deeper into the HDF5 file
                     this_dict_is_equal = [self.compare_hdf5_datasets(dict_a[key], dict_b[key], key)]
                 else:

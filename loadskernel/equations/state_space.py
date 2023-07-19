@@ -51,29 +51,29 @@ class StateSpaceAnalysis(PKMethod):
         return response 
 
     def calc_Qhh_1(self, Qjj):
-        return self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj).dot(self.Djh_1)))
+        return self.PHIlh.T.dot(self.aerogrid['Nmat'].T.dot(self.aerogrid['Amat'].dot(Qjj).dot(self.Djh_1)))
     
     def calc_Qhh_2(self, Qjj):
-        return self.PHIlh.T.dot(self.model.aerogrid['Nmat'].T.dot(self.model.aerogrid['Amat'].dot(Qjj).dot(self.Djh_2)))
+        return self.PHIlh.T.dot(self.aerogrid['Nmat'].T.dot(self.aerogrid['Amat'].dot(Qjj).dot(self.Djh_2)))
     
     def build_AICs(self):
         # do some pre-multiplications first, then the interpolation
         if self.jcl.aero['method'] in ['mona_steady']:
-            self.Qhh_1 = self.calc_Qhh_1(self.model.aero['Qjj'][self.i_aero])
-            self.Qhh_2 = self.calc_Qhh_2(self.model.aero['Qjj'][self.i_aero])
+            self.Qhh_1 = self.calc_Qhh_1(self.aero['Qjj'])
+            self.Qhh_2 = self.calc_Qhh_2(self.aero['Qjj'])
 #         elif self.jcl.aero['method'] in ['mona_unsteady']:
-#             ABCD = self.model.aero['ABCD'][self.i_aero]
-#             for k_red in self.model.aero['k_red']:
-#                 D = np.zeros((self.model.aerogrid['n'], self.model.aerogrid['n']), dtype='complex')
+#             ABCD = self.aero['ABCD']
+#             for k_red in self.aero['k_red']:
+#                 D = np.zeros((self.aerogrid['n'], self.aerogrid['n']), dtype='complex')
 #                 j = 1j # imaginary number
-#                 for i_pole, beta in zip(np.arange(0,self.model.aero['n_poles']), self.model.aero['betas']):                
+#                 for i_pole, beta in zip(np.arange(0,self.aero['n_poles']), self.aero['betas']):                
 #                     D += ABCD[3+i_pole,:,:] * j*k_red / (j*k_red + beta)
 #                 Qjj_unsteady = ABCD[0,:,:] + ABCD[1,:,:]*j*k_red + ABCD[2,:,:]*(j*k_red)**2 + D
 #                 Qhh_1.append(self.calc_Qhh_1(Qjj_unsteady))
 #                 Qhh_2.append(self.calc_Qhh_2(Qjj_unsteady))
     
     def system(self, Vtas):
-        rho = self.model.atmo['rho'][self.i_atmo]
+        rho = self.atmo['rho']
         Mhh_inv = np.linalg.inv(self.Mhh)
         
         upper_part = np.concatenate((np.zeros((self.n_modes, self.n_modes), dtype='float'), np.eye(self.n_modes, dtype='float')), axis=1)

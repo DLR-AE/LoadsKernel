@@ -205,7 +205,7 @@ class ReadCfdgrids:
             self.cfdgrid['desc'] = self.markers
             self.cfdgrid['points_of_surface'] = tmp_surfaces
         else:
-            self.cfdgrids = []
+            self.cfdgrids = {}
             for marker in surface_points.keys():
                 # Assemble the cfdgrid
                 cfdgrid = {}
@@ -217,4 +217,4 @@ class ReadCfdgrids:
                 cfdgrid['set'] = np.arange(6*cfdgrid['n']).reshape(-1,6)
                 cfdgrid['desc'] = marker
                 cfdgrid['points_of_surface'] = surface_points[marker]['points_of_surface']
-                self.cfdgrids.append(cfdgrid)
+                self.cfdgrids[marker] = cfdgrid

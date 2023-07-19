@@ -1,15 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Feb 10 09:24:10 2017
-
-@author: voss_ar
-"""
-
-
 import numpy as np
 from mayavi import mlab
 from tvtk.api import tvtk
-from mayavi.sources.utils import has_attributes
+
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 class Plotting:
     def __init__(self):
@@ -36,8 +29,13 @@ class Plotting:
     
     def add_model(self, model):
         self.model = model
-        self.strcgrid = model.strcgrid
-        self.aerogrid = model.aerogrid
+        self.strcgrid   = load_hdf5_dict(self.model['strcgrid'])
+        self.splinegrid = load_hdf5_dict(self.model['splinegrid'])
+        self.aerogrid   = load_hdf5_dict(self.model['aerogrid'])
+        self.x2grid     = load_hdf5_dict(self.model['x2grid'])
+        self.mongrid    = load_hdf5_dict(self.model['mongrid'])
+        self.coord      = load_hdf5_dict(self.model['coord'])
+        self.Djx2       = self.model['Djx2'][()]
         self.calc_distance()
         self.calc_focalpoint()
         
@@ -162,11 +160,11 @@ class Plotting:
         
     def setup_strc_display(self, offsets, color, p_scale):
         self.ug_strc = tvtk.UnstructuredGrid(points=offsets)
-        if hasattr(self.model, 'strcshell'):
+        if 'strcshell' in self.model:
             # plot shell as surface
             shells = []
-            for shell in self.model.strcshell['cornerpoints']: 
-                shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell])
+            for shell in self.model['strcshell']['cornerpoints'][()]: 
+                shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell[np.isfinite(shell)]])
             shell_type = tvtk.Polygon().cell_type
             self.ug_strc.set_cells(shell_type, shells)
             src_strc = mlab.pipeline.add_dataset(self.ug_strc)
@@ -199,10 +197,10 @@ class Plotting:
         mlab.draw(self.fig)
         
     def setup_aero_display(self, scalars, vminmax):
-        ug1 = tvtk.UnstructuredGrid(points=self.model.aerogrid['cornerpoint_grids'][:,(1,2,3)])
+        ug1 = tvtk.UnstructuredGrid(points=self.aerogrid['cornerpoint_grids'][:,(1,2,3)])
         shells = []
-        for shell in self.model.aerogrid['cornerpoint_panels']: 
-            shells.append([np.where(self.model.aerogrid['cornerpoint_grids'][:,0]==id)[0][0] for id in shell])
+        for shell in self.aerogrid['cornerpoint_panels']: 
+            shells.append([np.where(self.aerogrid['cornerpoint_grids'][:,0]==id)[0][0] for id in shell])
         shell_type = tvtk.Polygon().cell_type
         ug1.set_cells(shell_type, shells)
         if scalars is not None:
@@ -265,18 +263,17 @@ class Plotting:
     def hide_aero_strc_coupling(self):
         self.src_grid_i.remove()
         self.src_grid_d.remove()
-        if  hasattr(self.model, 'coupling_rules'):
+        if 'coupling_rules' in self.model:
             self.src_splinerules.remove()
         self.show_coupling=False
         mlab.draw(self.fig)
             
     def plot_aero_strc_coupling(self):
-        if  hasattr(self.model, 'coupling_rules'):
-            self.src_grid_i, self.src_grid_d, self.src_splinerules \
-            = self.plot_splinerules(self.model.splinegrid, '', self.model.aerogrid, '_k', self.model.coupling_rules, self.model.coord)
+        if 'coupling_rules' in self.model:
+            coupling_rules = load_hdf5_dict(self.model['coupling_rules'])
+            self.src_grid_i, self.src_grid_d, self.src_splinerules = self.plot_splinerules(self.splinegrid, '', self.aerogrid, '_k', coupling_rules, self.coord)
         else:
-            self.src_grid_i, self.src_grid_d \
-            = self.plot_splinegrids(self.model.splinegrid, '', self.model.aerogrid, '_k')
+            self.src_grid_i, self.src_grid_d = self.plot_splinegrids(self.splinegrid, '', self.aerogrid, '_k')
         self.show_coupling=True
             
     def plot_splinegrids(self, grid_i,  set_i,  grid_d, set_d):
@@ -290,13 +287,13 @@ class Plotting:
         # transfer points into common coord
         offset_dest_i = []
         for i_point in range(len(grid_i['ID'])):
-            pos_coord = coord['ID'].index(grid_i['CP'][i_point])
+            pos_coord = np.where(coord['ID'] == grid_i['CP'][i_point])[0][0]
             offset_dest_i.append(np.dot(coord['dircos'][pos_coord],grid_i['offset'+set_i][i_point])+coord['offset'][pos_coord])
         offset_dest_i = np.array(offset_dest_i)
         
         offset_dest_d = []
         for i_point in range(len(grid_d['ID'])):
-            pos_coord = coord['ID'].index(grid_d['CP'][i_point])
+            pos_coord = np.where(coord['ID'] == grid_d['CP'][i_point])[0][0]
             offset_dest_d.append(np.dot(coord['dircos'][pos_coord],grid_d['offset'+set_d][i_point])+coord['offset'][pos_coord])
         offset_dest_d = np.array(offset_dest_d)
         
@@ -304,8 +301,8 @@ class Plotting:
         
         for ID_i in splinerules:
             for ID_d in splinerules[ID_i]:
-                position_i.append( np.where(grid_i['ID']==ID_i)[0][0] )
-                position_d.append( np.where(grid_d['ID']==ID_d)[0][0] )
+                position_i.append( np.where(grid_i['ID'] == int(ID_i))[0][0] )
+                position_d.append( np.where(grid_d['ID'] == int(ID_d))[0][0] )
        
         x = offset_dest_i[position_i,0]
         y = offset_dest_i[position_i,1]
@@ -335,9 +332,8 @@ class Plotting:
         if self.show_monstations:
             self.hide_monstations()
         # create a sub-set from all mongrid_rules
-        rules = {monstation_id: self.model.mongrid_rules[monstation_id]} 
-        self.src_mongrid_i, self.src_mongrid_d, self.src_mongrid_rules \
-        = self.plot_splinerules(self.model.mongrid, '', self.model.strcgrid, '', rules, self.model.coord)
+        rules = {monstation_id: self.model['mongrid_rules'][str(monstation_id)][()]} 
+        self.src_mongrid_i, self.src_mongrid_d, self.src_mongrid_rules = self.plot_splinerules(self.mongrid, '', self.strcgrid, '', rules, self.coord)
         self.show_monstations=True
 
     # ----------
@@ -352,13 +348,13 @@ class Plotting:
     def plot_cs(self, i_surf, axis, deg):
         # determine deflections
         if axis == 'y-axis':
-            Uj = np.dot(self.model.Djx2[i_surf],[0,0,0,0,deg/180.0*np.pi,0])
+            Uj = np.dot(self.Djx2[i_surf],[0,0,0,0,deg/180.0*np.pi,0])
         elif axis == 'z-axis':
-            Uj = np.dot(self.model.Djx2[i_surf],[0,0,0,0,0,deg/180.0*np.pi]) 
+            Uj = np.dot(self.Djx2[i_surf],[0,0,0,0,0,deg/180.0*np.pi]) 
         else:
-            Uj = np.dot(self.model.Djx2[i_surf],[0,0,0,0,0,0]) 
+            Uj = np.dot(self.Djx2[i_surf],[0,0,0,0,0,0]) 
         # find those panels belonging to the current control surface i_surf
-        members_of_i_surf = [np.where(self.aerogrid['ID']==x)[0][0] for x in self.model.x2grid['ID'][i_surf]]
+        members_of_i_surf = [np.where(self.aerogrid['ID']==x)[0][0] for x in self.x2grid[str(i_surf)]['ID'][()]]
         points = self.aerogrid['offset_k'][members_of_i_surf,:]+Uj[self.aerogrid['set_k'][members_of_i_surf,:][:,(0,1,2)]]
         
         if self.show_cs:
@@ -396,13 +392,14 @@ class Plotting:
     def setup_cell_display(self, offsets, color, p_scale, cell_data, show_cells):
         ug = tvtk.UnstructuredGrid(points=offsets)
         #ug.point_data.scalars = scalars
-        if hasattr(self.model, 'strcshell'):
+        if 'strcshell' in self.model:
             # plot shell as surface
             shells = []; data = []
-            for i_shell in range(self.model.strcshell['n']):
-                if self.model.strcshell['ID'][i_shell] in show_cells:
+            for i_shell in range(self.model['strcshell']['n'][()]):
+                shell = self.model['strcshell']['cornerpoints'][i_shell]
+                if shell in show_cells:
                     data.append(cell_data[i_shell])
-                    shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in self.model.strcshell['cornerpoints'][i_shell]])
+                    shells.append([np.where(self.strcgrid['ID']==id)[0][0] for id in shell[np.isfinite(shell)]])
             shell_type = tvtk.Polygon().cell_type
             ug.set_cells(shell_type, shells)
             ug.cell_data.scalars = data

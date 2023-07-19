@@ -34,6 +34,7 @@ class Model:
     def build_model(self):
         # init the bdf reader
         self.bdf_reader = read_bdf.Reader()
+        # run all build function/stages 
         self.build_coord()
         self.build_strc()
         self.build_strcshell()
@@ -46,8 +47,11 @@ class Model:
         self.build_splines()
         self.build_cfdgrid()
         self.build_structural_dynamics()
-        # destroy the bdf reader, this is important when saving the model
+        # destroy the bdf reader and other stuff before saving the model
         delattr(self, 'bdf_reader')
+        delattr(self, 'path_output')
+        delattr(self, 'jcl')
+        
         
     def build_coord(self):
         self.coord = {'ID': [0, 9300],
@@ -181,23 +185,17 @@ class Model:
     
     def build_atmo(self):
         logging.info( 'Building atmo model...')
+        self.atmo = {}
         if self.jcl.atmo['method']=='ISA':
-            self.atmo = {'key':[],
-                         'h': [], 
-                         'p': [],
-                         'rho': [],
-                         'T': [],
-                         'a': [],
-                        }
             for i_atmo in range(len(self.jcl.atmo['key'])):
                 p, rho, T, a = atmo_isa(self.jcl.atmo['h'][i_atmo])
-                self.atmo['key'].append(self.jcl.atmo['key'][i_atmo])
-                self.atmo['h'].append(self.jcl.atmo['h'][i_atmo])
-                self.atmo['p'].append(p)
-                self.atmo['rho'].append(rho)
-                self.atmo['T'].append(T)
-                self.atmo['a'].append(a)
-
+                self.atmo[self.jcl.atmo['key'][i_atmo]] = {
+                    'h': self.jcl.atmo['h'][i_atmo],
+                    'p': p,
+                    'rho': rho,
+                    'T': T,
+                    'a': a,
+                    }
         else:
             logging.error( 'Unknown atmo method: ' + str(self.jcl.aero['method']))
     
@@ -214,7 +212,7 @@ class Model:
         else:
             logging.error( 'Unknown aero method: ' + str(self.jcl.aero['method']))
             
-        logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(self.aerogrid['n'], len(self.x2grid['ID']) ))
+        logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(self.aerogrid['n'], len(self.x2grid['ID_surf']) ))
             
     def build_aerogrid(self):
         # To avoid interference with other CQUAD4 cards parsed earlier, clear those dataframes first
@@ -290,18 +288,21 @@ class Model:
                          'CP':np.array([self.x2grid['CID'][i_surf]]), 
                          'set':np.array([[0,1,2,3,4,5]]),
                         }
-            surfgrid = {'ID':self.x2grid['ID'][i_surf],
-                        'offset_j':np.array(self.x2grid['offset_j'][i_surf]),
-                        'CD':self.x2grid['CD'][i_surf],
-                        'CP':self.x2grid['CP'][i_surf], 
-                        'set_j':np.array(self.x2grid['set_j'][i_surf]), 
+            surfgrid = {'ID':self.x2grid[i_surf]['ID'],
+                        'offset_j':np.array(self.x2grid[i_surf]['offset_j']),
+                        'CD':self.x2grid[i_surf]['CD'],
+                        'CP':self.x2grid[i_surf]['CP'], 
+                        'set_j':np.array(self.x2grid[i_surf]['set_j']), 
                        }
             dimensions = [6,6*len(self.aerogrid['ID'])]
             rules = spline_rules.rules_point(hingegrid, surfgrid)
             self.Djx2.append(spline_functions.spline_rb(hingegrid, '', surfgrid, '_j', rules, self.coord, dimensions))
     
     def build_AICs_steady(self):
-        self.aero = {'key':[], 'Qjj':[],'interp_wj_corrfac_alpha': []}
+        # set-up empty data structure
+        self.aero = {}
+        for key in self.jcl.aero['key']:
+            self.aero[key] = {}
         if self.jcl.aero['method_AIC'] == 'nastran':
             for i_aero in range(len(self.jcl.aero['key'])):
                 Ajj = read_op4.load_matrix(self.jcl.aero['filename_AIC'][i_aero], sparse_output=False, sparse_format=False)
@@ -309,19 +310,25 @@ class Model:
                     Qjj = np.linalg.inv(np.real(Ajj))
                 else:
                     Qjj = np.linalg.inv(np.real(Ajj).T)
-                self.aero['key'].append(self.jcl.aero['key'][i_aero])
-                self.aero['Qjj'].append(Qjj)
+                self.aero[self.jcl.aero['key'][i_aero]]['Qjj'] =  Qjj
         elif self.jcl.aero['method_AIC'] in ['vlm', 'dlm', 'ae']:
             logging.info( 'Calculating steady AIC matrices ({} panels, k=0.0) for {} Mach number(s)...'.format( self.aerogrid['n'], len(self.jcl.aero['key']) ))
             t_start = time.time()
             if 'xz_symmetry' in self.jcl.aero: 
                 logging.info( ' - XZ Symmetry: {}'.format( str(self.jcl.aero['xz_symmetry']) ) )
-                self.aero['Qjj'], self.aero['Bjj'] = VLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma'], xz_symmetry=self.jcl.aero['xz_symmetry']) # dim: Ma,n,n
+                Qjj, Bjj = VLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma'], xz_symmetry=self.jcl.aero['xz_symmetry']) # dim: Ma,n,n
             else: 
-                self.aero['Qjj'], self.aero['Bjj'] = VLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
-                self.aero['Gamma_jj'], self.aero['Q_ind_jj'] = VLM.calc_Gammas(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
+                Qjj, Bjj = VLM.calc_Qjjs(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
+                Gamma_jj, Q_ind_jj = VLM.calc_Gammas(aerogrid=copy.deepcopy(self.aerogrid), Ma=self.jcl.aero['Ma']) # dim: Ma,n,n
+                for key, Gamma_jj, Q_ind_jj in zip(self.jcl.aero['key'], Gamma_jj, Q_ind_jj):
+                    self.aero[key]['Gamma_jj'] = Gamma_jj
+                    self.aero[key]['Q_ind_jj'] = Q_ind_jj
+            
+            for key, Qjj, Bjj in zip(self.jcl.aero['key'], Qjj, Bjj):
+                self.aero[key]['Qjj'] =  Qjj
+                self.aero[key]['Bjj'] =  Bjj
+                
             logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
-            self.aero['key'] = self.jcl.aero['key']
         else:
             logging.error( 'Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
         
@@ -357,37 +364,36 @@ class Model:
                             Ma=self.jcl.aero['Ma'], 
                             k=np.array(self.jcl.aero['k_red'])/(0.5*self.jcl.general['c_ref']), 
                             xz_symmetry=xz_symmetry)
+        for key, Qjj in zip(self.jcl.aero['key'], Qjj):
+            self.aero[key]['Qjj_unsteady'] = Qjj
+            self.aero[key]['k_red'] =  self.jcl.aero['k_red']
         logging.info( 'done in %.2f [sec].' % (time.time() - t_start))
-        self.aero['Qjj_unsteady'] = Qjj # dim: Ma,k,n,n
-        self.aero['k_red'] =  self.jcl.aero['k_red']
         
     def build_AICs_Nastran(self):
-        self.aero['Qjj_unsteady'] = np.zeros((len(self.jcl.aero['key']), len(self.jcl.aero['k_red']), self.aerogrid['n'], self.aerogrid['n'] ), dtype=complex)
         for i_aero in range(len(self.jcl.aero['key'])):
+            self.aero[self.jcl.aero['key'][i_aero]]['Qjj_unsteady'] = np.zeros((len(self.jcl.aero['k_red']), self.aerogrid['n'], self.aerogrid['n'] ), dtype=complex)
             for i_k in range(len(self.jcl.aero['k_red'])):
                 Ajj = read_op4.load_matrix(self.jcl.aero['filename_AIC_unsteady'][i_aero][i_k], sparse_output=False, sparse_format=False)  
                 if 'given_AIC_is_transposed' in self.jcl.aero and self.jcl.aero['given_AIC_is_transposed']:
                     Qjj = np.linalg.inv(Ajj.T)
                 else:
                     Qjj = np.linalg.inv(Ajj)
-                self.aero['Qjj_unsteady'][i_aero,i_k,:,:] = Qjj 
+                self.aero[self.jcl.aero['key'][i_aero]]['Qjj_unsteady'][i_k,:,:] = Qjj 
         self.aero['k_red'] =  self.jcl.aero['k_red']
       
     def build_rfa(self):
-        # rfa
-        self.aero['ABCD'] = []
-        self.aero['RMSE'] = []
-        for i_aero in range(len(self.jcl.aero['key'])):
-            ABCD, n_poles, betas, RMSE = build_aero_functions.rfa(Qjj = self.aero['Qjj_unsteady'][i_aero,:,:,:], 
+        for key in self.jcl.aero['key']:
+            ABCD, n_poles, betas, RMSE = build_aero_functions.rfa(Qjj = self.aero[key]['Qjj_unsteady'], 
                                                                   k = self.jcl.aero['k_red'], 
                                                                   n_poles = self.jcl.aero['n_poles'], 
-                                                                  filename=self.path_output+'rfa_{}.png'.format(self.jcl.aero['key'][i_aero]))
-            self.aero['ABCD'].append(ABCD)
-            self.aero['RMSE'].append(RMSE)
-        self.aero['n_poles'] = n_poles
-        self.aero['betas'] =  betas
-        #self.aero.pop('Qjj_unsteady') # remove unsteady AICs to save memory
-    
+                                                                  filename=self.path_output+'rfa_{}.png'.format(key))
+            self.aero[key]['ABCD'] = ABCD
+            self.aero[key]['RMSE'] = RMSE
+            self.aero[key]['n_poles'] = n_poles
+            self.aero[key]['betas'] =  betas
+            # Remove unsteady AICs to save memory. No longer critical with the HDF5 data format.
+            del self.aero[key]['Qjj_unsteady']
+
     def build_prop(self):
         if hasattr(self.jcl, 'engine'):
             if self.jcl.engine['method'] == 'VLM4Prop':
@@ -452,40 +458,8 @@ class Model:
                 
     def build_structural_dynamics(self):
         logging.info( 'Building stiffness and mass model...')
+        self.mass = {}
         if self.jcl.mass['method'] in ['mona', 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000']:
-            self.mass = {'key': [],
-                         'Mb': [],
-                         'MGG': [],
-                         'Mfcg': [],  
-                         'cggrid': [],
-                         'cggrid_norm': [],
-                         'PHIstrc_cg': [],
-                         'PHIcfd_cg': [],
-                         'PHIextra_cg': [],
-                         'PHIsensor_cg': [],
-                         'PHImac_cg': [],
-                         'PHIcg_mac': [],
-                         'PHInorm_cg': [],
-                         'PHIcg_norm': [],
-                         'PHIf_strc': [],
-                         'PHIh_strc': [],
-                         'PHIf_extra': [],
-                         'PHIf_sensor': [],
-                         'PHIjf': [],
-                         'PHIlf': [],
-                         'PHIkf': [],
-                         'PHIjh': [],
-                         'PHIlh': [],
-                         'PHIkh': [],
-                         'PHIcfd_f': [],
-                         'Mff': [],
-                         'Kff': [],
-                         'Dff': [],
-                         'Mhh': [],
-                         'Khh': [],
-                         'Dhh': [],
-                         'n_modes': []
-                        }
             
             # select the fem interface
             if self.jcl.mass['method'] in ['modalanalysis', 'guyan']: 
@@ -499,6 +473,8 @@ class Model:
             
             # the stiffness matrix is needed for all methods / fem interfaces
             fem_interface.get_stiffness_matrix()
+            # the stiffness matrix is needed for the modal discplacement method
+            self.KGG = fem_interface.KGG
             
             # do further processing of the stiffness matrix 
             if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'CoFE', 'B2000']:
@@ -511,7 +487,7 @@ class Model:
             # loop over mass configurations
             for i_mass in range(len(self.jcl.mass['key'])):
                 self.build_mass_matrices(fem_interface, i_mass)
-                self.build_translation_matrices(i_mass)
+                self.build_translation_matrices(self.jcl.mass['key'][i_mass])
         else:
             logging.error( 'Unknown mass method: ' + str(self.jcl.mass['method']))
                 
@@ -538,33 +514,34 @@ class Model:
         # apply coodinate transformation so that all deformations are given in the basic coordinate system
         PHIf_strc = self.PHIgg.dot(PHIf_strc.T).T
         PHIh_strc = self.PHIgg.dot(PHIh_strc.T).T
-        # store everything        
-        self.mass['key'].append(self.jcl.mass['key'][i_mass])
-        self.mass['Mb'].append(Mb)
-        self.mass['MGG'].append(MGG)
-        self.mass['cggrid'].append(cggrid)
-        self.mass['cggrid_norm'].append(cggrid_norm)
-        self.mass['PHIf_strc'].append(PHIf_strc)
-        self.mass['Mff'].append(Mff) 
-        self.mass['Kff'].append(Kff) 
-        self.mass['Dff'].append(Dff) 
-        self.mass['PHIh_strc'].append(PHIh_strc)
-        self.mass['Mhh'].append(Mhh) 
-        self.mass['Khh'].append(Khh) 
-        self.mass['Dhh'].append(Dhh) 
-        self.mass['n_modes'].append(len(self.jcl.mass['modes'][i_mass]))
-                
-    def build_translation_matrices(self, i_mass):
+        # store everything
+        self.mass[self.jcl.mass['key'][i_mass]] = {
+            'Mb': Mb,
+            'MGG': MGG,
+            'cggrid': cggrid,
+            'cggrid_norm': cggrid_norm,
+            'PHIf_strc': PHIf_strc,
+            'Mff': Mff,
+            'Kff': Kff,
+            'Dff': Dff,
+            'PHIh_strc': PHIh_strc,
+            'Mhh': Mhh,
+            'Khh': Khh,
+            'Dhh': Dhh,
+            'n_modes': len(self.jcl.mass['modes'][i_mass]),
+            }
+   
+    def build_translation_matrices(self, key):
         """
         In this function, we do a lot of splining. Depending on the intended solution sequence, 
         different matrices are required. 
         """
          
-        cggrid          = self.mass['cggrid'][i_mass]
-        cggrid_norm     = self.mass['cggrid_norm'][i_mass]
-        MGG             = self.mass['MGG'][i_mass]
-        PHIf_strc       = self.mass['PHIf_strc'][i_mass]
-        PHIh_strc       = self.mass['PHIh_strc'][i_mass]
+        cggrid          = self.mass[key]['cggrid']
+        cggrid_norm     = self.mass[key]['cggrid_norm']
+        MGG             = self.mass[key]['MGG']
+        PHIf_strc       = self.mass[key]['PHIf_strc']
+        PHIh_strc       = self.mass[key]['PHIh_strc']
                 
         rules = spline_rules.rules_point(cggrid, self.strcgrid)
         PHIstrc_cg = spline_functions.spline_rb(cggrid, '', self.strcgrid, '', rules, self.coord)
@@ -574,22 +551,22 @@ class Model:
             PHIcfd_cg = spline_functions.spline_rb(cggrid, '', self.cfdgrid, '', rules, self.coord)
             # some pre-multiplications to speed-up main processing
             PHIcfd_f = self.PHIcfd_strc.dot(PHIf_strc.T)
-            self.mass['PHIcfd_cg'].append(PHIcfd_cg)
-            self.mass['PHIcfd_f'].append(PHIcfd_f)
+            self.mass[key]['PHIcfd_cg'] = PHIcfd_cg
+            self.mass[key]['PHIcfd_f']  = PHIcfd_f
             
         if hasattr(self, 'extragrid'):
             rules = spline_rules.rules_point(cggrid, self.extragrid)
             PHIextra_cg = spline_functions.spline_rb(cggrid, '', self.extragrid, '', rules, self.coord)
             PHIf_extra = PHIf_strc[:,self.extragrid['set_strcgrid'].reshape(1,-1)[0]]
-            self.mass['PHIextra_cg'].append(PHIextra_cg)
-            self.mass['PHIf_extra'].append(PHIf_extra) 
+            self.mass[key]['PHIextra_cg'] = PHIextra_cg
+            self.mass[key]['PHIf_extra']  = PHIf_extra 
         
         if hasattr(self, 'sensorgrid'):
             rules = spline_rules.rules_point(cggrid, self.sensorgrid)
             PHIsensor_cg = spline_functions.spline_rb(cggrid, '', self.sensorgrid, '', rules, self.coord)
             PHIf_sensor = PHIf_strc[:,self.sensorgrid['set_strcgrid'].reshape(1,-1)[0]]
-            self.mass['PHIsensor_cg'].append(PHIsensor_cg)
-            self.mass['PHIf_sensor'].append(PHIf_sensor) 
+            self.mass[key]['PHIsensor_cg'] = PHIsensor_cg
+            self.mass[key]['PHIf_sensor']  = PHIf_sensor 
 
         rules = spline_rules.rules_point(cggrid, self.macgrid)
         PHImac_cg = spline_functions.spline_rb(cggrid, '', self.macgrid, '', rules, self.coord)    
@@ -612,16 +589,16 @@ class Model:
         Mfcg=PHIf_strc.dot(-MGG.dot(PHIstrc_cg))
 
         # save all matrices to data structure
-        self.mass['Mfcg'].append(Mfcg)
-        self.mass['PHImac_cg'].append(PHImac_cg)
-        self.mass['PHIcg_mac'].append(PHIcg_mac)
-        self.mass['PHIcg_norm'].append(PHIcg_norm)
-        self.mass['PHInorm_cg'].append(PHInorm_cg)
-        self.mass['PHIstrc_cg'].append(PHIstrc_cg) 
-        self.mass['PHIjf'].append(PHIjf)
-        self.mass['PHIlf'].append(PHIlf)
-        self.mass['PHIkf'].append(PHIkf)
-        self.mass['PHIjh'].append(PHIjh)
-        self.mass['PHIlh'].append(PHIlh)
-        self.mass['PHIkh'].append(PHIkh)
+        self.mass[key]['Mfcg'] = Mfcg
+        self.mass[key]['PHImac_cg'] = PHImac_cg
+        self.mass[key]['PHIcg_mac'] = PHIcg_mac
+        self.mass[key]['PHIcg_norm'] = PHIcg_norm
+        self.mass[key]['PHInorm_cg'] = PHInorm_cg
+        self.mass[key]['PHIstrc_cg'] = PHIstrc_cg
+        self.mass[key]['PHIjf'] = PHIjf
+        self.mass[key]['PHIlf'] = PHIlf
+        self.mass[key]['PHIkf'] = PHIkf
+        self.mass[key]['PHIjh'] = PHIjh
+        self.mass[key]['PHIlh'] = PHIlh
+        self.mass[key]['PHIkh'] = PHIkh
 

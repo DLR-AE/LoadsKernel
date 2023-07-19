@@ -22,30 +22,20 @@ def build_x2grid(bdf_reader, aerogrid, coord):
     # build additional coordinate systems
     read_mona.add_CORD2R(bdf_reader.cards['CORD2R'], coord)
     
-    x2grid = {'ID_surf': aesurf['ID'],
+    x2grid = { 'ID_surf': aesurf['ID'],
                'CID': aesurf['CID'],
                'key': aesurf['key'],
                'eff': aesurf['eff'],
-               'ID': [],
-               'CD': [],
-               'CP': [], 
-               'offset_j': [],
-               'set_j': [],
                }    
     for i_surf in range(len(aesurf['ID'])):
-        x2grid['CD'].append([])
-        x2grid['CP'].append([])
-        x2grid['ID'].append([])
-        x2grid['offset_j'].append([])
-        x2grid['set_j'].append([])
-        
+        x2grid[i_surf] = {'CD': [], 'CP': [], 'ID': [], 'offset_j': [], 'set_j': []}
         for i_panel in aelist['values'][aelist['ID'].index( aesurf['AELIST'][i_surf] )]:
             pos_panel = np.where(aerogrid['ID']==i_panel)[0][0]
-            x2grid['ID'][i_surf].append(aerogrid['ID'][pos_panel])
-            x2grid['CD'][i_surf].append(aerogrid['CD'][pos_panel])
-            x2grid['CP'][i_surf].append(aerogrid['CP'][pos_panel])
-            x2grid['offset_j'][i_surf].append(aerogrid['offset_j'][pos_panel])
-            x2grid['set_j'][i_surf].append(aerogrid['set_j'][pos_panel])
+            x2grid[i_surf]['ID'].append(aerogrid['ID'][pos_panel])
+            x2grid[i_surf]['CD'].append(aerogrid['CD'][pos_panel])
+            x2grid[i_surf]['CP'].append(aerogrid['CP'][pos_panel])
+            x2grid[i_surf]['offset_j'].append(aerogrid['offset_j'][pos_panel])
+            x2grid[i_surf]['set_j'].append(aerogrid['set_j'][pos_panel])
         
     return x2grid, coord   
 

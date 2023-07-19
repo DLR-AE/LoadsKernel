@@ -11,7 +11,7 @@ except:
     pass
 
 from loadskernel import io_functions
-from loadskernel.io_functions import specific_functions
+from loadskernel.io_functions import data_handling
 import loadskernel.solution_sequences as solution_sequences
 import loadskernel.post_processing as post_processing
 import loadskernel.gather_loads as gather_modul
@@ -56,8 +56,8 @@ class ProgramFlowHelper(object):
             self.use_multiprocessing = False
 
     def setup_path(self):
-        self.path_input = io_functions.specific_functions.check_path(self.path_input)
-        self.path_output = io_functions.specific_functions.check_path(self.path_output)
+        self.path_input = io_functions.data_handling.check_path(self.path_input)
+        self.path_output = io_functions.data_handling.check_path(self.path_output)
 
     def print_logo(self):
         logging.info('')
@@ -75,7 +75,7 @@ class ProgramFlowHelper(object):
     def setup_logger_cluster(self, i):
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
-        path_log = io_functions.specific_functions.check_path(self.path_output+'log/')
+        path_log = io_functions.data_handling.check_path(self.path_output+'log/')
         # Get the names of all existing loggers.
         existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
         if 'lk_clusterlogfile' in existing_handlers:
@@ -145,7 +145,7 @@ class Kernel(ProgramFlowHelper):
         logging.info('main: ' + str(self.main))
         logging.info('post: ' + str(self.post))
         logging.info('test: ' + str(self.test))
-        self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
+        self.jcl = io_functions.data_handling.load_jcl(self.job_name, self.path_input, self.jcl)
         # add machinefile to jcl
         self.jcl.machinefile = self.machinefile
 
@@ -170,9 +170,7 @@ class Kernel(ProgramFlowHelper):
         model.build_model()
 
         logging.info('--> Saving model data.')
-        del model.jcl
-        with open(self.path_output + 'model_' + self.job_name + '.pickle', 'wb') as f:
-            io_functions.specific_functions.dump_pickle(model.__dict__, f)
+        io_functions.data_handling.dump_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5', model.__dict__)
         logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
     def main_common(self, model, jcl, i):
@@ -208,14 +206,14 @@ class Kernel(ProgramFlowHelper):
     def run_main_sequential(self):
         logging.info('--> Starting Main in sequential mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        model = io_functions.data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         if self.myid == 0:
             mon = gather_modul.GatherLoads(self.jcl, model)
             if self.restart:
                 logging.info('Restart option: loading existing responses.')
                 # open response
-                responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
-            fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
+                responses = io_functions.data_handling.load_hdf5_responses(self.job_name, self.path_output)
+            fid = io_functions.data_handling.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
         
         for i in range(len(self.jcl.trimcase)):
             if self.restart and i in [response['i'][()] for response in responses]:
@@ -228,17 +226,17 @@ class Kernel(ProgramFlowHelper):
                 mon.gather_monstations(self.jcl.trimcase[i], response)
                 mon.gather_dyn2stat(response)
                 logging.info('--> Saving response(s).')
-                io_functions.specific_functions.write_hdf5(fid, response, path='/'+str(response['i']))
+                io_functions.data_handling.write_hdf5(fid, response, path='/'+str(response['i']))
         if self.myid == 0:
             # close response
-            io_functions.specific_functions.close_hdf5(fid)
+            io_functions.data_handling.close_hdf5(fid)
     
             logging.info('--> Saving monstation(s).')
-            io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
+            io_functions.data_handling.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
                                                       mon.monstations)
     
             logging.info('--> Saving dyn2stat.')
-            io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
+            io_functions.data_handling.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
                                                       mon.dyn2stat)
         logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
@@ -251,7 +249,7 @@ class Kernel(ProgramFlowHelper):
         """
         logging.info('--> Starting Main in multiprocessing mode for %d trimcase(s).' % len(self.jcl.trimcase))
         t_start = time.time()
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        model = io_functions.data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         # MPI tags can be any integer values
         tags = {'ready': 0,
                 'start': 1,
@@ -265,7 +263,7 @@ class Kernel(ProgramFlowHelper):
             
             mon = gather_modul.GatherLoads(self.jcl, model)
             # open response
-            fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')
+            fid = io_functions.data_handling.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')
             
             closed_workers = 0
             i_subcase = 0
@@ -297,21 +295,21 @@ class Kernel(ProgramFlowHelper):
                         # Trim failed, no post processing, save the empty response
                         logging.info("--> Received response ('failed') from worker %d." % source)
                     logging.info('--> Saving response(s).')
-                    io_functions.specific_functions.write_hdf5(fid, response, path='/'+str(response['i']))
+                    io_functions.data_handling.write_hdf5(fid, response, path='/'+str(response['i']))
                 
                 elif tag == tags['exit']:
                     # The worker confirms the exit.
                     logging.debug('Worker %d exited.' % source)
                     closed_workers += 1
             # close response
-            io_functions.specific_functions.close_hdf5(fid)
+            io_functions.data_handling.close_hdf5(fid)
             logging.info('--> Saving monstation(s).')
-            io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
+            io_functions.data_handling.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
                                                       mon.monstations)
             # with open(path_output + 'monstations_' + job_name + '.mat', 'wb') as f:
             #    io_matlab.save_mat(f, mon.monstations)
             logging.info('--> Saving dyn2stat.')
-            io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
+            io_functions.data_handling.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
                                               mon.dyn2stat)
         # The worker process runs on all other processors
         else:
@@ -334,12 +332,12 @@ class Kernel(ProgramFlowHelper):
         logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
     def run_post(self):
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
+        model = io_functions.data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
+        responses = io_functions.data_handling.load_hdf5_responses(self.job_name, self.path_output)
         logging.info('--> Loading monstations(s).')
-        monstations = io_functions.specific_functions.load_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5')
+        monstations = io_functions.data_handling.load_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5')
         logging.info('--> Loading dyn2stat.')
-        dyn2stat_data = io_functions.specific_functions.load_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5')
+        dyn2stat_data = io_functions.data_handling.load_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5')
 
         logging.info('--> Drawing some standard plots.')
         if 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
@@ -395,8 +393,8 @@ class Kernel(ProgramFlowHelper):
         # the import is performed here to avoid unnecessary import failures e.g. on a cluster.
         import loadskernel.plotting_extra as plotting_extra
         # Load the model and the response as usual
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        responses = io_functions.specific_functions.load_hdf5_responses(self.job_name, self.path_output)
+        model = io_functions.data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
+        responses = io_functions.data_handling.load_hdf5_responses(self.job_name, self.path_output)
         
         logging.info( '--> Drawing some more detailed plots.')
         plt = plotting_extra.DetailedPlots(self.jcl, model)
@@ -421,7 +419,7 @@ class Kernel(ProgramFlowHelper):
         At the moment, I also use this section for custom analysis scripts.
         """
 #         with open(self.path_output + 'statespacemodel_' + self.job_name + '.pickle', 'wb') as fid:
-#             io_functions.specific_functions.dump_pickle(responses, fid)
+#             io_functions.data_handling.dump_pickle(responses, fid)
 
 #         from scripts import plot_flexdefo
 #         plot = plot_flexdefo.Flexdefo(self.jcl, model, responses)
@@ -452,7 +450,7 @@ class ClusterMode(Kernel):
 
     def run_cluster(self, i):
         i = int(i)
-        self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
+        self.jcl = io_functions.data_handling.load_jcl(self.job_name, self.path_input, self.jcl)
         # add machinefile to jcl
         self.jcl.machinefile = self.machinefile
         self.setup_logger_cluster(i=i)
@@ -471,7 +469,7 @@ class ClusterMode(Kernel):
         """
         logging.info('--> Starting main in single mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
         t_start = time.time()
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
+        model = io_functions.data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         jcl = copy.deepcopy(self.jcl)
         """
         Before starting the simulation, dump an empty / dummy response. This is a workaround in case SU2 diverges, 
@@ -483,17 +481,17 @@ class ClusterMode(Kernel):
         empty_response = {'i':i, 
                           'successful':False}
         if self.myid == 0:
-            path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
+            path_responses = io_functions.data_handling.check_path(self.path_output+'responses/')
             with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb')  as f:
-                io_functions.specific_functions.dump_pickle(empty_response, f)
+                io_functions.data_handling.dump_pickle(empty_response, f)
         # Start the simulation
         response = self.main_common(model, jcl, i)
         # Overwrite the empty response from above
         if self.myid == 0:
             logging.info('--> Saving response(s).')
-            path_responses = io_functions.specific_functions.check_path(self.path_output+'responses/')
+            path_responses = io_functions.data_handling.check_path(self.path_output+'responses/')
             with open(path_responses + 'response_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb')  as f:
-                io_functions.specific_functions.dump_pickle(response, f)
+                io_functions.data_handling.dump_pickle(response, f)
         logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
     def gather_cluster(self):
@@ -502,11 +500,11 @@ class ClusterMode(Kernel):
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
         logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
         logging.info('cluster gather mode')
-        self.jcl = io_functions.specific_functions.load_jcl(self.job_name, self.path_input, self.jcl)
-        model = io_functions.specific_functions.load_model(self.job_name, self.path_output)
-        responses = io_functions.specific_functions.gather_responses(self.job_name, io_functions.specific_functions.check_path(self.path_output+'responses'))
+        self.jcl = io_functions.data_handling.load_jcl(self.job_name, self.path_input, self.jcl)
+        model = io_functions.data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
+        responses = io_functions.data_handling.gather_responses(self.job_name, io_functions.data_handling.check_path(self.path_output+'responses'))
         mon = gather_modul.GatherLoads(self.jcl, model)
-        fid = io_functions.specific_functions.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
+        fid = io_functions.data_handling.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
         for i in range(len(self.jcl.trimcase)):
             response = responses[[response['i'] for response in responses].index(i)]
             if response['successful']:
@@ -514,16 +512,16 @@ class ClusterMode(Kernel):
                 mon.gather_dyn2stat(response)
 
             logging.info('--> Saving response(s).')
-            io_functions.specific_functions.write_hdf5(fid, response, path='/'+str(response['i']))
+            io_functions.data_handling.write_hdf5(fid, response, path='/'+str(response['i']))
         # close response
-        io_functions.specific_functions.close_hdf5(fid)
+        io_functions.data_handling.close_hdf5(fid)
 
         logging.info('--> Saving monstation(s).')
-        io_functions.specific_functions.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
+        io_functions.data_handling.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
                                                   mon.monstations)
 
         logging.info('--> Saving dyn2stat.')
-        io_functions.specific_functions.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
+        io_functions.data_handling.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
                                                   mon.dyn2stat)
         logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
 
