@@ -293,7 +293,7 @@ class SolutionSequences(TrimConditions):
             self.response = equations.eval_equations(xfree_0, time=0.0, modus='trim_full_output')
             self.successful = True
         else:
-            logging.info('running trim for ' + str(len(xfree_0)) + ' variables...')
+            logging.info('Running trim for ' + str(len(xfree_0)) + ' variables...')
             try:
                 """
                 Because the iterative trim is typically used in combination with CFD, some solver settings need to be modified.

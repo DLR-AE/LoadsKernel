@@ -166,7 +166,7 @@ class Steady(Common):
         while not converged:
             inner_loops += 1
             response = self.equations(X, time, 'trim_full_output')
-            logging.info('Inner iteration {:>3d}, calculate structural deformations...'.format(self.counter))
+            logging.info('Inner iteration {}, calculate structural deformations.'.format(self.counter))
             Uf_new = linalg.solve(self.Kff, response['Pf'])
             
             # Add a relaxation factor between each loop to reduce overshoot and/or oscillations.
@@ -181,8 +181,8 @@ class Steady(Common):
                 epsilon = self.jcl.general['b_ref']*1.0e-5
             else:
                 epsilon = self.jcl.general['b_ref']*1.0e-4
-            logging.info('Relaxation factor: {}'.format(f_relax))
-            logging.info('Epsilon: {:0.6g}'.format(epsilon))
+            logging.info(' - Relaxation factor: {}'.format(f_relax))
+            logging.info(' - Epsilon: {:0.6g}'.format(epsilon))
             
             # recover Uf_old from last step and blend with Uf_now
             Uf_old = [self.trimcond_X[np.where((self.trimcond_X[:,0] == 'Uf'+str(i_mode)))[0][0],2] for i_mode in range(1, self.n_modes+1)]
@@ -201,11 +201,11 @@ class Steady(Common):
             self.defo_old = np.copy(defo_new)
             if np.abs(ddefo) < epsilon:
                 converged = True
-                logging.info('Inner iteration {:d}, defo_new: {:0.6g}, ddefo: {:0.6g}, converged.'.format(self.counter, defo_new, ddefo))
+                logging.info(' - Max. deformation: {:0.6g}, delta: {:0.6g} smaller than epsilon, converged.'.format( defo_new, ddefo))
             else:
-                logging.info('Inner iteration {:d}, defo_new: {:0.6g}, ddefo: {:0.6g}'.format(self.counter, defo_new, ddefo))
+                logging.info(' - Max. deformation: {:0.6g}, delta: {:0.6g}'.format(defo_new, ddefo))
             if inner_loops > 20:
-                raise ConvergenceError('No convergence of structural deformation achieved after {} inner loops. Check convergence of CFD solution and/or convergence criterion "ddefo".'.format(inner_loops))
+                raise ConvergenceError('No convergence of structural deformation achieved after {} inner loops. Check convergence of CFD solution and/or convergence criterion "delta".'.format(inner_loops))
         # get the current values from Y and substract tamlab.figure()
         # fsolve only finds the roots; Y = 0
         Y_target_ist = response['Y'][np.where((self.trimcond_Y[:,1] == 'target'))[0]]

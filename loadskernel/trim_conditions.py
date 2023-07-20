@@ -157,7 +157,7 @@ class TrimConditions:
         # --- pitch only --- 
         # ------------------
         if self.trimcase['maneuver'] in ['pitch', 'elevator']:
-            logging.info('setting trim conditions to "pitch"')
+            logging.info('Setting trim conditions to "pitch"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
@@ -170,7 +170,7 @@ class TrimConditions:
         # --- pitch only, but with stabilizer --- 
         # ---------------------------------------
         elif self.trimcase['maneuver'] in ['stabilizer']:
-            logging.info('setting trim conditions to "stabilizer"')
+            logging.info('Setting trim conditions to "stabilizer"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],1] = 'fix'
@@ -184,7 +184,7 @@ class TrimConditions:
         # --- pitch and roll only, no yaw --- 
         # -----------------------------------
         elif self.trimcase['maneuver'] == 'pitch&roll':
-            logging.info('setting trim conditions to "pitch&roll"')
+            logging.info('Setting trim conditions to "pitch&roll"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
             # outputs
@@ -194,7 +194,7 @@ class TrimConditions:
         # --- pitch and yaw only, no roll --- 
         # -----------------------------------
         elif self.trimcase['maneuver'] == 'pitch&yaw':
-            logging.info('setting trim conditions to "pitch&yaw"')
+            logging.info('Setting trim conditions to "pitch&yaw"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             # outputs
@@ -204,7 +204,7 @@ class TrimConditions:
         # --- level landing --- 
         # ---------------------
         elif self.trimcase['maneuver'] in ['L1wheel', 'L2wheel']:
-            logging.info('setting trim conditions to "level landing"')
+            logging.info('Setting trim conditions to "level landing"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
@@ -220,7 +220,7 @@ class TrimConditions:
         # --- 3 wheel landing --- 
         # -----------------------
         elif self.trimcase['maneuver'] in ['L3wheel']:
-            logging.info('setting trim conditions to "3 wheel landing"')
+            logging.info('Setting trim conditions to "3 wheel landing"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
@@ -239,7 +239,7 @@ class TrimConditions:
         # -----------------
         # Sinken (w) wird erlaubt, damit die Geschwindigkeit konstant bleibt (du = 0.0)
         elif self.trimcase['maneuver'] == 'segelflug':
-            logging.info('setting trim conditions to "segelflug"')
+            logging.info('Setting trim conditions to "segelflug"')
             # inputs 
             # without changes
             # outputs
@@ -254,7 +254,7 @@ class TrimConditions:
         # --- pratt, alpha only --- 
         # -------------------------
         elif self.trimcase['maneuver'] == 'pratt':
-            logging.info('setting trim conditions to "pratt"')
+            logging.info('Setting trim conditions to "pratt"')
             # inputs
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],1] = 'fix'
@@ -268,7 +268,7 @@ class TrimConditions:
         # --- CS fixed --- 
         # ----------------
         elif self.trimcase['maneuver'] == 'Xi&Zeta-fixed':
-            logging.info('setting trim conditions to "Xi&Zeta-fixed"')
+            logging.info('Setting trim conditions to "Xi&Zeta-fixed"')
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],2] = self.trimcase['command_xi']
@@ -277,7 +277,7 @@ class TrimConditions:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
 
         elif self.trimcase['maneuver'] == 'CS-fixed':
-            logging.info('setting trim conditions to "CS-fixed"')
+            logging.info('Setting trim conditions to "CS-fixed"')
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
@@ -289,7 +289,7 @@ class TrimConditions:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
             
         elif self.trimcase['maneuver'] == 'CS&Acc-fixed':
-            logging.info('setting trim conditions to "CS&Acc-fixed"')
+            logging.info('Setting trim conditions to "CS&Acc-fixed"')
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
@@ -304,7 +304,7 @@ class TrimConditions:
         # --- sideslip --- 
         # ----------------
         elif self.trimcase['maneuver'] == 'sideslip':
-            logging.info('setting trim conditions to "sideslip"')
+            logging.info('Setting trim conditions to "sideslip"')
             # fixed roll and yaw control
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
@@ -321,7 +321,7 @@ class TrimConditions:
             self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],2] = self.trimcase['beta']
         
         elif self.trimcase['maneuver'] == 'coordinated_sideslip':
-            logging.info('setting trim conditions to "sideslip"')
+            logging.info('Setting trim conditions to "sideslip"')
             
             # set sideslip condition
             self.states[np.where((self.states[:,0] == 'psi'))[0][0],1] = 'free'
@@ -335,7 +335,7 @@ class TrimConditions:
         # --------------
         # Die Steuerkommandos xi, eta und zeta werden vorgegeben und die resultierenden Beschleunigungen sind frei. 
         elif self.trimcase['maneuver'] in ['bypass', 'derivatives']:
-            logging.info('setting trim conditions to "bypass"')
+            logging.info('Setting trim conditions to "bypass"')
             vtas = self.trimcase['Ma'] * self.atmo['a']
             theta = self.trimcase['theta']
             u = vtas*np.cos(theta)
@@ -360,7 +360,7 @@ class TrimConditions:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
         
         else:
-            logging.info('setting trim conditions to "default"')
+            logging.info('Setting trim conditions to "default"')
 
     def add_stabilizer_setting(self):
         if 'stabilizer' in self.trimcase:
@@ -374,13 +374,13 @@ class TrimConditions:
     def add_engine(self):
         if hasattr(self.jcl, 'engine'):
             if 'thrust' in self.trimcase and self.trimcase['thrust'] in ['free', 'balanced']:
-                logging.info('setting trim conditions to "balanced thrust"')
+                logging.info('Setting trim conditions to "balanced thrust"')
                 # inputs
                 self.inputs[np.where((self.inputs[:,0] == 'thrust'))[0][0],1] = 'free'
                 # outputs
                 self.state_derivatives[np.where((self.state_derivatives[:,0] == 'du'))[0][0],1] = 'target'
             elif 'thrust' in self.trimcase:
-                logging.info('setting trim conditions to {} [N] thrust per engine'.format(self.trimcase['thrust']))
+                logging.info('Setting trim conditions to {} [N] thrust per engine'.format(self.trimcase['thrust']))
                 # inputs
                 self.inputs[np.where((self.inputs[:,0] == 'thrust'))[0][0],2] = self.trimcase['thrust']
 
@@ -389,7 +389,7 @@ class TrimConditions:
         self.lg_derivatives = []
         
         if self.jcl.landinggear['method'] in ['generic']:
-            logging.info('adding 2 x {} states for landing gear'.format(self.model.extragrid['n']))
+            logging.info('Adding 2 x {} states for landing gear'.format(self.model.extragrid['n']))
             for i in range(self.model.extragrid['n']):
                 self.lg_states.append(self.response['p1'][i] - self.jcl.landinggear['para'][i]['stroke_length'] - self.jcl.landinggear['para'][i]['fitting_length'])
                 self.lg_derivatives.append(self.response['dp1'][i])
@@ -414,10 +414,10 @@ class TrimConditions:
         if 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'generalized':
             logging.error('Generalized RFA not yet implemented.')
         elif 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'halfgeneralized':
-            logging.info('adding {} x {} unsteady lag states to the system'.format(2 * self.n_modes, n_poles))
+            logging.info('Adding {} x {} unsteady lag states to the system'.format(2 * self.n_modes, n_poles))
             self.lag_states = np.zeros((2 * self.n_modes * n_poles)) 
         else:
-            logging.info('adding {} x {} unsteady lag states to the system'.format(self.model['aerogrid']['n'][()], n_poles))
+            logging.info('Adding {} x {} unsteady lag states to the system'.format(self.model['aerogrid']['n'][()], n_poles))
             self.lag_states = np.zeros((self.model['aerogrid']['n'][()] * n_poles)) 
         # update response with lag states
         self.response['X'] = np.hstack((self.response['X'], self.lag_states ))
