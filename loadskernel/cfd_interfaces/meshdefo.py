@@ -1,10 +1,7 @@
-import scipy.io.netcdf as netcdf
 import numpy as np
-import logging, h5py, shutil
+import logging 
 
-import loadskernel.spline_functions as spline_functions
 import loadskernel.build_splinegrid as build_splinegrid
-from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 class Meshdefo(object):
     """
@@ -12,6 +9,7 @@ class Meshdefo(object):
     """
                
     def Ux2(self, Ux2):
+        logging.info('Apply control surface deflections to cfdgrid.')
         Ujx2 = np.zeros(self.aerogrid['n']*6)
         if 'hingeline' in self.jcl.aero and self.jcl.aero['hingeline'] == 'y':
             hingeline = 'y'
@@ -20,7 +18,7 @@ class Meshdefo(object):
         else: # default
             hingeline = 'y'
         for i_x2 in range(len(self.x2grid['key'])):
-            logging.info('Apply control surface deflections of {} for {:0.4f} [deg] to cfdgrid.'.format(self.x2grid['key'][i_x2], Ux2[i_x2]/np.pi*180.0))   
+            logging.debug('Apply deflection of {} for {:0.4f} [deg].'.format(self.x2grid['key'][i_x2], Ux2[i_x2]/np.pi*180.0))   
             if hingeline == 'y':
                 Ujx2 += np.dot(self.Djx2[i_x2],[0,0,0,0,Ux2[i_x2],0])
             elif hingeline == 'z':
