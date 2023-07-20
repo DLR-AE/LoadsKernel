@@ -181,7 +181,7 @@ class Spline_rbf:
         PHI_coo = insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])
         PHI_coo = insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,2], grid_i['set'+set_i][:,2])
         # better sparse format than coo
-        # self.PHI_expanded = PHI_coo.tocsc() 
+        self.PHI_expanded = PHI_coo.tocsc() 
         logging.debug(' - done in {:.2f} sec'.format(time.time() - t_start))
                 
     def eval_rbf(self, r):
