@@ -17,7 +17,6 @@ except:
     pass
 
 from loadskernel import plotting_standard
-import loadskernel.io_functions as io_functions
 
 class DetailedPlots(plotting_standard.LoadPlots):
     
@@ -90,7 +89,7 @@ class DetailedPlots(plotting_standard.LoadPlots):
             trimcase   = self.jcl.trimcase[response['i'][()]]
             logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
 
-            self.n_modes = self.model['mass'][self.trimcase['mass']]['n_modes'][()]
+            self.n_modes = self.model['mass'][trimcase['mass']]['n_modes'][()]
             
             Cl = response['Pmac'][:,2] / response['q_dyn'][:].T / self.jcl.general['A_ref']
             ax11.plot(response['t'], response['Pmac'][:,2], 'b-')
