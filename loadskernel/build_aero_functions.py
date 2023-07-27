@@ -16,55 +16,36 @@ import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
 import loadskernel.engine_interfaces.propeller
 
-def build_x2grid(jcl_aero, aerogrid, coord):
-    # parse given bdf files
-    bdf_reader = read_bdf.Reader()
-    bdf_reader.process_deck(jcl_aero['filename_aesurf'] + jcl_aero['filename_aelist'])
+def build_x2grid(bdf_reader, aerogrid, coord):
     aesurf = read_mona.add_AESURF(bdf_reader.cards['AESURF'])
     aelist = read_mona.add_SET1(bdf_reader.cards['AELIST'])
     # build additional coordinate systems
     read_mona.add_CORD2R(bdf_reader.cards['CORD2R'], coord)
     
-    x2grid = {'ID_surf': aesurf['ID'],
+    x2grid = { 'ID_surf': aesurf['ID'],
                'CID': aesurf['CID'],
                'key': aesurf['key'],
                'eff': aesurf['eff'],
-               'ID': [],
-               'CD': [],
-               'CP': [], 
-               'offset_j': [],
-               'set_j': [],
                }    
     for i_surf in range(len(aesurf['ID'])):
-        x2grid['CD'].append([])
-        x2grid['CP'].append([])
-        x2grid['ID'].append([])
-        x2grid['offset_j'].append([])
-        x2grid['set_j'].append([])
-        
+        x2grid[i_surf] = {'CD': [], 'CP': [], 'ID': [], 'offset_j': [], 'set_j': []}
         for i_panel in aelist['values'][aelist['ID'].index( aesurf['AELIST'][i_surf] )]:
             pos_panel = np.where(aerogrid['ID']==i_panel)[0][0]
-            x2grid['ID'][i_surf].append(aerogrid['ID'][pos_panel])
-            x2grid['CD'][i_surf].append(aerogrid['CD'][pos_panel])
-            x2grid['CP'][i_surf].append(aerogrid['CP'][pos_panel])
-            x2grid['offset_j'][i_surf].append(aerogrid['offset_j'][pos_panel])
-            x2grid['set_j'][i_surf].append(aerogrid['set_j'][pos_panel])
+            x2grid[i_surf]['ID'].append(aerogrid['ID'][pos_panel])
+            x2grid[i_surf]['CD'].append(aerogrid['CD'][pos_panel])
+            x2grid[i_surf]['CP'].append(aerogrid['CP'][pos_panel])
+            x2grid[i_surf]['offset_j'].append(aerogrid['offset_j'][pos_panel])
+            x2grid[i_surf]['set_j'].append(aerogrid['set_j'][pos_panel])
         
     return x2grid, coord   
 
-def build_aerogrid(filename, method_caero = 'CAERO1'):
+def build_aerogrid(bdf_reader, filename='', method_caero='CAERO1'):
     if method_caero == 'CQUAD4':
-        # parse given bdf files
-        bdf_reader = read_bdf.Reader()
-        bdf_reader.process_deck(filename)
         # all corner points are defined as grid points by ModGen
         caero_grid = read_mona.add_GRIDS(bdf_reader.cards['GRID'].sort_values('ID'))
         # four grid points are assembled to one panel, this is expressed as CQUAD4s 
         caero_panels = read_mona.add_shell_elements(bdf_reader.cards['CQUAD4'].sort_values('ID'))
     elif method_caero in ['CAERO1', 'CAERO7']:
-        # parse given bdf files
-        bdf_reader = read_bdf.Reader()
-        bdf_reader.process_deck(filename)
         # Adjust the counting of CAERO7 (ZAERO) panels to CAERO1 (Nastran)
         bdf_reader.cards['CAERO7']['NSPAN']  -= 1
         bdf_reader.cards['CAERO7']['NCHORD'] -= 1

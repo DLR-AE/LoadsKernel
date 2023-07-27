@@ -1,14 +1,14 @@
 
 import numpy as np
-import logging, os, subprocess, shlex, sys, platform, time, copy
+import logging, os, sys, time, copy
 
-import loadskernel.cfd_interfaces.meshdefo as meshdefo
-import loadskernel.spline_functions as spline_functions
-import loadskernel.build_splinegrid as build_splinegrid
+from loadskernel.cfd_interfaces import meshdefo
+from loadskernel import spline_functions
 from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
 from loadskernel.cfd_interfaces.tau_interface import check_para_path, copy_para_file, check_cfd_folders
 from loadskernel.grid_trafo import grid_trafo, vector_trafo
 from loadskernel.solution_tools import calc_drehmatrix
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 try:
     import SU2, pysu2
@@ -38,9 +38,19 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         self.jcl        = solution.jcl
         self.trimcase   = solution.trimcase
         self.simcase    = solution.simcase
-        # get some indices
-        self.i_atmo     = self.model.atmo['key'].index(self.trimcase['altitude'])
-        self.i_mass     = self.model.mass['key'].index(self.trimcase['mass'])
+        # load data from HDF5
+        self.mass       = load_hdf5_dict(self.model['mass'][self.trimcase['mass']])
+        self.atmo       = load_hdf5_dict(self.model['atmo'][self.trimcase['altitude']])
+        self.cggrid     = load_hdf5_dict(self.mass['cggrid'])
+        self.cfdgrid    = load_hdf5_dict(self.model['cfdgrid'])
+        self.strcgrid   = load_hdf5_dict(self.model['strcgrid'])
+        self.splinegrid = load_hdf5_dict(self.model['splinegrid'])
+        self.aerogrid   = load_hdf5_dict(self.model['aerogrid'])
+        self.x2grid     = load_hdf5_dict(self.model['x2grid'])
+        self.coord      = load_hdf5_dict(self.model['coord'])
+        
+        self.Djx2       = self.model['Djx2'][()]
+        
         # set switch for first execution
         self.first_execution = True
         # stepwidth for time domain simulation
@@ -86,7 +96,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
             self.Ucfd = np.zeros(self.local_mesh['n']*6)
             # These two functions are inherited from the original Meshdefo class
             # Add flexible deformations
-            self.Uf(Uf, self.trimcase)
+            self.Uf(Uf)
             # Add control surface deformations
             self.Ux2(Ux2)
             # Communicate the deformation of the local mesh to the CFD solver
@@ -109,8 +119,8 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         The CFD coordinate system is typically aft-right-up and the values are given m/s and in rad/s.
         """
         # translate the translational and rotational velocities into the right coordinate system
-        u, v, w = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[:3]
-        p, q, r = uvwpqr.dot(self.model.mass['PHInorm_cg'][self.i_mass])[3:]
+        u, v, w = uvwpqr.dot(self.mass['PHInorm_cg'])[:3]
+        p, q, r = uvwpqr.dot(self.mass['PHInorm_cg'])[3:]
         # communicate the new values to the CFD solver
         logging.info('Sending translational and rotational velocities to SU2.')
         self.FluidSolver.SetTranslationRate(xDot=u, yDot=v, zDot=w)
@@ -133,9 +143,9 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
             config['VOLUME_FILENAME']  = self.jcl.aero['para_path']+'sol/volume_subcase_{}'.format(self.trimcase['subcase'])
             config['CONV_FILENAME']    = self.jcl.aero['para_path']+'sol/history_subcase_{}'.format(self.trimcase['subcase'])
             # free stream definition
-            config['FREESTREAM_TEMPERATURE'] = self.model.atmo['T'][self.i_atmo]
-            config['FREESTREAM_DENSITY']     = self.model.atmo['rho'][self.i_atmo]
-            config['FREESTREAM_PRESSURE']    = self.model.atmo['p'][self.i_atmo]
+            config['FREESTREAM_TEMPERATURE'] = self.atmo['T']
+            config['FREESTREAM_DENSITY']     = self.atmo['rho']
+            config['FREESTREAM_PRESSURE']    = self.atmo['p']
             # make sure that the free stream onflow is zero
             config['MACH_NUMBER'] = 0.0
             # activate grid deformation
@@ -143,9 +153,9 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
             config['MARKER_DEFORM_MESH'] = '( '+', '.join(self.jcl.meshdefo['surface']['markers'])+' )'
             # activate grid movement
             config['GRID_MOVEMENT'] = 'ROTATING_FRAME'
-            config['MOTION_ORIGIN'] = '{} {} {}'.format(self.model.mass['cggrid'][self.i_mass]['offset'][0,0],
-                                                        self.model.mass['cggrid'][self.i_mass]['offset'][0,1],
-                                                        self.model.mass['cggrid'][self.i_mass]['offset'][0,2])
+            config['MOTION_ORIGIN'] = '{} {} {}'.format(self.cggrid['offset'][0,0],
+                                                        self.cggrid['offset'][0,1],
+                                                        self.cggrid['offset'][0,2])
             config['MACH_MOTION'] = self.trimcase['Ma']
             # there is no restart for the first execution
             config['RESTART_SOL'] = 'NO'
@@ -197,8 +207,8 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
     def Pcfd_global(self):
         logging.debug('Start recovery of nodal loads from SU2')
         t_start = time.time()
-        Pcfd_send = np.zeros(self.model.cfdgrid['n']*6)
-        Pcfd_rcv  = np.zeros(( self.comm.Get_size() , self.model.cfdgrid['n']*6))
+        Pcfd_send = np.zeros(self.cfdgrid['n']*6)
+        Pcfd_rcv  = np.zeros(( self.comm.Get_size() , self.cfdgrid['n']*6))
         for x in range(self.local_mesh['n']):
             fxyz = self.FluidSolver.GetMarkerFlowLoad(self.local_mesh['MarkerID'][x], self.local_mesh['VertexIndex'][x])
             Pcfd_send[self.local_mesh['set_global'][x,:3]] += fxyz
@@ -254,7 +264,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
                 tmp_marker_id.append(solver_marker_id)
                 tmp_vertex_id.append(i_vertex)
                 tmp_offset.append(self.FluidSolver.InitialCoordinates().Get(i_point))
-                tmp_set_global.append( self.model.cfdgrid['set'][np.where(GlobalIndex == self.model.cfdgrid['ID'])[0],:] )
+                tmp_set_global.append( self.cfdgrid['set'][np.where(GlobalIndex == self.cfdgrid['ID'])[0],:] )
 
         # Store the local mesh, use a pattern similar to a any other grids
         self.local_mesh = {'GlobalIndex': tmp_global_id,
@@ -301,23 +311,21 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
         Pcfd_global = self.Pcfd_global()
         
         # translate position and euler angles into body coordinate system
-        PHInorm_cg = self.model.mass['PHInorm_cg'][self.i_mass]
+        PHInorm_cg = self.mass['PHInorm_cg']
         PhiThetaPsi_body = PHInorm_cg[0:3,0:3].dot(self.PhiThetaPsi)
         
         # setting up coordinate system
-        coord_tmp = copy.deepcopy(self.model.coord)
-        coord_tmp['ID'].append(1000000)
-        coord_tmp['RID'].append(0)
-        coord_tmp['dircos'].append(np.eye(3))
-        coord_tmp['offset'].append(np.array([0.0,0.0,0.0,]))
-        
-        coord_tmp['ID'].append(1000001)
-        coord_tmp['RID'].append(0)
-        coord_tmp['dircos'].append(calc_drehmatrix(PhiThetaPsi_body[0], PhiThetaPsi_body[1], PhiThetaPsi_body[2]))
-        coord_tmp['offset'].append(np.array([0.0,0.0,0.0,]))
-        
-        cfdgrid_tmp = copy.deepcopy(self.model.cfdgrid)
-        cfdgrid_tmp['CP'] = np.repeat(1000001, self.model.cfdgrid['n'])
+        coord_tmp = copy.deepcopy(self.coord)
+        coord_tmp['ID']     = np.append(coord_tmp['ID'], [1000000, 1000001])
+        coord_tmp['RID']    = np.append(coord_tmp['RID'], [0, 0])
+        coord_tmp['dircos'] = np.append(coord_tmp['dircos'], [np.eye(3),
+                                                              calc_drehmatrix(PhiThetaPsi_body[0], PhiThetaPsi_body[1], PhiThetaPsi_body[2])],
+                                                              axis=0)
+        coord_tmp['offset'] = np.append(coord_tmp['offset'], [np.array([0.0,0.0,0.0,]),
+                                                              np.array([0.0,0.0,0.0,])],
+                                                              axis=0)
+        cfdgrid_tmp = copy.deepcopy(self.cfdgrid)
+        cfdgrid_tmp['CD'] = np.repeat(1000001, self.cfdgrid['n'])
 
         # transform force vector
         Pcfd_body = vector_trafo(cfdgrid_tmp, coord_tmp, Pcfd_global, dest_coord=1000000)
@@ -333,7 +341,7 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             self.Ucfd = np.zeros(self.local_mesh['n']*6)
             # These two functions are inherited from the original Meshdefo class
             # Add flexible deformations
-            self.Uf(Uf, self.trimcase)
+            self.Uf(Uf)
             # Add control surface deformations
             self.Ux2(Ux2)
             # Add rigid body rotations
@@ -343,23 +351,20 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
     
     def Ucfd_rbm_transformation(self, XYZ, PhiThetaPsi):
         # translate position and euler angles into body coordinate system
-        PHInorm_cg = self.model.mass['PHInorm_cg'][self.i_mass]
+        PHInorm_cg = self.mass['PHInorm_cg']
         PhiThetaPsi_body = PHInorm_cg[0:3,0:3].dot(PhiThetaPsi)
         XYZ_body = PHInorm_cg[0:3,0:3].dot(XYZ)
         # remove any translation in x-direction
         XYZ_body[0] = 0.0
         # setting up coordinate system
-        coord_tmp = copy.deepcopy(self.model.coord)
-        coord_tmp['ID'].append(1000000)
-        coord_tmp['RID'].append(0)
-        coord_tmp['dircos'].append(calc_drehmatrix(PhiThetaPsi_body[0], PhiThetaPsi_body[1], PhiThetaPsi_body[2]))
-        coord_tmp['offset'].append(self.model.mass['cggrid'][self.i_mass]['offset'][0] + XYZ_body)
-        
-        coord_tmp['ID'].append(1000001)
-        coord_tmp['RID'].append(0)
-        coord_tmp['dircos'].append(np.eye(3))
-        coord_tmp['offset'].append(-self.model.mass['cggrid'][self.i_mass]['offset'][0])
-        
+        coord_tmp = copy.deepcopy(self.coord)
+        coord_tmp['ID']     = np.append(coord_tmp['ID'], [1000000, 1000001])
+        coord_tmp['RID']    = np.append(coord_tmp['RID'], [0, 0])
+        coord_tmp['dircos'] = np.append(coord_tmp['dircos'], [calc_drehmatrix(PhiThetaPsi_body[0], PhiThetaPsi_body[1], PhiThetaPsi_body[2]),
+                                                              np.eye(3)], axis=0)
+        coord_tmp['offset'] = np.append(coord_tmp['offset'], [self.cggrid['offset'][0] + XYZ_body,
+                                                              -self.cggrid['offset'][0]], axis=0)
+
         # apply transformation to local mesh
         local_mesh_tmp = copy.deepcopy(self.local_mesh)
         local_mesh_tmp['CP'] = np.repeat(1000001, self.local_mesh['n'])
@@ -394,9 +399,9 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             config['VOLUME_FILENAME']  = self.jcl.aero['para_path']+'sol/volume_subcase_{}'.format(self.trimcase['subcase'])
             config['CONV_FILENAME']    = self.jcl.aero['para_path']+'sol/history_subcase_{}'.format(self.trimcase['subcase'])
             # free stream definition
-            config['FREESTREAM_TEMPERATURE'] = self.model.atmo['T'][self.i_atmo]
-            config['FREESTREAM_DENSITY']     = self.model.atmo['rho'][self.i_atmo]
-            config['FREESTREAM_PRESSURE']    = self.model.atmo['p'][self.i_atmo]
+            config['FREESTREAM_TEMPERATURE'] = self.atmo['T']
+            config['FREESTREAM_DENSITY']     = self.atmo['rho']
+            config['FREESTREAM_PRESSURE']    = self.atmo['p']
             # set the farfield onflow
             config['MACH_NUMBER']            = self.trimcase['Ma']
             config['AOA']                    = 0.0

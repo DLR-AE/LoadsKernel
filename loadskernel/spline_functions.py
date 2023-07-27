@@ -1,16 +1,11 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Nov 20 14:50:21 2014
-
-@author: voss_ar
-"""
 import numpy as np
 import scipy
-import scipy.sparse as sp
+from scipy import sparse as sp
 import time, logging
 
 from loadskernel.io_functions.read_mona import nastran_number_converter
-import loadskernel.grid_trafo as grid_trafo
+from loadskernel import grid_trafo
+from loadskernel.utils.sparse_matrices import insert_coo, insert_lil
 
 def spline_nastran(filename, strcgrid, aerogrid):
     logging.info('Read Nastran spline (PARAM    OPGTKG   1) from {}'.format(filename))
@@ -64,26 +59,6 @@ def spline_nastran(filename, strcgrid, aerogrid):
             i_line += 1
             
     return PHI
-
-def sparse_insert(sparsematrix, submatrix, idx1, idx2):
-    # For sparse matrices, "fancy indexing" is not supported / not implemented as of 2014
-    # -> the items of a submatrix have to be inserted into the main martix item by item
-    # This takes some time, but it is faster for large numbers of DOFs (say >10,000) as 
-    # matrix multiplication is faster and memory consumption is much (!!!) lower. 
-    for id1 in range(np.shape(submatrix)[0]):
-        for id2 in range(np.shape(submatrix)[1]):
-            if submatrix[id1,id2] != 0.0:
-                sparsematrix[ idx1[id1], idx2[id2] ] = submatrix[id1,id2]
-    return sparsematrix 
-
-def sparse_insert_coo(sparsematrix, submatrix, idx1, idx2):
-    # For sparse matrices, "fancy indexing" is not supported / not implemented as of 2017
-    # -> in case of a coo matrix, row and column based indexing is supported
-    row, col = np.meshgrid(idx1, idx2, indexing='ij')
-    sparsematrix.row = np.concatenate(( sparsematrix.row, row.reshape(-1) ))
-    sparsematrix.col = np.concatenate(( sparsematrix.col, col.reshape(-1) ))
-    sparsematrix.data = np.concatenate(( sparsematrix.data, submatrix.reshape(-1) ))
-    return sparsematrix
 
 def spline_rbf(grid_i,  set_i,  grid_d, set_d, 
                rbf_type='tps', surface_spline=False,
@@ -202,11 +177,11 @@ class Spline_rbf:
         logging.debug(' - expanding spline matrix to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d , dimensions_i))
         # coo sparse matrices are good for inserting new data
         PHI_coo = sp.coo_matrix((dimensions_d , dimensions_i))
-        PHI_coo = sparse_insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,0], grid_i['set'+set_i][:,0])
-        PHI_coo = sparse_insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])
-        PHI_coo = sparse_insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,2], grid_i['set'+set_i][:,2])
+        PHI_coo = insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,0], grid_i['set'+set_i][:,0])
+        PHI_coo = insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,1], grid_i['set'+set_i][:,1])
+        PHI_coo = insert_coo(PHI_coo, self.PHI, grid_d['set'+set_d][:,2], grid_i['set'+set_i][:,2])
         # better sparse format than coo
-        self.PHI_expanded = PHI_coo.tocsr() 
+        self.PHI_expanded = PHI_coo.tocsc() 
         logging.debug(' - done in {:.2f} sec'.format(time.time() - t_start))
                 
     def eval_rbf(self, r):
@@ -246,8 +221,6 @@ class Spline_rbf:
         else:
             logging.error('Unkown Radial Basis Function!')
 
-
-
 def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='', sparse_output=False):
     
     # Here, the size of the splining matrix is determined. One might want the matrix to be bigger than actually needed.
@@ -283,13 +256,13 @@ def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='',
     # Actually, this is the part that implements the rigid body spline
     # The part above should be generic for different splines and could/should be moved to a different function   
     T_di = sp.lil_matrix( (dimensions_d, dimensions_i) )
-    for i_i in range(len(splinerules['ID_i'])):
-        for i_d in range(len(splinerules['ID_d'][i_i])):
+    for ID_i in splinerules:
+        for ID_d in splinerules[ID_i]:
             try:
-                position_i = np.where(grid_i['ID']==splinerules['ID_i'][i_i])[0][0]
-                position_d = np.where(grid_d['ID']==splinerules['ID_d'][i_i][i_d])[0][0]
+                position_i = np.where(grid_i['ID']==ID_i)[0][0]
+                position_d = np.where(grid_d['ID']==ID_d)[0][0]
             except:
-                raise AssertionError('There is a problem at monitoring station {}, grid {}'.format(splinerules['ID_i'][i_i], splinerules['ID_d'][i_i][i_d]))
+                raise AssertionError('There is a problem at monitoring station {}, grid {}'.format(ID_i, ID_d))
             
             T_sub = np.eye(6)
 
@@ -302,10 +275,10 @@ def spline_rb(grid_i,  set_i,  grid_d, set_d, splinerules, coord, dimensions='',
             T_sub[1,5] =  r[0]
             T_sub[2,3] =  r[1]
             T_sub[2,4] = -r[0]  
-            T_di = sparse_insert(T_di, T_sub, grid_d['set'+set_d][position_d,0:6], grid_i['set'+set_i][position_i,0:6])
+            T_di = insert_lil(T_di, T_sub, grid_d['set'+set_d][position_d,0:6], grid_i['set'+set_i][position_i,0:6])
             
     splinematrix = T_d.transpose().dot(T_di).dot(T_i)
     if sparse_output:
-        return splinematrix.tocsc() # better sparse format than lil_matrix
+        return splinematrix.tocsc() # better sparse format than coo_matrix
     else:
         return splinematrix.toarray() 

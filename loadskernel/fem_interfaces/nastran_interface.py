@@ -25,40 +25,40 @@ class NastranInterface(object):
         return self.MGG
         
     def get_sets_from_bitposes(self, x_dec):
-        # Reference:
-        # National Aeronautics and Space Administration, The Nastran Programmer's Manual, NASA SP-223(01). Washington, D.C.: COSMIC, 1972.
-        # Section 2.3.13.3 USET (TABLE), page 2.3-61
-        # Assumption: There is (only) the f-, s- & m-set
-        # The DoFs of f-, s- and m-set are indexed with respect to g-set
+        """
+        Reference:
+        National Aeronautics and Space Administration, The Nastran Programmer's Manual, NASA SP-223(01). Washington, D.C.: COSMIC, 1972.
+        Section 2.3.13.3 USET (TABLE), page 2.3-61
+        Assumption: There is (only) the f-, s- & m-set
+        
+        Bit positons  | decimal notation |  old sets        | new set
+        -------------------------------------------------------------
+        31, 30 and 25 | 2, 4 and 128     | 'S', 'O' and 'A' | g-set  
+        22            | 1024             | 'SB'             | s-set 
+        32            | 1                | 'M'              | m-set
+        """
+        
         logging.info('Extracting bit positions from USET to determine DoFs')
-        i = 0
-        self.pos_f = []
-        self.pos_s = []
-        self.pos_m = []
-        for x in x_dec:
-            binstring = np.binary_repr(x, width=32)
-            bitpos = binstring.index('1')+1 # +1 as python starts counting with 0
-            if bitpos in [31, 30, 25]: # 'S', 'O' and 'A'
-                self.pos_f.append(i)
-            elif bitpos==22: # 'SB'
-                self.pos_s.append(i)
-            elif bitpos==32: # 'M'
-                self.pos_m.append(i)
-            else:
-                logging.error( 'Unknown set of grid point {}'.format(bitpos))
-            i += 1
+        # The DoFs of f-, s- and m-set are indexed with respect to g-set
+        self.pos_m = [i for i, x in enumerate(x_dec) if x == 1]
+        self.pos_f = [i for i, x in enumerate(x_dec) if x in [2,4,128]]
+        # Not (yet) sure if this is a bug, but in some models there are IDs labled with bit positions 22 and 24, 
+        # resulting in a decimal notation of 1280. So far, they were treated like the s-set.
+        self.pos_s = [i for i, x in enumerate(x_dec) if x in [1024,1280]]
         # The n-set is the sum of s-set and f-set
         self.pos_n = self.pos_s + self.pos_f
-        self.pos_n.sort()
+        # Sort the n-set by the DoFs
+        sorting = np.argsort(self.pos_n)
+        self.pos_n = [self.pos_n[i] for i in sorting]
         # Free DoFs (f-set) indexed with respect to n-set
-        self.pos_fn = [self.pos_n.index(i) for i in self.pos_f]
+        self.pos_fn = list(np.where(sorting >= len(self.pos_s))[0])
 
     def get_dofs(self):
         # Prepare some data required for modal analysis which is not mass case dependent. 
         # The uset is actually geometry dependent and should go into the geometry section.
         # However, it is only required for modal analysis...
         logging.info( 'Read USET from OP2-file {} ...'.format( self.jcl.geom['filename_uset'] ))
-        op2_data = read_op2.read_post_op2(self.jcl.geom['filename_uset'], verbose=True)
+        op2_data = read_op2.read_post_op2(self.jcl.geom['filename_uset'], verbose=False)
         if op2_data['uset'] is None:
             logging.error( 'No USET found in OP2-file {} !'.format( self.jcl.geom['filename_uset'] ))
         self.get_sets_from_bitposes(op2_data['uset'])
@@ -72,6 +72,27 @@ class NastranInterface(object):
                 + self.GM.dot(self.KGG[self.pos_m, :][:,self.pos_m].dot(self.GM.T))
         self.KFF = Knn[self.pos_fn, :][:,self.pos_fn]
 
+    def get_aset(self, bdf_reader):
+        logging.info('Preparing a- and o-set...')
+        asets = read_geom.add_SET1(bdf_reader.cards['ASET1'])
+        # Simplification: take only those GRIDs where all 6 components belong to the a-set
+        aset_values = asets['values'][asets['ID'].index(123456)]
+        # Then, take the set of the a-set because IDs might be given repeatedly
+        aset_grids = np.unique(aset_values)
+        # Convert to ndarray and then use list comprehension. This is the fastest way of finding indices.
+        gset_grids = np.array(self.strcgrid['ID'])
+        id_g2a = [np.where(gset_grids == x)[0][0] for x in aset_grids]
+        pos_a = self.strcgrid['set'][id_g2a,:].reshape((1,-1))[0]
+        # Make sure DoFs of a-set are really in f-set (e.g. due to faulty user input)
+        self.pos_a = pos_a[np.in1d(pos_a, self.pos_f)]
+        # The remainders will be omitted
+        self.pos_o = np.setdiff1d(self.pos_f, self.pos_a)
+        # Convert to ndarray and then use list comprehension. This is the fastest way of finding indices.
+        pos_f_ndarray = np.array(self.pos_f) 
+        self.pos_f2a = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_a]
+        self.pos_f2o = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_o]
+        logging.info( 'The a-set has {} DoFs and the o-set has {} DoFs'.format(len(self.pos_a), len(self.pos_o) ))
+    
     def prepare_stiffness_matrices_for_guyan(self):
         # In a first step, the positions of the a- and o-set DoFs are prepared.
         # Then the equations are solved for the stiffness matrix.
@@ -81,17 +102,6 @@ class NastranInterface(object):
         # MSC.Software Corporation, "Theoretical Basis for Reduction Methods," in MSC.Nastran Version 70 Advanced Dynamic Analysis User's Guide, Version 70., H. David N., Ed. p. 63.
 
         logging.info( "Guyan reduction of stiffness matrix Kff --> Kaa ...")
-        self.aset = read_geom.Nastran_SET1(self.jcl.geom['filename_aset'])
-        self.aset['values_unique'] = np.unique(self.aset['values'][0]) # take the set of the a-set because IDs might be given repeatedly
-        id_g2a = [np.where(self.strcgrid['ID'] == x)[0][0] for x in self.aset['values_unique']] 
-        pos_a = self.strcgrid['set'][id_g2a,:].reshape((1,-1))[0]
-        self.pos_a = pos_a[np.in1d(pos_a, self.pos_f)] # make sure DoFs of a-set are really in f-set (e.g. due to faulty user input)
-        self.pos_o = np.setdiff1d(self.pos_f, self.pos_a) # the remainders will be omitted
-        logging.info( ' - prepare a-set ({} DoFs) and o-set ({} DoFs)'.format(len(self.pos_a), len(self.pos_o) ))
-        # Convert to ndarray and then use list comprehension. This is the fastest way of finding indices.
-        pos_f_ndarray = np.array(self.pos_f) 
-        self.pos_f2a = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_a]
-        self.pos_f2o = [np.where(pos_f_ndarray == x)[0][0] for x in self.pos_o]
         logging.info( ' - partitioning')
         K = {}
         K['A']       = self.KFF[self.pos_f2a,:][:,self.pos_f2a]
@@ -145,30 +155,38 @@ class NastranInterface(object):
         for i_mode in modes_selection - 1:
             # deformation of a-set due to i_mode is the ith column of the eigenvector
             Ua = eigenvector[:,i_mode].real.reshape((-1,1))
-            # calc ommitted grids with Guyan
-            Uo = self.Goa.dot(Ua)
-            # assemble deflections of a and o to f
-            Uf = np.zeros((len(self.pos_f),1))
-            Uf[self.pos_f2a] = Ua
-            Uf[self.pos_f2o] = Uo
-            # deflection of s-set is zero, because that's the sense of an SPC ...
-            Us = np.zeros((len(self.pos_s),1))
-            # assemble deflections of s and f to n
-            Un = np.zeros((6*self.strcgrid['n'],1))
-            Un[self.pos_f] = Uf
-            Un[self.pos_s] = Us
-            Un = Un[self.pos_n]
-            # calc remaining deflections with GM
-            Um = self.GM.T.dot(Un)
-            # assemble everything to Ug
-            Ug = np.zeros((6*self.strcgrid['n'],1))
-            Ug[self.pos_f] = Uf
-            Ug[self.pos_s] = Us
-            Ug[self.pos_m] = Um
+            Uf = self.project_aset_to_fset(Ua)
+            Ug = self.project_fset_to_gset(Uf)
             # store vector in modal matrix
             self.PHIstrc_f[:,i] = Ug.squeeze()
             i += 1
         return
+    
+    def project_aset_to_fset(self, Ua):
+        # calc ommitted grids with Guyan
+        Uo = self.Goa.dot(Ua)
+        # assemble deflections of a and o to f
+        Uf = np.zeros((len(self.pos_f),1))
+        Uf[self.pos_f2a] = Ua
+        Uf[self.pos_f2o] = Uo
+        return Uf
+    
+    def project_fset_to_gset(self, Uf):
+        # deflection of s-set is zero, because that's the sense of an SPC ...
+        Us = np.zeros((len(self.pos_s),1))
+        # assemble deflections of s and f to n
+        Un = np.zeros((6*self.strcgrid['n'],1))
+        Un[self.pos_f] = Uf
+        Un[self.pos_s] = Us
+        Un = Un[self.pos_n]
+        # calc remaining deflections with GM
+        Um = self.GM.T.dot(Un)
+        # assemble everything to Ug
+        Ug = np.zeros((6*self.strcgrid['n'],1))
+        Ug[self.pos_f] = Uf
+        Ug[self.pos_s] = Us
+        Ug[self.pos_m] = Um
+        return Ug
     
     def modalanalysis(self):
         modes_selection = copy.deepcopy(self.jcl.mass['modes'][self.i_mass])
@@ -183,20 +201,7 @@ class NastranInterface(object):
         for i_mode in modes_selection - 1:
             # deformation of f-set due to i_mode is the ith column of the eigenvector
             Uf = eigenvector[:,i_mode].real.reshape((-1,1))
-            # deflection of s-set is zero, because that's the sense of an SPC ...
-            Us = np.zeros((len(self.pos_s),1))
-            # assemble deflections of s and f to n
-            Un = np.zeros((6*self.strcgrid['n'],1))
-            Un[self.pos_f] = Uf
-            Un[self.pos_s] = Us
-            Un = Un[self.pos_n]
-            # calc remaining deflections with GM
-            Um = self.GM.T.dot(Un)
-            # assemble everything to Ug
-            Ug = np.zeros((6*self.strcgrid['n'],1))
-            Ug[self.pos_f] = Uf
-            Ug[self.pos_s] = Us
-            Ug[self.pos_m] = Um
+            Ug = self.project_fset_to_gset(Uf)
             # store vector in modal matrix
             self.PHIstrc_f[:,i] = Ug.squeeze()
             i += 1

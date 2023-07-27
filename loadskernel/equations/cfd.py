@@ -32,7 +32,7 @@ class CfdSteady(Steady):
         self.cfd_interface.run_solver()
         Pcfd = self.cfd_interface.get_last_solution()
         
-        Pk_rbm      = np.zeros(6*self.model.aerogrid['n'])
+        Pk_rbm      = np.zeros(6*self.aerogrid['n'])
         Pk_cam      = Pk_rbm*0.0
         Pk_cs       = Pk_rbm*0.0
         Pk_f        = Pk_rbm*0.0
@@ -155,7 +155,7 @@ class CfdUnsteady(CfdSteady):
         self.cfd_interface.run_solver(i_timestep=self.counter+1)
         Pcfd = self.cfd_interface.get_last_solution()
         
-        Pk_rbm      = np.zeros(6*self.model.aerogrid['n'])
+        Pk_rbm      = np.zeros(6*self.aerogrid['n'])
         Pk_cam      = Pk_rbm*0.0
         Pk_cs       = Pk_rbm*0.0
         Pk_f        = Pk_rbm*0.0
