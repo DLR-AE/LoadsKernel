@@ -42,20 +42,20 @@ def design_gust_cs_25_341(simcase, atmo, V):
     altitude        = float(atmo['h'])                              # Altitude
     rho             = float(atmo['rho'])                            # Air density
     V               = float(V)                                      # Speed
-    Z_mo            = float(simcase['gust_para']['Z_mo'])           # Maximum operating altitude
     V_D             = float(atmo['a'] * simcase['gust_para']['MD']) # Design Dive speed
-    MLW             = float(simcase['gust_para']['MLW'])            # Maximum Landing Weight
-    MTOW            = float(simcase['gust_para']['MTOW'])           # Maximum Take-Off Weight
-    MZFW            = float(simcase['gust_para']['MZFW'])           # Maximum Zero Fuel Weight
-
+    
     _, rho0, _, _ = atmo_isa(0.0)
 
     # Check if flight alleviation factor fg is provided by user as input, else calculate fg according to CS 25.341(a)(6)
-    if 'Fg' in simcase['gust_para'].keys():
+    if 'Fg' in simcase['gust_para']:
         fg = float(simcase['gust_para']['Fg'])
-        logging.info('CS25_Uds is set up with flight profile alleviation factor Fg = {}'.format(fg))
     else:
+        Z_mo            = float(simcase['gust_para']['Z_mo'])       # Maximum operating altitude
+        MLW             = float(simcase['gust_para']['MLW'])        # Maximum Landing Weight
+        MTOW            = float(simcase['gust_para']['MTOW'])       # Maximum Take-Off Weight
+        MZFW            = float(simcase['gust_para']['MZFW'])       # Maximum Zero Fuel Weight
         fg = calc_fg(altitude, Z_mo, MLW, MTOW, MZFW)
+    logging.info('CS25_Uds is set up with flight profile alleviation factor Fg = {}'.format(fg))
         
     # reference gust velocity (EAS) [m/s]
     if altitude <= 4572:
