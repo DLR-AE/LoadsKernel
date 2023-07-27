@@ -113,10 +113,9 @@ class Common():
         Vtas = sum(uvw**2)**0.5
         if 'gust' in self.simcase and self.simcase['gust']:
             # calculate and set the gust velocities
-            V_D = self.atmo['a'] * self.simcase['gust_para']['MD'] 
             self.s0 = self.simcase['gust_para']['T1'] * Vtas 
             if 'WG_TAS' not in self.simcase.keys():
-                self.WG_TAS, U_ds, V_gust = design_gust_cs_25_341(self.simcase, self.atmo['h'], self.atmo['rho'], Vtas, V_D)
+                self.WG_TAS, U_ds, V_gust = design_gust_cs_25_341(self.simcase, self.atmo, Vtas)
             else:
                 self.WG_TAS = self.simcase['WG_TAS']
             # write some user information / confirmation
@@ -125,10 +124,8 @@ class Common():
         elif ('turbulence' in self.simcase or 'limit_turbulence' in self.simcase) and (self.simcase['turbulence'] or self.simcase['limit_turbulence']):
             self.PHIstrc_mon    = load_hdf5_sparse_matrix(self.model['PHIstrc_mon'])
             self.mongrid        = load_hdf5_dict(self.model['mongrid'])
-            V_C = self.atmo['a'] * self.simcase['gust_para']['MC']
-            V_D = self.atmo['a'] * self.simcase['gust_para']['MD']
             if 'u_sigma' not in self.simcase.keys():
-                self.u_sigma = turbulence_cs_25_341(self.atmo['h'], self.simcase['gust_para']['Z_mo'], Vtas, V_C, V_D, self.simcase['gust_para']['MLW'], self.simcase['gust_para']['MTOW'], self.simcase['gust_para']['MZFW'])
+                self.u_sigma = turbulence_cs_25_341(self.simcase, self.atmo, Vtas)
             else:
                 self.u_sigma = self.simcase['u_sigma']
             logging.info('Turbulence set up with initial Vtas = {:.4f} and u_sigma = {:.4f}'.format(Vtas, self.u_sigma))
