@@ -8,16 +8,21 @@ from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load
 class Common():
     """
     This class is the base class for all other model equations.
-    In the init section, no calculations shall be performed but a bunch of matrices are loaded, 
+    In the init section, no calculations shall be performed but a bunch of matrices are loaded,
     which are required in the subsequent analyses.
     """
-    
-    def __init__(self, solution, X0=''):
+
+    def __init__(self, solution, X0=None):
         logging.info('Init model equations of type "{}"'.format(self.__class__.__name__))
         self.model      = solution.model
         self.jcl        = solution.jcl
         self.trimcase   = solution.trimcase
         self.X0         = X0
+        # descision/flag if this is a time domain simulation
+        if self.X0 is not None:
+            self.is_sim = True
+        else:
+            self.is_sim = False
         self.simcase    = solution.simcase
         self.trimcond_X = solution.trimcond_X
         self.trimcond_Y = solution.trimcond_Y
@@ -111,7 +116,7 @@ class Common():
         # Vtas aus solution condition berechnen
         uvw = np.array(self.trimcond_X[6:9,2], dtype='float')
         Vtas = sum(uvw**2)**0.5
-        if 'gust' in self.simcase and self.simcase['gust']:
+        if self.is_sim and 'gust' in self.simcase and self.simcase['gust']:
             # calculate and set the gust velocities
             V_D = self.atmo['a'] * self.simcase['gust_para']['MD'] 
             self.s0 = self.simcase['gust_para']['T1'] * Vtas 
@@ -122,7 +127,7 @@ class Common():
             # write some user information / confirmation
             logging.info('Gust set up with initial Vtas = {:.4f}, t1 = {}, WG_tas = {:.4f}'.format(Vtas, self.simcase['gust_para']['T1'], self.WG_TAS))
             
-        elif ('turbulence' in self.simcase or 'limit_turbulence' in self.simcase) and (self.simcase['turbulence'] or self.simcase['limit_turbulence']):
+        elif self.is_sim and ('turbulence' in self.simcase or 'limit_turbulence' in self.simcase) and (self.simcase['turbulence'] or self.simcase['limit_turbulence']):
             self.PHIstrc_mon    = load_hdf5_sparse_matrix(self.model['PHIstrc_mon'])
             self.mongrid        = load_hdf5_dict(self.model['mongrid'])
             V_C = self.atmo['a'] * self.simcase['gust_para']['MC']
@@ -134,11 +139,11 @@ class Common():
             logging.info('Turbulence set up with initial Vtas = {:.4f} and u_sigma = {:.4f}'.format(Vtas, self.u_sigma))
 
         # init cs_signal
-        if 'cs_signal' in self.simcase and self.simcase['cs_signal']:
+        if self.is_sim and 'cs_signal' in self.simcase and self.simcase['cs_signal']:
             self.efcs.cs_signal_init(self.trimcase['desc'])
         
         # init controller
-        if 'controller' in self.simcase and self.simcase['controller']:
+        if self.is_sim and 'controller' in self.simcase and self.simcase['controller']:
             """
             The controller might be set-up in different ways, e.g. to maintain a certain angular acceleration of velocity.
             Example: self.efcs.controller_init(np.array((0.0,0.0,0.0)), 'angular accelerations')
@@ -162,6 +167,17 @@ class Common():
                 self.efcs.fmu_init(filename_fmu=self.jcl.efcs['filename_fmu'],
                                    filename_actuator=self.jcl.efcs['filename_actuator'],
                                    setpoint=setpoint)
+
+            elif self.jcl.efcs['version'] in ['FFD']:
+                self.efcs.controller_init(
+                    setpoint={'pqr':           X0[self.solution.idx_states[9:12]],
+                              'PhiThetaPsi':   X0[self.solution.idx_states[3:6]],
+                              'altitude_key':  self.trimcase['altitude'],
+                              'velocity_key':  self.trimcase['Ma'],
+                              'mass_key':      self.trimcase['mass'],
+                              'commands':      X0[self.solution.idx_inputs],
+                              'Nxyz':          np.array([0.0, 0.0, float(self.trimcond_Y[np.where(self.trimcond_Y[:, 0] == 'Nz')[0][0], 2])]),
+                              })
             else:
                 logging.error('Unknown EFCS: {}'.format(self.jcl.efcs['version']))
                         
@@ -330,7 +346,7 @@ class Common():
     
     def gust(self, X, q_dyn):
         wj = np.zeros(self.aerogrid['n'])
-        if 'gust' in self.simcase and self.simcase['gust']:
+        if self.is_sim and 'gust' in self.simcase and self.simcase['gust']:
             # Eintauchtiefe in die Boe berechnen
             s_gust = (X[0] - self.aerogrid['offset_j'][:,0] - self.s0)
             # downwash der 1-cos Boe auf ein jedes Panel berechnen
@@ -373,7 +389,7 @@ class Common():
         v += vf_1 + vf_2
         w += wf_1 + wf_2
 
-        if 'gust' in self.simcase and self.simcase['gust']:
+        if self.is_sim and 'gust' in self.simcase and self.simcase['gust']:
             # Eintauchtiefe in die Boe berechnen, analog zu gust()
             s_gust = (X[0] - self.sensorgrid['offset'][i_sensor,0] - self.s0)
             # downwash der 1-cos Boe an der Sensorposition, analog zu gust()
@@ -581,7 +597,7 @@ class Common():
         p2 = np.zeros(self.extragrid['n'])
         dp2 = np.zeros(self.extragrid['n'])
         ddp2 = np.zeros(self.extragrid['n'])
-        if 'landinggear' in self.simcase and self.simcase['landinggear']:
+        if self.is_sim and 'landinggear' in self.simcase and self.simcase['landinggear']:
             # init
             p1   = -self.cggrid['offset'][:,2] + self.extragrid['offset'][:,2] + self.PHIextra_cg.dot(np.dot(self.PHInorm_cg, X[0:6 ]))[self.extragrid['set'][:,2]] + self.PHIf_extra.T.dot(X[12:12+self.n_modes])[self.extragrid['set'][:,2]] # position LG attachment point over ground
             dp1  = self.PHIextra_cg.dot(np.dot(self.PHInorm_cg, np.dot(Tbody2geo, X[6:12])))[self.extragrid['set'][:,2]]  + self.PHIf_extra.T.dot(X[12+self.n_modes:12+self.n_modes*2])[self.extragrid['set'][:,2]] # velocity LG attachment point 
@@ -732,9 +748,9 @@ class Common():
         return d2Uf_dt2
     
     def get_command_derivatives(self, t, X, Vtas, gamma, alpha, beta, Nxyz, dxyz):
-        if 'cs_signal' in self.simcase and self.simcase['cs_signal']:
+        if self.is_sim and 'cs_signal' in self.simcase and self.simcase['cs_signal']:
             dcommand = self.efcs.cs_signal(t)
-        elif 'controller' in self.simcase and self.simcase['controller']:
+        elif self.is_sim and 'controller' in self.simcase and self.simcase['controller']:
             feedback = {'pqr':          X[self.solution.idx_states[9:12]],
                         'PhiThetaPsi':  X[self.solution.idx_states[3:6]],
                         'z':            X[self.solution.idx_states[2]],
