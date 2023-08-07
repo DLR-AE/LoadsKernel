@@ -1,6 +1,7 @@
 import numpy as np
 import logging
 from loadskernel.io_functions.data_handling import load_hdf5_dict
+from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
 
 class TrimConditions:
     def __init__(self, model, jcl, trimcase, simcase):
@@ -41,6 +42,9 @@ class TrimConditions:
         self.idx_lg_derivatives = None
         self.idx_lag_states = None
         self.idx_lag_derivatives = None
+        
+        # Initialize MPI interface
+        self.have_mpi, self.comm, self.status, self.myid = setup_mpi() 
 
     def set_trimcond(self):
         # set states, derivatives, inputs and output parameters according to requested maneuver

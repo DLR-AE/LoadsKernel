@@ -403,8 +403,11 @@ class SolutionSequences(TrimConditions):
                 integrator.integrate(integrator.t+dt)
                 xt.append(integrator.y)
                 t.append(integrator.t)
-                for key in integrator.output_dict.keys():
-                    self.response[key] = np.vstack((self.response[key],integrator.output_dict[key]))
+                # To avoid an excessive amount of data, e.g. during unsteady cfd simulations, 
+                # keep only the response data on the first mpi process (id = 0).
+                if self.myid == 0:
+                    for key in integrator.output_dict.keys():
+                        self.response[key] = np.vstack((self.response[key],integrator.output_dict[key]))
                 
         else: 
             integrator = self.select_integrator(equations, 'AdamsBashforth')
