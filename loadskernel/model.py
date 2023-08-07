@@ -379,7 +379,7 @@ class Model:
                 else:
                     Qjj = np.linalg.inv(Ajj)
                 self.aero[self.jcl.aero['key'][i_aero]]['Qjj_unsteady'][i_k,:,:] = Qjj 
-        self.aero['k_red'] =  self.jcl.aero['k_red']
+            self.aero[self.jcl.aero['key'][i_aero]]['k_red'] =  self.jcl.aero['k_red']
       
     def build_rfa(self):
         for key in self.jcl.aero['key']:
