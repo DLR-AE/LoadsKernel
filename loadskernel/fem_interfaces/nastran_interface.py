@@ -5,8 +5,8 @@ import copy, logging
 import loadskernel.io_functions.read_mona as read_geom
 import loadskernel.spline_rules as spline_rules
 import loadskernel.spline_functions as spline_functions
-import loadskernel.io_functions.read_op2 as read_op2
-import loadskernel.io_functions.read_op4 as read_op4
+from loadskernel.io_functions import read_op2, read_op4, read_h5
+from loadskernel.fem_interfaces import fem_helper
 
 class NastranInterface(object):
     
@@ -16,12 +16,23 @@ class NastranInterface(object):
         self.coord = coord
     
     def get_stiffness_matrix(self):
-        self.KGG = read_op4.load_matrix(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
-        self.GM  = read_op4.load_matrix(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True)
+        if 'filename_h5' in self.jcl.geom:
+            self.KGG = read_h5.load_matrix(self.jcl.geom['filename_h5'], name='KGG')
+            self.GM  = read_h5.load_matrix(self.jcl.geom['filename_h5'], name='GM').T
+        elif 'filename_KGG' in self.jcl.geom and 'filename_GM' in self.jcl.geom:
+            self.KGG = read_op4.load_matrix(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True) 
+            self.GM  = read_op4.load_matrix(self.jcl.geom['filename_GM'],  sparse_output=True, sparse_format=True)
+        else:
+            logging.error('Please provide filename(s) of .h5 or .OP4 files.')
     
     def get_mass_matrix(self, i_mass):
         self.i_mass = i_mass
-        self.MGG = read_op4.load_matrix(self.jcl.mass['filename_MGG'][self.i_mass], sparse_output=True, sparse_format=True) 
+        if 'filename_h5' in self.jcl.mass:
+            self.MGG = read_h5.load_matrix(self.jcl.mass['filename_h5'][self.i_mass], name='MGG')
+        elif 'filename_MGG' in self.jcl.mass:
+            self.MGG = read_op4.load_matrix(self.jcl.mass['filename_MGG'][self.i_mass], sparse_output=True, sparse_format=True)
+        else: 
+            logging.error('Please provide filename(s) of .h5 or .OP4 files.')
         return self.MGG
         
     def get_sets_from_bitposes(self, x_dec):
