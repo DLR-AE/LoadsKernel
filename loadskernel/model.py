@@ -16,6 +16,7 @@ import loadskernel.io_functions.read_cfdgrids as read_cfdgrids
 from loadskernel import grid_trafo
 from loadskernel.atmosphere import isa as atmo_isa
 from loadskernel.engine_interfaces import propeller
+from loadskernel.fem_interfaces import fem_helper
 
 import panelaero.VLM as VLM
 import panelaero.DLM as DLM
@@ -475,6 +476,9 @@ class Model:
             fem_interface.get_stiffness_matrix()
             # the stiffness matrix is needed for the modal discplacement method
             self.KGG = fem_interface.KGG
+            # Check if matrix is symmetric
+            if not fem_helper.check_matrix_symmetry(self.KGG):
+                logging.warning('Stiffness matrix Kgg is NOT symmetric.')
             
             # do further processing of the stiffness matrix 
             if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'CoFE', 'B2000']:
@@ -496,6 +500,9 @@ class Model:
         
         # the mass matrix is needed for all methods / fem interfaces
         MGG = fem_interface.get_mass_matrix(i_mass)
+        # Check if matrix is symmetric
+        if not fem_helper.check_matrix_symmetry(MGG):
+            logging.warning('Mass matrix Mgg is NOT symmetric.')
         
         # getting the eigenvalues and -vectors depends on the method / fem solver
         if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'CoFE', 'B2000']:
