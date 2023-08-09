@@ -7,7 +7,7 @@ Created on Thu Nov 27 14:00:31 2014
 import getpass, platform, logging, sys, copy
 import numpy as np
 
-import loadskernel.io_functions import data_handling
+from loadskernel.io_functions import data_handling
 from loadskernel import auxiliary_output
 from loadskernel import plotting_standard
 from loadskernel import program_flow
@@ -123,7 +123,7 @@ class Merge:
         logging.info( '--> Drawing some plots.' ) 
         jcl           = self.datasets['jcl'][self.new_dataset_id]
         monstations   = self.datasets['monstations'][self.new_dataset_id]
-        plt = plotting_standard.LoadPlots(jcl, model=None)
+        plt = plotting_standard.LoadPlots(jcl, model=self.model)
         # determine crit trimcases graphically
         plt.add_monstations(monstations)
         plt.plot_monstations(self.path_output + 'monstations_' + job_name + '.pdf')
