@@ -19,4 +19,12 @@ def calc_MAC(X, Y, plot=True):
         return MAC, plt
     else:   
         return MAC
- 
+
+def force_matrix_symmetry(matrix):
+    return (matrix + matrix.T)/2.0
+
+def check_matrix_symmetry(matrix):
+    # Check if a matrix is symmetric by forcing symmetry and then compare with the original matrix.
+    matrix_sym = force_matrix_symmetry(matrix)
+    result = (matrix != matrix_sym).nnz==0
+    return result
