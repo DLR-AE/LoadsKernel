@@ -141,7 +141,7 @@ class Merge:
         aux_out.dyn2stat_data = dyn2stat_data
         aux_out.monstations = monstations
         
-        aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name + '.pickle') 
+        aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name)
         aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + job_name + '.csv') 
         aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + job_name + '.bdf') 
     
