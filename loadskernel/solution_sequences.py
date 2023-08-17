@@ -472,8 +472,6 @@ class SolutionSequences(TrimConditions):
             equations = LimitTurbulence(self, X0)
             self.response['Pmon_turb'] = 0.0
             self.response['correlations'] = 0.0
-            self.response['X'] = np.expand_dims(self.response['X'], axis=0)
-            self.response['Y'] = np.expand_dims(self.response['Y'], axis=0)
         response_sim = equations.eval_equations()
         for key in response_sim.keys():
             self.response[key] = response_sim[key] + self.response[key]
