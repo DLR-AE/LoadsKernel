@@ -69,7 +69,7 @@ class PostProcessing(object):
             #response['Pg_unsteady'][i_step,:]   = self.PHIk_strc.T.dot(response['Pk_unsteady'][i_step,:])
             #response['Pg_cs'][i_step,:]   = self.PHIk_strc.T.dot(response['Pk_cs'][i_step,:])
             #response['Pg_idrag'][i_step,:]= self.PHIk_strc.T.dot(response['Pk_idrag'][i_step,:])
-            if self.jcl.aero['method'] == 'cfd_steady':
+            if self.jcl.aero['method'] in ['cfd_steady', 'cfd_unsteady']:
                 response['Pg_cfd'][i_step,:] = self.PHIcfd_strc.T.dot(response['Pcfd'][i_step,:])
             if hasattr(self.jcl, 'landinggear') or hasattr(self.jcl, 'engine'):
                 response['Pg_ext'][i_step,self.extragrid['set_strcgrid']] = response['Pextra'][i_step,self.extragrid['set']]
