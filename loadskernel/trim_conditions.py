@@ -402,11 +402,15 @@ class TrimConditions:
                 self.lg_derivatives.append(self.response['ddp1'][i])
         elif self.jcl.landinggear['method'] in ['skid']:  
             pass
+        
+        # expand 1d list to 2d array
+        self.lg_states = np.expand_dims(self.lg_states, axis=0)
+        self.lg_derivatives = np.expand_dims(self.lg_derivatives, axis=0)
         # update response with landing gear states
-        self.response['X'] = np.hstack((self.response['X'], self.lg_states ))
-        self.response['Y'] = np.hstack((self.response['Y'][self.idx_state_derivatives + self.idx_input_derivatives], self.lg_derivatives, self.response['Y'][self.idx_outputs] ))
+        self.response['X'] = np.append(self.response['X'], self.lag_states, axis=1)
+        self.response['Y'] = np.hstack((self.response['Y'][:, self.idx_state_derivatives + self.idx_input_derivatives], self.lg_derivatives, self.response['Y'][:,self.idx_outputs] ))
         # set indices
-        self.n_lg_states = self.lg_states.__len__()
+        self.n_lg_states = self.lg_states.shape[1]
         self.idx_lg_states         = list(range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lg_states))
         self.idx_lg_derivatives    = list(range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states))
         self.idx_outputs           = list(range(self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lg_states+self.n_outputs))
@@ -419,15 +423,15 @@ class TrimConditions:
             logging.error('Generalized RFA not yet implemented.')
         elif 'method_rfa' in self.jcl.aero and self.jcl.aero['method_rfa'] == 'halfgeneralized':
             logging.info('Adding {} x {} unsteady lag states to the system'.format(2 * self.n_modes, n_poles))
-            self.lag_states = np.zeros((2 * self.n_modes * n_poles)) 
+            self.lag_states = np.zeros((1, 2 * self.n_modes * n_poles)) 
         else:
             logging.info('Adding {} x {} unsteady lag states to the system'.format(self.model['aerogrid']['n'][()], n_poles))
-            self.lag_states = np.zeros((self.model['aerogrid']['n'][()] * n_poles)) 
+            self.lag_states = np.zeros((1,self.model['aerogrid']['n'][()] * n_poles)) 
         # update response with lag states
-        self.response['X'] = np.hstack((self.response['X'], self.lag_states ))
-        self.response['Y'] = np.hstack((self.response['Y'][self.idx_state_derivatives + self.idx_input_derivatives], self.lag_states, self.response['Y'][self.idx_outputs] ))
+        self.response['X'] = np.append(self.response['X'], self.lag_states, axis=1)
+        self.response['Y'] = np.hstack((self.response['Y'][:,self.idx_state_derivatives + self.idx_input_derivatives], self.lag_states, self.response['Y'][:, self.idx_outputs] ))
         # set indices
-        self.n_lag_states = self.lag_states.__len__()
+        self.n_lag_states = self.lag_states.shape[1]
         self.idx_lag_states         = list(range(self.n_states+self.n_inputs, self.n_states+self.n_inputs+self.n_lag_states))
         self.idx_lag_derivatives    = list(range(self.n_state_derivatives+self.n_input_derivatives, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states))
         self.idx_outputs            = list(range(self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states, self.n_state_derivatives+self.n_input_derivatives+self.n_lag_states+self.n_outputs))
