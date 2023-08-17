@@ -431,8 +431,11 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             config['TIME_DOMAIN']   = 'YES'
             config['TIME_MARCHING'] = 'DUAL_TIME_STEPPING-2ND_ORDER'
             config['TIME_STEP']     = self.stepwidth
-            config['TIME_ITER']     = self.simcase['t_final']/self.stepwidth
-            config['MAX_TIME']      = self.simcase['t_final']
+            # estimate the number or steps the integrator will make
+            timesteps = np.ceil(self.simcase['t_final']/self.simcase['dt'])
+            iterations_per_timestep = np.ceil(self.simcase['dt']/self.stepwidth)
+            config['TIME_ITER']     =  2 + timesteps * iterations_per_timestep
+            config['MAX_TIME']      = (2 + timesteps * iterations_per_timestep) * self.stepwidth
             
             """
             Perform an unsteady restart from a steady solution currently involves the following steps
