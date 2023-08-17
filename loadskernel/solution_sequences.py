@@ -330,9 +330,6 @@ class SolutionSequences(TrimConditions):
         return
 
     def exec_sim(self):
-        # decrease dimension to simplify indexing (undo what has been done in the last lines of exec_trim() ) 
-        self.response['X'] = self.response['X'][0,:]
-        self.response['Y'] = self.response['Y'][0,:]
         # select solution sequence
         if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_unsteady']:
             self.exec_sim_time_dom()
@@ -346,21 +343,30 @@ class SolutionSequences(TrimConditions):
         Select the right set of equations. 
         If required, add new states, e.g. for the landing gear or unsteady aerodynamics.
         """
+        # get initial solution from trim
+        X0 = self.response['X'][0,:]
+        # select solution sequence
         if self.jcl.aero['method'] in ['mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
-            equations = Steady(self, X0=self.response['X'])
+            equations = Steady(self, X0)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
-            equations = NonlinSteady(self, X0=self.response['X'])
+            equations = NonlinSteady(self, X0)
         elif self.simcase['landinggear'] and self.jcl.landinggear['method'] in ['generic', 'skid']:
-            self.add_landinggear() # add landing gear to system
-            equations = Landing(self, X0=self.response['X'])
+            # add landing gear to system
+            self.add_landinggear()
+            # reset initial solution including new states
+            X0 = self.response['X'][0,:]
+            equations = Landing(self, X0)
         elif self.jcl.aero['method'] in ['mona_unsteady']:
             if 'disturbance' in self.simcase.keys():
                 logging.info('Adding disturbance of {} to state(s) '.format(self.simcase['disturbance']))
-                self.response['X'][11+self.simcase['disturbance_mode']] += self.simcase['disturbance']
-            self.add_lagstates() # add lag states to system
-            equations = Unsteady(self, X0=self.response['X'])
+                self.response['X'][0,11+self.simcase['disturbance_mode']] += self.simcase['disturbance']
+            # add lag states to system
+            self.add_lagstates()
+            # reset initial solution including new states
+            X0 = self.response['X'][0,:]
+            equations = Unsteady(self, X0)
         elif self.jcl.aero['method'] in [ 'cfd_unsteady']:
-            equations = CfdUnsteady(self, X0=self.response['X'])
+            equations = CfdUnsteady(self, X0)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -384,7 +390,6 @@ class SolutionSequences(TrimConditions):
         - Not fully tested
         """
         
-        X0 = self.response['X']
         if 'dt_integration' in self.simcase:
             dt_integration = self.simcase['dt_integration']
         else:
@@ -420,7 +425,7 @@ class SolutionSequences(TrimConditions):
             
             if integrator.successful():
                 logging.info('Simulation finished. Running (again) with full outputs at selected time steps...')
-                equations.eval_equations(self.response['X'], 0.0, modus='sim_full_output')
+                equations.eval_equations(X0, 0.0, modus='sim_full_output')
                 for i_step in np.arange(0,len(t)):
                     response_step = equations.eval_equations(xt[i_step], t[i_step], modus='sim_full_output')
                     for key in response_step.keys():
@@ -456,12 +461,15 @@ class SolutionSequences(TrimConditions):
         return integrator
             
     def exec_sim_freq_dom(self):
+        # get initial solution from trim
+        X0 = self.response['X'][0,:]
+        # select solution sequence
         if self.simcase['gust']:
-            equations = GustExcitation(self, X0=self.response['X'])
+            equations = GustExcitation(self, X0)
         elif self.simcase['turbulence']:
-            equations = TurbulenceExcitation(self, X0=self.response['X'])
+            equations = TurbulenceExcitation(self, X0)
         elif self.simcase['limit_turbulence']:
-            equations = LimitTurbulence(self, X0=self.response['X'])
+            equations = LimitTurbulence(self, X0)
             self.response['Pmon_turb'] = 0.0
             self.response['correlations'] = 0.0
             self.response['X'] = np.expand_dims(self.response['X'], axis=0)
@@ -473,15 +481,17 @@ class SolutionSequences(TrimConditions):
         self.successful = True
     
     def exec_flutter(self):
+        # get initial solution from trim
+        X0 = self.response['X'][0,:]
         # select solution sequence
         if self.simcase['flutter_para']['method'] == 'k':
-            equations = KMethod(self, X0=self.response['X'][0,:])
+            equations = KMethod(self, X0)
         elif self.simcase['flutter_para']['method'] == 'ke':
-            equations = KEMethod(self, X0=self.response['X'][0,:])
+            equations = KEMethod(self, X0)
         elif self.simcase['flutter_para']['method'] == 'pk':
-            equations = PKMethod(self, X0=self.response['X'][0,:])
+            equations = PKMethod(self, X0)
         elif self.simcase['flutter_para']['method'] == 'statespace':
-            equations = StateSpaceAnalysis(self, X0=self.response['X'][0,:])
+            equations = StateSpaceAnalysis(self, X0)
         response_flutter = equations.eval_equations()
         logging.info('Flutter analysis finished.')
         for key in response_flutter.keys():
