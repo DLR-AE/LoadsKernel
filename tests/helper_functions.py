@@ -10,7 +10,7 @@ class HelperFunctions(object):
     # List of items where the sign shall be ignored.
     # This is usefull for the comparison of matrices related to eigenvalues and eigenvectors.  
     list_ignore_sign = ['Mff', 'Mhh', 'Kff', 'Khh', 'Mfcg', 
-                        'PHIf_strc', 'PHIh_strc', 'PHIjf', 'PHIlf', 'PHIkf', 'PHIjh', 'PHIlh', 'PHIkh', 
+                        'PHIf_strc', 'PHIh_strc', 'PHIjf', 'PHIlf', 'PHIkf', 'PHIjh', 'PHIlh', 'PHIkh', 'PHIf_extra', 'PHIf_sensor',
                         'Uf', 'dUf_dt', 'd2Uf_dt2', 'Pf', 'X', 'Y',
                         'eigenvalues', 'eigenvectors', 'freqs', 'jac', 'A', 'B', 'C', 'D', 'X0', 'rigid_derivatives']
     
