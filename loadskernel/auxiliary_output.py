@@ -5,38 +5,46 @@ from collections import OrderedDict
 
 import loadskernel.io_functions as io_functions
 import loadskernel.io_functions.write_mona
-import loadskernel.io_functions.specific_functions
+import loadskernel.io_functions.data_handling
 from loadskernel.grid_trafo import *
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
-class AuxiliaryOutput:
-    #===========================================================================
-    # This class provides functions to save data of trim calculations. 
-    #===========================================================================
+class AuxiliaryOutput(object):
+    """
+    This class provides functions to save data of trim calculations.
+    """ 
     def __init__(self, jcl, model, trimcase):
         self.jcl = jcl
         self.model = model
         self.trimcase = trimcase
         self.responses = []
         self.crit_trimcases = []
+
+        self.strcgrid   = load_hdf5_dict(self.model['strcgrid'])
+        self.mongrid    = load_hdf5_dict(self.model['mongrid'])
+        self.macgrid    = load_hdf5_dict(self.model['macgrid'])
+        self.coord      = load_hdf5_dict(self.model['coord'])
+        
+        self.Dkx1       = self.model['Dkx1'][()]
  
     def save_nodaldefo(self, filename):
         # deformations are given in 9300 coord
-        strcgrid_tmp = copy.deepcopy(self.model.strcgrid)
-        grid_trafo(strcgrid_tmp, self.model.coord, 9300)
+        strcgrid_tmp = copy.deepcopy(self.strcgrid)
+        grid_trafo(strcgrid_tmp, self.coord, 9300)
         logging.info( 'saving nodal flexible deformations as dat file...')
         with open(filename+'_undeformed.dat', 'w') as fid:             
-            np.savetxt(fid, np.hstack((self.model.strcgrid['ID'].reshape(-1,1), strcgrid_tmp['offset'])))
+            np.savetxt(fid, np.hstack((self.strcgrid['ID'].reshape(-1,1), strcgrid_tmp['offset'])))
         
         for i_trimcase in range(len(self.jcl.trimcase)):
             with open(filename+'_subcase_'+str(self.jcl.trimcase[i_trimcase]['subcase'])+'_Ug.dat', 'w') as fid: 
-                defo = np.hstack((self.model.strcgrid['ID'].reshape(-1,1), self.model.strcgrid['offset'] + self.responses[i_trimcase]['Ug_r'][self.model.strcgrid['set'][:,0:3]] + + self.responses[i_trimcase]['Ug_f'][self.model.strcgrid['set'][:,0:3]] * 500.0))
+                defo = np.hstack((self.strcgrid['ID'].reshape(-1,1), self.strcgrid['offset'] + self.responses[i_trimcase]['Ug_r'][self.strcgrid['set'][:,0:3]] + + self.responses[i_trimcase]['Ug_f'][self.model.strcgrid['set'][:,0:3]] * 500.0))
                 np.savetxt(fid, defo)
                 
     def write_all_nodalloads(self, filename):
         logging.info( 'saving all nodal loads as Nastarn cards...')
         with open(filename+'_Pg', 'w') as fid: 
             for i_trimcase in range(len(self.jcl.trimcase)):
-                io_functions.write_mona.write_force_and_moment_cards(fid, self.model.strcgrid, self.responses[i_trimcase]['Pg'][0,:], self.jcl.trimcase[i_trimcase]['subcase'])
+                io_functions.write_mona.write_force_and_moment_cards(fid, self.strcgrid, self.responses[i_trimcase]['Pg'][0,:], self.jcl.trimcase[i_trimcase]['subcase'])
         with open(filename+'_subcases', 'w') as fid:         
             for i_trimcase in range(len(self.jcl.trimcase)):
                 io_functions.write_mona.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'], self.jcl.trimcase[i_trimcase]['desc'])
@@ -48,15 +56,16 @@ class AuxiliaryOutput:
             if trimresult != False:
                 trimresults.append(trimresult)
         logging.info('writing trim results to: ' + filename_csv)
-        io_functions.specific_functions.write_list_of_dictionaries(trimresults, filename_csv)
+        io_functions.data_handling.write_list_of_dictionaries(trimresults, filename_csv)
             
     def assemble_trimresult(self, i_case):
         response = self.responses[i_case]
         if response['successful'][()]:
             trimresult = OrderedDict({'subcase':  self.jcl.trimcase[i_case]['subcase'],
-                          'desc':     self.jcl.trimcase[i_case]['desc'],})
-            i_mass  = self.model.mass['key'].index(self.jcl.trimcase[i_case]['mass'])
-            n_modes = self.model.mass['n_modes'][i_mass]
+                                      'desc':     self.jcl.trimcase[i_case]['desc'],
+                                      })
+            
+            self.n_modes = self.model['mass'][self.jcl.trimcase[i_case]['mass']]['n_modes'][()]
 
             # get trimmed states
             trimresult['x'] = response['X'][0,0]
@@ -80,12 +89,12 @@ class AuxiliaryOutput:
             trimresult['dp'] = response['Y'][0,9]
             trimresult['dq'] = response['Y'][0,10]
             trimresult['dr'] = response['Y'][0,11]
-            trimresult['command_xi [deg]']   = response['X'][0,12+2*n_modes]/np.pi*180.0
-            trimresult['command_eta [deg]']  = response['X'][0,13+2*n_modes]/np.pi*180.0
-            trimresult['command_zeta [deg]'] = response['X'][0,14+2*n_modes]/np.pi*180.0
-            trimresult['thrust per engine [N]'] = response['X'][0,15+2*n_modes]
-            trimresult['stabilizer [deg]'] = response['X'][0,16+2*n_modes]/np.pi*180.0
-            trimresult['flap setting [deg]'] = response['X'][0,17+2*n_modes]/np.pi*180.0
+            trimresult['command_xi [deg]']   = response['X'][0,12+2*self.n_modes]/np.pi*180.0
+            trimresult['command_eta [deg]']  = response['X'][0,13+2*self.n_modes]/np.pi*180.0
+            trimresult['command_zeta [deg]'] = response['X'][0,14+2*self.n_modes]/np.pi*180.0
+            trimresult['thrust per engine [N]'] = response['X'][0,15+2*self.n_modes]
+            trimresult['stabilizer [deg]'] = response['X'][0,16+2*self.n_modes]/np.pi*180.0
+            trimresult['flap setting [deg]'] = response['X'][0,17+2*self.n_modes]/np.pi*180.0
             trimresult['Nz'] = response['Nxyz'][0,2]
             trimresult['Vtas'] = response['Y'][0,-2]
             trimresult['q_dyn'] = response['q_dyn'][0,0]
@@ -93,11 +102,11 @@ class AuxiliaryOutput:
             trimresult['beta [deg]'] = response['beta'][0,0]/np.pi*180.0
             
             # calculate additional aero coefficients
-            Pmac_rbm  = np.dot(self.model.Dkx1.T, response['Pk_rbm'][0,:])
-            Pmac_cam  = np.dot(self.model.Dkx1.T, response['Pk_cam'][0,:])
-            Pmac_cs   = np.dot(self.model.Dkx1.T, response['Pk_cs'][0,:])
-            Pmac_f    = np.dot(self.model.Dkx1.T, response['Pk_f'][0,:])
-            Pmac_idrag = np.dot(self.model.Dkx1.T, response['Pk_idrag'][0,:])
+            Pmac_rbm  = np.dot(self.Dkx1.T, response['Pk_rbm'][0,:])
+            Pmac_cam  = np.dot(self.Dkx1.T, response['Pk_cam'][0,:])
+            Pmac_cs   = np.dot(self.Dkx1.T, response['Pk_cs'][0,:])
+            Pmac_f    = np.dot(self.Dkx1.T, response['Pk_f'][0,:])
+            Pmac_idrag = np.dot(self.Dkx1.T, response['Pk_idrag'][0,:])
             A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
             AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
             Pmac_c = np.divide(response['Pmac'][0,:],response['q_dyn'][0])/A
@@ -113,14 +122,14 @@ class AuxiliaryOutput:
             trimresult['Cx'] = Pmac_c[0]
             trimresult['Cy'] = Pmac_c[1]
             trimresult['Cz'] = Pmac_c[2]
-            trimresult['Cmx'] = Pmac_c[3]/self.model.macgrid['b_ref']
-            trimresult['Cmy'] = Pmac_c[4]/self.model.macgrid['c_ref']
-            trimresult['Cmz'] = Pmac_c[5]/self.model.macgrid['b_ref']
+            trimresult['Cmx'] = Pmac_c[3]/self.macgrid['b_ref']
+            trimresult['Cmy'] = Pmac_c[4]/self.macgrid['c_ref']
+            trimresult['Cmz'] = Pmac_c[5]/self.macgrid['b_ref']
             trimresult['Cl'] = Cl
             trimresult['Cd'] = Cd
             trimresult['E'] = Cl/Cd
             trimresult['Cd_ind'] = Pmac_idrag[0]/response['q_dyn'][0,0]/A
-            trimresult['Cmz_ind'] = Pmac_idrag[5]/response['q_dyn'][0,0]/A/self.model.macgrid['b_ref']
+            trimresult['Cmz_ind'] = Pmac_idrag[5]/response['q_dyn'][0,0]/A/self.macgrid['b_ref']
             trimresult['e'] = Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn'][0,0]/A)
         else:
             trimresult = False
@@ -134,7 +143,7 @@ class AuxiliaryOutput:
             if self.responses[i_case]['successful'][()]:
                 sucessfull_trimcases_info.append(trimcase)
         logging.info('writing successful trimcases cases to: ' + filename_csv)
-        io_functions.specific_functions.write_list_of_dictionaries(sucessfull_trimcases_info, filename_csv)
+        io_functions.data_handling.write_list_of_dictionaries(sucessfull_trimcases_info, filename_csv)
         
     def write_failed_trimcases(self, filename_csv):
         failed_trimcases_info = []
@@ -144,7 +153,7 @@ class AuxiliaryOutput:
             if not self.responses[i_case]['successful'][()]:
                 failed_trimcases_info.append(trimcase)
         logging.info('writing failed trimcases cases to: ' + filename_csv)
-        io_functions.specific_functions.write_list_of_dictionaries(failed_trimcases_info, filename_csv)
+        io_functions.data_handling.write_list_of_dictionaries(failed_trimcases_info, filename_csv)
     
     def write_critical_trimcases(self, filename_csv):
         # eigentlich gehoert diese Funtion eher zum post-processing als zum
@@ -159,7 +168,7 @@ class AuxiliaryOutput:
                 crit_trimcases_info.append(trimcase)
                 
         logging.info('writing critical trimcases cases to: ' + filename_csv)
-        io_functions.specific_functions.write_list_of_dictionaries(crit_trimcases_info, filename_csv)
+        io_functions.data_handling.write_list_of_dictionaries(crit_trimcases_info, filename_csv)
     
     def write_critical_nodalloads(self, filename): 
         logging.info( 'saving critical nodal loads as Nastarn cards...')
@@ -178,7 +187,7 @@ class AuxiliaryOutput:
         with open(filename+'_Pg', 'w') as fid: 
             for subcase_ID in crit_ids:
                 idx = subcases_IDs.index(subcase_ID)
-                io_functions.write_mona.write_force_and_moment_cards(fid, self.model.strcgrid, self.dyn2stat_data['Pg'][idx][:], subcases_IDs[idx])
+                io_functions.write_mona.write_force_and_moment_cards(fid, self.strcgrid, self.dyn2stat_data['Pg'][idx][:], subcases_IDs[idx])
         with open(filename+'_subcases', 'w') as fid:  
             for subcase_ID in crit_ids:
                 idx = subcases_IDs.index(subcase_ID)
@@ -205,8 +214,8 @@ class AuxiliaryOutput:
                     crit_monstations[key]['t'] += [monstation['t'][pos_to_copy]]
         logging.info('saving critical monstation(s).')
         with open(base_filename + '.pickle', 'wb') as f:
-            io_functions.specific_functions.dump_pickle(crit_monstations, f)
-        io_functions.specific_functions.dump_hdf5(base_filename + '.hdf5', crit_monstations)
+            io_functions.data_handling.dump_pickle(crit_monstations, f)
+        io_functions.data_handling.dump_hdf5(base_filename + '.hdf5', crit_monstations)
         
     def save_cpacs_header(self):
         
@@ -232,24 +241,24 @@ class AuxiliaryOutput:
             self.cf.create_path(path_flight_load_cases+'/flightLoadCase['+str(i_trimcase+1)+']', 'nodalLoads/wingNodalLoad')
             path_nodalLoads =       path_flight_load_cases+'/flightLoadCase['+str(i_trimcase+1)+']'+'/nodalLoads/wingNodalLoad'
             self.cf.add_elem(path_nodalLoads, 'parentUID', 'complete aircraft', 'text')
-            self.cf.write_cpacs_loadsvector(path_nodalLoads, self.model.strcgrid, self.responses[i_trimcase]['Pg'] )
+            self.cf.write_cpacs_loadsvector(path_nodalLoads, self.strcgrid, self.responses[i_trimcase]['Pg'] )
             # cut loads
             self.cf.create_path(path_flight_load_cases+'/flightLoadCase['+str(i_trimcase+1)+']', 'cutLoads/wingCutLoad')
             path_cutLoads =         path_flight_load_cases+'/flightLoadCase['+str(i_trimcase+1)+']'+'/cutLoads/wingCutLoad'
             self.cf.add_elem(path_cutLoads, 'parentUID', 'complete aircraft', 'text')
-            self.cf.write_cpacs_loadsvector(path_cutLoads, self.model.mongrid, self.responses[i_trimcase]['Pmon_local'])
+            self.cf.write_cpacs_loadsvector(path_cutLoads, self.mongrid, self.responses[i_trimcase]['Pmon_local'])
     
     def save_cpacs_dynamic_aircraft_model_points(self):
         # save structural grid points to CPACS
         self.cf.create_path('/cpacs/vehicles/aircraft/model/wings/wing/dynamicAircraftModel', 'dynamicAircraftModelPoints')
         path_dynamic_aircraft_model_points = '/cpacs/vehicles/aircraft/model/wings/wing/dynamicAircraftModel/dynamicAircraftModelPoints'
-        self.cf.write_cpacs_grid(path_dynamic_aircraft_model_points, self.model.strcgrid)
+        self.cf.write_cpacs_grid(path_dynamic_aircraft_model_points, self.strcgrid)
         
     def save_cpacs_cut_load_integration_points(self):
         # save monitoring stations to CPACS
         self.cf.create_path('/cpacs/vehicles/aircraft/model/wings/wing/dynamicAircraftModel', 'cutLoadIntegrationPoints')
         path_cut_load_integration_points = '/cpacs/vehicles/aircraft/model/wings/wing/dynamicAircraftModel/cutLoadIntegrationPoints'
-        self.cf.write_cpacs_grid(path_cut_load_integration_points, self.model.mongrid)
+        self.cf.write_cpacs_grid(path_cut_load_integration_points, self.mongrid)
         #self.cf.write_cpacs_grid_orientation(path_CutLoadIntegrationPoints, self.model.mongrid, self.model.coord)
                   
     def save_cpacs(self, filename):

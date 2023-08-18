@@ -1,0 +1,28 @@
+NASTRAN OP2NEW=0
+$ Direct Text Input for File Management Section
+ASSIGN OUTPUT2 = 'uset.op2', UNIT = 12
+$ Direct Text Input for Executive Control
+MALTER 'AFTER UPSTREAM SUPERELEMENT MATRIX AND LOAD ASSEMBLY'$
+CRDB_MTX MGG//'MGG' $
+CRDB_MTX KGG//'KGG' $
+ENDALTER $
+MALTER 'MALTER:AFTER SUPERELEMENT MATRIX AND LOAD REDUCTION TO A-SET' $
+CRDB_MTX GM//'GM' $
+OUTPUT2 USET//0/12///'USET' $
+ENDALTER $
+ECHOON $
+$
+SOL 103
+CEND
+$
+METHOD=100
+ECHO=NONE
+$
+BEGIN BULK
+PARAM    GRDPNT   0
+$------><------><------><------><------><------><------><------><------>
+EIGRL   100                          100
+$------><------><------><------><------><------><------><------><------>
+HDF5OUT PRCISION     64 CMPRMTHD   NONE     MTX     YES
+$
+$ Strukturmodell

@@ -120,13 +120,13 @@ class CORD2R(SimpleCard):
     optional_defaults   = [   0 ]
 
 class CORD1R(SimpleCard):
-    expected_lines = 2
+    expected_lines = 1
     # field of interest (any other fields are not implemented)
-    field_names         = ['ID', 'RID', 'A',  'B',   'C']
-    field_positions     = [  0,     1,   2,    3,     4 ]
-    field_types         = ['int','int','int','int','int']
-    optional_fields     = ['RID']
-    optional_defaults   = [   0 ]
+    field_names         = ['ID',   'A',  'B',  'C']
+    field_positions     = [  0,     1,    2,    3 ]
+    field_types         = ['int','int','int','int']
+    optional_fields     = []
+    optional_defaults   = []
 
 class MONPNT1(SimpleCard):
     expected_lines = 2
@@ -196,4 +196,15 @@ class AESURF(SimpleCard):
     field_types         = ['int'  ,'str', 'int',    'int','float']
     optional_fields     = ['EFF']
     optional_defaults   = [ 1.0 ]
+
+class ASET1(ListCard):
+    expected_lines = None
+    # field of interest (any other fields are not implemented)
+    field_names         = [ 'ID', 'values' ]
+    field_positions     = [   0,        1  ]
+    # Due to the mixture of integers and strings ('THRU') in a SET1 card, all list items are parsed as strings. 
+    field_types         = ['int',   'str' ]
+    # Blank strings (e.g. trailing spaces) shall be replaced with None.
+    optional_fields     = ['ID',   'values']
+    optional_defaults   = [ 123456,  None  ]
 

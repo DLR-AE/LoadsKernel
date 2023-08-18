@@ -7,7 +7,7 @@ Created on Thu Nov 27 14:00:31 2014
 import getpass, platform, logging, sys, copy
 import numpy as np
 
-import loadskernel.io_functions.specific_functions as specific_io
+from loadskernel.io_functions import data_handling
 from loadskernel import auxiliary_output
 from loadskernel import plotting_standard
 from loadskernel import program_flow
@@ -25,18 +25,18 @@ class Merge:
                         }
         self.common_monstations = np.array([])
         
-        self.path_input = specific_io.check_path(path_input) 
-        self.path_output = specific_io.check_path(path_output) 
+        self.path_input = data_handling.check_path(path_input) 
+        self.path_output = data_handling.check_path(path_output) 
     
     def load_job(self, job_name):
         # load jcl
-        jcl = specific_io.load_jcl(job_name, self.path_input, jcl=None)
+        jcl = data_handling.load_jcl(job_name, self.path_input, jcl=None)
         
         logging.info( '--> Loading monstations(s).' )
-        monstations = specific_io.load_hdf5(self.path_output + 'monstations_' + job_name + '.hdf5')
+        monstations = data_handling.load_hdf5(self.path_output + 'monstations_' + job_name + '.hdf5')
 
         logging.info( '--> Loading dyn2stat.'  )
-        dyn2stat_data = specific_io.load_hdf5(self.path_output + 'dyn2stat_' + job_name + '.hdf5')
+        dyn2stat_data = data_handling.load_hdf5(self.path_output + 'dyn2stat_' + job_name + '.hdf5')
         
         # save into data structure
         self.datasets['ID'].append(self.datasets['n'])  
@@ -63,7 +63,7 @@ class Merge:
         k.setup_logger()
         logging.info( 'Starting Loads Merge')
         logging.info( 'user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() +')')
-        self.model = specific_io.load_model(jobs_to_merge[0], self.path_output)
+        self.model = data_handling.load_hdf5(self.path_output + 'model_' + jobs_to_merge[0] + '.hdf5')
         self.load_jobs(jobs_to_merge)
         self.build_new_dataset()
         self.plot_monstations(job_name)
@@ -123,7 +123,7 @@ class Merge:
         logging.info( '--> Drawing some plots.' ) 
         jcl           = self.datasets['jcl'][self.new_dataset_id]
         monstations   = self.datasets['monstations'][self.new_dataset_id]
-        plt = plotting_standard.LoadPlots(jcl, model=None)
+        plt = plotting_standard.LoadPlots(jcl, model=self.model)
         # determine crit trimcases graphically
         plt.add_monstations(monstations)
         plt.plot_monstations(self.path_output + 'monstations_' + job_name + '.pdf')
@@ -141,7 +141,7 @@ class Merge:
         aux_out.dyn2stat_data = dyn2stat_data
         aux_out.monstations = monstations
         
-        aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name + '.pickle') 
+        aux_out.write_critical_sectionloads(self.path_output + 'monstations_' + job_name)
         aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + job_name + '.csv') 
         aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + job_name + '.bdf') 
     

@@ -1,17 +1,9 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Nov 27 15:35:22 2014
-
-@author: voss_ar
-"""
 import numpy as np
 import scipy.optimize as so
 import logging, copy
 from scipy.integrate import ode
 
 from loadskernel.integrate import RungeKutta4, ExplicitEuler, AdamsBashforth
-import loadskernel.io_functions.specific_functions as specific_io
-
 from loadskernel.equations.steady     import Steady
 from loadskernel.equations.cfd import CfdSteady, CfdUnsteady
 from loadskernel.equations.nonlin_steady import NonlinSteady
@@ -25,10 +17,9 @@ from loadskernel.equations.frequency_domain import KEMethod
 from loadskernel.equations.frequency_domain import PKMethod
 from loadskernel.equations.state_space import StateSpaceAnalysis
 from loadskernel.equations.state_space import JacobiAnalysis
-
 from loadskernel.trim_conditions import TrimConditions
-
 from loadskernel.cfd_interfaces.tau_interface import TauError
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 class SolutionSequences(TrimConditions):
     
@@ -97,6 +88,9 @@ class SolutionSequences(TrimConditions):
         equations.eval_equations()
         
     def calc_derivatives(self):
+        self.macgrid = load_hdf5_dict(self.model['macgrid'])
+        
+        
         self.calc_flexible_derivatives()
         self.calc_rigid_derivatives()
         self.calc_additional_derivatives('rigid')
@@ -115,9 +109,9 @@ class SolutionSequences(TrimConditions):
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
-        A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
+        A = self.jcl.general['A_ref']
         delta = 0.01   
-            
+        
         X0 = np.array(self.trimcond_X[:,2], dtype='float')
         response0 = equations.equations(X0, 0.0, 'trim_full_output')
         derivatives = []
@@ -127,7 +121,7 @@ class SolutionSequences(TrimConditions):
             xi[i] += delta
             response = equations.equations(xi, 0.0, 'trim_full_output')
             Pmac_c = (response['Pmac']-response0['Pmac'])/response['q_dyn']/A/delta
-            derivatives.append([Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.model.macgrid['b_ref'], Pmac_c[4]/self.model.macgrid['c_ref'], Pmac_c[5]/self.model.macgrid['b_ref']])
+            derivatives.append([Pmac_c[0], Pmac_c[1], Pmac_c[2], Pmac_c[3]/self.macgrid['b_ref'], Pmac_c[4]/self.macgrid['c_ref'], Pmac_c[5]/self.macgrid['b_ref']])
         # write back original response and store results
         self.response['rigid_parameters'] = self.trimcond_X[:,0].tolist()
         self.response['rigid_derivatives'] = derivatives
@@ -145,9 +139,9 @@ class SolutionSequences(TrimConditions):
         response0 = self.response
         trimcond_X0 = copy.deepcopy(self.trimcond_X)
         
-        i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
-        vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
+        vtas = self.trimcase['Ma'] * self.model['atmo'][self.trimcase['altitude']]['a'][()]
         A = self.jcl.general['A_ref']
+        
         delta = 0.01   
         parameters = ['theta', 'psi', 'p', 'q', 'r', 'command_xi', 'command_eta', 'command_zeta']
         derivatives = []
@@ -166,7 +160,7 @@ class SolutionSequences(TrimConditions):
             # re-calculate new trim
             self.exec_trim()
             Pmac_c = (self.response['Pmac']-response0['Pmac'])/response0['q_dyn']/A/delta
-            derivatives.append([Pmac_c[0,0], Pmac_c[0,1], Pmac_c[0,2], Pmac_c[0,3]/self.model.macgrid['b_ref'], Pmac_c[0,4]/self.model.macgrid['c_ref'], Pmac_c[0,5]/self.model.macgrid['b_ref']])
+            derivatives.append([Pmac_c[0,0], Pmac_c[0,1], Pmac_c[0,2], Pmac_c[0,3]/self.macgrid['b_ref'], Pmac_c[0,4]/self.macgrid['c_ref'], Pmac_c[0,5]/self.macgrid['b_ref']])
             # restore trim condition for next loop 
             self.trimcond_X = copy.deepcopy(trimcond_X0)
         # write back original response and store results
@@ -177,8 +171,8 @@ class SolutionSequences(TrimConditions):
     def calc_NP(self):
         pos = self.response['flexible_parameters'].index('theta')
         self.response['NP_flex'] = np.zeros(3)
-        self.response['NP_flex'][0] = self.model.macgrid['offset'][0,0] - self.jcl.general['c_ref'] * self.response['flexible_derivatives'][pos][4] / self.response['flexible_derivatives'][pos][2]
-        self.response['NP_flex'][1] = self.model.macgrid['offset'][0,1] + self.jcl.general['b_ref'] * self.response['flexible_derivatives'][pos][3] / self.response['flexible_derivatives'][pos][2] 
+        self.response['NP_flex'][0] = self.macgrid['offset'][0,0] - self.jcl.general['c_ref'] * self.response['flexible_derivatives'][pos][4] / self.response['flexible_derivatives'][pos][2]
+        self.response['NP_flex'][1] = self.macgrid['offset'][0,1] + self.jcl.general['b_ref'] * self.response['flexible_derivatives'][pos][3] / self.response['flexible_derivatives'][pos][2] 
         logging.info('--------------------------------------------------------------------------------------')
         logging.info('Aeroelastic neutral point / aerodynamic center:')
         logging.info('NP_flex (x,y) = {:0.4g},{:0.4g}'.format(self.response['NP_flex'][0], self.response['NP_flex'][1]))
@@ -203,8 +197,7 @@ class SolutionSequences(TrimConditions):
         p * b_ref / (2 * V) = ROLL
         r * b_ref / (2 * V) = YAW
         """
-        i_atmo = self.model.atmo['key'].index(self.trimcase['altitude'])
-        vtas = self.trimcase['Ma'] * self.model.atmo['a'][i_atmo]
+        vtas = self.trimcase['Ma'] * self.model['atmo'][self.trimcase['altitude']]['a'][()]
 
         self.response[key+'_parameters'] += ['p*', 'q*', 'r*']
         self.response[key+'_derivatives'].append(list(np.array(self.response[key+'_derivatives'][self.response[key+'_parameters'].index('p')]) / self.jcl.general['b_ref'] * 2.0 * vtas))
@@ -300,7 +293,7 @@ class SolutionSequences(TrimConditions):
             self.response = equations.eval_equations(xfree_0, time=0.0, modus='trim_full_output')
             self.successful = True
         else:
-            logging.info('running trim for ' + str(len(xfree_0)) + ' variables...')
+            logging.info('Running trim for ' + str(len(xfree_0)) + ' variables...')
             try:
                 """
                 Because the iterative trim is typically used in combination with CFD, some solver settings need to be modified.
@@ -337,9 +330,6 @@ class SolutionSequences(TrimConditions):
         return
 
     def exec_sim(self):
-        # decrease dimension to simplify indexing (undo what has been done in the last lines of exec_trim() ) 
-        self.response['X'] = self.response['X'][0,:]
-        self.response['Y'] = self.response['Y'][0,:]
         # select solution sequence
         if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady', 'cfd_unsteady']:
             self.exec_sim_time_dom()
@@ -353,21 +343,30 @@ class SolutionSequences(TrimConditions):
         Select the right set of equations. 
         If required, add new states, e.g. for the landing gear or unsteady aerodynamics.
         """
+        # get initial solution from trim
+        X0 = self.response['X'][0,:]
+        # select solution sequence
         if self.jcl.aero['method'] in ['mona_steady', 'hybrid'] and not hasattr(self.jcl, 'landinggear'):
-            equations = Steady(self, X0=self.response['X'])
+            equations = Steady(self, X0)
         elif self.jcl.aero['method'] in [ 'nonlin_steady']:
-            equations = NonlinSteady(self, X0=self.response['X'])
+            equations = NonlinSteady(self, X0)
         elif self.simcase['landinggear'] and self.jcl.landinggear['method'] in ['generic', 'skid']:
-            self.add_landinggear() # add landing gear to system
-            equations = Landing(self, X0=self.response['X'])
+            # add landing gear to system
+            self.add_landinggear()
+            # reset initial solution including new states
+            X0 = self.response['X'][0,:]
+            equations = Landing(self, X0)
         elif self.jcl.aero['method'] in ['mona_unsteady']:
             if 'disturbance' in self.simcase.keys():
                 logging.info('Adding disturbance of {} to state(s) '.format(self.simcase['disturbance']))
-                self.response['X'][11+self.simcase['disturbance_mode']] += self.simcase['disturbance']
-            self.add_lagstates() # add lag states to system
-            equations = Unsteady(self, X0=self.response['X'])
+                self.response['X'][0,11+self.simcase['disturbance_mode']] += self.simcase['disturbance']
+            # add lag states to system
+            self.add_lagstates()
+            # reset initial solution including new states
+            X0 = self.response['X'][0,:]
+            equations = Unsteady(self, X0)
         elif self.jcl.aero['method'] in [ 'cfd_unsteady']:
-            equations = CfdUnsteady(self, X0=self.response['X'])
+            equations = CfdUnsteady(self, X0)
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
         
@@ -391,7 +390,6 @@ class SolutionSequences(TrimConditions):
         - Not fully tested
         """
         
-        X0 = self.response['X']
         if 'dt_integration' in self.simcase:
             dt_integration = self.simcase['dt_integration']
         else:
@@ -410,8 +408,11 @@ class SolutionSequences(TrimConditions):
                 integrator.integrate(integrator.t+dt)
                 xt.append(integrator.y)
                 t.append(integrator.t)
-                for key in integrator.output_dict.keys():
-                    self.response[key] = np.vstack((self.response[key],integrator.output_dict[key]))
+                # To avoid an excessive amount of data, e.g. during unsteady cfd simulations, 
+                # keep only the response data on the first mpi process (id = 0).
+                if self.myid == 0:
+                    for key in integrator.output_dict.keys():
+                        self.response[key] = np.vstack((self.response[key],integrator.output_dict[key]))
                 
         else: 
             integrator = self.select_integrator(equations, 'AdamsBashforth')
@@ -424,7 +425,7 @@ class SolutionSequences(TrimConditions):
             
             if integrator.successful():
                 logging.info('Simulation finished. Running (again) with full outputs at selected time steps...')
-                equations.eval_equations(self.response['X'], 0.0, modus='sim_full_output')
+                equations.eval_equations(X0, 0.0, modus='sim_full_output')
                 for i_step in np.arange(0,len(t)):
                     response_step = equations.eval_equations(xt[i_step], t[i_step], modus='sim_full_output')
                     for key in response_step.keys():
@@ -460,16 +461,17 @@ class SolutionSequences(TrimConditions):
         return integrator
             
     def exec_sim_freq_dom(self):
+        # get initial solution from trim
+        X0 = self.response['X'][0,:]
+        # select solution sequence
         if self.simcase['gust']:
-            equations = GustExcitation(self, X0=self.response['X'])
+            equations = GustExcitation(self, X0)
         elif self.simcase['turbulence']:
-            equations = TurbulenceExcitation(self, X0=self.response['X'])
+            equations = TurbulenceExcitation(self, X0)
         elif self.simcase['limit_turbulence']:
-            equations = LimitTurbulence(self, X0=self.response['X'])
+            equations = LimitTurbulence(self, X0)
             self.response['Pmon_turb'] = 0.0
             self.response['correlations'] = 0.0
-            self.response['X'] = np.expand_dims(self.response['X'], axis=0)
-            self.response['Y'] = np.expand_dims(self.response['Y'], axis=0)
         response_sim = equations.eval_equations()
         for key in response_sim.keys():
             self.response[key] = response_sim[key] + self.response[key]
@@ -477,15 +479,17 @@ class SolutionSequences(TrimConditions):
         self.successful = True
     
     def exec_flutter(self):
+        # get initial solution from trim
+        X0 = self.response['X'][0,:]
         # select solution sequence
         if self.simcase['flutter_para']['method'] == 'k':
-            equations = KMethod(self, X0=self.response['X'][0,:])
+            equations = KMethod(self, X0)
         elif self.simcase['flutter_para']['method'] == 'ke':
-            equations = KEMethod(self, X0=self.response['X'][0,:])
+            equations = KEMethod(self, X0)
         elif self.simcase['flutter_para']['method'] == 'pk':
-            equations = PKMethod(self, X0=self.response['X'][0,:])
+            equations = PKMethod(self, X0)
         elif self.simcase['flutter_para']['method'] == 'statespace':
-            equations = StateSpaceAnalysis(self, X0=self.response['X'][0,:])
+            equations = StateSpaceAnalysis(self, X0)
         response_flutter = equations.eval_equations()
         logging.info('Flutter analysis finished.')
         for key in response_flutter.keys():

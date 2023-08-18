@@ -1,4 +1,11 @@
 
+"""
+The ideal PID-controller is not suitable for direct field interaction, therefore it is called the non-interactive PID-controller.
+It is highly responsive to electrical noise on the PV input if the derivative function is enabled.
+(Practical Process Control for Engineers and Technicians, Wolfgang Altmann, 2005, Chapter 7)
+
+-> If the PV signal contains no noise and/or derivative gain Kd is not used, the ideal PID controller can be used
+"""
 class PID_ideal():
     def __init__(self, Kp=0.2, Ki=0.0, Kd=0.0, t=0.0):
         self.Kp = Kp
@@ -62,7 +69,11 @@ class PID_ideal():
         """
         self.output = (self.Kp * self.PTerm) + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
         
-
+"""
+The standart PID-controller is especially designed for direct field interaction and is therefore called the interactive PID-controller. 
+Due to internal filtering in the derivative block the effects of electrical noise on the PV input is greatly reduced.
+(Practical Process Control for Engineers and Technicians, Wolfgang Altmann, 2005, Chapter 7)
+"""
 class PID_standart(PID_ideal):
     
     def __init__(self, Kp=0.2, Ti=0.0, Td=0.0, t=0.0):

@@ -149,5 +149,9 @@ def load_matrix(filename, sparse_output=False, sparse_format=False ):
         data = data.tocsc() # better sparse format than lil_matrix
     if not sparse_output:
         data = data.toarray()
-
+    
+    order = int(np.log10(np.abs(data).max()))
+    if not type_double and order > 10:
+        logging.warn('OP4 format is single precision and largest value is {} orders of magnitude above numerical precision!'.format(order-10))
+    
     return data
