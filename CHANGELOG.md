@@ -1,6 +1,14 @@
 # Note
 New releases are marked in the repository using tags. Simply checkout the master branch for the lastest version or use git checkout if you require a specific release, for example 'git checkout 2022.10'.
 
+# Release 2023.08
+- Model is stored as HDF5 file, no more .pickle files in most workflows
+- Speed up preprocessing for structural models with many degrees of freedom
+- Import of system matrices (mass, stiffness) from Nastran via HDF5
+- Fixed handling of deformations in local grid point coordinate systems (CP and CD)
+- Improved / more robust comparisons with reference data during testing (signs of eigenvalues and vectors may change depending on outside temperature, humidity and the phase of the moon...)
+- Minor improvements to SU2 CFD solver interface
+
 # Release 2023.06
 - Publication as Open Source under the BSD 3-Clause License 
 - Update of the documentation to Version 1.04
