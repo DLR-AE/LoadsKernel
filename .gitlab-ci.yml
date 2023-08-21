@@ -31,9 +31,14 @@ test:
   dependencies:
     - build
   script:
+    # Set-up the environement
+    - *virtualenv
+    # Install with -e (in editable mode) to allow the tracking of the test coverage
+    - pip install -e .
     - which python
     - which pytest
     - which mpiexec
+    - pwd
     # Get the examples repository
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
     # Run the actual testing
