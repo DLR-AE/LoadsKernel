@@ -9,8 +9,9 @@ stages:
 .virtenv: &virtualenv
   # To make things faster, re-use existing site packages. 
   # Python's venv comes with an older version of pip, so don't use it.
-  - python -m venv virtualenv --system-site-packages --without-pip
-  - . virtualenv/bin/activate
+  - python -m venv virtualenv --system-site-packages
+  - source virtualenv/bin/activate
+  - pip install --upgrade pip
 
 build:
   # This stage only tests if the installation is possible.
@@ -21,6 +22,9 @@ build:
   script:
     - *virtualenv
     - pip install -e .
+    - which loads-kernel
+    - which model-viewer
+    - which loads-compare 
 
 test:
   stage: test
@@ -35,6 +39,7 @@ test:
     - *virtualenv
     # Install with -e (in editable mode) to allow the tracking of the test coverage
     - pip install -e .
+    - which loads-kernel
     - which python
     - which pytest
     - which mpiexec
