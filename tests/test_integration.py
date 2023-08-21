@@ -1,14 +1,5 @@
 import logging, pytest, subprocess, shlex, os
 
-"""
-This section sets the environment for the gitlab-runner, which uses the functional account 'f_jwsb'.
-First, we  add the location of the Loads Kernel to the python path.
-Second, for the multiprocessing test case, we add MPI to the environment, which is then handed over in the subprocess call.
-"""
-my_env = {**os.environ, 
-          'PATH': '/work/voss_ar/Software/mpich-3.4.2/bin:' + os.environ['PATH'],
-          'LD_LIBRARY_PATH': '/work/voss_ar/Software/mpich-3.4.2/lib:',}
-
 from loadskernel import program_flow, io_functions
 from tests.helper_functions import HelperFunctions
 
@@ -100,18 +91,18 @@ class TestDiscus2cParallelProcessing(HelperFunctions):
     
     def test_preprocessing_functional_via_command_line_interface(self, get_test_dir):
         # Here we us the command line interface
-        args = shlex.split('python ./loadskernel/program_flow.py --job_name %s \
+        args = shlex.split('loads-kernel --job_name %s \
             --pre True --main False --post False \
             --path_input %s --path_output %s' % (self.job_name, self.path_input, get_test_dir))
-        out = subprocess.run(args, env=my_env)
+        out = subprocess.run(args, env=os.environ)
         assert out.returncode == 0, "subprocess failed: " + str(args)
 
     def test_mainprocessing_functional_via_command_line_interface(self, get_test_dir):
         # Here we us the command line interface
-        args = shlex.split('mpiexec -n 2 python ./loadskernel/program_flow.py --job_name %s \
+        args = shlex.split('mpiexec -n 2 loads-kernel --job_name %s \
             --pre False --main True --post False \
             --path_input %s --path_output %s' % (self.job_name, self.path_input, get_test_dir))
-        out = subprocess.run(args, env=my_env)
+        out = subprocess.run(args, env=os.environ)
         assert out.returncode == 0, "subprocess failed: " + str(args)
     
     def test_preprocessing_results(self, get_test_dir):
