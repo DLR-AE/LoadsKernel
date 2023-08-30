@@ -319,9 +319,10 @@ class LoadPlots(object):
         for station in potato:
             monstation = self.monstations[station]
             fig, ax = plt.subplots(6, sharex=True, figsize=(8,10) )
-            for i_simcase in range(len(self.jcl.simcase)):
-                loads = monstation[str(i_simcase)]['loads']
-                t = monstation[str(i_simcase)]['t']
+            # Plot all load cases for which time series are stored in the monstation
+            for i_case in [key for key in monstation.keys() if key.isnumeric()]:
+                loads = monstation[i_case]['loads']
+                t = monstation[i_case]['t']
                 ax[0].plot(t, loads[:,0], 'k', zorder=-2)
                 ax[1].plot(t, loads[:,1], 'k', zorder=-2)
                 ax[2].plot(t, loads[:,2], 'k', zorder=-2)
