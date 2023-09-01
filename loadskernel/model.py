@@ -404,7 +404,7 @@ class Model:
                 self.prop.build_pacgrid()
                 self.prop.build_AICs_steady(self.jcl.engine['Ma'])
             else:
-                logging.error( 'Unknown aerodynamic propeller method: ' + str(self.jcl.engine['method']))
+                logging.debug( 'Engine method {} has / needs no propulsion properties.'.format(str(self.jcl.engine['method'])))
 
     def build_splines(self):
         # ----------------
