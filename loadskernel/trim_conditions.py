@@ -407,7 +407,7 @@ class TrimConditions:
         self.lg_states = np.expand_dims(self.lg_states, axis=0)
         self.lg_derivatives = np.expand_dims(self.lg_derivatives, axis=0)
         # update response with landing gear states
-        self.response['X'] = np.append(self.response['X'], self.lag_states, axis=1)
+        self.response['X'] = np.append(self.response['X'], self.lg_states, axis=1)
         self.response['Y'] = np.hstack((self.response['Y'][:, self.idx_state_derivatives + self.idx_input_derivatives], self.lg_derivatives, self.response['Y'][:,self.idx_outputs] ))
         # set indices
         self.n_lg_states = self.lg_states.shape[1]
