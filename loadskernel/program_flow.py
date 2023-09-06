@@ -66,34 +66,20 @@ class ProgramFlowHelper(object):
         logging.info('')
     
     def setup_logger_cluster(self, i):
-        logger = logging.getLogger()
-        if self.debug:
-            logger.setLevel(logging.DEBUG)
-        else:
-            logger.setLevel(logging.INFO)
+        # Generate a separate filename for each subcase
         path_log = data_handling.check_path(self.path_output+'log/')
-        # Get the names of all existing loggers.
-        existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
-        if 'lk_clusterlogfile' in existing_handlers:
-            # Make sure that the filename is still correct.
-            hdlr = logger.handlers[existing_handlers.index('lk_clusterlogfile')]
-            if not hdlr.baseFilename == path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.txt.' + str(self.myid):
-                # In case the filename is incorrect, remove the handler completely from the logger.
-                logger.removeHandler(hdlr)
-                # Update the list of all existing loggers.
-                existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
-        # Add the following handlers only if they don't exist. This avoid duplicate lines/log entries.
-        if 'lk_clusterlogfile' not in existing_handlers:
-            # define a Handler which writes messages to a log file
-            logfile = logging.FileHandler(filename=path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.txt.' + str(self.myid), mode='w')
-            logfile.set_name('lk_clusterlogfile')
-            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
-                                          datefmt='%d/%m/%Y %H:%M:%S')
-            logfile.setFormatter(formatter)
-            logger.addHandler(logfile)
-        logger.info('This is the log for process {}.'.format(self.myid))
+        filename = path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) + '.txt.' + str(self.myid)
+        # Then create the logger and console output
+        self.create_logfile_and_console_output(filename)
 
     def setup_logger(self):
+        # Generate a generic name for the log file 
+        path_log = data_handling.check_path(self.path_output+'log/')
+        filename = path_log + 'log_' + self.job_name + '.txt.' + str(self.myid)
+        # Then create the logger and console output
+        self.create_logfile_and_console_output(filename)
+        
+    def create_logfile_and_console_output(self, filename):
         logger = logging.getLogger()
         # Set logging level.
         if self.debug:
@@ -105,12 +91,23 @@ class ProgramFlowHelper(object):
         if 'lk_logfile' in existing_handlers:
             # Make sure that the filename is still correct.
             hdlr = logger.handlers[existing_handlers.index('lk_logfile')]
-            if not hdlr.baseFilename == self.path_output + 'log_' + self.job_name + '.txt.' + str(self.myid):
+            if not hdlr.baseFilename == filename:
                 # In case the filename is incorrect, remove the handler completely from the logger.
                 logger.removeHandler(hdlr)
                 # Update the list of all existing loggers.
                 existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
+        
         # Add the following handlers only if they don't exist. This avoid duplicate lines/log entries.
+        if 'lk_logfile' not in existing_handlers:
+            # define a Handler which writes messages to a log file
+            logfile = logging.FileHandler(filename, mode='a')
+            logfile.set_name('lk_logfile')
+            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
+                                          datefmt='%d/%m/%Y %H:%M:%S')
+            logfile.setFormatter(formatter)
+            logger.addHandler(logfile)
+        
+        # For convinience, the first rank writes console outputs, too.
         if (self.myid == 0) and ('lk_console' not in existing_handlers):
             # define a Handler which writes messages to the sys.stout
             console = logging.StreamHandler(sys.stdout)
@@ -121,14 +118,7 @@ class ProgramFlowHelper(object):
             console.setFormatter(formatter)
             # add the handler(s) to the root logger
             logger.addHandler(console)
-        if 'lk_logfile' not in existing_handlers:
-            # define a Handler which writes messages to a log file
-            logfile = logging.FileHandler(filename=self.path_output + 'log_' + self.job_name + '.txt.' + str(self.myid), mode='a')
-            logfile.set_name('lk_logfile')
-            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
-                                          datefmt='%d/%m/%Y %H:%M:%S')
-            logfile.setFormatter(formatter)
-            logger.addHandler(logfile)
+        
         logger.info('This is the log for process {}.'.format(self.myid))
 
 class Kernel(ProgramFlowHelper):
