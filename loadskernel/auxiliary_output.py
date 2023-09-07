@@ -51,110 +51,104 @@ class AuxiliaryOutput(object):
     
     def write_trimresults(self, filename_csv):
         trimresults = []
-        for i_case in range(len(self.jcl.trimcase)):
-            trimresult = self.assemble_trimresult(i_case)
-            if trimresult != False:
-                trimresults.append(trimresult)
+        for response in self.responses:
+            trimresult = self.assemble_trimresult(response)
+            trimresults.append(trimresult)
         logging.info('writing trim results to: ' + filename_csv)
         io_functions.data_handling.write_list_of_dictionaries(trimresults, filename_csv)
             
-    def assemble_trimresult(self, i_case):
-        response = self.responses[i_case]
-        if response['successful'][()]:
-            trimresult = OrderedDict({'subcase':  self.jcl.trimcase[i_case]['subcase'],
-                                      'desc':     self.jcl.trimcase[i_case]['desc'],
-                                      })
-            
-            self.n_modes = self.model['mass'][self.jcl.trimcase[i_case]['mass']]['n_modes'][()]
+    def assemble_trimresult(self, response):
+        trimresult = OrderedDict({'subcase':  self.jcl.trimcase[response['i'][()]]['subcase'],
+                                  'desc':     self.jcl.trimcase[response['i'][()]]['desc'],
+                                  })
+        self.n_modes = self.model['mass'][self.jcl.trimcase[response['i'][()]]['mass']]['n_modes'][()]
+        # get trimmed states
+        trimresult['x'] = response['X'][0,0]
+        trimresult['y'] = response['X'][0,1]
+        trimresult['z'] = response['X'][0,2]
+        trimresult['phi [deg]']   = response['X'][0,3]/np.pi*180.0
+        trimresult['theta [deg]'] = response['X'][0,4]/np.pi*180.0
+        trimresult['psi [deg]']   = response['X'][0,5]/np.pi*180.0
+        trimresult['dx'] = response['Y'][0,0]
+        trimresult['dy'] = response['Y'][0,1]
+        trimresult['dz'] = response['Y'][0,2]
+        trimresult['u'] = response['X'][0,6]
+        trimresult['v'] = response['X'][0,7]
+        trimresult['w'] = response['X'][0,8]
+        trimresult['p'] = response['X'][0,9]
+        trimresult['q'] = response['X'][0,10]
+        trimresult['r'] = response['X'][0,11]
+        trimresult['du'] = response['Y'][0,6]
+        trimresult['dv'] = response['Y'][0,7]
+        trimresult['dw'] = response['Y'][0,8]
+        trimresult['dp'] = response['Y'][0,9]
+        trimresult['dq'] = response['Y'][0,10]
+        trimresult['dr'] = response['Y'][0,11]
+        trimresult['command_xi [deg]']   = response['X'][0,12+2*self.n_modes]/np.pi*180.0
+        trimresult['command_eta [deg]']  = response['X'][0,13+2*self.n_modes]/np.pi*180.0
+        trimresult['command_zeta [deg]'] = response['X'][0,14+2*self.n_modes]/np.pi*180.0
+        trimresult['thrust per engine [N]'] = response['X'][0,15+2*self.n_modes]
+        trimresult['stabilizer [deg]'] = response['X'][0,16+2*self.n_modes]/np.pi*180.0
+        trimresult['flap setting [deg]'] = response['X'][0,17+2*self.n_modes]/np.pi*180.0
+        trimresult['Nz'] = response['Nxyz'][0,2]
+        trimresult['Vtas'] = response['Y'][0,-2]
+        trimresult['q_dyn'] = response['q_dyn'][0,0]
+        trimresult['alpha [deg]'] = response['alpha'][0,0]/np.pi*180.0
+        trimresult['beta [deg]'] = response['beta'][0,0]/np.pi*180.0
+        
+        # calculate additional aero coefficients
+        Pmac_rbm  = np.dot(self.Dkx1.T, response['Pk_rbm'][0,:])
+        Pmac_cam  = np.dot(self.Dkx1.T, response['Pk_cam'][0,:])
+        Pmac_cs   = np.dot(self.Dkx1.T, response['Pk_cs'][0,:])
+        Pmac_f    = np.dot(self.Dkx1.T, response['Pk_f'][0,:])
+        Pmac_idrag = np.dot(self.Dkx1.T, response['Pk_idrag'][0,:])
+        A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
+        AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
+        Pmac_c = np.divide(response['Pmac'][0,:],response['q_dyn'][0])/A
+        # um alpha drehen, um Cl und Cd zu erhalten
+        Cl = Pmac_c[2]*np.cos(response['alpha'][0,0])+Pmac_c[0]*np.sin(response['alpha'][0,0])
+        Cd = Pmac_c[2]*np.sin(response['alpha'][0,0])+Pmac_c[0]*np.cos(response['alpha'][0,0])
+        Cd_ind_theo = Cl**2.0/np.pi/AR
+        
+        trimresult['Cz_rbm'] = Pmac_rbm[2]/response['q_dyn'][0,0]/A
+        trimresult['Cz_cam'] = Pmac_cam[2]/response['q_dyn'][0,0]/A
+        trimresult['Cz_cs'] = Pmac_cs[2]/response['q_dyn'][0,0]/A
+        trimresult['Cz_f'] = Pmac_f[2]/response['q_dyn'][0,0]/A
+        trimresult['Cx'] = Pmac_c[0]
+        trimresult['Cy'] = Pmac_c[1]
+        trimresult['Cz'] = Pmac_c[2]
+        trimresult['Cmx'] = Pmac_c[3]/self.macgrid['b_ref']
+        trimresult['Cmy'] = Pmac_c[4]/self.macgrid['c_ref']
+        trimresult['Cmz'] = Pmac_c[5]/self.macgrid['b_ref']
+        trimresult['Cl'] = Cl
+        trimresult['Cd'] = Cd
+        trimresult['E'] = Cl/Cd
+        trimresult['Cd_ind'] = Pmac_idrag[0]/response['q_dyn'][0,0]/A
+        trimresult['Cmz_ind'] = Pmac_idrag[5]/response['q_dyn'][0,0]/A/self.macgrid['b_ref']
+        trimresult['e'] = Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn'][0,0]/A)
 
-            # get trimmed states
-            trimresult['x'] = response['X'][0,0]
-            trimresult['y'] = response['X'][0,1]
-            trimresult['z'] = response['X'][0,2]
-            trimresult['phi [deg]']   = response['X'][0,3]/np.pi*180.0
-            trimresult['theta [deg]'] = response['X'][0,4]/np.pi*180.0
-            trimresult['psi [deg]']   = response['X'][0,5]/np.pi*180.0
-            trimresult['dx'] = response['Y'][0,0]
-            trimresult['dy'] = response['Y'][0,1]
-            trimresult['dz'] = response['Y'][0,2]
-            trimresult['u'] = response['X'][0,6]
-            trimresult['v'] = response['X'][0,7]
-            trimresult['w'] = response['X'][0,8]
-            trimresult['p'] = response['X'][0,9]
-            trimresult['q'] = response['X'][0,10]
-            trimresult['r'] = response['X'][0,11]
-            trimresult['du'] = response['Y'][0,6]
-            trimresult['dv'] = response['Y'][0,7]
-            trimresult['dw'] = response['Y'][0,8]
-            trimresult['dp'] = response['Y'][0,9]
-            trimresult['dq'] = response['Y'][0,10]
-            trimresult['dr'] = response['Y'][0,11]
-            trimresult['command_xi [deg]']   = response['X'][0,12+2*self.n_modes]/np.pi*180.0
-            trimresult['command_eta [deg]']  = response['X'][0,13+2*self.n_modes]/np.pi*180.0
-            trimresult['command_zeta [deg]'] = response['X'][0,14+2*self.n_modes]/np.pi*180.0
-            trimresult['thrust per engine [N]'] = response['X'][0,15+2*self.n_modes]
-            trimresult['stabilizer [deg]'] = response['X'][0,16+2*self.n_modes]/np.pi*180.0
-            trimresult['flap setting [deg]'] = response['X'][0,17+2*self.n_modes]/np.pi*180.0
-            trimresult['Nz'] = response['Nxyz'][0,2]
-            trimresult['Vtas'] = response['Y'][0,-2]
-            trimresult['q_dyn'] = response['q_dyn'][0,0]
-            trimresult['alpha [deg]'] = response['alpha'][0,0]/np.pi*180.0
-            trimresult['beta [deg]'] = response['beta'][0,0]/np.pi*180.0
-            
-            # calculate additional aero coefficients
-            Pmac_rbm  = np.dot(self.Dkx1.T, response['Pk_rbm'][0,:])
-            Pmac_cam  = np.dot(self.Dkx1.T, response['Pk_cam'][0,:])
-            Pmac_cs   = np.dot(self.Dkx1.T, response['Pk_cs'][0,:])
-            Pmac_f    = np.dot(self.Dkx1.T, response['Pk_f'][0,:])
-            Pmac_idrag = np.dot(self.Dkx1.T, response['Pk_idrag'][0,:])
-            A = self.jcl.general['A_ref'] #sum(self.model.aerogrid['A'][:])
-            AR = self.jcl.general['b_ref']**2.0 / self.jcl.general['A_ref']
-            Pmac_c = np.divide(response['Pmac'][0,:],response['q_dyn'][0])/A
-            # um alpha drehen, um Cl und Cd zu erhalten
-            Cl = Pmac_c[2]*np.cos(response['alpha'][0,0])+Pmac_c[0]*np.sin(response['alpha'][0,0])
-            Cd = Pmac_c[2]*np.sin(response['alpha'][0,0])+Pmac_c[0]*np.cos(response['alpha'][0,0])
-            Cd_ind_theo = Cl**2.0/np.pi/AR
-            
-            trimresult['Cz_rbm'] = Pmac_rbm[2]/response['q_dyn'][0,0]/A
-            trimresult['Cz_cam'] = Pmac_cam[2]/response['q_dyn'][0,0]/A
-            trimresult['Cz_cs'] = Pmac_cs[2]/response['q_dyn'][0,0]/A
-            trimresult['Cz_f'] = Pmac_f[2]/response['q_dyn'][0,0]/A
-            trimresult['Cx'] = Pmac_c[0]
-            trimresult['Cy'] = Pmac_c[1]
-            trimresult['Cz'] = Pmac_c[2]
-            trimresult['Cmx'] = Pmac_c[3]/self.macgrid['b_ref']
-            trimresult['Cmy'] = Pmac_c[4]/self.macgrid['c_ref']
-            trimresult['Cmz'] = Pmac_c[5]/self.macgrid['b_ref']
-            trimresult['Cl'] = Cl
-            trimresult['Cd'] = Cd
-            trimresult['E'] = Cl/Cd
-            trimresult['Cd_ind'] = Pmac_idrag[0]/response['q_dyn'][0,0]/A
-            trimresult['Cmz_ind'] = Pmac_idrag[5]/response['q_dyn'][0,0]/A/self.macgrid['b_ref']
-            trimresult['e'] = Cd_ind_theo/(Pmac_idrag[0]/response['q_dyn'][0,0]/A)
-        else:
-            trimresult = False
         return trimresult   
 
-    def write_successful_trimcases(self, filename_csv):
-        sucessfull_trimcases_info = []
+    def write_successful_trimcases(self, filename_sucessfull, filename_failed):
+        # Get the index of all sucessfull responses. This relies on the mechanism, that when loading the responses from HDF5, 
+        # only the successfull ones are returned.  
+        i_cases_sucessfull = [response['i'][()] for response in self.responses]
+        # Init two empty lists
+        trimcases_sucessfull = []
+        trimcases_failed = []
+        # Loop over all trim cases and sort them into the two lists    
         for i_case in range(len(self.jcl.trimcase)):
             trimcase = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
                         'desc':     self.jcl.trimcase[i_case]['desc'],}
-            if self.responses[i_case]['successful'][()]:
-                sucessfull_trimcases_info.append(trimcase)
-        logging.info('writing successful trimcases cases to: ' + filename_csv)
-        io_functions.data_handling.write_list_of_dictionaries(sucessfull_trimcases_info, filename_csv)
-        
-    def write_failed_trimcases(self, filename_csv):
-        failed_trimcases_info = []
-        for i_case in range(len(self.jcl.trimcase)):
-            trimcase = {'subcase':  self.jcl.trimcase[i_case]['subcase'],
-                        'desc':     self.jcl.trimcase[i_case]['desc'],}
-            if not self.responses[i_case]['successful'][()]:
-                failed_trimcases_info.append(trimcase)
-        logging.info('writing failed trimcases cases to: ' + filename_csv)
-        io_functions.data_handling.write_list_of_dictionaries(failed_trimcases_info, filename_csv)
-    
+            if i_case in i_cases_sucessfull:
+                trimcases_sucessfull.append(trimcase)
+            else:
+                trimcases_failed.append(trimcase)
+        logging.info('writing successful trimcases cases to: ' + filename_sucessfull)
+        io_functions.data_handling.write_list_of_dictionaries(trimcases_sucessfull, filename_sucessfull)
+        logging.info('writing failed trimcases cases to: ' + filename_failed)
+        io_functions.data_handling.write_list_of_dictionaries(trimcases_failed, filename_failed)
+
     def write_critical_trimcases(self, filename_csv):
         # eigentlich gehoert diese Funtion eher zum post-processing als zum
         # plotten, kann aber erst nach dem plotten ausgefuehrt werden...

@@ -358,8 +358,8 @@ class Kernel(ProgramFlowHelper):
                 aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf')
             else:
                 aux_out.write_trimresults(self.path_output + 'trim_results_' + self.job_name + '.csv')
-                aux_out.write_successful_trimcases(self.path_output + 'successful_trimcases_' + self.job_name + '.csv')
-                aux_out.write_failed_trimcases(self.path_output + 'failed_trimcases_' + self.job_name + '.csv')
+                aux_out.write_successful_trimcases(self.path_output + 'successful_trimcases_' + self.job_name + '.csv', 
+                                                   self.path_output + 'failed_trimcases_' + self.job_name + '.csv')
                 aux_out.write_critical_trimcases(self.path_output + 'crit_trimcases_' + self.job_name + '.csv')
                 aux_out.write_critical_nodalloads(self.path_output + 'nodalloads_' + self.job_name + '.bdf')
                 # aux_out.write_all_nodalloads(self.path_output + 'nodalloads_all_' + self.job_name + '.bdf')
