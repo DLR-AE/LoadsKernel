@@ -151,9 +151,9 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
                 config['MARKER_INLET'] = '( '+', '.join([self.jcl.pressure_inlet['marker'], 
                                                          str(self.atmo['T']), 
                                                          str(self.atmo['p']), 
-                                                         str(self.jcl.pressure_inlet['flow_direstion'][0]),
-                                                         str(self.jcl.pressure_inlet['flow_direstion'][1]),
-                                                         str(self.jcl.pressure_inlet['flow_direstion'][2]),]) + ' )'
+                                                         str(self.jcl.pressure_inlet['flow_direction'][0]),
+                                                         str(self.jcl.pressure_inlet['flow_direction'][1]),
+                                                         str(self.jcl.pressure_inlet['flow_direction'][2]),]) + ' )'
             # make sure that the free stream onflow is zero
             config['MACH_NUMBER'] = 0.0
             # activate grid deformation
@@ -415,9 +415,9 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
                 config['MARKER_INLET'] = '( '+', '.join([self.jcl.pressure_inlet['marker'], 
                                                          str(self.atmo['T']), 
                                                          str(self.atmo['p']), 
-                                                         str(self.jcl.pressure_inlet['flow_direstion'][0]),
-                                                         str(self.jcl.pressure_inlet['flow_direstion'][1]),
-                                                         str(self.jcl.pressure_inlet['flow_direstion'][2]),]) + ' )'
+                                                         str(self.jcl.pressure_inlet['flow_direction'][0]),
+                                                         str(self.jcl.pressure_inlet['flow_direction'][1]),
+                                                         str(self.jcl.pressure_inlet['flow_direction'][2]),]) + ' )'
             # set the farfield onflow
             config['MACH_NUMBER']            = self.trimcase['Ma']
             config['AOA']                    = 0.0
