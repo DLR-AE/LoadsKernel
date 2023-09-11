@@ -146,9 +146,11 @@ def gather_responses(job_name, path):
 
 def check_path(path):
     if not os.path.exists(path):
-        os.makedirs(path)
+        # Create the directory. Use 'exist_ok=True' in case another process just created the same directory.
+        os.makedirs(path, exist_ok=True)
     if os.path.isdir(path) and os.access(os.path.dirname(path), os.W_OK):
-        return os.path.join(path, '') # sicherstellen, dass der Pfad mit / endet
+        # Make sure the path ends with '/'
+        return os.path.join(path, '')
     else:
         logging.critical( 'Path ' + str(path)  + ' not valid. Exit.')
         sys.exit()
