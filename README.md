@@ -6,7 +6,9 @@
 
 The Loads Kernel Software allows for the calculation of quasi-steady and dynamic maneuver loads, unsteady gust loads in the time and frequency domain as well as dynamic landing loads based on a generic landing gear module.
 
-# References
+[![DOI](https://zenodo.org/badge/537500844.svg)](https://zenodo.org/badge/latestdoi/537500844)
+
+# Theorectical Background & References
 
 [1] Voß, A., “Loads Kernel User Guide, Version 1.01,” Institut für Aeroelastik, Deutsches Zentrum für Luft- und Raumfahrt, Göttingen, Germany, Technical Report DLR-IB-AE-GO-2020-136, Nov. 2021, https://elib.dlr.de/140268/.
 
