@@ -6,7 +6,6 @@ from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 class Plotting:
     def __init__(self):
-        self.pscale = 0.2
         pass
 
     def plot_nothing(self):
@@ -36,7 +35,7 @@ class Plotting:
         self.mongrid    = load_hdf5_dict(self.model['mongrid'])
         self.coord      = load_hdf5_dict(self.model['coord'])
         self.Djx2       = self.model['Djx2'][()]
-        self.calc_distance()
+        self.calc_parameters_from_model_size()
         self.calc_focalpoint()
         
     def add_cfdgrids(self, cfdgrids):
@@ -45,10 +44,14 @@ class Plotting:
     def add_iges_meshes(self, meshes):
         self.iges_meshes = meshes
 
-    def calc_distance(self):
-        self.distance = 1.5*(  (self.strcgrid['offset'][:,0].max()-self.strcgrid['offset'][:,0].min())**2 \
-                          + (self.strcgrid['offset'][:,1].max()-self.strcgrid['offset'][:,1].min())**2 \
-                          + (self.strcgrid['offset'][:,2].max()-self.strcgrid['offset'][:,2].min())**2 )**0.5
+    def calc_parameters_from_model_size(self):
+        # Calculate the overall size of the model.
+        model_size = (  (self.strcgrid['offset'][:,0].max()-self.strcgrid['offset'][:,0].min())**2 \
+                      + (self.strcgrid['offset'][:,1].max()-self.strcgrid['offset'][:,1].min())**2 \
+                      + (self.strcgrid['offset'][:,2].max()-self.strcgrid['offset'][:,2].min())**2 )**0.5
+        # Set some parameters which typically give a good view.
+        self.distance   = model_size * 1.5
+        self.pscale     = np.min([model_size / 400.0, 0.04])
     
     def calc_focalpoint(self):
         self.focalpoint = (self.strcgrid['offset'].min(axis=0) + self.strcgrid['offset'].max(axis=0))/2.0
@@ -77,7 +80,7 @@ class Plotting:
         self.roll      = 0.0
         self.distance *= 1.5 # zoom out more
         self.set_view()
-        self.calc_distance() # rest zoom
+        self.calc_parameters_from_model_size() # rest zoom
 
     def set_view(self):
         mlab.view(azimuth=self.azimuth, elevation=self.elevation, roll=self.roll,  distance=self.distance, focalpoint=self.focalpoint)
@@ -170,6 +173,8 @@ class Plotting:
             src_strc = mlab.pipeline.add_dataset(self.ug_strc)
             points  = mlab.pipeline.glyph(src_strc, color=color, scale_factor=p_scale) 
             surface = mlab.pipeline.surface(src_strc, opacity=0.4, color=color)
+            surface.actor.property.edge_visibility=True
+            surface.actor.property.line_width = 0.5 
         else: 
             # plot points as glyphs
             src_strc = mlab.pipeline.add_dataset(self.ug_strc)
