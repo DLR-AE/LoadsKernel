@@ -338,7 +338,7 @@ class TrimConditions:
         # --- bypass --- 
         # --------------
         # Die Steuerkommandos xi, eta und zeta werden vorgegeben und die resultierenden Beschleunigungen sind frei. 
-        elif self.trimcase['maneuver'] in ['bypass', 'derivatives']:
+        elif self.trimcase['maneuver'] in ['bypass', 'derivatives', 'windtunnel']:
             logging.info('Setting trim conditions to "bypass"')
             vtas = self.trimcase['Ma'] * self.atmo['a']
             theta = self.trimcase['theta']
