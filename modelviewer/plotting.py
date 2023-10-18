@@ -52,6 +52,7 @@ class Plotting:
         # Set some parameters which typically give a good view.
         self.distance   = model_size * 1.5
         self.pscale     = np.min([model_size / 400.0, 0.04])
+        self.macscale   = np.min([model_size / 10.0, 1.0])
     
     def calc_focalpoint(self):
         self.focalpoint = (self.strcgrid['offset'].min(axis=0) + self.strcgrid['offset'].max(axis=0))/2.0
@@ -85,10 +86,6 @@ class Plotting:
     def set_view(self):
         mlab.view(azimuth=self.azimuth, elevation=self.elevation, roll=self.roll,  distance=self.distance, focalpoint=self.focalpoint)
         #mlab.orientation_axes()
-
-    # ------------
-    # --- mass ---
-    #-------------
     
     def hide_masses(self):
         self.src_masses.remove()
@@ -134,10 +131,6 @@ class Plotting:
         self.ug2_mass.point_data.scalars.from_array(np.array([radius_mass_cg]))
         self.ug2_mass.modified()
 
-    # ------------
-    # --- strc ---
-    #-------------
-    
     def hide_strc(self):
         self.src_strc.remove()
         self.show_strc=False
@@ -185,11 +178,7 @@ class Plotting:
     def update_mode_display(self, offsets):
         self.ug_strc.points.from_array(offsets)
         self.ug_strc.modified()
-        
-    # ------------
-    # --- aero ---
-    #-------------
-    
+
     def hide_aero(self):
         self.src_aerogrid.remove()
         self.src_MAC.remove()
@@ -214,7 +203,7 @@ class Plotting:
 
         ug2 = tvtk.UnstructuredGrid(points=np.array([self.MAC]))
         self.src_MAC = mlab.pipeline.add_dataset(ug2)
-        points = mlab.pipeline.glyph(self.src_MAC, scale_mode='scalar', scale_factor = 0.5, color=(1,0,0), opacity=0.4, resolution=64)
+        points = mlab.pipeline.glyph(self.src_MAC, scale_mode='scalar', scale_factor = self.macscale, color=(1,0,0), opacity=0.4, resolution=64)
         points.glyph.glyph.clamping = False
         
         if scalars is not None:
@@ -259,12 +248,7 @@ class Plotting:
         
         surface = mlab.pipeline.surface(src_cfdgrid, opacity=1.0, line_width=0.5, color=color)
         surface.actor.property.edge_visibility=True    
-    
 
-    # --------------
-    # --- coupling ---
-    #---------------
-    
     def hide_aero_strc_coupling(self):
         self.src_grid_i.remove()
         self.src_grid_d.remove()
@@ -282,9 +266,8 @@ class Plotting:
         self.show_coupling=True
             
     def plot_splinegrids(self, grid_i,  set_i,  grid_d, set_d):
-        p_scale = self.pscale # points
-        src_grid_i = mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2], scale_factor=p_scale*2, color=(0,1,0))
-        src_grid_d = mlab.points3d(grid_d['offset'+set_d][:,0], grid_d['offset'+set_d][:,1], grid_d['offset'+set_d][:,2], scale_factor=p_scale, color=(1,0,0))
+        src_grid_i = mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2], scale_factor=self.pscale*2, color=(0,1,0))
+        src_grid_d = mlab.points3d(grid_d['offset'+set_d][:,0], grid_d['offset'+set_d][:,1], grid_d['offset'+set_d][:,2], scale_factor=self.pscale, color=(1,0,0))
         return src_grid_i, src_grid_d
         
     def plot_splinerules(self, grid_i,  set_i,  grid_d, set_d, splinerules, coord):
@@ -315,16 +298,11 @@ class Plotting:
         u = offset_dest_d[position_d,0] - x
         v = offset_dest_d[position_d,1] - y
         w = offset_dest_d[position_d,2] - z
-        p_scale = 0.05 # points
     
-        src_grid_i = mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2], scale_factor=p_scale*2, color=(0,1,0))
-        src_grid_d = mlab.points3d(grid_d['offset'+set_d][:,0], grid_d['offset'+set_d][:,1], grid_d['offset'+set_d][:,2], scale_factor=p_scale, color=(1,0,0))
+        src_grid_i = mlab.points3d(grid_i['offset'+set_i][:,0], grid_i['offset'+set_i][:,1], grid_i['offset'+set_i][:,2], scale_factor=self.pscale*2, color=(0,1,0))
+        src_grid_d = mlab.points3d(grid_d['offset'+set_d][:,0], grid_d['offset'+set_d][:,1], grid_d['offset'+set_d][:,2], scale_factor=self.pscale, color=(1,0,0))
         src_spilerules = mlab.quiver3d(x,y,z,u,v,w, mode='2ddash', scale_factor=1.0, color=(0,0,0), opacity=0.4)
         return src_grid_i, src_grid_d, src_spilerules
-       
-    # --------------
-    # --- monstations ---
-    #---------------
     
     def hide_monstations(self):
         self.src_mongrid_i.remove()
@@ -341,10 +319,6 @@ class Plotting:
         self.src_mongrid_i, self.src_mongrid_d, self.src_mongrid_rules = self.plot_splinerules(self.mongrid, '', self.strcgrid, '', rules, self.coord)
         self.show_monstations=True
 
-    # ----------
-    # --- cs ---
-    #-----------
-    
     def hide_cs(self):
         self.src_cs.remove()
         self.show_cs=False
