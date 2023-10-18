@@ -112,6 +112,9 @@ class jcl:
                      'Cd_alpha^2': [0.018*6.28**2.0], 
                      # True or False, calculates local induced drag e.g. for roll-yaw-coupling
                      'induced_drag': False,
+                     # Symmetry about xz-plane: Only the right hand side on the aero mesh is give. 
+                     # The (missing) left hand side is created virtually by mirroring.
+                     'xz_symmetry': False,
                      # --- End of experimental section ---
                     }
         self.meshdefo = {# General CFD surface mesh information
