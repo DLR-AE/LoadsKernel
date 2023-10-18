@@ -210,6 +210,11 @@ class jcl:
                       # Input-file ('.yaml') for PyPropMAt and VLM4Prop
                       'propeller_input_file':'HAP_O6_PROP_pitch.yaml',
                      }
+        self.pressure_inlet = {# In case a pressure inlet boundary is modeled in the CFD mesh, the boundary condition will be updated with 
+                               # the ambient pressure and temperature. Possible application: engine exhaust without thrust.
+                               'marker': 'exhaust',
+                               'flow_direction': [1.0, 0.0, 0.0],
+                               }
         # --- End of experimental section ---
         """
         Individual FE nodes can be defiend as sensors, e.g. to "measure" accelerations. 
