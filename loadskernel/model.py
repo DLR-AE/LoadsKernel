@@ -141,8 +141,8 @@ class Model:
                 monitoring stations, which are not available for all models.
                 """
                 self.mongrid = {'ID':np.array([0]),
-                                'name': 'dummy',
-                                'label': 'dummy',
+                                'name': ['dummy'],
+                                'label': ['dummy'],
                                 'CP':np.array([0]),
                                 'CD':np.array([0]),
                                 'offset':np.array([0.0, 0.0, 0.0]),
