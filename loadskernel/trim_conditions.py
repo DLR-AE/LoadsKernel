@@ -88,9 +88,7 @@ class TrimConditions:
         w = vtas*np.sin(theta)
         z = -self.atmo['h']
         
-        # ---------------
-        # --- default --- 
-        # ---------------
+        # Default trim conditions in case maneuver = ''.
         # right hand side
         self.states = np.array([
             ['x',        'fix',    0.0,],
@@ -157,9 +155,7 @@ class TrimConditions:
             ], dtype=object)
     
     def set_maneuver(self):
-        # ------------------
-        # --- pitch only --- 
-        # ------------------
+        # Trim about pitch axis only 
         if self.trimcase['maneuver'] in ['pitch', 'elevator']:
             logging.info('Setting trim conditions to "pitch"')
             # inputs
@@ -170,9 +166,7 @@ class TrimConditions:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
         
-        # ---------------------------------------
-        # --- pitch only, but with stabilizer --- 
-        # ---------------------------------------
+        # Trim about pitch axis only, but with stabilizer
         elif self.trimcase['maneuver'] in ['stabilizer']:
             logging.info('Setting trim conditions to "stabilizer"')
             # inputs
@@ -184,9 +178,7 @@ class TrimConditions:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
             
-        # -----------------------------------
-        # --- pitch and roll only, no yaw --- 
-        # -----------------------------------
+        # Trim about pitch and roll axis, no yaw
         elif self.trimcase['maneuver'] == 'pitch&roll':
             logging.info('Setting trim conditions to "pitch&roll"')
             # inputs
@@ -194,9 +186,7 @@ class TrimConditions:
             # outputs
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
             
-        # -----------------------------------
-        # --- pitch and yaw only, no roll --- 
-        # -----------------------------------
+        # Trim about pitch and yaw axis, no roll
         elif self.trimcase['maneuver'] == 'pitch&yaw':
             logging.info('Setting trim conditions to "pitch&yaw"')
             # inputs
@@ -204,9 +194,7 @@ class TrimConditions:
             # outputs
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
         
-        # ---------------------
-        # --- level landing --- 
-        # ---------------------
+        # Trim conditin for level landing at a given sink rate 'dz'
         elif self.trimcase['maneuver'] in ['L1wheel', 'L2wheel']:
             logging.info('Setting trim conditions to "level landing"')
             # inputs
@@ -220,9 +208,7 @@ class TrimConditions:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
              
-        # -----------------------
-        # --- 3 wheel landing --- 
-        # -----------------------
+        # Trim condition with prescribed angle theta, e.g. for 3 wheel landing
         elif self.trimcase['maneuver'] in ['L3wheel']:
             logging.info('Setting trim conditions to "3 wheel landing"')
             # inputs
@@ -238,10 +224,7 @@ class TrimConditions:
             self.outputs[np.where((self.outputs[:,0] == 'Nz'))[0][0],1] = 'free'
             self.outputs[np.where((self.outputs[:,0] == 'Vtas'))[0][0],1] = 'target'
             
-        # ------------------
-        # --- segelflug --- 
-        # -----------------
-        # Sinken (w) wird erlaubt, damit die Geschwindigkeit konstant bleibt (du = 0.0)
+        # Trim condition for a glider. Sink rate 'w' is allowed so that the velocity remains constant (du=0.0) 
         elif self.trimcase['maneuver'] == 'segelflug':
             logging.info('Setting trim conditions to "segelflug"')
             # inputs 
@@ -254,9 +237,7 @@ class TrimConditions:
             self.outputs[np.where((self.outputs[:,0] == 'Nz'))[0][0],1] = 'free'
             self.outputs[np.where((self.outputs[:,0] == 'Vtas'))[0][0],1] = 'target'
        
-        # -------------------------
-        # --- pratt, alpha only --- 
-        # -------------------------
+        # Trim conditions with alpha only, e.g. for Pratt formula
         elif self.trimcase['maneuver'] == 'pratt':
             logging.info('Setting trim conditions to "pratt"')
             # inputs
@@ -268,9 +249,7 @@ class TrimConditions:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dq'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
         
-        # ----------------
-        # --- CS fixed --- 
-        # ----------------
+        # Trim condition with prescribed control surface deflections Xi and Zeta 
         elif self.trimcase['maneuver'] == 'Xi&Zeta-fixed':
             logging.info('Setting trim conditions to "Xi&Zeta-fixed"')
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
@@ -279,7 +258,8 @@ class TrimConditions:
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],2] = self.trimcase['command_zeta']
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'          
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
-
+        
+        # Trim condition with prescribed control surface deflections, accelerations free
         elif self.trimcase['maneuver'] == 'CS-fixed':
             logging.info('Setting trim conditions to "CS-fixed"')
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
@@ -292,6 +272,7 @@ class TrimConditions:
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dq'))[0][0],1] = 'free'        
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
             
+        # Trim condition with prescribed control surface deflections, roll, pitch and yaw rates free
         elif self.trimcase['maneuver'] == 'CS&Acc-fixed':
             logging.info('Setting trim conditions to "CS&Acc-fixed"')
             self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
@@ -304,9 +285,7 @@ class TrimConditions:
             self.states[np.where((self.states[:,0] == 'q'))[0][0],1] = 'free'        
             self.states[np.where((self.states[:,0] == 'r'))[0][0],1] = 'free'
         
-        # ----------------
-        # --- sideslip --- 
-        # ----------------
+        # Trim condition that allows sideslip
         elif self.trimcase['maneuver'] == 'sideslip':
             logging.info('Setting trim conditions to "sideslip"')
             # fixed roll and yaw control
@@ -324,6 +303,7 @@ class TrimConditions:
             self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],1] = 'target'
             self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],2] = self.trimcase['beta']
         
+        # Trim condition for a coordinated sideslip at a given angle beta
         elif self.trimcase['maneuver'] == 'coordinated_sideslip':
             logging.info('Setting trim conditions to "sideslip"')
             
@@ -334,11 +314,9 @@ class TrimConditions:
             self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],1] = 'target'
             self.outputs[np.where((self.outputs[:,0] == 'beta'))[0][0],2] = self.trimcase['beta']
         
-        # --------------
-        # --- bypass --- 
-        # --------------
-        # Die Steuerkommandos xi, eta und zeta werden vorgegeben und die resultierenden Beschleunigungen sind frei. 
-        elif self.trimcase['maneuver'] in ['bypass', 'derivatives', 'windtunnel']:
+        # Trim condition for no trim / bypass with prescribed euler angles and control surface deflections.
+        # Used for bypass analyses and for debugging. 
+        elif self.trimcase['maneuver'] in ['bypass', 'derivatives']:
             logging.info('Setting trim conditions to "bypass"')
             vtas = self.trimcase['Ma'] * self.atmo['a']
             theta = self.trimcase['theta']
@@ -359,6 +337,37 @@ class TrimConditions:
             self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],2] = self.trimcase['command_zeta']
             # outputs
             self.outputs[np.where((self.outputs[:,0] == 'Nz'))[0][0],1] = 'free'
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dq'))[0][0],1] = 'free'
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
+        
+        # Trim condtions for a windtunnel-like setting.
+        # All remaining trim conditions are given, only the structural flexibility is calculated.
+        elif self.trimcase['maneuver'] in ['windtunnel']:
+            logging.info('Setting trim conditions to "windtunnel"')
+            vtas = self.trimcase['Ma'] * self.atmo['a']
+            theta = self.trimcase['theta']
+            u = vtas*np.cos(theta)
+            w = vtas*np.sin(theta)
+            # inputs
+            self.states[np.where((self.states[:,0] == 'phi'))[0][0],1] = 'fix'
+            self.states[np.where((self.states[:,0] == 'phi'))[0][0],2] = self.trimcase['phi']
+            self.states[np.where((self.states[:,0] == 'theta'))[0][0],1] = 'fix'
+            self.states[np.where((self.states[:,0] == 'theta'))[0][0],2] = theta
+            self.states[np.where((self.states[:,0] == 'u'))[0][0],1] = 'fix'
+            self.states[np.where((self.states[:,0] == 'u'))[0][0],2] = u
+            self.states[np.where((self.states[:,0] == 'w'))[0][0],1] = 'fix'
+            self.states[np.where((self.states[:,0] == 'w'))[0][0],2] = w
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_xi'))[0][0],2] = self.trimcase['command_xi']
+            self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_eta'))[0][0],2] = self.trimcase['command_eta']
+            self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],1] = 'fix'
+            self.inputs[np.where((self.inputs[:,0] == 'command_zeta'))[0][0],2] = self.trimcase['command_zeta']
+            # outputs
+            self.outputs[np.where((self.outputs[:,0] == 'Nz'))[0][0],1] = 'free'
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dx'))[0][0],1] = 'free'
+            self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dz'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dp'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dq'))[0][0],1] = 'free'
             self.state_derivatives[np.where((self.state_derivatives[:,0] == 'dr'))[0][0],1] = 'free'
