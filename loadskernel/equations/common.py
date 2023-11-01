@@ -672,7 +672,7 @@ class Common():
         # Trimcase and simcase can have different support conditions.
         
         # get support conditions from trimcase or simcase
-        if modus in ['solution', 'trim_full_output'] and 'support' in self.trimcase:
+        if modus in ['trim', 'trim_full_output'] and 'support' in self.trimcase:
             support = self.trimcase['support']
         elif modus in ['sim', 'sim_full_output'] and self.simcase!= '' and 'support' in self.simcase:
             support = self.simcase['support']
