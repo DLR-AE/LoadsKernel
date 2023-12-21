@@ -55,9 +55,10 @@ test:
     # Get the examples repository
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
     # Run the actual testing
-    - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml
-    - coverage xml -o coverage.xml
+    - pytest -v --basetemp=./test_tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
+    # Create some reports
     - coverage report
+    - coverage xml -o coverage.xml
     - coverage html --directory ./coverage
   artifacts:
     when: always
@@ -78,7 +79,7 @@ pages:
   dependencies:
     - test
   script:
-    # Publish the coverage results
+    # Publish the coverage htlm results
     - mkdir public
     - mv coverage public/coverage
   artifacts:
