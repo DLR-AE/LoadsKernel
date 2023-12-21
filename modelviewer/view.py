@@ -1,23 +1,13 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Feb  9 17:45:02 2017
-
-@author: voss_ar
-"""
 import os
+import numpy as np
 # To be able to use PySide or PyQt4 and not run in conflicts with traits,
 # we need to import QtGui and QtCore from pyface.qt
 from pyface.qt import QtGui, QtCore
-# Alternatively, you can bypass this line, but you need to make sure that
-# the following lines are executed before the import of PyQT:
-#   import sip
-#   sip.setapi('QString', 2)
+
 from traits.api import HasTraits, Instance, on_trait_change
 from traitsui.api import View, Item
-from mayavi.core.ui.api import MayaviScene, MlabSceneModel, \
-        SceneEditor
-
-import numpy as np
+from mayavi.core.ui.api import MayaviScene, MlabSceneModel, SceneEditor
 
 from loadskernel.io_functions import data_handling
 from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load_hdf5_dict
@@ -26,17 +16,8 @@ from modelviewer.pytran import NastranSOL101
 from modelviewer.cfdgrid import TauGrid, SU2Grid
 from modelviewer.iges import IgesMesh
 
-# First, and before importing any Enthought packages, set the ETS_TOOLKIT
-# environment variable to qt4, to tell Traits that we will use Qt.
-os.environ['ETS_TOOLKIT'] = 'qt4'
-# By default, the PySide binding will be used. If you want the PyQt bindings
-# to be used, you need to set the QT_API environment variable to 'pyqt'
-# os.environ['QT_API'] = 'pyqt'
-
-
 class Visualization(HasTraits):
     scene = Instance(MlabSceneModel, ())
-
     @on_trait_change('scene.activated')
     def update_plot(self):
         # This function is called when the view is opened. We don't
@@ -51,10 +32,7 @@ class Visualization(HasTraits):
                      height=600, width=600, show_label=False),
                 resizable=True  # We need this to resize with the parent widget
                 )
-
-# The QWidget containing the visualization, this is pure PyQt4 code.
-
-
+    
 class MayaviQWidget(QtGui.QWidget):
 
     def __init__(self, parent=None):
@@ -63,19 +41,11 @@ class MayaviQWidget(QtGui.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.visualization = Visualization()
-
-        # If you want to debug, beware that you need to remove the Qt
-        # input hook.
-        # QtCore.pyqtRemoveInputHook()
-        # import pdb ; pdb.set_trace()
-        # QtCore.pyqtRestoreInputHook()
-
         # The edit_traits call will generate the widget to embed.
         self.ui = self.visualization.edit_traits(parent=self,
                                                  kind='subpanel').control
         layout.addWidget(self.ui)
         self.ui.setParent(self)
-
 
 class Modelviewer():
 
@@ -111,28 +81,35 @@ class Modelviewer():
         self.iges = IgesMesh()
 
     def run(self):
-        self.initGUI()
-
-    def initGUI(self):
         # Don't create a new QApplication, it would unhook the Events
         # set by Traits on the existing QApplication. Simply use the
         # '.instance()' method to retrieve the existing one.
         app = QtGui.QApplication.instance()
-        self.container = QtGui.QWidget()
+        # Init the application's menues, tabs, etc.
+        self.initGUI()
+        # Start the main event loop.
+        app.exec_()
+    
+    def test(self):
+        """
+        This function is intended for CI testing. 
+        To test at least some parts of the code, the app is initialized, but never started. Instead, all windows are closed again.
+        """
+        app = QtGui.QApplication.instance()
+        self.initGUI()
+        app.closeAllWindows()
 
+    def initGUI(self):
+        # Use one Widget as a main container.
+        self.container = QtGui.QWidget()
+        # Init all sub-widgets.
         self.initTabs()
         self.initMayaviFigure()
         self.initWindow()
-
-        # ------------------------
-        # --- layout container ---
-        # ------------------------
+        # Arrange the layout inside the container.
         layout = QtGui.QGridLayout(self.container)
         layout.addWidget(self.tabs_widget, 0, 0)
         layout.addWidget(self.mayavi_widget, 0, 1)
-
-        # Start the main event loop.
-        app.exec_()
 
     def initTabs(self):
         # Configure tabs widget
