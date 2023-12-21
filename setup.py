@@ -12,7 +12,7 @@ def my_setup():
     setup(name='Loads-Kernel',
           version='2023.08',
           description='The Loads Kernel Software allows for the calculation of quasi-steady and dynamic maneuver loads, unsteady gust loads in the time and frequency domain as well as dynamic landing loads based on a generic landing gear module.',
-          url='https://wiki.dlr.de/display/AE/Loads+Kernel%3A+Lastenrechnung',
+          url='https://github.com/DLR-AE/LoadsKernel',
           author='Arne Voß',
           author_email='arne.voss@dlr.de',
           license='BSD 3-Clause License',
@@ -42,6 +42,7 @@ def my_setup():
                             'pytest-cov',
                             'pyyaml',
                             'pandas',
+                            'jupyter',
                             ],
           extras_require={'FMI': ['pyfmi']},
           )

@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import (QApplication, QWidget, QTabWidget, QSizePolicy, QGridLayout, QMainWindow, QAction, QListWidget, QListWidgetItem, 
                              QAbstractItemView, QFileDialog, QComboBox, QCheckBox, QLabel)
@@ -8,16 +6,12 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QTabWidget, QSizePolicy, QGr
 import matplotlib
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
-from matplotlib.backend_bases import key_press_handler # implement the default mpl key bindings
 from matplotlib.figure import Figure
-
 import numpy as np
-import os, copy
+import os
 
 from loadscompare import plotting
 import loadskernel.io_functions as io_functions
-import loadskernel.io_functions.data_handling
-   
 
 class Compare():
     def __init__(self):
@@ -38,25 +32,35 @@ class Compare():
         self.file_opt['title']      = 'Load Monstations'
     
     def run(self):
-        self.initApplication()
-    
-    def initApplication(self):
+        # Create the app.
         app = QApplication([])
+        # Init the application's menues, tabs, etc.
+        self.initGUI()
+        # Start the main event loop.
+        app.exec_()
+    
+    def test(self):
+        """
+        This function is intended for CI testing. 
+        To test at least some parts of the code, the app is initialized, but never started. Instead, all windows are closed again.
+        """
+        app = QApplication([])
+        self.initGUI()
+        app.closeAllWindows()
+    
+    def initGUI(self):
+        # Use one Widget as a main container.
         self.container = QWidget()
-
+        # Init all sub-widgets.
         self.initMatplotlibFigure()
         self.initTabs()
         self.initWindow()
-
-        # layout container 
+        # Arrange the layout inside the container.
         layout = QGridLayout(self.container)
         # Notation: layout.addWidget(widget, row, column, rowSpan, columnSpan)
         layout.addWidget(self.tabs_widget, 0, 0, 2, 1)
         layout.addWidget(self.canvas, 1, 1)
         layout.addWidget(self.toolbar, 0, 1)
-
-        # Start the main event loop.
-        app.exec_()
     
     def initTabs(self):
         # Configure tabs widget
@@ -154,7 +158,8 @@ class Compare():
         action.triggered.connect(self.load_monstation)
         fileMenu.addAction(action)
 
-        # Add Action buttons
+        # Add Action buttons        
+
         action = QAction('Merge Monstations', self.window)
         action.setShortcut('Ctrl+M')
         action.triggered.connect(self.merge_monstation)
