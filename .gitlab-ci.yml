@@ -55,7 +55,7 @@ test:
     # Get the examples repository
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
     # Assemble the tutorials to a jupyter book and build htlm pages
-    - jupyter-book build tutorials
+    - jupyter-book build ./doc/tutorials
     # Run the actual testing of the code with pytest
     - pytest -v --basetemp=./test_tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
     # Create some reports
@@ -68,7 +68,7 @@ test:
       - coverage.xml
       - testresult.xml
       - coverage
-      - tutorials
+      - ./doc/tutorials
     reports:
       coverage_report:
         coverage_format: cobertura
@@ -84,9 +84,9 @@ pages:
   script:
     - mkdir public
     # Publish the coverage htlm results
-    - mv coverage public/coverage
+    - mv coverage ./public/coverage
     # Publish the htlm tutorials
-    - mv tutorials/_build/html public/tutorials
+    - mv ./doc/tutorials/_build/html ./public/tutorials
   artifacts:
     paths:
       - public
