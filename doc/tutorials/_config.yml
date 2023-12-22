@@ -30,3 +30,10 @@ repository:
 html:
   use_issues_button: true
   use_repository_button: true
+
+# Set parameter to prevent that each line of the console output is displayed as a new cell.
+# From what I understood, this is because the log messages are a stream, and streams are rendered 
+# differently by Jupyter. 
+sphinx:
+  config:
+    nb_merge_streams: true
