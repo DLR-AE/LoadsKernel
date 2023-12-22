@@ -78,6 +78,13 @@ There are a number of typical examples, which cover different analyses and simul
 git clone https://gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
 ```
 
+## Tutorials
+In the ./doc folder, there are is a growing number of tutorials based on Jupyter notebooks. You can either have a look at the [static html tutorials](https://loads-kernel.pages.gitlab.dlr.de/loads-kernel/tutorials/) or use the Jupyter notebooks interactively. Start the jupyter notebook server, which will open a dashborad in your web browser. Then navigate to the ./doc/tutorials, open one of the *.ipynb notebooks and you can walk through the tutorials step-by-step.
+
+```
+jupyter notebook
+```
+
 ## Continuous Integration
 Status of the (internal) DLR GitLab continuous integration pipelines:
 
