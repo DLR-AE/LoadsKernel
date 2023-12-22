@@ -43,6 +43,7 @@ def my_setup():
                             'pyyaml',
                             'pandas',
                             'jupyter',
+                            'jupyter-book',
                             ],
           extras_require={'FMI': ['pyfmi']},
           )
