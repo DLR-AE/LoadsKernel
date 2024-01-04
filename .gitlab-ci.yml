@@ -53,6 +53,8 @@ Jupyter:
 
 Flake8:
   stage: test
+  tags:
+    - lk
   script:
     - *virtualenv
     - pip install flake8
@@ -63,6 +65,8 @@ Flake8:
     
 Pylint:
    stage: test
+   tags:
+    - lk
    script:
      - *virtualenv
      - pip install pylint
