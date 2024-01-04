@@ -24,7 +24,7 @@ stages:
   # Check location
   - pwd
   
-build:
+pip-installation:
   # This stage only tests if the installation is possible.
   # The evironment created herein will be discared and re-created in the test stage.
   stage: build
@@ -36,26 +36,54 @@ build:
     # Check result of installation
     - which loads-kernel
     - which model-viewer
-    - which loads-compare 
+    - which loads-compare
 
-test:
+Jupyter:
+  stage: build
+  tags:
+    - lk
+  script:
+    - *virtualenv
+    # Assemble the tutorials to a jupyter book and build htlm pages
+    - jupyter-book build ./doc/tutorials
+  artifacts:
+    when: always
+    paths:
+      - ./doc/tutorials
+
+Flake8:
+  stage: test
+  script:
+    - *virtualenv
+    - pip install flake8
+    # stop the build if there are Python syntax errors or undefined names
+    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    # Lint with flake8
+    - flake8 . --count --statistics
+    
+Pylint:
+   stage: test
+   script:
+     - *virtualenv
+     - pip install pylint
+     # Install the package itself to make sure that all imports work.
+     - pip install .
+     # Analyse the code with pylint
+     - pylint $(git ls-files '*.py') --fail-under=8.0
+
+Pytest:
   stage: test
   timeout: 3 hours
   coverage: '/^TOTAL.+?(\d+\%)$/'
   tags:
     - lk
-  dependencies:
-    - build
   script:
     # Set-up the environement
     - *virtualenv
     # Install with -e (in editable mode) to allow the tracking of the test coverage
     - pip install -e .
-    - which loads-kernel
     # Get the examples repository
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
-    # Assemble the tutorials to a jupyter book and build htlm pages
-    - jupyter-book build ./doc/tutorials
     # Run the actual testing of the code with pytest
     - pytest -v --basetemp=./test_tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
     # Create some reports
@@ -68,18 +96,18 @@ test:
       - coverage.xml
       - testresult.xml
       - coverage
-      - ./doc/tutorials
     reports:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
       junit: testresult.xml
 
-pages:
+deploy-pages:
   stage: deploy
   tags:
     - lk
   dependencies:
+    - build
     - test
   script:
     - mkdir public
