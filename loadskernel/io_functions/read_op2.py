@@ -96,7 +96,7 @@ class OP2(object):
 
     def __init__(self, filename=None):
         self._fileh = None
-        if isinstance(filename, str) or isinstance(filename, unicode):
+        if isinstance(filename, str):
             self._op2_open(filename)
 
     def __del__(self):
@@ -194,7 +194,7 @@ class OP2(object):
             self._intstru = self._endian + '%dq'
             self._ibytes = 8
             self._Str = struct.Struct(self._endian + 'q')
-        #print('bit64 = ', self._bit64)
+        # print('bit64 = ', self._bit64)
 
         self._rowsCutoff = 3000
         self._int32str = self._endian + 'i4'
@@ -212,7 +212,7 @@ class OP2(object):
 
     def _skip_key(self, n):
         """Skips `n` key triplets ([reclen, key, endrec])."""
-        self._fileh.read(n*(8+self._ibytes))
+        self._fileh.read(n * (8 + self._ibytes))
 
     def _read_op2_header(self):
         """
@@ -226,7 +226,7 @@ class OP2(object):
 
         self._fileh.read(4)  # reclen
         frm = self._intstru % key
-        bytes = self._ibytes*key
+        bytes = self._ibytes * key
         self._date = struct.unpack(frm, self._fileh.read(bytes))
         # self._date = np.fromfile(self._fileh, self._intstr, key)
         self._fileh.read(4)  # endrec
@@ -281,7 +281,7 @@ class OP2(object):
         """
         eot, key = self._read_op2_end_of_table()
         if key == 0:
-            #print('return None, None, None')
+            # print('return None, None, None')
             return None, None, None
 
         reclen = self._Str4.unpack(self._fileh.read(4))[0]
@@ -341,13 +341,13 @@ class OP2(object):
             # read column
             while key > 0:
                 reclen = self._Str4.unpack(self._fileh.read(4))[0]
-                r = self._Str.unpack(self._fileh.read(self._ibytes))[0]-1
+                r = self._Str.unpack(self._fileh.read(self._ibytes))[0] - 1
                 n = (reclen - intsize) // 8
                 if n < self._rowsCutoff:
-                    matrix[r:r+n, col] = struct.unpack(
-                        frm % n, self._fileh.read(n*8))
+                    matrix[r:r + n, col] = struct.unpack(
+                        frm % n, self._fileh.read(n * 8))
                 else:
-                    matrix[r:r+n, col] = np.fromfile(
+                    matrix[r:r + n, col] = np.fromfile(
                         self._fileh, np.float64, n)
                 self._fileh.read(4)  # endrec
                 key = self._get_key()
@@ -396,7 +396,7 @@ class OP2(object):
         while key > 0:
             while key > 0:
                 reclen = self._Str4.unpack(self._fileh.read(4))[0]
-                self._fileh.seek(8+reclen, 1)
+                self._fileh.seek(8 + reclen, 1)
                 key = self._Str.unpack(self._fileh.read(self._ibytes))[0]
                 self._fileh.read(4)  # endrec
             self._skip_key(2)
@@ -432,7 +432,7 @@ class OP2(object):
         for s in self.dblist:
             print(s)
 
-    def directory(self, verbose=True, redo=False): # TODO: _read_op2_name_trailer
+    def directory(self, verbose=True, redo=False):  # TODO: _read_op2_name_trailer
         """
         Return list of data block names in op2 file.
 
@@ -497,13 +497,13 @@ class OP2(object):
                 s = 'Table  {0:8}'.format(name)
             cur = self._fileh.tell()
             s += (', bytes = {0:10} [{1:10} to {2:10}]'.
-                  format(cur-pos-1, pos, cur))
+                  format(cur - pos - 1, pos, cur))
             if size != [0, 0]:
                 s += (', {0:6} x {1:<}'.
                       format(size[0], size[1]))
             if name not in dbnames:
                 dbnames[name] = []
-            dbnames[name].append([[pos, cur], cur-pos-1, size])
+            dbnames[name].append([[pos, cur], cur - pos - 1, size])
             dblist.append(s)
             pos = cur
         self.dbnames = dbnames
@@ -575,9 +575,9 @@ class OP2(object):
                 if n < self._rowsCutoff:
                     b = n * bytes_per
                     # print('frmu=%r' % frmu)
-                    data[i:i+n] = struct.unpack(frmu % n, f.read(b))
+                    data[i:i + n] = struct.unpack(frmu % n, f.read(b))
                 else:
-                    data[i:i+n] = np.fromfile(f, frm, n)
+                    data[i:i + n] = np.fromfile(f, frm, n)
                 i += n
                 f.read(4)  # endrec
                 key = self._get_key()
@@ -605,7 +605,7 @@ class OP2(object):
         key = self._get_key()
         while key > 0:
             reclen = self._Str4.unpack(self._fileh.read(4))[0]
-            self._fileh.seek(reclen+4, 1)
+            self._fileh.seek(reclen + 4, 1)
             key = self._get_key()
         self._skip_key(2)
 
@@ -636,9 +636,9 @@ class OP2(object):
         while not eot:
             while key > 0:
                 reclen = self._Str4.unpack(self._fileh.read(4))[0]
-                head = Frm.unpack(self._fileh.read(3*self._ibytes))
+                head = Frm.unpack(self._fileh.read(3 * self._ibytes))
                 print(np.hstack((head, reclen)))
-                self._fileh.seek((key-3)*self._ibytes, 1)
+                self._fileh.seek((key - 3) * self._ibytes, 1)
                 self._fileh.read(4)
                 key = self._get_key()
             self._skip_key(2)
@@ -673,6 +673,7 @@ class OP2(object):
         eqexin = self.read_op2_record()
         self._read_op2_end_of_table()
         return eqexin1, eqexin
+
 
 def read_post_op2(op2_filename, verbose=False):
     """
@@ -729,8 +730,7 @@ def read_post_op2(op2_filename, verbose=False):
                 o2.skip_op2_table()
 
     return {'uset': uset,
-            'mats': mats,}
+            'mats': mats, }
 
-#data = read_post_op2('/scratch/test/uset.op2', verbose=True)
-    
-    
+# data = read_post_op2('/scratch/test/uset.op2', verbose=True)
+

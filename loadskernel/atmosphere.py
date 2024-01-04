@@ -32,6 +32,7 @@ def isa(h):
     for i, hbound in enumerate(hbounds):
         if hbound >= h:
             layer = i - 1
+            break
 
     # formulas apply up to a height of 86km
     # differences in intergartion in case of lambda = 0 lead to a distinction between two formulas for p
@@ -45,3 +46,5 @@ def isa(h):
     a = (gamma * R * T) ** 0.5
 
     return p, rho, T, a
+
+isa(0.0)
