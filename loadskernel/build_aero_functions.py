@@ -14,11 +14,11 @@ def build_x2grid(bdf_reader, aerogrid, coord):
     # build additional coordinate systems
     read_mona.add_CORD2R(bdf_reader.cards['CORD2R'], coord)
 
-    x2grid = { 'ID_surf': aesurf['ID'],
-               'CID': aesurf['CID'],
-               'key': aesurf['key'],
-               'eff': aesurf['eff'],
-               }
+    x2grid = {'ID_surf': aesurf['ID'],
+              'CID': aesurf['CID'],
+              'key': aesurf['key'],
+              'eff': aesurf['eff'],
+              }
     for i_surf in range(len(aesurf['ID'])):
         x2grid[i_surf] = {'CD': [], 'CP': [], 'ID': [], 'offset_j': [], 'set_j': []}
         for i_panel in aelist['values'][aelist['ID'].index(aesurf['AELIST'][i_surf])]:
@@ -122,7 +122,7 @@ def build_aerogrid(bdf_reader, filename='', method_caero='CAERO1'):
                 'coord_desc': 'bodyfixed',
                 'cornerpoint_panels': caero_panels['cornerpoints'],
                 'cornerpoint_grids': np.hstack((caero_grid['ID'][:, None], caero_grid['offset']))
-               }
+                }
     if method_caero in ['VLM4Prop']:
         aerogrid['cam_rad'] = cam_rad
     return aerogrid
@@ -139,14 +139,14 @@ def build_macgrid(aerogrid, b_ref):
     geo_center_z = np.dot(aerogrid['offset_k'][:, 2], aerogrid['A']) / A
     macgrid = {'ID': np.array([0]),
                'offset': np.array([[geo_center_x - 0.25 * mean_aero_choord, geo_center_y, geo_center_z]]),
-               "set":np.array([[0, 1, 2, 3, 4, 5]]),
+               "set": np.array([[0, 1, 2, 3, 4, 5]]),
                'CD': np.array([0]),
                'CP': np.array([0]),
                'coord_desc': 'bodyfixed',
                'A_ref': A,
                'b_ref': b_ref,
                'c_ref': mean_aero_choord,
-              }
+               }
     return macgrid
 
 
@@ -169,7 +169,7 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
         Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), np.zeros(n_k)])
         Ajj_imag = np.array([np.zeros(n_k), np.zeros(n_k), np.zeros(n_k)])
 
-    for beta in betas: 
+    for beta in betas:
         Ajj_real = np.vstack((Ajj_real, k ** 2 / (k ** 2 + beta ** 2)))
         Ajj_imag = np.vstack((Ajj_imag, k * beta / (k ** 2 + beta ** 2)))
     Ajj = np.vstack((Ajj_real.T, Ajj_imag.T))
@@ -187,11 +187,11 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
     RMSE = []
     logging.info('- root-mean-square error(s): ')
     for k_i in range(n_k):
-        RMSE_real = np.sqrt(((Qjj_aprox[k_i    ,:].reshape(n_j, n_j)
-                              - np.real(Qjj[k_i,:,:])) ** 2).sum(axis=None) / n_j ** 2)
-        RMSE_imag = np.sqrt(((Qjj_aprox[k_i + n_k,:].reshape(n_j, n_j)
-                              - np.imag(Qjj[k_i,:,:])) ** 2).sum(axis=None) / n_j ** 2)
-        RMSE.append([RMSE_real, RMSE_imag ])
+        RMSE_real = np.sqrt(((Qjj_aprox[k_i, :].reshape(n_j, n_j)
+                              - np.real(Qjj[k_i, :, :])) ** 2).sum(axis=None) / n_j ** 2)
+        RMSE_imag = np.sqrt(((Qjj_aprox[k_i + n_k, :].reshape(n_j, n_j)
+                              - np.imag(Qjj[k_i, :, :])) ** 2).sum(axis=None) / n_j ** 2)
+        RMSE.append([RMSE_real, RMSE_imag])
         logging.info('  k = {:<6}, RMSE_real = {:<20}, RMSE_imag = {:<20}'.format(k[k_i], RMSE_real, RMSE_imag))
     # Vergroesserung des Frequenzbereichs
     k = np.arange(0.0, (k.max()), 0.001)
@@ -207,15 +207,17 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
         Ajj_real = np.array([np.ones(n_k), np.zeros(n_k), np.zeros(n_k)])
         Ajj_imag = np.array([np.zeros(n_k), np.zeros(n_k), np.zeros(n_k)])
 
-    for beta in betas: Ajj_real = np.vstack((Ajj_real, k ** 2 / (k ** 2 + beta ** 2)))
-    for beta in betas: Ajj_imag = np.vstack((Ajj_imag, k * beta / (k ** 2 + beta ** 2)))
+    for beta in betas:
+        Ajj_real = np.vstack((Ajj_real, k ** 2 / (k ** 2 + beta ** 2)))
+    for beta in betas:
+        Ajj_imag = np.vstack((Ajj_imag, k * beta / (k ** 2 + beta ** 2)))
     # Plots vom Real- und Imaginaerteil der ersten m_n*n_n Panels
     first_panel = 0
     m_n = 3
     n_n = 3
     plt.figure()
     for m_i in range(m_n):
-        for n_i in  range(n_n):
+        for n_i in range(n_n):
             qjj = Qjj[:, first_panel + n_i, first_panel + m_i]
             qjj_aprox = np.dot(Ajj_real.T, ABCD[:, first_panel + n_i, first_panel + m_i]) \
                 + np.dot(Ajj_imag.T, ABCD[:, first_panel + n_i, first_panel + m_i]) * 1j

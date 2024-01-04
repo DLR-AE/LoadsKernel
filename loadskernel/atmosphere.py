@@ -18,14 +18,14 @@ def isa(h):
     # Gaskonstante und der molaren Masse.
     # R = R* / M_Luft
     R = 287.0531  # spec. gas constant  [J/kg/K]
-    gamma = 1.4   # ratio of specific heats
+    gamma = 1.4  # ratio of specific heats
 
-
-    # properties of:  troposphere, tropopause and stratosphere
-    href = [       0.0,  11000.0, 20000.0, 32000.0    ]  # reference altitude   [m]
-    Tref = [     288.15,   216.65,  216.65,  228.65   ]  # temperature at href  [K]
-    pref = [   101325.0, 22632.04, 5474.878, 868.0158 ]  # pressure at href     [Pa]
-    lambda_ref = [ -0.0065,  0.0,     0.001, 0.0028   ]  # temperature gradient [K/m]
+    # properties of: troposphere, tropopause and stratosphere
+    href = [0.0, 11000.0, 20000.0, 32000.0]  # reference altitude   [m]
+    Tref = [288.15, 216.65, 216.65, 228.65]  # temperature at href  [K]
+    # pressure at href     [Pa]
+    pref = [101325.0, 22632.04, 5474.878, 868.0158]
+    lambda_ref = [-0.0065, 0.0, 0.001, 0.0028]  # temperature gradient [K/m]
 
     # find corresponding atmospheric layer for altitude h
     hbounds = [-5001.0, 11000.0, 20000.0, 32000.0, 47000.0]
@@ -46,5 +46,3 @@ def isa(h):
     a = (gamma * R * T) ** 0.5
 
     return p, rho, T, a
-
-isa(0.0)

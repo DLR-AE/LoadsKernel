@@ -1,12 +1,12 @@
 import logging
 from collections import OrderedDict
+import numpy as np
 
-from loadskernel import io_functions
-from loadskernel.grid_trafo import *
+from loadskernel.io_functions import write_mona, data_handling
 from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 
-class AuxiliaryOutput(object):
+class AuxiliaryOutput():
     """
     This class provides functions to save data of trim calculations.
     """
@@ -31,13 +31,13 @@ class AuxiliaryOutput(object):
         logging.info('saving all nodal loads as Nastarn cards...')
         with open(filename + '_Pg', 'w') as fid:
             for i_trimcase in range(len(self.jcl.trimcase)):
-                io_functions.write_mona.write_force_and_moment_cards(fid, self.strcgrid,
-                                                                     self.responses[i_trimcase]['Pg'][0,:],
-                                                                     self.jcl.trimcase[i_trimcase]['subcase'])
+                write_mona.write_force_and_moment_cards(fid, self.strcgrid,
+                                                        self.responses[i_trimcase]['Pg'][0, :],
+                                                        self.jcl.trimcase[i_trimcase]['subcase'])
         with open(filename + '_subcases', 'w') as fid:
             for i_trimcase in range(len(self.jcl.trimcase)):
-                io_functions.write_mona.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'],
-                                                       self.jcl.trimcase[i_trimcase]['desc'])
+                write_mona.write_subcases(fid, self.jcl.trimcase[i_trimcase]['subcase'],
+                                          self.jcl.trimcase[i_trimcase]['desc'])
 
     def write_trimresults(self, filename_csv):
         trimresults = []
@@ -45,7 +45,7 @@ class AuxiliaryOutput(object):
             trimresult = self.assemble_trimresult(response)
             trimresults.append(trimresult)
         logging.info('writing trim results to: %s', filename_csv)
-        io_functions.data_handling.write_list_of_dictionaries(trimresults, filename_csv)
+        data_handling.write_list_of_dictionaries(trimresults, filename_csv)
 
     def assemble_trimresult(self, response):
         trimresult = OrderedDict({'subcase': self.jcl.trimcase[response['i'][()]]['subcase'],
@@ -87,14 +87,14 @@ class AuxiliaryOutput(object):
         trimresult['beta [deg]'] = response['beta'][0, 0] / np.pi * 180.0
 
         # calculate additional aero coefficients
-        Pmac_rbm = np.dot(self.Dkx1.T, response['Pk_rbm'][0,:])
-        Pmac_cam = np.dot(self.Dkx1.T, response['Pk_cam'][0,:])
-        Pmac_cs = np.dot(self.Dkx1.T, response['Pk_cs'][0,:])
-        Pmac_f = np.dot(self.Dkx1.T, response['Pk_f'][0,:])
-        Pmac_idrag = np.dot(self.Dkx1.T, response['Pk_idrag'][0,:])
+        Pmac_rbm = np.dot(self.Dkx1.T, response['Pk_rbm'][0, :])
+        Pmac_cam = np.dot(self.Dkx1.T, response['Pk_cam'][0, :])
+        Pmac_cs = np.dot(self.Dkx1.T, response['Pk_cs'][0, :])
+        Pmac_f = np.dot(self.Dkx1.T, response['Pk_f'][0, :])
+        Pmac_idrag = np.dot(self.Dkx1.T, response['Pk_idrag'][0, :])
         A = self.jcl.general['A_ref']  # sum(self.model.aerogrid['A'][:])
         AR = self.jcl.general['b_ref'] ** 2.0 / self.jcl.general['A_ref']
-        Pmac_c = np.divide(response['Pmac'][0,:], response['q_dyn'][0]) / A
+        Pmac_c = np.divide(response['Pmac'][0, :], response['q_dyn'][0]) / A
         # um alpha drehen, um Cl und Cd zu erhalten
         Cl = Pmac_c[2] * np.cos(response['alpha'][0, 0]) + Pmac_c[0] * np.sin(response['alpha'][0, 0])
         Cd = Pmac_c[2] * np.sin(response['alpha'][0, 0]) + Pmac_c[0] * np.cos(response['alpha'][0, 0])
@@ -135,9 +135,9 @@ class AuxiliaryOutput(object):
             else:
                 trimcases_failed.append(trimcase)
         logging.info('writing successful trimcases cases to: %s', filename_sucessfull)
-        io_functions.data_handling.write_list_of_dictionaries(trimcases_sucessfull, filename_sucessfull)
+        data_handling.write_list_of_dictionaries(trimcases_sucessfull, filename_sucessfull)
         logging.info('writing failed trimcases cases to: %s', filename_failed)
-        io_functions.data_handling.write_list_of_dictionaries(trimcases_failed, filename_failed)
+        data_handling.write_list_of_dictionaries(trimcases_failed, filename_failed)
 
     def write_critical_trimcases(self, filename_csv):
         # eigentlich gehoert diese Funtion eher zum post-processing als zum
@@ -154,7 +154,7 @@ class AuxiliaryOutput(object):
                 crit_trimcases_info.append(trimcase)
 
         logging.info('writing critical trimcases cases to: %s', filename_csv)
-        io_functions.data_handling.write_list_of_dictionaries(crit_trimcases_info, filename_csv)
+        data_handling.write_list_of_dictionaries(crit_trimcases_info, filename_csv)
 
     def write_critical_nodalloads(self, filename):
         logging.info('saving critical nodal loads as Nastarn cards...')
@@ -169,18 +169,17 @@ class AuxiliaryOutput(object):
         else:
             # make sure this is a list of strings
             subcases = list(self.dyn2stat_data['subcases'].asstr()[:])
-        crit_ids = [subcases_IDs[subcases.index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases) ]
+        crit_ids = [subcases_IDs[subcases.index(str(crit_trimcase))] for crit_trimcase in np.unique(self.crit_trimcases)]
         crit_ids = np.sort(crit_ids)
         with open(filename + '_Pg', 'w') as fid:
             for subcase_ID in crit_ids:
                 idx = subcases_IDs.index(subcase_ID)
-                io_functions.write_mona.write_force_and_moment_cards(fid, self.strcgrid,
-                                                                     self.dyn2stat_data['Pg'][idx][:],
-                                                                     subcases_IDs[idx])
+                write_mona.write_force_and_moment_cards(fid, self.strcgrid, self.dyn2stat_data['Pg'][idx][:],
+                                                        subcases_IDs[idx])
         with open(filename + '_subcases', 'w') as fid:
             for subcase_ID in crit_ids:
                 idx = subcases_IDs.index(subcase_ID)
-                io_functions.write_mona.write_subcases(fid, subcases_IDs[idx], subcases[idx])
+                write_mona.write_subcases(fid, subcases_IDs[idx], subcases[idx])
 
     def write_critical_sectionloads(self, base_filename):
         crit_trimcases = np.unique(self.crit_trimcases)
@@ -203,5 +202,5 @@ class AuxiliaryOutput(object):
                     crit_monstations[key]['t'] += [monstation['t'][pos_to_copy]]
         logging.info('saving critical monstation(s).')
         with open(base_filename + '.pickle', 'wb') as f:
-            io_functions.data_handling.dump_pickle(crit_monstations, f)
-        io_functions.data_handling.dump_hdf5(base_filename + '.hdf5', crit_monstations)
+            data_handling.dump_pickle(crit_monstations, f)
+        data_handling.dump_hdf5(base_filename + '.hdf5', crit_monstations)

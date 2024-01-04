@@ -39,12 +39,12 @@ def grid_thin_out_random(grid, thin_out_factor):
     randomnumbers = np.random.rand(grid['n'])
     pos = np.where(randomnumbers < thin_out_factor)[0]
     grid_thin = {'ID': grid['ID'][pos],
-                'CD': grid['CD'][pos],
-                'CP': grid['CP'][pos],
-                'set': grid['set'][pos],
-                'offset': grid['offset'][pos],
-                'n': len(pos),
-               }
+                 'CD': grid['CD'][pos],
+                 'CP': grid['CP'][pos],
+                 'set': grid['set'][pos],
+                 'offset': grid['offset'][pos],
+                 'n': len(pos),
+                 }
     return grid_thin
 
 
@@ -52,16 +52,17 @@ def grid_thin_out_radius(grid, radius):
     pos = list(range(grid['n']))
     i = 0
     while i < len(pos):
-        dist = np.sum((grid['offset'][pos] - grid['offset'][pos[i]]) ** 2, axis=1) ** 0.5
+        dist = np.sum((grid['offset'][pos] - grid['offset']
+                      [pos[i]]) ** 2, axis=1) ** 0.5
         dist[i] += radius * 1.1
         pos = np.delete(pos, np.where(dist <= radius)[0])
         i += 1
 
     grid_thin = {'ID': grid['ID'][pos],
-                'CD': grid['CD'][pos],
-                'CP': grid['CP'][pos],
-                'set': grid['set'][pos],
-                'offset': grid['offset'][pos],
-                'n': len(pos),
-               }
+                 'CD': grid['CD'][pos],
+                 'CP': grid['CP'][pos],
+                 'set': grid['set'][pos],
+                 'offset': grid['offset'][pos],
+                 'n': len(pos),
+                 }
     return grid_thin
