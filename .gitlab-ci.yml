@@ -107,8 +107,8 @@ deploy-pages:
   tags:
     - lk
   dependencies:
-    - build
-    - test
+    - Jupyter
+    - Pytest
   script:
     - mkdir public
     # Publish the coverage htlm results
