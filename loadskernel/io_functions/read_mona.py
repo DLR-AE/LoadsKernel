@@ -50,7 +50,7 @@ def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=Fal
 
             elif str.find(str.replace(read_string, ' ', ''), 'REALEIGENVECTORNO') != -1 and read_string != '':
                 eigenvector_no = int(str.split(read_string)[-1])
-                if not str(eigenvector_no) in eigenvectors:
+                if str(eigenvector_no) not in eigenvectors:
                     eigenvectors[str(eigenvector_no)] = []
                 fid.readline()
                 fid.readline()
@@ -66,13 +66,13 @@ def NASTRAN_f06_modal(filename, modes_selected='all', omitt_rigid_body_modes=Fal
             elif read_string == '':
                 break
 
-    logging.info('Found %i eigenvalues and %i eigenvectors for %i nodes.', len(eigenvalues["ModeNo"], len(eigenvectors.keys()),
-                                                                               len(node_ids) / len(eigenvalues["ModeNo"])))
+    logging.info('Found %i eigenvalues and %i eigenvectors for %i nodes.', len(eigenvalues["ModeNo"]),
+                 len(eigenvectors.keys()), len(node_ids) / len(eigenvalues["ModeNo"]))
     return eigenvalues, eigenvectors, node_ids
 
 
 def reduce_modes(eigenvalues, eigenvectors, nodes_selection, modes_selection):
-    logging.info('Reduction of data to %i selected modes and %i nodes.', len(modes_selection, len(nodes_selection)))
+    logging.info('Reduction of data to %i selected modes and %i nodes.', len(modes_selection), len(nodes_selection))
     eigenvalues_new = {"ModeNo": [],
                        "ExtractionOrder": [],
                        "Eigenvalue": [],
