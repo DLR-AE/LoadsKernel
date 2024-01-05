@@ -39,7 +39,6 @@ def my_setup():
                             'psutil',
                             'h5py',
                             'tables',
-                            'mpi4py',
                             'pytest',
                             'pytest-cov',
                             'pyyaml',
@@ -47,7 +46,7 @@ def my_setup():
                             'jupyter',
                             'jupyter-book',
                             ],
-          extras_require={'FMI': ['pyfmi']},
+          extras_require={'FMI': ['pyfmi', 'mpi4py']},
           )
 
 
