@@ -1,0 +1,19 @@
+[flake8]
+# Use less conservative limit for max. line length, we all have wider screens today.
+max-line-length = 127
+max-complexity = 15
+# E741 - allow ambiguous variable names such as 'l'.
+# W503 - line breaks should occur before the binary operator (this will become best-practise in the furture)
+ignore = E741, W503
+
+# Exclude some directories
+exclude =
+	./virtualenv
+
+# Deactivate too-complex warning(s)
+per-file-ignores =
+    ./loadskernel/trim_conditions.py:C901
+    ./loadskernel/solution_sequences.py:C901
+    ./loadskernel/plotting_extra.py:C901
+    ./doc/jcl_template.py:E261
+    
