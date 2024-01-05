@@ -15,4 +15,5 @@ per-file-ignores =
     ./loadskernel/trim_conditions.py:C901
     ./loadskernel/solution_sequences.py:C901
     ./loadskernel/plotting_extra.py:C901
+    ./doc/jcl_template.py:E261
     

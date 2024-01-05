@@ -1,9 +1,13 @@
-import platform, sys, os, time
+import platform
+import sys
+import os
+import time
 try:
     from mpi4py import MPI
-except:
+except ImportError:
     pass
-    
+
+
 def setup_mpi(debug=False):
     if 'mpi4py.MPI' in sys.modules:
         have_mpi = True

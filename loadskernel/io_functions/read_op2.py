@@ -1,5 +1,5 @@
 """
-This OP2 reader is adopted from pyNastran, which is licensed under the 
+This OP2 reader is adopted from pyNastran, which is licensed under the
 following conditions. See also https://github.com/SteveDoyle2/pyNastran.
 
 
@@ -91,7 +91,7 @@ import numpy as np
 #      on, until data block is read in.
 
 
-class OP2(object):
+class OP2():
     """Class for reading Nastran op2 files and nas2cam data files."""
 
     def __init__(self, filename=None):
@@ -303,64 +303,12 @@ class OP2(object):
         self._skip_key(4)
 
         reclen = self._Str4.unpack(self._fileh.read(4))[0]
-        db_binary_name2 = self._fileh.read(reclen)
-        db_name2 = db_binary_name2.strip().decode('ascii')
+        self._fileh.read(reclen)
         self._fileh.read(4)  # endrec
 
         self._skip_key(2)
         rec_type = self._get_key()
         return db_name, trailer, rec_type
-
-    def read_op2_matrix(self, name, trailer):
-        """
-        Read and return Nastran op2 matrix at current file position.
-
-        It is assumed that the name has already been read in via
-        :func:`_read_op2_name_trailer`.
-
-        The size of the matrix is read from trailer:
-             nrows = trailer[2]
-             ncols = trailer[1]
-        """
-        dtype = 1
-        nrows = trailer[2]
-        ncols = trailer[1]
-        print('    %s (%s, %s)' % (name, nrows, ncols))
-        matrix = np.zeros((nrows, ncols), order='F')
-        if self._bit64:
-            intsize = 8
-        else:
-            intsize = 4
-        col = 0
-        frm = self._endian + '%dd'
-        print('frm =', frm)
-        while dtype > 0:  # read in matrix columns
-            # key is number of elements in next record (row # followed
-            # by key-1 real numbers)
-            key = self._get_key()
-            # read column
-            while key > 0:
-                reclen = self._Str4.unpack(self._fileh.read(4))[0]
-                r = self._Str.unpack(self._fileh.read(self._ibytes))[0] - 1
-                n = (reclen - intsize) // 8
-                if n < self._rowsCutoff:
-                    matrix[r:r + n, col] = struct.unpack(
-                        frm % n, self._fileh.read(n * 8))
-                else:
-                    matrix[r:r + n, col] = np.fromfile(
-                        self._fileh, np.float64, n)
-                self._fileh.read(4)  # endrec
-                key = self._get_key()
-            col += 1
-            self._get_key()
-            dtype = self._get_key()
-        self._read_op2_end_of_table()
-        if self._swap:
-            matrix = matrix.byteswap()
-
-        if name in ['EFMFSMS', 'EFMASSS', 'RBMASSS']:
-            print(matrix)
-        return matrix
 
     def skip_op2_matrix(self, trailer):
         """
@@ -390,7 +338,7 @@ class OP2(object):
 
     def skip_op2_table(self):
         """Skip over Nastran output2 table."""
-        eot, key = self._read_op2_end_of_table()
+        _, key = self._read_op2_end_of_table()
         if key == 0:
             return
         while key > 0:
@@ -401,27 +349,6 @@ class OP2(object):
                 self._fileh.read(4)  # endrec
             self._skip_key(2)
             eot, key = self._read_op2_end_of_table()
-
-    def read_op2_matrices(self):
-        """Read all matrices from Nastran output2 file.
-
-        Returns dictionary containing all matrices in the op2 file:
-        {'NAME1': matrix1, 'NAME2': matrix2, ...}
-
-        The keys are the names as stored (upper case).
-        """
-        self._fileh.seek(self._postheaderpos)
-        mats = {}
-        while 1:
-            name, trailer, rectype = self._read_op2_name_trailer()
-            if name is None:
-                break
-            if rectype > 0:
-                print("Reading matrix {}...".format(name))
-                mats[name] = self.read_op2_matrix(trailer)
-            else:
-                self.skip_op2_table()
-        return mats
 
     def print_data_block_directory(self):
         """
@@ -609,41 +536,6 @@ class OP2(object):
             key = self._get_key()
         self._skip_key(2)
 
-    def read_op2_table_headers(self, name):
-        """
-        Read op2 table headers and echo them to the screen.
-
-        Parameters
-        ----------
-        name : string
-            Name of data block that headers are being read for.
-
-        File must be positioned after name and trailer block.  For
-        example, to read the table headers of the last GEOM1S data
-        block::
-
-            o2 = op2.OP2('modes.op2')
-            fpos = o2.dbnames['GEOM1S'][-1][0][0]
-            o2._fileh.seek(fpos)
-            name, trailer, dbtype = o2._read_op2_name_trailer()
-            o2.read_op2_table_headers('GEOM1S')
-
-        """
-        key = self._get_key()
-        print("{0} Headers:".format(name))
-        Frm = struct.Struct(self._intstru % 3)
-        eot = 0
-        while not eot:
-            while key > 0:
-                reclen = self._Str4.unpack(self._fileh.read(4))[0]
-                head = Frm.unpack(self._fileh.read(3 * self._ibytes))
-                print(np.hstack((head, reclen)))
-                self._fileh.seek((key - 3) * self._ibytes, 1)
-                self._fileh.read(4)
-                key = self._get_key()
-            self._skip_key(2)
-            eot, key = self._read_op2_end_of_table()
-
     def _read_op2_uset(self):
         """
         Read the USET data block.
@@ -661,19 +553,6 @@ class OP2(object):
         self._read_op2_end_of_table()
         return uset
 
-    def _read_op2_eqexin(self):
-        """
-        Read the EQEXIN data block.
-
-        Returns (EQEXIN1, EQEXIN) tuple.
-
-        See :func:`read_nas2cam_op2`.
-        """
-        eqexin1 = self.read_op2_record()
-        eqexin = self.read_op2_record()
-        self._read_op2_end_of_table()
-        return eqexin1, eqexin
-
 
 def read_post_op2(op2_filename, verbose=False):
     """
@@ -685,21 +564,13 @@ def read_post_op2(op2_filename, verbose=False):
         Name of op2 file.
     verbose : bool
         If true, echo names of tables and matrices to screen
-    getougv1 : bool
-        If true, read the OUGV1 matrices, if any.
 
     Returns dictionary with following members
     -----------------------------------------
     'uset' : array
-    'mats' : dictionary
-        Dictionary of matrices read from op2 file and indexed by the
-        name.  The 'tload' entry is a typical entry.  If `getougv1` is
-        true, `mats` will contain a list of all 'OUGV1' and 'BOPHIG'
-        matrices.
     """
     # read op2 file:
     with OP2(op2_filename) as o2:
-        mats = {}
         uset = None
         o2._fileh.seek(o2._postheaderpos)
 
@@ -714,10 +585,8 @@ def read_post_op2(op2_filename, verbose=False):
                 raise RuntimeError('name=%r' % name)
             if dbtype > 0:
                 if verbose:
-                    print("Reading matrix {0}...".format(name))
-                if name not in mats:
-                    mats[name] = []
-                mats[name] += [o2.read_op2_matrix(name, trailer)]
+                    print("Skipping matrix {0}...".format(name))
+                o2.skip_op2_matrix(trailer)
             else:
                 if name.find('USET') == 0:
                     if verbose:
@@ -729,8 +598,4 @@ def read_post_op2(op2_filename, verbose=False):
                         print("Skipping table %r..." % name)
                 o2.skip_op2_table()
 
-    return {'uset': uset,
-            'mats': mats, }
-
-# data = read_post_op2('/scratch/test/uset.op2', verbose=True)
-
+    return {'uset': uset}

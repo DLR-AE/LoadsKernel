@@ -1,84 +1,67 @@
-'''
-Created on Aug 2, 2019
-
-@author: voss_ar
-'''
-
 import numpy as np
-from scipy import linalg
 
-from loadskernel.solution_tools import * 
 from loadskernel.equations.steady import Steady
+from loadskernel.solution_tools import gravitation_on_earth
+
 
 class NonlinSteady(Steady):
 
     def equations(self, X, t, modus):
         self.counter += 1
         # recover states
-        Tgeo2body, Tbody2geo    = self.geo2body(X)
-        dUcg_dt, Uf, dUf_dt     = self.recover_states(X)
-        Vtas, q_dyn             = self.recover_Vtas(X)
-        onflow                  = self.recover_onflow(X)
-        alpha, beta, gamma      = self.windsensor(X, Vtas, Uf, dUf_dt)
-        Ux2 = self.get_Ux2(X)        
-        # --------------------   
-        # --- aerodynamics ---   
-        # --------------------
-        Pk_rbm,  wj_rbm  = self.rbm_nonlin(onflow, alpha, Vtas)
-        Pk_cs,   wj_cs   = self.cs_nonlin(onflow, X, Ux2, Vtas)
-        Pk_f,    wj_f    = self.flexible_nonlin(onflow, Uf, dUf_dt, Vtas)
-        Pk_cam,  wj_cam  = self.camber_twist_nonlin(onflow)
-        
-        wj = (wj_rbm + wj_cs + wj_f + wj_cam)/Vtas
-        Pk_idrag         = self.idrag(wj, q_dyn)
-        
-        Pk_gust     = Pk_rbm*0.0
-        Pk_unsteady = Pk_rbm*0.0
-        
-        # -------------------------------  
-        # --- correction coefficients ---   
-        # -------------------------------
+        Tgeo2body, Tbody2geo = self.geo2body(X)
+        dUcg_dt, Uf, dUf_dt = self.recover_states(X)
+        Vtas, q_dyn = self.recover_Vtas(X)
+        onflow = self.recover_onflow(X)
+        alpha, beta, gamma = self.windsensor(X, Vtas, Uf, dUf_dt)
+        Ux2 = self.get_Ux2(X)
+
+        # aerodynamics
+        Pk_rbm, wj_rbm = self.rbm_nonlin(onflow, alpha, Vtas)
+        Pk_cs, wj_cs = self.cs_nonlin(onflow, X, Ux2, Vtas)
+        Pk_f, wj_f = self.flexible_nonlin(onflow, Uf, dUf_dt, Vtas)
+        Pk_cam, wj_cam = self.camber_twist_nonlin(onflow)
+
+        wj = (wj_rbm + wj_cs + wj_f + wj_cam) / Vtas
+        Pk_idrag = self.idrag(wj, q_dyn)
+
+        Pk_gust = Pk_rbm * 0.0
+        Pk_unsteady = Pk_rbm * 0.0
+
+        # correction coefficients
         Pb_corr = self.correctioon_coefficients(alpha, beta, q_dyn)
         Pmac_vdrag = self.vdrag(alpha, q_dyn)
-        
-        # ---------------------------   
-        # --- summation of forces ---   
-        # ---------------------------
+
+        # summation of forces
         Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero) + Pmac_vdrag
         Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr
-        
-        g_cg = gravitation_on_earth(self.PHInorm_cg, Tgeo2body)
-               
-        # -----------   
-        # --- EoM ---   
-        # -----------
-        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg, modus)
-        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot( np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])) ) # viel schneller!
-        d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
-        
-        # ----------------------
-        # --- CS derivatives ---
-        # ----------------------
-        dcommand = self.get_command_derivatives(t, X, Vtas, gamma, alpha, beta, Nxyz, np.dot(Tbody2geo,X[6:12])[0:3])
 
-        # --------------   
-        # --- output ---   
-        # --------------
-        Y = np.hstack((np.dot(Tbody2geo,X[6:12]), 
-                       np.dot(self.PHIcg_norm,  d2Ucg_dt2), 
-                       dUf_dt, 
-                       d2Uf_dt2, 
-                       dcommand, 
+        g_cg = gravitation_on_earth(self.PHInorm_cg, Tgeo2body)
+
+        # EoM
+        d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg, modus)
+        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot(np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])))
+        d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
+
+        # CS derivatives
+        dcommand = self.get_command_derivatives(t, X, Vtas, gamma, alpha, beta, Nxyz, np.dot(Tbody2geo, X[6:12])[0:3])
+
+        # output
+        Y = np.hstack((np.dot(Tbody2geo, X[6:12]),
+                       np.dot(self.PHIcg_norm, d2Ucg_dt2),
+                       dUf_dt,
+                       d2Uf_dt2,
+                       dcommand,
                        Nxyz[2],
-                       Vtas, 
+                       Vtas,
                        beta,
-                     ))
-            
+                       ))
+
         if modus in ['trim', 'sim']:
             return Y
         elif modus in ['trim_full_output', 'sim_full_output']:
-            response = {'X': X, 
+            response = {'X': X,
                         'Y': Y,
                         't': np.array([t]),
                         'Pk_rbm': Pk_rbm,
@@ -96,7 +79,7 @@ class NonlinSteady(Steady):
                         'Pf': Pf,
                         'alpha': np.array([alpha]),
                         'beta': np.array([beta]),
-                        #'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
+                        # 'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
                         'Ux2': Ux2,
                         'dUcg_dt': dUcg_dt,
                         'd2Ucg_dt2': d2Ucg_dt2,
@@ -106,7 +89,5 @@ class NonlinSteady(Steady):
                         'Nxyz': Nxyz,
                         'g_cg': g_cg,
                         'Pextra': [],
-                       }
-            return response        
-      
-      
+                        }
+            return response
