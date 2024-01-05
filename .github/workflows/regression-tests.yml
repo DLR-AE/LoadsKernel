@@ -54,6 +54,7 @@ jobs:
       run: |
         jupyter-book build ./doc/tutorials
         # Put the html into a 2nd-level sub-folder and use 1st-level subfolder for uploading
+        mkdir ./doc/html
         mv ./doc/tutorials/_build/html ./doc/html/tutorials
     - name: Upload Jupyter book as an artifact
       uses: actions/upload-artifact@v3
