@@ -69,6 +69,19 @@ We are interested in partnerships from both industry and academia, so feel free 
 
 If you discoverd an obvious bug, please open an [issue](https://github.com/DLR-AE/LoadsKernel/issues). In case you already know how to fix it, please provide your feedback via merge requests. For details, please see the [instructions](CONTRIBUTING.md) on how to provide a contribution or contact arne.voss@dlr.de if you need any assistance with that.
 
+# Continuous Integration
+Status of the continuous integration pipelines / workflows:
+
+Master branch 
+
+[![Regression Tests](https://github.com/DLR-AE/LoadsKernel/actions/workflows/regression-tests.yml/badge.svg?branch=master)](https://github.com/DLR-AE/LoadsKernel/actions/workflows/regression-tests.yml)
+[![Coding style](https://github.com/DLR-AE/LoadsKernel/actions/workflows/coding-style.yml/badge.svg?branch=master)](https://github.com/DLR-AE/LoadsKernel/actions/workflows/coding-style.yml)
+
+Development branch 
+
+[![Regression Tests](https://github.com/DLR-AE/LoadsKernel/actions/workflows/regression-tests.yml/badge.svg?branch=devel)](https://github.com/DLR-AE/LoadsKernel/actions/workflows/regression-tests.yml)
+[![Coding style](https://github.com/DLR-AE/LoadsKernel/actions/workflows/coding-style.yml/badge.svg?branch=devel)](https://github.com/DLR-AE/LoadsKernel/actions/workflows/coding-style.yml)
+
 # Internal Part (DLR)
 
 ## Examples
@@ -86,7 +99,7 @@ jupyter notebook
 ```
 
 ## Continuous Integration
-Status of the (internal) DLR GitLab continuous integration pipelines:
+In addition to the public regression testing (see above), additional and more comprehensive tests are performed and compared against long standing reference results. This is an internal process and the status of the continuous integration pipelines can only be accessed from within DLR:
 
 Master branch [![pipeline status](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/master/pipeline.svg)](https://gitlab.dlr.de/loads-kernel/loads-kernel/-/commits/master)
 
