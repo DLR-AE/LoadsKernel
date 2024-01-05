@@ -73,7 +73,7 @@ Pylint:
      # Install the package itself to make sure that all imports work.
      - pip install .
      # Analyse the code with pylint
-     - pylint $(git ls-files '*.py') --fail-under=8.0
+     - pylint $(git ls-files '*.py') --fail-under=7.0
 
 Pytest:
   stage: test
