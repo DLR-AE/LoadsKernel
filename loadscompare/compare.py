@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
 
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import (QApplication, QWidget, QTabWidget, QSizePolicy, QGridLayout, QMainWindow, QAction, QListWidget,
+from pyface.qt import QtCore
+from pyface.qt.QtGui import (QApplication, QWidget, QTabWidget, QSizePolicy, QGridLayout, QMainWindow, QAction, QListWidget,
                              QListWidgetItem, QAbstractItemView, QFileDialog, QComboBox, QCheckBox, QLabel)
 import matplotlib
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
