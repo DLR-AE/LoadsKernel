@@ -36,6 +36,54 @@ jobs:
         which model-viewer
         which loads-compare
   
+  Pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Add multiple Python versions here to run tests on new(er) versions.
+        python-version: ["3.11"]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        # Install same requirements as to be used during regression testing
+        source $CONDA/etc/profile.d/conda.sh
+        conda activate
+        conda install -y -c conda-forge --file ./tests/requirements.txt
+        # Install the package itself to make sure that all imports work.
+        pip install -e .
+    - name: Analysing the code with pytest
+      run: |
+        source $CONDA/etc/profile.d/conda.sh
+        conda activate
+        # Run the actual testing of the code with pytest
+        # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
+        python -m pytest -v --basetemp=./tmp -k test_gui --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
+        # Create some reports
+        coverage report
+        coverage xml -o coverage.xml
+        coverage html --directory ./coverage/coverage
+    - name: Upload test restults and coverage as an artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: test results and coverage
+        path: |
+          testresult.xml
+          coverage.xml
+          coverage
+        if-no-files-found: ignore
+    - name: Upload Jupyter book for pages
+      # This is not a normal artifact but one that can be deployed to the GitHub pages in the next step
+      uses: actions/upload-pages-artifact@v3
+      with:
+        name: github-pages # This name may not be changed according to the documentation
+        path: ./coverage
+        if-no-files-found: ignore
+  
   Jupyter:
     runs-on: ubuntu-latest
     strategy:
@@ -58,6 +106,8 @@ jobs:
         pip install .
     - name: Assemble the tutorials to a jupyter book and build htlm pages
       run: |
+        source $CONDA/etc/profile.d/conda.sh
+        conda activate
         jupyter-book build ./doc/tutorials
         # Put the html into a 2nd-level sub-folder and use 1st-level subfolder for uploading
         mkdir ./doc/html
