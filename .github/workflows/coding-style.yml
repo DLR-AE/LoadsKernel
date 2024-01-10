@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Add multiple Python versions here to run tests on new(er) versions.
+        # Add the Python versions here to run tests on new(er) versions.
         python-version: ["3.11"]
     steps:
     - uses: actions/checkout@v3
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-      # Add multiple Python versions here to run tests on new(er) versions.
+        # Add multiple Python versions here to run tests on new(er) versions.
         python-version: ["3.11"]
     steps:
     - uses: actions/checkout@v3
@@ -50,6 +50,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
+        # Install same requirements as to be used during regression testing
         source $CONDA/etc/profile.d/conda.sh
         conda activate
         conda install -y -c conda-forge --file ./tests/requirements.txt
