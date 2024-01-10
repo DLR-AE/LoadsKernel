@@ -166,7 +166,7 @@ class LoadPlots():
 
     def plot_monstations(self, filename_pdf):
         # launch plotting
-        self.pp = PdfPages(filename_pdf)
+        self.pp = PdfPages(filename_pdf, keep_empty=False)
         self.potato_plots()
         if self.cuttingforces_wing:
             self.cuttingforces_along_wing_plots()
@@ -570,7 +570,7 @@ class FlutterPlots(LoadPlots):
                 ax[1].minorticks_on()
                 ax[1].axis([-1.0, 1.0, imin, imax])
                 # connect with y-axis from left hand plot
-                ax[0].get_shared_y_axes().join(ax[0], ax[1])
+                ax[0].sharey(ax[1])
                 ax[1].yaxis.set_tick_params(which='both', labelleft=False, labelright=False)
                 ax[1].yaxis.offsetText.set_visible(False)
                 # add legend
