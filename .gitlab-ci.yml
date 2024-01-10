@@ -7,7 +7,7 @@ stages:
   - deploy
 
 .virtenv: &virtualenv
-  - source /work/voss_ar/Software/miniconda3/etc/profile.d/conda.sh
+  - source /work/voss_ar/Software/miniconda-3.10/etc/profile.d/conda.sh
   - conda activate
   # To make things faster, re-use existing site packages. 
   - python -m venv virtualenv --system-site-packages
