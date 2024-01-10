@@ -7,7 +7,7 @@ stages:
   - deploy
 
 .virtenv: &virtualenv
-  - source /work/voss_ar/Software/miniconda-3.10/etc/profile.d/conda.sh
+  - source /work/f_jwsb/software/miniconda-3.11/etc/profile.d/conda.sh
   - conda activate
   # To make things faster, re-use existing site packages. 
   - python -m venv virtualenv --system-site-packages
@@ -86,10 +86,11 @@ Pytest:
     - *virtualenv
     # Install with -e (in editable mode) to allow the tracking of the test coverage
     - pip install -e .
+    - pip list
     # Get the examples repository
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
     # Run the actual testing of the code with pytest
-    - pytest -v --basetemp=./test_tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
+    - pytest -v --basetemp=./tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
     # Create some reports
     - coverage report
     - coverage xml -o coverage.xml
