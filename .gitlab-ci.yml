@@ -17,9 +17,7 @@ stages:
   # Check python version
   - which python
   - which pytest
-  # Set-up MPI
-  - export PATH=/work/voss_ar/Software/mpich-3.4.2/bin:$PATH
-  - export LD_LIBRARY_PATH=/work/voss_ar/Software/mpich-3.4.2/lib
+  # Check MPI
   - which mpiexec
   # Check location
   - pwd
@@ -34,6 +32,7 @@ pip-installation:
     - *virtualenv
     - pip install -e .
     # Check result of installation
+    - python -c "import loadskernel"
     - which loads-kernel
     - which model-viewer
     - which loads-compare

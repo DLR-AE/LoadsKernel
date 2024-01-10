@@ -30,6 +30,7 @@ jobs:
         # Install with -e (in editable mode) to allow the tracking of the test coverage
         pip install -e .
         # Check result of installation
+        python -c "import loadskernel"
         which loads-kernel
         which model-viewer
         which loads-compare
