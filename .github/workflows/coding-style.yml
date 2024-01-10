@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         # Add multiple Python versions here to run tests on new(er) versions.
-        python-version: ["3.8", "3.11"]
+        python-version: ["3.11"]
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
@@ -41,7 +41,7 @@ jobs:
     strategy:
       matrix:
       # Add multiple Python versions here to run tests on new(er) versions.
-        python-version: ["3.8", "3.11"]
+        python-version: ["3.11"]
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
@@ -52,9 +52,7 @@ jobs:
       run: |
         source $CONDA/etc/profile.d/conda.sh
         conda activate
-        conda install -y -c conda-forge mayavi traits traitsui pyface pyfmi h5py mpi4py pytest-cov psutil pytables pyyaml matplotlib mamba pandas openpyxl jupyter jupyter-book flake8 pylint
-        #python -m pip install --upgrade pip
-        #pip install pylint
+        conda install -y -c conda-forge --file ./tests/requirements.txt
         # Install the package itself to make sure that all imports work.
         pip install .
     - name: Analysing the code with pylint
