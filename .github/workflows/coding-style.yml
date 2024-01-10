@@ -50,8 +50,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install pylint
+        source $CONDA/etc/profile.d/conda.sh
+        conda activate
+        conda install -y -c conda-forge pylint
+        #python -m pip install --upgrade pip
+        #pip install pylint
         # Install the package itself to make sure that all imports work.
         pip install .
     - name: Analysing the code with pylint
