@@ -89,7 +89,8 @@ Pytest:
     # Get the examples repository
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
     # Run the actual testing of the code with pytest
-    - pytest -v --basetemp=./tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
+    # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
+    - python -m pytest -v --basetemp=./tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
     # Create some reports
     - coverage report
     - coverage xml -o coverage.xml
