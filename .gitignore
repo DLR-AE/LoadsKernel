@@ -1,2 +1,3 @@
-output/*
 *.pyc
+.pytest_cache/
+Loads_Kernel.egg-info/
