@@ -44,22 +44,31 @@ jobs:
       # Add multiple Python versions here to run tests on new(er) versions.
         python-version: ["3.10", "3.11"]
       fail-fast: false
+    # Step 1 to make GUIs work, see https://pytest-qt.readthedocs.io/en/latest/troubleshooting.html
+    env:
+      DISPLAY: ':99.0'
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
+    # Step 2 to make GUIs work
+    - uses: tlambert03/setup-qt-libs@v1
     - name: Build and install
       run: |
+        # Step 3 to make GUIs work
+        /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 1920x1200x24 -ac +extension GLX
         # Install same requirements as to be used during regression testing
         source $CONDA/etc/profile.d/conda.sh
         conda activate
         conda install -y -c conda-forge --file ./tests/list_of_packages.txt
         # Install with -e (in editable mode) to allow the tracking of the test coverage
-        pip install -e .
+        pip install -e .[extras]
         # Check result of installation
         python -c "import loadskernel"
+        python -c "import loadscompare"
+        python -c "import modelviewer"
         which loads-kernel
         which model-viewer
         which loads-compare
