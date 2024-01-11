@@ -92,7 +92,7 @@ jobs:
         coverage xml -o coverage.xml
         coverage html --directory ./coverage/coverage
     - name: Upload test restults and coverage as an artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test results and coverage
         path: |
@@ -125,7 +125,7 @@ jobs:
         mkdir ./doc/html
         mv ./doc/tutorials/_build/html ./doc/html/tutorials
     - name: Upload Jupyter book as an artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: tutorials
         path: ./doc/html
@@ -141,9 +141,9 @@ jobs:
         merge-multiple: true
     - name: See what we've got
       run: |
-        ls -lah
-        tar -xf artifact.tar
-        ls -lah
+        ls -la
+        #tar -xf artifact.tar
+        #ls -la
     - name: Upload subdirectories for pages
       # This is not a normal artifact but one that can be deployed to the GitHub pages in the next step
       uses: actions/upload-pages-artifact@v3
