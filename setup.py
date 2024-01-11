@@ -1,9 +1,9 @@
 """
 Setup file
 Install Loads Kernel with core dependencies via:
-- pip install --user -e <repo_path>
-To use the grafical tools and other features, optional libraries definded in the extra section are necessary:
-- pip install --user -e <repo_path>[extra]
+- pip install -e <local_repo_path>
+To use the graphical tools and other features, optional libraries definded as extras are necessary:
+- pip install -e <repo_path>[extra]
 Especially with mpi or the graphical libraries, pip frequently fails. In that case, try to install the packages using a
 package manager such as conda.
 """
