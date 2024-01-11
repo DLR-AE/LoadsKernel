@@ -1,9 +1,11 @@
 """
 Setup file
-Install Loads Kernel via:
+Install Loads Kernel with core dependencies via:
 - pip install --user -e <repo_path>
-In case Panel-Aero is not yet installed:
-- pip install git+https://gitlab.dlr.de/loads-kernel/panel-aero.git
+To use the grafical tools and other features, optional libraries definded in the extra section are necessary:
+- pip install --user -e <repo_path>[extra]
+Especially with mpi or the graphical libraries, pip frequently fails. In that case, try to install the packages using a 
+package manager such as conda.
 """
 
 from setuptools import setup, find_packages
@@ -29,24 +31,27 @@ def my_setup():
           python_requires='>=3.8',
           install_requires=['Panel-Aero @ git+https://github.com/DLR-AE/PanelAero.git',
                             'matplotlib',
-                            'mayavi',
-                            'traits',
-                            'traitsui',
-                            'pyface',
-                            'pyiges @ git+https://github.com/pyvista/pyiges.git',
                             'numpy',
                             'scipy',
                             'psutil',
                             'h5py',
-                            'tables',
-                            'pytest',
-                            'pytest-cov',
+                            'pytables',
                             'pyyaml',
                             'pandas',
-                            'jupyter',
-                            'jupyter-book',
                             ],
-          extras_require={'FMI': ['pyfmi', 'mpi4py']},
+          extras_require={'extras': ['mpi4py',
+                                     'pyfmi',
+                                     'mayavi',
+                                     'traits',
+                                     'traitsui',
+                                     'pyface',
+                                     'pyiges @ git+https://github.com/pyvista/pyiges.git',
+                                     ],
+                          'test': ['pytest',
+                                   'pytest-cov',
+                                   'jupyter',
+                                   'jupyter-book',
+                                   ]},
           )
 
 
