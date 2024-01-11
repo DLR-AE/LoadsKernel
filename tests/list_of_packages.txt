@@ -1,6 +1,6 @@
-# These are the dependencies and tools to be used during CI workflows.
+# These are the packages and tools to be used during continuous integration workflows.
 # To install everything in batch mode, use:
-# conda install -y -c conda-forge --file ./tests/requirements.txt
+# conda install -y -c conda-forge --file ./tests/list_of_packages.txt
 # Lodas Kernel core dependencies
 matplotlib
 numpy
@@ -11,7 +11,7 @@ pytables
 pyyaml
 pandas
 
-# Extras
+# Extras, otional
 mpi4py
 pyfmi
 mayavi
