@@ -51,7 +51,7 @@ pip install -e .
 To use the graphical tools and other features, optional libraries definded as extras are necessary:
 
 ```
-pip install -e .[extra]
+pip install -e .[extras]
 ```
 
 Note: Especially with mpi or the graphical libraries, pip frequently fails. In that case, try to install the failing packages using a
