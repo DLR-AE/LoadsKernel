@@ -1,6 +1,4 @@
-# This workflow will install and then lint the code with Flake8 and Pylint.
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
+# This workflow will run some regression tests.
 name: Regression Tests
 
 on:
@@ -10,60 +8,6 @@ on:
     branches: '*'
 
 jobs:
-  pure-pip-installation:
-    # This stage only tests if the installation is possible.
-    # The evironment created herein will be discared and re-created in the test stage.
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-      # Add multiple Python versions here to run tests on new(er) versions.
-        python-version: ["3.10"]
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Build and install
-      run: |
-        python -m pip install --upgrade pip
-        # Install with -e (in editable mode) to allow the tracking of the test coverage
-        pip install -e .
-        # Check result of installation
-        python -c "import loadskernel"
-        which loads-kernel
-        which model-viewer
-        which loads-compare
-
-  conda-and-pip-installation:
-    # This stage only tests if the installation is possible.
-    # The evironment created herein will be discared and re-created in the test stage.
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-      # Add multiple Python versions here to run tests on new(er) versions.
-        python-version: ["3.10", "3.11"]
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Build and install
-      run: |
-        # Install same requirements as to be used during regression testing
-        source $CONDA/etc/profile.d/conda.sh
-        conda activate
-        conda install -y -c conda-forge --file ./tests/requirements.txt
-        # Install with -e (in editable mode) to allow the tracking of the test coverage
-        pip install -e .
-        # Check result of installation
-        python -c "import loadskernel"
-        which loads-kernel
-        which model-viewer
-        which loads-compare
   
   Pytest:
     runs-on: ubuntu-latest
@@ -102,6 +46,8 @@ jobs:
         if-no-files-found: ignore
   
   Jupyter:
+    # Building the Jupyter book is not really a regression test. However, it has to be in this workflow due to the handling of 
+    # the artifacts.
     runs-on: ubuntu-latest
     strategy:
       matrix:
