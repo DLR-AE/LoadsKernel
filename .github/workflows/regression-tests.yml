@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
       # Add multiple Python versions here to run tests on new(er) versions.
-        python-version: ["3.8", "3.10"]
+        python-version: ["3.10"]
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
@@ -35,13 +35,42 @@ jobs:
         which loads-kernel
         which model-viewer
         which loads-compare
+
+  conda-and-pip-installation:
+    # This stage only tests if the installation is possible.
+    # The evironment created herein will be discared and re-created in the test stage.
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+      # Add multiple Python versions here to run tests on new(er) versions.
+        python-version: ["3.10", "3.11"]
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Build and install
+      run: |
+        # Install same requirements as to be used during regression testing
+        source $CONDA/etc/profile.d/conda.sh
+        conda activate
+        conda install -y -c conda-forge --file ./tests/requirements.txt
+        # Install with -e (in editable mode) to allow the tracking of the test coverage
+        pip install -e .
+        # Check result of installation
+        python -c "import loadskernel"
+        which loads-kernel
+        which model-viewer
+        which loads-compare
   
   Pytest:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         # Add multiple Python versions here to run tests on new(er) versions.
-        python-version: ["3.11"]
+        python-version: ["3.10"]
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
@@ -50,16 +79,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        # Install same requirements as to be used during regression testing
-        source $CONDA/etc/profile.d/conda.sh
-        conda activate
-        conda install -y -c conda-forge --file ./tests/requirements.txt
+        python -m pip install --upgrade pip
         # Install the package itself to make sure that all imports work.
         pip install -e .
     - name: Analysing the code with pytest
       run: |
-        source $CONDA/etc/profile.d/conda.sh
-        conda activate
         # Run the actual testing of the code with pytest
         # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
         python -m pytest -v --basetemp=./tmp -k test_dummy --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
@@ -91,16 +115,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        # Install same requirements as to be used during regression testing
-        source $CONDA/etc/profile.d/conda.sh
-        conda activate
-        conda install -y -c conda-forge --file ./tests/requirements.txt
+        python -m pip install --upgrade pip
         # Install the package itself to make sure that all imports work.
         pip install .
     - name: Assemble the tutorials to a jupyter book and build htlm pages
       run: |
-        source $CONDA/etc/profile.d/conda.sh
-        conda activate
         jupyter-book build ./doc/tutorials
         # Put the html into a 2nd-level sub-folder and use 1st-level subfolder for uploading
         mkdir ./doc/html
