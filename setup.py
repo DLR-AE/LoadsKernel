@@ -4,7 +4,7 @@ Install Loads Kernel with core dependencies via:
 - pip install --user -e <repo_path>
 To use the grafical tools and other features, optional libraries definded in the extra section are necessary:
 - pip install --user -e <repo_path>[extra]
-Especially with mpi or the graphical libraries, pip frequently fails. In that case, try to install the packages using a 
+Especially with mpi or the graphical libraries, pip frequently fails. In that case, try to install the packages using a
 package manager such as conda.
 """
 
@@ -35,7 +35,7 @@ def my_setup():
                             'scipy',
                             'psutil',
                             'h5py',
-                            'pytables',
+                            'tables',
                             'pyyaml',
                             'pandas',
                             ],
