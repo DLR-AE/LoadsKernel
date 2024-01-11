@@ -138,6 +138,16 @@ jobs:
         path: ./doc/html
         if-no-files-found: ignore
   
+  combine-pages:
+    # Add a dependency to the build job
+    needs: [Jupyter, Pytest]
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        merge-multiple: true
+    - name: See what we've got
+      run: ls -la
+    
   deploy-pages:
     # Add a dependency to the build job
     needs: [Jupyter, Pytest]
