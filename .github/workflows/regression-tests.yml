@@ -139,6 +139,7 @@ jobs:
         if-no-files-found: ignore
   
   combine-pages:
+    runs-on: ubuntu-latest
     # Add a dependency to the build job
     needs: [Jupyter, Pytest]
     steps:
