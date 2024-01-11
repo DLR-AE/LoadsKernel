@@ -1,7 +1,10 @@
 import logging
 
-from loadscompare import compare
-from modelviewer import view
+try:
+    from loadscompare import compare
+    from modelviewer import view
+except ImportError:
+    pass
 
 
 class TestLoadsCompare():
