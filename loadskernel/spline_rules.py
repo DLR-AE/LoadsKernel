@@ -32,7 +32,8 @@ def rules_point(grid_i, grid_d):
     # All dependent grids are mapped to one grid point, which might be CG or MAC
     # Assumption: the relevant point is expected to be the only/first point in the independet grid
     splinerules = {}
-    splinerules[int(grid_i['ID'])] = list(grid_d['ID'])
+    assert len(grid_i['ID']) == 1, "The independent grid 'grid_i' may have only one grid point for this kind of spline rules."
+    splinerules[grid_i['ID'][0]] = list(grid_d['ID'])
     return splinerules
 
 

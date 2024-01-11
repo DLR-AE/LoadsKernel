@@ -7,7 +7,7 @@ stages:
   - deploy
 
 .virtenv: &virtualenv
-  - source /work/voss_ar/Software/miniconda3/etc/profile.d/conda.sh
+  - source /work/f_jwsb/software/miniconda-3.11/etc/profile.d/conda.sh
   - conda activate
   # To make things faster, re-use existing site packages. 
   - python -m venv virtualenv --system-site-packages
@@ -17,9 +17,7 @@ stages:
   # Check python version
   - which python
   - which pytest
-  # Set-up MPI
-  - export PATH=/work/voss_ar/Software/mpich-3.4.2/bin:$PATH
-  - export LD_LIBRARY_PATH=/work/voss_ar/Software/mpich-3.4.2/lib
+  # Check MPI
   - which mpiexec
   # Check location
   - pwd
@@ -34,6 +32,7 @@ pip-installation:
     - *virtualenv
     - pip install -e .
     # Check result of installation
+    - python -c "import loadskernel"
     - which loads-kernel
     - which model-viewer
     - which loads-compare
@@ -86,10 +85,12 @@ Pytest:
     - *virtualenv
     # Install with -e (in editable mode) to allow the tracking of the test coverage
     - pip install -e .
+    - pip list
     # Get the examples repository
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
     # Run the actual testing of the code with pytest
-    - pytest -v --basetemp=./test_tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
+    # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
+    - python -m pytest -v --basetemp=./tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
     # Create some reports
     - coverage report
     - coverage xml -o coverage.xml

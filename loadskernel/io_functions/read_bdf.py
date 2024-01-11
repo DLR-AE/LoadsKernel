@@ -190,7 +190,7 @@ class Reader():
         for card_name in card_names:
             old_size = self.cards[card_name].shape[0]
             sort_by_field = self.card_interpreters[card_name].field_names[0]
-            self.cards[card_name] = self.cards[card_name].groupby(by=sort_by_field, as_index=False).agg(sum)
+            self.cards[card_name] = self.cards[card_name].groupby(by=sort_by_field, as_index=False).agg("sum")
             new_size = self.cards[card_name].shape[0]
             if old_size != new_size:
                 logging.info('Aggregating {} {}s'.format(old_size - new_size, card_name))

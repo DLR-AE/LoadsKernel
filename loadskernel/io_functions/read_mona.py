@@ -416,7 +416,7 @@ def add_SET1(pandas_sets):
     set_values = []
     for _, row in pandas_sets[['values']].iterrows():
         # create a copy of the current row to work with
-        my_row = copy.deepcopy(row[0])
+        my_row = copy.deepcopy(row.iloc[0])
         # remove all None values
         my_row = [item for item in my_row if item is not None]
         values = []
@@ -448,8 +448,8 @@ def add_AECOMP(pandas_aecomps):
     # Loop over the rows to check for NaNs and None, which occur in case an empty field was in the list.
     # Then, select only the valid list items.
     for _, row in pandas_aecomps[['LISTID']].iterrows():
-        is_id = [pd.notna(x) for x in row[0]]
-        list_id.append(list(compress(row[0], is_id)))
+        is_id = [pd.notna(x) for x in row.iloc[0]]
+        list_id.append(list(compress(row.iloc[0], is_id)))
 
     aecomp = {}
     aecomp['name'] = pandas_aecomps['NAME'].to_list()
