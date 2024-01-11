@@ -1,20 +1,30 @@
-# These are the requirements to be used during regression testing
+# These are the dependencies and tools to be used during CI workflows.
+# To install everything in batch mode, use:
+# conda install -y -c conda-forge --file ./tests/requirements.txt
+# Lodas Kernel core dependencies
+matplotlib
+numpy
+scipy
+psutil
+h5py
+pytables
+pyyaml
+pandas
+
+# Extras
+mpi4py
+pyfmi
 mayavi
 traits
 traitsui
 pyface
-pyfmi
-h5py
-mpi4py
+
+# Regression tests
+pytest
 pytest-cov
-psutil
-pytables
-pyyaml
-matplotlib
-mamba
-pandas
-openpyxl
 jupyter
 jupyter-book
+
+# Coding style
 flake8
 pylint
