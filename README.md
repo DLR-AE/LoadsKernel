@@ -17,16 +17,16 @@ The Loads Kernel Software allows for the calculation of quasi-steady and dynamic
 If you use this software for your scientific work, we kindly ask you to include a reference [1,2] in your publications. Thank you!
 
 # Installation & Use
-## User installation 
-To install everything as a python package, including dependencies:
+## Basic Installation 
+Install Loads Kernel as a python package with core dependencies via:
 
 ```
-pip install --user git+https://github.com/DLR-AE/LoadsKernel.git
+pip install git+https://github.com/DLR-AE/LoadsKernel.git
 ```
 
 ## How can I use it?
 
-Adjust the launch script (launch.py, located in the input folder) to your needs / for your aircraft configuration. Then, launch the python script with:
+Copy and adjust the launch script (launch.py, example located in the [scripts folder](https://github.com/DLR-AE/LoadsKernel/tree/master/scripts)) to your needs / for your aircraft configuration. Then, launch the python script with:
 
 ```
 python launch.py
@@ -38,20 +38,30 @@ If ~/.local/bin is in your system PATH, you can use the following commands from 
 loads-kernel --job_name jcl_Discus2c --pre True --main True --post True --path_input /path/to/Discus2c/JCLs --path_output /path/to/Discus2c/output
 ```
 
-There are two GUIs to visualize a simulation model (the Model Viewer) and to compare different sets of loads (Loads Compare), which can be started from the command line as well:
+## Advanced Installation 
 
-```
-model-viewer
-loads-compare
-```
-
-## Developer installation 
 As above, but with access to the code (keep the code where it is so that you can explore and modify):
 
 ```
 git clone https://github.com/DLR-AE/LoadsKernel.git
-cd ./loads-kernel
-pip install --user -e . 
+cd <local_repo_path>
+pip install -e . 
+```
+
+To use the graphical tools and other features, optional libraries definded as extras are necessary:
+
+```
+pip install -e .[extra]
+```
+
+Note: Especially with mpi or the graphical libraries, pip frequently fails. In that case, try to install the failing packages using a
+package manager such as conda.
+
+There are two GUIs to visualize a simulation model (the Model Viewer) and to compare different sets of loads (Loads Compare), which can be started from the command line as well.
+
+```
+model-viewer
+loads-compare
 ```
 
 # License

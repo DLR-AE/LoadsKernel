@@ -53,9 +53,9 @@ jobs:
         # Install same requirements as to be used during regression testing
         source $CONDA/etc/profile.d/conda.sh
         conda activate
-        conda install -y -c conda-forge --file ./tests/requirements.txt
+        conda install -y -c conda-forge --file ./tests/list_of_packages.txt
         # Install the package itself to make sure that all imports work.
-        pip install .
+        pip install .[extras]
     - name: Analysing the code with pylint
       run: |
         source $CONDA/etc/profile.d/conda.sh
