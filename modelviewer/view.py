@@ -535,7 +535,7 @@ class Modelviewer():
         # To show a different control surface, new points need to be created. Thus, remove last control surface from plot.
         if self.plotting.show_cs:
             self.plotting.hide_cs()
-        self.sl_deg.setValue(0.0)
+        self.sl_deg.setValue(0)
         self.lb_deg.setText('Deflection: {:0.0f} deg'.format(0.0))
         self.get_cs_data_for_plotting()
 
