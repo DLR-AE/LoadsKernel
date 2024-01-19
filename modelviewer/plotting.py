@@ -245,10 +245,10 @@ class Plotting:
 
     def plot_cfdgrids(self, markers):
         self.src_cfdgrids = []
-        for cfdgrid in self.cfdgrids:
-            if cfdgrid['desc'] in markers:
+        for marker in self.cfdgrids:
+            if marker in markers:
                 self.setup_cfdgrid_display(
-                    grid=cfdgrid, color=(1, 1, 1), scalars=None)
+                    grid=self.cfdgrids[marker], color=(1, 1, 1), scalars=None)
         self.show_cfdgrids = True
         mlab.draw(self.fig)
 

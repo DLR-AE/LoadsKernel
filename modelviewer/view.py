@@ -658,8 +658,8 @@ class Modelviewer():
 
     def update_markers(self):
         self.list_markers.clear()
-        for cfdgrid in self.cfdgrid.cfdgrids:
-            self.list_markers.addItem(QtGui.QListWidgetItem(cfdgrid['desc']))
+        for marker in self.cfdgrid.cfdgrids:
+            self.list_markers.addItem(QtGui.QListWidgetItem(marker))
 
     def load_iges(self):
         filename = QtGui.QFileDialog.getOpenFileName(self.window, self.iges_opt['title'],

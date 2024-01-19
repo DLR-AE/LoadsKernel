@@ -30,41 +30,40 @@ class ReadCfdgrids:
         logging.info('Extracting all points from grid {}'.format(self.filename_grid))
         f = h5py.File(self.filename_grid, 'r')
         f_scale = 1.0 / 1000.0  # convert to SI units: 0.001 if mesh is given in [mm], 1.0 if given in [m]
-        keys = f['Base'].keys()
-        keys.sort()
-        self.cfdgrids = []
+        markers = f['Base'].keys()
+        markers.sort()
         if merge_domains:
             x = np.array([])
             y = np.array([])
             z = np.array([])
-            for key in keys:
+            for marker in markers:
                 # loop over domains
-                if key[:4] == 'dom-':
-                    logging.info(' - {} included'.format(key))
-                    domain = f['Base'][key]
+                if marker[:4] == 'dom-':
+                    logging.info(' - {} included'.format(marker))
+                    domain = f['Base'][marker]
                     x = np.concatenate((x, domain['GridCoordinates']['CoordinateX'][' data'][:].reshape(-1) * f_scale))
                     y = np.concatenate((y, domain['GridCoordinates']['CoordinateY'][' data'][:].reshape(-1) * f_scale))
                     z = np.concatenate((z, domain['GridCoordinates']['CoordinateZ'][' data'][:].reshape(-1) * f_scale))
                 else:
-                    logging.info(' - {} skipped'.format(key))
+                    logging.info(' - {} skipped'.format(marker))
             f.close()
             n = len(x)
             # build cfdgrid
-            cfdgrid = {}
-            cfdgrid['ID'] = np.arange(n) + 1
-            cfdgrid['CP'] = np.zeros(n)
-            cfdgrid['CD'] = np.zeros(n)
-            cfdgrid['n'] = n
-            cfdgrid['offset'] = np.vstack((x, y, z)).T
-            cfdgrid['set'] = np.arange(6 * cfdgrid['n']).reshape(-1, 6)
-            cfdgrid['desc'] = 'all domains'
-            self.cfdgrids.append(cfdgrid)
+            self.cfdgrid = {}
+            self.cfdgrid['ID'] = np.arange(n) + 1
+            self.cfdgrid['CP'] = np.zeros(n)
+            self.cfdgrid['CD'] = np.zeros(n)
+            self.cfdgrid['n'] = n
+            self.cfdgrid['offset'] = np.vstack((x, y, z)).T
+            self.cfdgrid['set'] = np.arange(6 * self.cfdgrid['n']).reshape(-1, 6)
+            self.cfdgrid['desc'] = 'all domains'
         else:
-            for key in keys:
+            self.cfdgrids = {}
+            for marker in markers:
                 # loop over domains
-                if key[:4] == 'dom-':
-                    logging.info(' - {} included'.format(key))
-                    domain = f['Base'][key]
+                if marker[:4] == 'dom-':
+                    logging.info(' - {} included'.format(marker))
+                    domain = f['Base'][marker]
                     x = domain['GridCoordinates']['CoordinateX'][' data'][:].reshape(-1) * f_scale
                     y = domain['GridCoordinates']['CoordinateY'][' data'][:].reshape(-1) * f_scale
                     z = domain['GridCoordinates']['CoordinateZ'][' data'][:].reshape(-1) * f_scale
@@ -77,10 +76,10 @@ class ReadCfdgrids:
                     cfdgrid['n'] = n
                     cfdgrid['offset'] = np.vstack((x, y, z)).T
                     cfdgrid['set'] = np.arange(6 * cfdgrid['n']).reshape(-1, 6)
-                    cfdgrid['desc'] = key
-                    self.cfdgrids.append(cfdgrid)
+                    cfdgrid['desc'] = marker
+                    self.cfdgrids[marker] = cfdgrid
                 else:
-                    logging.info(' - {} skipped'.format(key))
+                    logging.info(' - {} skipped'.format(marker))
         f.close()
 
     def read_cfdmesh_netcdf(self, merge_domains=False):
@@ -115,7 +114,7 @@ class ReadCfdgrids:
             self.cfdgrid['desc'] = markers
             self.cfdgrid['points_of_surface'] = [points_of_surface[s] for s in surfaces]
         else:
-            self.cfdgrids = []
+            self.cfdgrids = {}
             for marker in markers:
                 # --- get points on surfaces according to marker ---
                 surfaces = np.where(boundarymarker_surfaces == marker)[0]
@@ -132,12 +131,16 @@ class ReadCfdgrids:
                 cfdgrid['set'] = np.arange(6 * cfdgrid['n']).reshape(-1, 6)
                 cfdgrid['desc'] = str(marker)
                 cfdgrid['points_of_surface'] = [points_of_surface[s] for s in surfaces]
-                self.cfdgrids.append(cfdgrid)
+                self.cfdgrids[str(marker)] = cfdgrid
         ncfile_grid.close()
 
     def read_cfdmesh_su2(self, merge_domains=False):
         """
         The description of the SU2 mesh file format is given here: https://su2code.github.io/docs/Mesh-File/
+
+        Splitting lines into parameters and values: According to the mesh specification (and like in all SU2 config files),
+        a '=' is always followed by a space, for example 'PARAMETER_XY= value'. Some mesh generators use a more relaxed
+        syntax like 'PARAMETER_XY=value', meaning that a line needs to be split at the '=' and not the space.
         """
         logging.info('Extracting points belonging to surface marker(s) from grid {}'.format(self.filename_grid))
         # Open the ascii file and read all lines.
@@ -150,28 +153,28 @@ class ReadCfdgrids:
         i = 0
         while i < n_lines:
             if str.find(lines[i], 'NELEM') != -1:
-                n_elem = int(lines[i].split()[1])
+                n_elem = int(lines[i].split('=')[1])
                 # There is nothing we need to do with the volume element connectivity, so we can skip this section.
                 # Skipping all lines (at once) saves a lot of time, since there are many volume elements...
                 i += n_elem
             elif str.find(lines[i], 'NPOIN') != -1:
                 # New section found.
                 # Here, the coordinates of all points are given, including surface and volume points.
-                n_points = int(lines[i].split()[1])
+                n_points = int(lines[i].split('=')[1])
                 i += 1
                 # Loop over next lines to read all points and their coordinates
                 tmp = []
                 for x in range(n_points):
                     tmp.append(lines[i + x].split())
-                points = np.array(tmp, dtype=np.float)
+                points = np.array(tmp, dtype=float)
                 i += x
             elif str.find(lines[i], 'MARKER_TAG') != -1:
                 # New section found.
                 # Here, all points are listed that belong to one marker.
                 # In addition, the connectivity is given, which we need e.g. for plotting.
-                marker = lines[i].split()[1]
+                marker = lines[i].split('=')[1].strip()
                 i += 1
-                n_elem = int(lines[i].split()[1])
+                n_elem = int(lines[i].split('=')[1])
                 i += 1
                 # Loop over next lines to read all surface points
                 triangles = []
