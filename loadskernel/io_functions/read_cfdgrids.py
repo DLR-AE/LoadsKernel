@@ -141,7 +141,6 @@ class ReadCfdgrids:
         Splitting lines into parameters and values: According to the mesh specification (and like in all SU2 config files),
         a '=' is always followed by a space, for example 'PARAMETER_XY= value'. Some mesh generators use a more relaxed
         syntax like 'PARAMETER_XY=value', meaning that a line needs to be split at the '=' and not the space.
-        
         """
         logging.info('Extracting points belonging to surface marker(s) from grid {}'.format(self.filename_grid))
         # Open the ascii file and read all lines.
