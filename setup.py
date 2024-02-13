@@ -12,11 +12,13 @@ from setuptools import setup, find_packages
 
 
 def my_setup():
-    setup(name='Loads-Kernel',
+    setup(name='LoadsKernel',
           version='2023.08',
           description="""The Loads Kernel Software allows for the calculation of quasi-steady and dynamic maneuver loads,
           unsteady gust loads in the time and frequency domain as well as dynamic landing loads based on a generic landing
           gear module.""",
+          long_description=open('README.md').read(),
+          long_description_content_type='text/markdown',
           url='https://github.com/DLR-AE/LoadsKernel',
           author='Arne Voß',
           author_email='arne.voss@dlr.de',
@@ -29,7 +31,7 @@ def my_setup():
           package_data={'loadskernel': ['graphics/*.*'],
                         'loadscompare': ['graphics/*.*'], },
           python_requires='>=3.8',
-          install_requires=['Panel-Aero @ git+https://github.com/DLR-AE/PanelAero.git',
+          install_requires=['PanelAero',
                             'matplotlib',
                             'numpy',
                             'scipy',
@@ -45,12 +47,12 @@ def my_setup():
                                      'traits',
                                      'traitsui',
                                      'pyface',
-                                     'pyiges @ git+https://github.com/pyvista/pyiges.git',
+                                     'pyiges',
                                      ],
                           'test': ['pytest',
                                    'pytest-cov',
                                    'jupyter',
-                                   'jupyter-book',
+                                   'jupyter-book==0.15.1',  # version 1.0.0 fails, wait for updates
                                    ]},
           )
 
