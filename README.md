@@ -21,7 +21,7 @@ If you use this software for your scientific work, we kindly ask you to include 
 Install Loads Kernel as a python package with core dependencies via:
 
 ```
-pip install git+https://github.com/DLR-AE/LoadsKernel.git
+pip install LoadsKernel
 ```
 
 ## How can I use it?
@@ -32,10 +32,10 @@ Copy and adjust the launch script (launch.py, example located in the [scripts fo
 python launch.py
 ```
 
-If ~/.local/bin is in your system PATH, you can use the following commands from the command line:
+Alternatively, if ~/.local/bin is in your system PATH, you can use the following commands from the command line:
 
 ```
-loads-kernel --job_name jcl_Discus2c --pre True --main True --post True --path_input /path/to/Discus2c/JCLs --path_output /path/to/Discus2c/output
+loads-kernel --job_name jcl_xy --pre True --main True --post True --path_input /path/to/JCLs --path_output /path/to/output
 ```
 
 ## Advanced Installation 
