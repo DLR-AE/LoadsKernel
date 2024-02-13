@@ -1,0 +1,30 @@
+# These are the packages and tools to be used during continuous integration workflows.
+# To install everything in batch mode, use:
+# conda install -y -c conda-forge --file ./tests/list_of_packages.txt
+# Lodas Kernel core dependencies
+matplotlib
+numpy
+scipy
+psutil
+h5py
+pytables
+pyyaml
+pandas
+
+# Extras, otional
+mpi4py
+pyfmi
+mayavi
+traits
+traitsui
+pyface
+
+# Regression tests
+pytest
+pytest-cov
+jupyter
+jupyter-book
+
+# Coding style
+flake8
+pylint

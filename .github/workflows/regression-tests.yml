@@ -1,0 +1,132 @@
+# This workflow will run some regression tests.
+name: Regression Tests
+
+on:
+  push:
+    branches: ['master', 'devel']
+  pull_request:
+    branches: '*'
+
+jobs:
+  
+  Pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Add multiple Python versions here to run tests on new(er) versions.
+        python-version: ["3.10"]
+    # Step 1 to make GUIs work, see https://pytest-qt.readthedocs.io/en/latest/troubleshooting.html
+    env:
+      DISPLAY: ':99.0'
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    # Step 2 to make GUIs work
+    - uses: tlambert03/setup-qt-libs@v1
+    - name: Install dependencies
+      run: |
+        # Step 3 to make GUIs work
+        /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 1920x1200x24 -ac +extension GLX
+        # Install same requirements as to be used during regression testing
+        source $CONDA/etc/profile.d/conda.sh
+        conda activate
+        conda install -y -c conda-forge --file ./tests/list_of_packages.txt
+        # Install the package itself to make sure that all imports work.
+        pip install -e .[extras]
+    - name: Analysing the code with pytest
+      run: |
+        source $CONDA/etc/profile.d/conda.sh
+        conda activate
+        # Run the actual testing of the code with pytest
+        # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
+        python -m pytest -v --basetemp=./tmp -k 'test_dummy or test_gui' --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
+        # Create some reports
+        coverage report
+        coverage xml -o coverage.xml
+        coverage html --directory ./coverage
+    - name: Upload test restults and coverage as an artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: test results and coverage
+        path: |
+          testresult.xml
+          coverage.xml
+          coverage
+        if-no-files-found: ignore
+  
+  Jupyter:
+    # Building the Jupyter book is not really a regression test. However, it has to be in this workflow due to the handling of 
+    # the artifacts.
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Select Python version to be used for compiling here.
+        python-version: ["3.10"]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install the package itself to make sure that all imports work.
+        pip install .[test]
+    - name: Assemble the tutorials to a jupyter book and build htlm pages
+      run: |
+        jupyter-book build ./doc/tutorials
+        # Put the html into a 2nd-level sub-folder and use 1st-level subfolder for uploading
+        mkdir ./doc/html
+        mv ./doc/tutorials/_build/html ./doc/html/tutorials
+    - name: Upload Jupyter book as an artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tutorials
+        path: ./doc/html
+        if-no-files-found: ignore
+  
+  combine-pages:
+    runs-on: ubuntu-latest
+    # Add a dependency to the build job
+    needs: [Jupyter, Pytest]
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        merge-multiple: true
+    - name: See what we've got and merge artifacts
+      run: |
+        ls -la
+        mkdir pages
+        mv ./tutorials ./pages/tutorials
+        mv ./coverage ./pages/coverage
+    - name: Upload artifact for pages
+      # This is not a normal artifact but one that can be deployed to the GitHub pages in the next step
+      uses: actions/upload-pages-artifact@v3
+      with:
+        name: github-pages  # This name may not be changed according to the documentation
+        path: ./pages  # There must be only one path
+        if-no-files-found: ignore
+    
+  deploy-pages:
+    # Add a dependency to the build job
+    needs: combine-pages
+    # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

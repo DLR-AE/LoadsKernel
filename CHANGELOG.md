@@ -1,6 +1,13 @@
 # Note
 New releases are marked in the repository using tags. Simply checkout the master branch for the lastest version or use git checkout if you require a specific release, for example 'git checkout 2022.10'.
 
+# Release 2024.02
+- Publish as PyPi package
+- Added continuous integration workflows on GitHub.com
+- Added coding style analysis (Falke8 and Pylint) and applied formatting suggestions, there should be no functional changes.
+- Python 3.10 and 3.11 compatibility
+- Added DOI
+
 # Release 2023.08
 - Model is stored as HDF5 file, no more .pickle files in most workflows
 - Speed up preprocessing for structural models with many degrees of freedom

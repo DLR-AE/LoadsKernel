@@ -7,7 +7,7 @@ stages:
   - deploy
 
 .virtenv: &virtualenv
-  - source /work/voss_ar/Software/miniconda3/etc/profile.d/conda.sh
+  - source /work/f_jwsb/software/miniconda-3.11/etc/profile.d/conda.sh
   - conda activate
   # To make things faster, re-use existing site packages. 
   - python -m venv virtualenv --system-site-packages
@@ -17,14 +17,12 @@ stages:
   # Check python version
   - which python
   - which pytest
-  # Set-up MPI
-  - export PATH=/work/voss_ar/Software/mpich-3.4.2/bin:$PATH
-  - export LD_LIBRARY_PATH=/work/voss_ar/Software/mpich-3.4.2/lib
+  # Check MPI
   - which mpiexec
   # Check location
   - pwd
   
-build:
+pip-installation:
   # This stage only tests if the installation is possible.
   # The evironment created herein will be discared and re-created in the test stage.
   stage: build
@@ -34,30 +32,68 @@ build:
     - *virtualenv
     - pip install -e .
     # Check result of installation
+    - python -c "import loadskernel"
     - which loads-kernel
     - which model-viewer
-    - which loads-compare 
+    - which loads-compare
 
-test:
+Jupyter:
+  stage: build
+  tags:
+    - lk
+  script:
+    - *virtualenv
+    # Assemble the tutorials to a jupyter book and build htlm pages
+    - jupyter-book build ./doc/tutorials
+  artifacts:
+    when: always
+    paths:
+      - ./doc/tutorials
+
+Flake8:
+  stage: test
+  tags:
+    - lk
+  script:
+    - *virtualenv
+    - pip install flake8
+    # stop the build if there are Python syntax errors or undefined names
+    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    # Lint with flake8
+    - flake8 . --count --statistics
+    
+Pylint:
+   stage: test
+   tags:
+    - lk
+   script:
+     - *virtualenv
+     - pip install pylint
+     # Install the package itself to make sure that all imports work.
+     - pip install .[extras]
+     # Analyse the code with pylint
+     - pylint $(git ls-files '*.py') --fail-under=7.0
+
+Pytest:
   stage: test
   timeout: 3 hours
   coverage: '/^TOTAL.+?(\d+\%)$/'
   tags:
     - lk
-  dependencies:
-    - build
   script:
     # Set-up the environement
     - *virtualenv
     # Install with -e (in editable mode) to allow the tracking of the test coverage
-    - pip install -e .
-    - which loads-kernel
+    - pip install -e .[test]
+    - pip list
     # Get the examples repository
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
-    # Run the actual testing
-    - pytest -v --basetemp=./test_tmp --cov-report xml:coverage.xml --cov=loadskernel --junitxml=testresult.xml
-    - coverage xml -o coverage.xml
+    # Run the actual testing of the code with pytest
+    # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
+    - python -m pytest -v --basetemp=./tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
+    # Create some reports
     - coverage report
+    - coverage xml -o coverage.xml
     - coverage html --directory ./coverage
   artifacts:
     when: always
@@ -71,16 +107,19 @@ test:
         path: coverage.xml
       junit: testresult.xml
 
-pages:
+deploy-pages:
   stage: deploy
   tags:
     - lk
   dependencies:
-    - test
+    - Jupyter
+    - Pytest
   script:
-    # Publish the coverage results
     - mkdir public
-    - mv coverage public/coverage
+    # Publish the coverage htlm results
+    - mv coverage ./public/coverage
+    # Publish the htlm tutorials
+    - mv ./doc/tutorials/_build/html ./public/tutorials
   artifacts:
     paths:
       - public

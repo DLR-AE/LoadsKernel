@@ -1,28 +1,30 @@
+import logging
+import h5py
 import numpy as np
 from scipy.sparse import issparse
-import logging, h5py
 
-class HelperFunctions(object):
-    
+
+class HelperFunctions():
+
     # List of items that are skipped.
-    # This makes the addidtion of new stuff easier and compatible with older reference results.  
+    # This makes the addidtion of new stuff easier and compatible with older reference results.
     list_skip = []
     # List of items where the sign shall be ignored.
-    # This is usefull for the comparison of matrices related to eigenvalues and eigenvectors.  
-    list_ignore_sign = ['Mff', 'Mhh', 'Kff', 'Khh', 'Mfcg', 
-                        'PHIf_strc', 'PHIh_strc', 'PHIjf', 'PHIlf', 'PHIkf', 'PHIjh', 'PHIlh', 'PHIkh', 'PHIf_extra', 'PHIf_sensor',
+    # This is usefull for the comparison of matrices related to eigenvalues and eigenvectors.
+    list_ignore_sign = ['Mff', 'Mhh', 'Kff', 'Khh', 'Mfcg',
+                        'PHIf_strc', 'PHIh_strc', 'PHIjf', 'PHIlf', 'PHIkf', 'PHIjh', 'PHIlh', 'PHIkh', 'PHIf_extra',
+                        'PHIf_sensor',
                         'Uf', 'dUf_dt', 'd2Uf_dt2', 'Pf', 'X', 'Y',
                         'eigenvalues', 'eigenvectors', 'freqs', 'jac', 'A', 'B', 'C', 'D', 'X0', 'rigid_derivatives']
-    
 
     def compare_lists(self, list_a, list_b, key=''):
         is_equal = []
         for item_a, item_b in zip(list_a, list_b):
-            if type(item_a) == list:
+            if isinstance(item_a, list):
                 is_equal += [self.compare_lists(item_a, item_b, key)]
-            elif type(item_a) in [dict, h5py.Group]:
+            elif isinstance(item_a, (dict, h5py.Group)):
                 is_equal += [self.compare_dictionaries(item_a, item_b)]
-            elif type(item_a) == h5py.Dataset:
+            elif isinstance(item_a, h5py.Dataset):
                 is_equal += [self.compare_hdf5_datasets(item_a, item_b, key)]
             else:
                 is_equal += [self.compare_items(item_a, item_b, key)]
@@ -33,21 +35,21 @@ class HelperFunctions(object):
         for key in dict_a:
             if key in self.list_skip:
                 logging.info('Skipping {}'.format(key))
-            else:                
+            else:
                 logging.info('Comparing {}'.format(key))
-                if type(dict_a[key]) in [dict, h5py.Group]:
+                if isinstance(dict_a[key], (dict, h5py.Group)):
                     # dive deeper into the dicionary
                     this_dict_is_equal = [self.compare_dictionaries(dict_a[key], dict_b[key])]
-                elif type(dict_a[key]) == list:
+                elif isinstance(dict_a[key], list):
                     # dive deeper into list
                     this_dict_is_equal = [self.compare_lists(dict_a[key], dict_b[key], key)]
-                elif type(dict_a[key]) == h5py.Dataset:
+                elif isinstance(dict_a[key], h5py.Dataset):
                     # dive deeper into the HDF5 file
                     this_dict_is_equal = [self.compare_hdf5_datasets(dict_a[key], dict_b[key], key)]
                 else:
                     # compare items
                     this_dict_is_equal = [self.compare_items(dict_a[key], dict_b[key], key)]
-                
+
                 if not np.all(this_dict_is_equal):
                     logging.warning("{} does NOT match reference".format(key))
                 is_equal += this_dict_is_equal
@@ -57,7 +59,7 @@ class HelperFunctions(object):
         # for hdf5 files, there are two way to access the data, either with [()] or with [:]
         try:
             return self.compare_items(item_a[()], item_b[()], key)
-        except:
+        except Exception:
             return self.compare_items(item_a[()], item_b, key)
 
     def compare_items(self, item_a, item_b, key):
@@ -68,8 +70,8 @@ class HelperFunctions(object):
 
         if issparse(item_a):
             # sparse efficiency, compare != instead of ==
-            result = np.all((item_a != item_b).toarray() == False)
-        elif type(item_a) == np.ndarray:
+            result = np.all(np.invert((item_a != item_b).toarray()))
+        elif isinstance(item_a, np.ndarray):
             if item_a.dtype == 'object':
                 # numpy objects can be compare with np.equal
                 result = np.all(np.equal(item_a, item_b))
