@@ -1,7 +1,7 @@
 # Loads Kernel
 
 <p align="left">
-<img width="200" src="./graphics/LK_logo2.png">
+<img width="200" src="https://github.com/DLR-AE/LoadsKernel/blob/master/graphics/LK_logo2.png">
 </p>
 
 The Loads Kernel Software allows for the calculation of quasi-steady and dynamic maneuver loads, unsteady gust loads in the time and frequency domain as well as dynamic landing loads based on a generic landing gear module.
@@ -18,10 +18,16 @@ If you use this software for your scientific work, we kindly ask you to include 
 
 # Installation & Use
 ## Basic Installation 
-Install Loads Kernel as a python package with core dependencies via:
+Install Loads Kernel as a python package with its core dependencies using a package manager (PyPI or Conda):
 
 ```
 pip install LoadsKernel
+```
+
+or
+
+```
+conda install -c conda-forge LoadsKernel
 ```
 
 ## How can I use it?
@@ -39,8 +45,7 @@ loads-kernel --job_name jcl_xy --pre True --main True --post True --path_input /
 ```
 
 ## Advanced Installation 
-
-As above, but with access to the code (keep the code where it is so that you can explore and modify):
+As above, but with access to the code (download and keep the code where it is so that you can explore and modify):
 
 ```
 git clone https://github.com/DLR-AE/LoadsKernel.git
@@ -54,8 +59,14 @@ To use the graphical tools and other features, optional libraries definded as ex
 pip install -e .[extras]
 ```
 
-Note: Especially with mpi or the graphical libraries, pip frequently fails. In that case, try to install the failing packages using a
-package manager such as conda.
+or
+
+```
+conda install -c conda-forge loadskernel-extras
+```
+
+Note: Especially with mpi or the graphical libraries, pip frequently fails. In that case, try to install the missing/failing packages using a
+package manager such as conda, which is the more robust solution.
 
 There are two GUIs to visualize a simulation model (the Model Viewer) and to compare different sets of loads (Loads Compare), which can be started from the command line as well.
 
