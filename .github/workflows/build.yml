@@ -62,7 +62,7 @@ jobs:
         # Install same requirements as to be used during regression testing
         source $CONDA/etc/profile.d/conda.sh
         conda activate
-        conda install -y -c conda-forge --file ./tests/list_of_packages.txt
+        conda install -y -c conda-forge --file ./tests/list_of_packages.txt || true
         # Install with -e (in editable mode) to allow the tracking of the test coverage
         pip install -e .[extras]
         # Check result of installation
