@@ -108,7 +108,7 @@ class Reader():
 
     def read_cards_from_lines(self):
         if self.lines:
-            logging.info('Read BDF cards from {} lines...'.format(len(self.lines)))
+            logging.debug('Read BDF cards from {} lines...'.format(len(self.lines)))
         # loop over all lines until empty
         while self.lines:
             # test the first 8 characters of the line for a known card
