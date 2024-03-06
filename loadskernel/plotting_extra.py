@@ -219,7 +219,7 @@ class DetailedPlots(plotting_standard.LoadPlots):
         for response in self.responses:
             trimcase = self.jcl.trimcase[response['i'][()]]
             logging.info('interactive plotting of forces and deformations for trim {:s}'.format(trimcase['desc']))
-    
+
             # plot aerodynamic forces
             x = self.aerogrid['offset_k'][:, 0]
             y = self.aerogrid['offset_k'][:, 1]
@@ -236,7 +236,7 @@ class DetailedPlots(plotting_standard.LoadPlots):
                     mlab.title(name, size=0.5, height=0.9)
                 else:
                     logging.info('Forces {} are zero, skip plotting'.format(name))
-    
+
             # plot structural deformations
             x = self.strcgrid['offset'][:, 0]
             y = self.strcgrid['offset'][:, 1]
@@ -247,12 +247,12 @@ class DetailedPlots(plotting_standard.LoadPlots):
             x_f = self.strcgrid['offset'][:, 0] + response['Ug'][0][self.strcgrid['set'][:, 0]]
             y_f = self.strcgrid['offset'][:, 1] + response['Ug'][0][self.strcgrid['set'][:, 1]]
             z_f = self.strcgrid['offset'][:, 2] + response['Ug'][0][self.strcgrid['set'][:, 2]]
-    
+
             mlab.figure()
             mlab.points3d(x_r, y_r, z_r, color=(0, 1, 0), scale_factor=self.pscale)
             mlab.points3d(x_f, y_f, z_f, color=(0, 0, 1), scale_factor=self.pscale)
             mlab.title('rbm (green) and flexible deformation (blue, true scale) in 9300 coord', size=0.5, height=0.9)
-    
+
             # plot structural forces
             mlab.figure()
             mlab.points3d(x, y, z, scale_factor=self.pscale)
@@ -267,7 +267,7 @@ class DetailedPlots(plotting_standard.LoadPlots):
             mlab.points3d(self.splinegrid['offset'][:, 0], self.splinegrid['offset'][:, 1], self.splinegrid['offset'][:, 2],
                           color=(1, 1, 0), scale_factor=self.pscale * 1.5)
             mlab.title('Pg', size=0.5, height=0.9)
-    
+
             if response['Pg_cfd'][0].sum() != 0.0:
                 mlab.figure()
                 mlab.points3d(x, y, z, scale_factor=self.pscale)
@@ -286,7 +286,7 @@ class DetailedPlots(plotting_standard.LoadPlots):
                 mlab.title('Pg_cfd', size=0.5, height=0.9)
             else:
                 logging.info('Forces Pg_cfd are zero, skip plotting')
-    
+
             # Render all plots
             mlab.show()
 

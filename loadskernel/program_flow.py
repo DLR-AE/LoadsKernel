@@ -385,9 +385,9 @@ class Kernel(ProgramFlowHelper):
         - to animate a time domain simulation
         """
         # Import plotting_extra not before here, as the import of graphical libraries such as mayavi takes a long time and
-        # fails of systems without graphical display (such as HPS clusters). 
+        # fails of systems without graphical display (such as HPS clusters).
         from loadskernel import plotting_extra
-        
+
         # Load the model and the response as usual
         model = data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         responses = data_handling.load_hdf5_responses(self.job_name, self.path_output)
