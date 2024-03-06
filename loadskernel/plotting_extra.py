@@ -213,6 +213,83 @@ class DetailedPlots(plotting_standard.LoadPlots):
         # Show plots
         plt.show()
 
+    def plot_forces_deformation_interactive(self):
+
+        # loop over all responses
+        for response in self.responses:
+            trimcase = self.jcl.trimcase[response['i'][()]]
+            logging.info('interactive plotting of forces and deformations for trim {:s}'.format(trimcase['desc']))
+
+            # plot aerodynamic forces
+            x = self.aerogrid['offset_k'][:, 0]
+            y = self.aerogrid['offset_k'][:, 1]
+            z = self.aerogrid['offset_k'][:, 2]
+            fscale = 0.5 * self.model_size / np.max(np.abs(response['Pk_aero'][0][self.aerogrid['set_k'][:, (0, 1, 2)]]))
+            for name in ['Pk_aero', 'Pk_rbm', 'Pk_cam', 'Pk_cs', 'Pk_f', 'Pk_idrag']:
+                if response[name][0].sum() != 0.0:
+                    fx = response[name][0][self.aerogrid['set_k'][:, 0]]
+                    fy = response[name][0][self.aerogrid['set_k'][:, 1]]
+                    fz = response[name][0][self.aerogrid['set_k'][:, 2]]
+                    mlab.figure()
+                    mlab.points3d(x, y, z, scale_factor=self.pscale)
+                    mlab.quiver3d(x, y, z, fx, fy, fz, color=(0, 1, 0), scale_factor=fscale)
+                    mlab.title(name, size=0.5, height=0.9)
+                else:
+                    logging.info('Forces {} are zero, skip plotting'.format(name))
+
+            # plot structural deformations
+            x = self.strcgrid['offset'][:, 0]
+            y = self.strcgrid['offset'][:, 1]
+            z = self.strcgrid['offset'][:, 2]
+            x_r = self.strcgrid['offset'][:, 0] + response['Ug_r'][0][self.strcgrid['set'][:, 0]]
+            y_r = self.strcgrid['offset'][:, 1] + response['Ug_r'][0][self.strcgrid['set'][:, 1]]
+            z_r = self.strcgrid['offset'][:, 2] + response['Ug_r'][0][self.strcgrid['set'][:, 2]]
+            x_f = self.strcgrid['offset'][:, 0] + response['Ug'][0][self.strcgrid['set'][:, 0]]
+            y_f = self.strcgrid['offset'][:, 1] + response['Ug'][0][self.strcgrid['set'][:, 1]]
+            z_f = self.strcgrid['offset'][:, 2] + response['Ug'][0][self.strcgrid['set'][:, 2]]
+
+            mlab.figure()
+            mlab.points3d(x_r, y_r, z_r, color=(0, 1, 0), scale_factor=self.pscale)
+            mlab.points3d(x_f, y_f, z_f, color=(0, 0, 1), scale_factor=self.pscale)
+            mlab.title('rbm (green) and flexible deformation (blue, true scale) in 9300 coord', size=0.5, height=0.9)
+
+            # plot structural forces
+            mlab.figure()
+            mlab.points3d(x, y, z, scale_factor=self.pscale)
+            fscale = 0.5 * self.model_size / np.max(np.abs(response['Pg'][0][self.strcgrid['set'][:, (0, 1, 2)]]))
+            fx = response['Pg'][0][self.strcgrid['set'][:, 0]]
+            fy = response['Pg'][0][self.strcgrid['set'][:, 1]]
+            fz = response['Pg'][0][self.strcgrid['set'][:, 2]]
+            mlab.quiver3d(x, y, z, fx * fscale, fy * fscale, fz * fscale, color=(1, 1, 0), mode='2ddash', opacity=0.4,
+                          scale_mode='vector', scale_factor=1.0)
+            mlab.quiver3d(x + fx * fscale, y + fy * fscale, z + fz * fscale, fx * fscale, fy * fscale, fz * fscale,
+                          color=(1, 1, 0), mode='cone', scale_mode='vector', scale_factor=0.1, resolution=16)
+            mlab.points3d(self.splinegrid['offset'][:, 0], self.splinegrid['offset'][:, 1], self.splinegrid['offset'][:, 2],
+                          color=(1, 1, 0), scale_factor=self.pscale * 1.5)
+            mlab.title('Pg', size=0.5, height=0.9)
+
+            if response['Pg_cfd'][0].sum() != 0.0:
+                mlab.figure()
+                mlab.points3d(x, y, z, scale_factor=self.pscale)
+                fscale = 0.5 * self.model_size / np.max(np.abs(response['Pg_cfd'][0][self.strcgrid['set'][:, (0, 1, 2)]]))
+                fx = response['Pg_cfd'][0][self.strcgrid['set'][:, 0]]
+                fy = response['Pg_cfd'][0][self.strcgrid['set'][:, 1]]
+                fz = response['Pg_cfd'][0][self.strcgrid['set'][:, 2]]
+                mlab.quiver3d(x, y, z, fx * fscale, fy * fscale, fz * fscale, color=(1, 1, 0), mode='2ddash',
+                              opacity=0.4, scale_mode='vector', scale_factor=1.0)
+                mlab.quiver3d(x + fx * fscale, y + fy * fscale, z + fz * fscale, fx * fscale, fy * fscale, fz * fscale,
+                              color=(1, 1, 0), mode='cone', scale_mode='vector', scale_factor=0.1, resolution=16)
+                mlab.points3d(self.splinegrid['offset'][:, 0],
+                              self.splinegrid['offset'][:, 1],
+                              self.splinegrid['offset'][:, 2],
+                              color=(1, 1, 0), scale_factor=self.pscale * 1.5)
+                mlab.title('Pg_cfd', size=0.5, height=0.9)
+            else:
+                logging.info('Forces Pg_cfd are zero, skip plotting')
+
+            # Render all plots
+            mlab.show()
+
 
 class Animations(plotting_standard.LoadPlots):
 
