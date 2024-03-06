@@ -11,7 +11,7 @@ try:
 except ImportError:
     pass
 
-from loadskernel import solution_sequences, post_processing, gather_loads, auxiliary_output, plotting_standard, plotting_extra
+from loadskernel import solution_sequences, post_processing, gather_loads, auxiliary_output, plotting_standard
 from loadskernel.io_functions import data_handling
 import loadskernel.model as model_modul
 from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
@@ -384,6 +384,10 @@ class Kernel(ProgramFlowHelper):
         - to get extra time data plots
         - to animate a time domain simulation
         """
+        # Import plotting_extra not before here, as the import of graphical libraries such as mayavi takes a long time and
+        # fails of systems without graphical display (such as HPS clusters). 
+        from loadskernel import plotting_extra
+        
         # Load the model and the response as usual
         model = data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         responses = data_handling.load_hdf5_responses(self.job_name, self.path_output)
