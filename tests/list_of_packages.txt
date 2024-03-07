@@ -13,7 +13,6 @@ pandas
 
 # Extras, otional
 mpi4py
-pyfmi
 mayavi
 traits
 traitsui
