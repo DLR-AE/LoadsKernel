@@ -114,8 +114,8 @@ class jcl:
                      'Cm_alpha_corr': [0.22],
                      # Correction coefficient at MAC, Cd = Cd0 + dCd/dalpha^2 * alpha^2
                      'viscous_drag': 'coefficients',
-                     'Cd_0': [0.005],
-                     'Cd_alpha^2': [0.018 * 6.28 ** 2.0],
+                     'Cd_0': 0.005,
+                     'Cd_alpha^2': 0.018 * 6.28 ** 2.0,
                      # True or False, calculates local induced drag e.g. for roll-yaw-coupling
                      'induced_drag': False,
                      # Symmetry about xz-plane: Only the right hand side on the aero mesh is give.

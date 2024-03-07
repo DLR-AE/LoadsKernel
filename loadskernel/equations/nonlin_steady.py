@@ -17,16 +17,18 @@ class NonlinSteady(Steady):
         Ux2 = self.get_Ux2(X)
 
         # aerodynamics
-        Pk_rbm, wj_rbm = self.rbm_nonlin(onflow, alpha, Vtas)
+        Pk_rbm, wj_rbm = self.rbm_nonlin(onflow)
+        Pk_cam, wj_cam = self.camber_twist_nonlin(onflow, Vtas)
         Pk_cs, wj_cs = self.cs_nonlin(onflow, X, Ux2, Vtas)
         Pk_f, wj_f = self.flexible_nonlin(onflow, Uf, dUf_dt, Vtas)
-        Pk_cam, wj_cam = self.camber_twist_nonlin(onflow)
+        Pk_gust = Pk_rbm * 0.0
 
-        wj = (wj_rbm + wj_cs + wj_f + wj_cam) / Vtas
+        wj = (wj_rbm + wj_cam + wj_cs + wj_f) / Vtas
         Pk_idrag = self.idrag(wj, q_dyn)
 
-        Pk_gust = Pk_rbm * 0.0
         Pk_unsteady = Pk_rbm * 0.0
+
+        Pextra, Pb_ext, Pf_ext = self.engine(X, Vtas, q_dyn, Uf, dUf_dt, t)
 
         # correction coefficients
         Pb_corr = self.correctioon_coefficients(alpha, beta, q_dyn)
@@ -35,13 +37,13 @@ class NonlinSteady(Steady):
         # summation of forces
         Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero) + Pmac_vdrag
-        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr
+        Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + Pb_ext
 
         g_cg = gravitation_on_earth(self.PHInorm_cg, Tgeo2body)
 
         # EoM
         d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg, modus)
-        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot(np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6])))
+        Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot(np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6]))) + Pf_ext
         d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
 
         # CS derivatives
@@ -79,7 +81,6 @@ class NonlinSteady(Steady):
                         'Pf': Pf,
                         'alpha': np.array([alpha]),
                         'beta': np.array([beta]),
-                        # 'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
                         'Ux2': Ux2,
                         'dUcg_dt': dUcg_dt,
                         'd2Ucg_dt2': d2Ucg_dt2,
@@ -88,6 +89,6 @@ class NonlinSteady(Steady):
                         'd2Uf_dt2': d2Uf_dt2,
                         'Nxyz': Nxyz,
                         'g_cg': g_cg,
-                        'Pextra': [],
+                        'Pextra': Pextra,
                         }
             return response
