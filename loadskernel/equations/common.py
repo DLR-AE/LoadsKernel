@@ -270,7 +270,7 @@ class Common():
             Pk = self.PHIlk.T.dot(Pl)
         return Pk
 
-    def rbm_nonlin(self, dUcg_dt, alpha, Vtas):
+    def rbm_nonlin(self, dUcg_dt):
         dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt)  # auch bodyfixed
         Ujx1 = np.dot(self.Djx1, dUmac_dt)
         # der downwash wj ist nur die Komponente von Uj, welche senkrecht zum Panel steht!
@@ -279,7 +279,7 @@ class Common():
         Pk = self.calc_Pk_nonlin(dUmac_dt, wj)
         return Pk, wj
 
-    def rbm(self, dUcg_dt, alpha, q_dyn, Vtas):
+    def rbm(self, dUcg_dt, q_dyn, Vtas):
         dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt)  # auch bodyfixed
         Ujx1 = np.dot(self.Djx1, dUmac_dt)
         # der downwash wj ist nur die Komponente von Uj, welche senkrecht zum Panel steht!
@@ -288,8 +288,8 @@ class Common():
         Pk = self.calc_Pk(q_dyn, wj)
         return Pk, wj
 
-    def camber_twist_nonlin(self, dUcg_dt):
-        wj = np.sin(self.cam_rad) * -1.0
+    def camber_twist_nonlin(self, dUcg_dt, Vtas):
+        wj = np.sin(self.cam_rad) * np.sign(self.aerogrid['N'][:, 2]) * -Vtas
         dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt)  # auch bodyfixed
         Pk = self.calc_Pk_nonlin(dUmac_dt, wj)
         return Pk, wj
@@ -614,13 +614,13 @@ class Common():
         Pmac = np.zeros(6)
         if 'viscous_drag' in self.jcl.aero and self.jcl.aero['viscous_drag'] == 'coefficients':
             if 'Cd_0' in self.jcl.aero:
-                Cd0 = self.aero['Cd_0']
+                Cd0 = self.jcl.aero['Cd_0']
             else:
-                Cd0 = 0.012
-            if 'Cd_0' in self.jcl.aero:
-                Cd_alpha_sq = self.aero['Cd_alpha^2']
+                Cd0 = 0.0
+            if 'Cd_alpha^2' in self.jcl.aero:
+                Cd_alpha_sq = self.jcl.aero['Cd_alpha^2']
             else:
-                Cd_alpha_sq = 0.018
+                Cd_alpha_sq = 0.0
             Pmac[0] = q_dyn * self.jcl.general['A_ref'] * (Cd0 + Cd_alpha_sq * alpha ** 2.0)
         return Pmac
 

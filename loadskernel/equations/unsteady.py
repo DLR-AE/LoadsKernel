@@ -15,8 +15,8 @@ class Unsteady(Common):
         alpha, beta, gamma = self.windsensor(X, Vtas, Uf, dUf_dt)
         Ux2 = self.get_Ux2(X)
 
-        # --- aerodynamics ---
-        Pk_rbm, wj_rbm = self.rbm(onflow, alpha, q_dyn, Vtas)
+        # aerodynamics
+        Pk_rbm, wj_rbm = self.rbm(onflow, q_dyn, Vtas)
         Pk_cam, wj_cam = self.camber_twist(q_dyn)
         Pk_cs, wj_cs = self.cs(X, Ux2, q_dyn)
         Pk_f, wj_f = self.flexible(Uf, dUf_dt, onflow, q_dyn, Vtas)
@@ -28,25 +28,25 @@ class Unsteady(Common):
 
         Pextra, Pb_ext, Pf_ext = self.engine(X, Vtas, q_dyn, Uf, dUf_dt, t)
 
-        # --- correction coefficients ---
+        # correction coefficients
         Pb_corr = self.correctioon_coefficients(alpha, beta, q_dyn)
 
-        # --- summation of forces ---
+        # summation of forces
         Pk_aero = Pk_rbm + Pk_cam + Pk_cs + Pk_f + Pk_gust + Pk_idrag + Pk_unsteady
         Pmac = np.dot(self.Dkx1.T, Pk_aero)
         Pb = np.dot(self.PHImac_cg.T, Pmac) + Pb_corr + Pb_ext
 
         g_cg = gravitation_on_earth(self.PHInorm_cg, Tgeo2body)
 
-        # --- EoM ---
+        # EoM
         d2Ucg_dt2, Nxyz = self.rigid_EoM(dUcg_dt, Pb, g_cg, modus)
         Pf = np.dot(self.PHIkf.T, Pk_aero) + self.Mfcg.dot(np.hstack((d2Ucg_dt2[0:3] - g_cg, d2Ucg_dt2[3:6]))) + Pf_ext
         d2Uf_dt2 = self.flexible_EoM(dUf_dt, Uf, Pf)
 
-        # --- CS derivatives ---
+        # CS derivatives
         dcommand = self.get_command_derivatives(t, X, Vtas, gamma, alpha, beta, Nxyz, np.dot(Tbody2geo, X[6:12])[0:3])
 
-        # --- output ---
+        # output
         Y = np.hstack((np.dot(Tbody2geo, X[6:12]),
                        np.dot(self.PHIcg_norm, d2Ucg_dt2),
                        dUf_dt,
@@ -60,7 +60,6 @@ class Unsteady(Common):
 
         if modus in ['trim', 'sim']:
             return Y
-
         elif modus in ['trim_full_output']:
             response = {'X': X,
                         'Y': Y,
@@ -90,7 +89,6 @@ class Unsteady(Common):
                         'Pextra': Pextra,
                         }
             return response
-
         elif modus in ['sim_full_output']:
             # For time domain simulations, typically not all results are required. To reduce the amount of data while
             # maintaining compatibility with the trim, empty arrays are used.

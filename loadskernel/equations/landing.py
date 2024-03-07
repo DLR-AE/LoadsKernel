@@ -16,7 +16,7 @@ class Landing(Common):
         Ux2 = self.get_Ux2(X)
 
         # aerodynamics
-        Pk_rbm, wj_rbm = self.rbm(onflow, alpha, q_dyn, Vtas)
+        Pk_rbm, wj_rbm = self.rbm(onflow, q_dyn, Vtas)
         Pk_cam, wj_cam = self.camber_twist(q_dyn)
         Pk_cs, wj_cs = self.cs(X, Ux2, q_dyn)
         Pk_f, wj_f = self.flexible(Uf, dUf_dt, onflow, q_dyn, Vtas)
@@ -24,7 +24,6 @@ class Landing(Common):
 
         wj = wj_rbm + wj_cam + wj_cs + wj_f + wj_gust
         Pk_idrag = self.idrag(wj, q_dyn)
-
         Pk_unsteady = Pk_rbm * 0.0
 
         # correction coefficients
@@ -104,7 +103,6 @@ class Landing(Common):
                         'Pf': Pf,
                         'alpha': np.array([alpha]),
                         'beta': np.array([beta]),
-                        # 'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
                         'Ux2': Ux2,
                         'dUcg_dt': dUcg_dt,
                         'd2Ucg_dt2': d2Ucg_dt2,
