@@ -53,7 +53,7 @@ class Plotting:
                       + (self.strcgrid['offset'][:, 2].max() - self.strcgrid['offset'][:, 2].min()) ** 2) ** 0.5
         # Set some parameters which typically give a good view.
         self.distance = model_size * 1.5
-        self.pscale = np.min([model_size / 400.0, 0.04])
+        self.pscale = np.min([model_size / 400.0, 0.1])
         self.macscale = np.min([model_size / 10.0, 1.0])
 
     def calc_focalpoint(self):

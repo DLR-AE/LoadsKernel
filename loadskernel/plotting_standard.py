@@ -81,7 +81,7 @@ class LoadPlots():
                            + (self.strcgrid['offset'][:, 1].max() - self.strcgrid['offset'][:, 1].min()) ** 2
                            + (self.strcgrid['offset'][:, 2].max() - self.strcgrid['offset'][:, 2].min()) ** 2) ** 0.5
         # Set some parameters which typically give a good view.
-        self.pscale = np.min([self.model_size / 400.0, 0.04])
+        self.pscale = np.min([self.model_size / 400.0, 0.1])
 
     def plot_monstations(self, filename_pdf):
         # launch plotting
