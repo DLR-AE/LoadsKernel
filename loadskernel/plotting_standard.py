@@ -207,49 +207,72 @@ class LoadPlots():
 
     def cuttingforces_along_wing_plots(self):
         logging.info('start plotting cutting forces along wing...')
-        self.subplot = self.create_axes()
-        cuttingforces = ['Fx [N]', 'Fy [N]', 'Fz [N]', 'Mx [Nm]', 'My [Nm]', 'Mz [Nm]']
+        # Read the data required for plotting.
         loads = []
         offsets = []
+        subcases = []
         for station in self.cuttingforces_wing:
             # trigger to read the data now with [:]
             loads.append(list(self.monstations[station]['loads'][:]))
             offsets.append(list(self.monstations[station]['offset'][:]))
+            # Get subcase description at monitoring station
+            if isinstance(self.monstations[station]['subcases'], list):
+                # This is an exception if source is not a hdf5 file.
+                # For example, the monstations have been pre-processed by a merge script and are lists already.
+                subcases.append(self.monstations[station]['subcases'])
+            else:
+                # make sure this is a list of strings
+                subcases.append(list(self.monstations[station]['subcases'].asstr()[:]))
         loads = np.array(loads)
         offsets = np.array(offsets)
 
-        for i_cuttingforce in range(len(cuttingforces)):
-            i_max = np.argmax(loads[:, :, i_cuttingforce], 1)
-            i_min = np.argmin(loads[:, :, i_cuttingforce], 1)
-            self.subplot.cla()
-            if loads.shape[1] > 50:
-                logging.debug(
-                    'plotting of every load case skipped due to large number (>50) of cases')
-            else:
-                self.subplot.plot(offsets[:, 1], loads[:, :, i_cuttingforce], color='cornflowerblue',
-                                  linestyle='-', marker='.', zorder=-2)
-            for i_station in range(len(self.cuttingforces_wing)):
-                # verticalalignment or va 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
-                # max
-                self.subplot.scatter(offsets[i_station, 1], loads[i_station, i_max[i_station], i_cuttingforce], color='r')
-                self.subplot.text(offsets[i_station, 1], loads[i_station, i_max[i_station], i_cuttingforce],
-                                  str(self.monstations[list(self.monstations)[0]]['subcases'][i_max[i_station]]),
-                                  fontsize=4, verticalalignment='bottom')
-                # min
-                self.subplot.scatter(offsets[i_station, 1], loads[i_station, i_min[i_station], i_cuttingforce], color='r')
-                self.subplot.text(offsets[i_station, 1], loads[i_station, i_min[i_station], i_cuttingforce],
-                                  str(self.monstations[list(self.monstations)[0]]['subcases'][i_min[i_station]]),
-                                  fontsize=4, verticalalignment='top')
+        # Loop over all six components of the cutting loads.
+        label_loads = ['Fx [N]', 'Fy [N]', 'Fz [N]', 'Mx [Nm]', 'My [Nm]', 'Mz [Nm]']
+        subplot = self.create_axes()
+        for idx_load in range(6):
+            # Recycle the existing subplot.
+            subplot.cla()
 
-            self.subplot.set_title('Wing')
-            self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2, 2))
-            self.subplot.grid(visible=True, which='major', axis='both')
-            self.subplot.minorticks_on()
-            yax = self.subplot.get_yaxis()
+            # Plot loads.
+            if loads.shape[1] > 50:
+                logging.debug('plotting of every load case skipped due to large number (>50) of cases')
+            else:
+                subplot.plot(offsets[:, 1], loads[:, :, idx_load], color='cornflowerblue',
+                             linestyle='-', marker='.', zorder=-2)
+
+            # Loop over all stations and label min and max loads.
+            for idx_station in range(len(self.cuttingforces_wing)):
+                # Identifiy min and max loads
+                idx_max_loads = np.argmax(loads[idx_station, :, idx_load])
+                idx_min_loads = np.argmin(loads[idx_station, :, idx_load])
+
+                # Highlight max loads with red dot and print subcase description.
+                subplot.scatter(offsets[idx_station, 1],
+                                loads[idx_station, idx_max_loads, idx_load],
+                                color='r')
+                subplot.text(offsets[idx_station, 1],
+                             loads[idx_station, idx_max_loads, idx_load],
+                             str(subcases[idx_station][idx_max_loads]),
+                             fontsize=4, verticalalignment='bottom')
+
+                # Highlight min loads with red dot and print subcase description.
+                subplot.scatter(offsets[idx_station, 1],
+                                loads[idx_station, idx_min_loads, idx_load],
+                                color='r')
+                subplot.text(offsets[idx_station, 1],
+                             loads[idx_station, idx_min_loads, idx_load],
+                             str(subcases[idx_station][idx_min_loads]),
+                             fontsize=4, verticalalignment='top')
+
+            subplot.set_title('Wing')
+            subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2, 2))
+            subplot.grid(visible=True, which='major', axis='both')
+            subplot.minorticks_on()
+            yax = subplot.get_yaxis()
             yax.set_label_coords(x=-0.18, y=0.5)
-            self.subplot.set_xlabel('y [m]')
-            self.subplot.set_ylabel(cuttingforces[i_cuttingforce])
-            self.subplot.set_rasterization_zorder(-1)
+            subplot.set_xlabel('y [m]')
+            subplot.set_ylabel(label_loads[idx_load])
+            subplot.set_rasterization_zorder(-1)
             self.pp.savefig()
         plt.close()
 
