@@ -305,8 +305,10 @@ class Compare():
             item = QListWidgetItem(desc)
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
             self.lb_dataset.addItem(item)
-
-        keys = [list(dataset) for dataset in self.datasets['dataset']]
+        
+        keys = []
+        for dataset in self.datasets['dataset']:
+            keys += dataset.keys()
         self.common_monstations = np.unique(keys)
         self.lb_mon.clear()
         for x in self.common_monstations:
