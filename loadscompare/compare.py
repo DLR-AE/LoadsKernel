@@ -305,7 +305,7 @@ class Compare():
             item = QListWidgetItem(desc)
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
             self.lb_dataset.addItem(item)
-        
+
         keys = []
         for dataset in self.datasets['dataset']:
             keys += dataset.keys()
