@@ -206,7 +206,7 @@ class Compare():
         self.update_plot()
 
     def update_plot(self):
-        if self.lb_dataset.currentItem() is not None and self.lb_mon.currentItem() is not None:           
+        if self.lb_dataset.currentItem() is not None and self.lb_mon.currentItem() is not None:
             # Get the items selected by the user.
             mon_sel = self.common_monstations[self.lb_mon.currentRow()]
             dataset_sel = [item.row() for item in self.lb_dataset.selectedIndexes()]
