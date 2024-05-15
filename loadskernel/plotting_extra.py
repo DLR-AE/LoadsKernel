@@ -92,9 +92,16 @@ class DetailedPlots(plotting_standard.LoadPlots):
 
             self.n_modes = self.model['mass'][trimcase['mass']]['n_modes'][()]
 
-            Cl = response['Pmac'][:, 2] / response['q_dyn'][:].T / self.jcl.general['A_ref']
-            ax11.plot(response['t'], response['Pmac'][:, 2], 'b-')
-            ax12.plot(response['t'], Cl.T, 'b-')
+            if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady']:
+                Cl = response['Pmac'][:, 2] / response['q_dyn'][:].T / self.jcl.general['A_ref']
+                ax11.plot(response['t'], response['Pmac'][:, 2], 'b-')
+                ax12.plot(response['t'], Cl.T, 'b-')
+
+                ax21.plot(response['t'], response['q_dyn'], 'k-')
+                ax22.plot(response['t'], response['alpha'][:] / np.pi * 180.0, 'r-')
+                ax22.plot(response['t'], response['beta'][:] / np.pi * 180.0, 'c-')
+                ax23.plot(response['t'], response['Nxyz'][:, 1], 'g-')
+                ax23.plot(response['t'], response['Nxyz'][:, 2], 'b-')
 
             if self.jcl.aero['method'] in ['mona_unsteady']:
                 Pb_gust = []
@@ -104,12 +111,6 @@ class DetailedPlots(plotting_standard.LoadPlots):
                     Pb_unsteady.append(np.dot(Dkx1.T, response['Pk_unsteady'][i_step, :])[2])
                 ax11.plot(response['t'], Pb_gust, 'k-')
                 ax11.plot(response['t'], Pb_unsteady, 'r-')
-
-            ax21.plot(response['t'], response['q_dyn'], 'k-')
-            ax22.plot(response['t'], response['alpha'][:] / np.pi * 180.0, 'r-')
-            ax22.plot(response['t'], response['beta'][:] / np.pi * 180.0, 'c-')
-            ax23.plot(response['t'], response['Nxyz'][:, 1], 'g-')
-            ax23.plot(response['t'], response['Nxyz'][:, 2], 'b-')
 
             ax32.plot(response['t'], response['X'][:, 3] / np.pi * 180.0, 'b-')
             ax32.plot(response['t'], response['X'][:, 4] / np.pi * 180.0, 'g-')
