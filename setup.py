@@ -30,7 +30,7 @@ def my_setup():
           include_package_data=True,
           package_data={'loadskernel': ['graphics/*.*'],
                         'loadscompare': ['graphics/*.*'], },
-          python_requires='>=3.8',
+          python_requires='>=3.10',
           install_requires=['PanelAero',
                             'matplotlib',
                             'numpy',
@@ -46,13 +46,16 @@ def my_setup():
                                      'traits',
                                      'traitsui',
                                      'pyface',
-                                     'pyiges',
+                                     'jupyter',
+                                     'pyiges',  # only available with pip, not with conda
                                      ],
-                          'difficult': ['pyfmi'],
+                          'difficult': ['pyfmi',  # frequent version conflicts
+                                        ],
                           'test': ['pytest',
                                    'pytest-cov',
-                                   'jupyter',
                                    'jupyter-book==0.15.1',  # version 1.0.0 fails, wait for updates
+                                   'flake8',
+                                   'pylint',
                                    ]},
           )
 
