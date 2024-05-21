@@ -6,7 +6,6 @@ dependencies.
 Some ideas and concepts are inspired by pyBDF, a comprehensive DLR in-house BDF reader by Markus Zimmer.
 """
 
-import copy
 import logging
 import os
 
@@ -31,6 +30,7 @@ class Reader():
                          'AESURF': bdf_cards.AESURF,
                          'AELIST': bdf_cards.AELIST,
                          'ASET1': bdf_cards.ASET1,
+                         'INCLUDE': bdf_cards.INCLUDE,
                          }
 
     def __init__(self):
@@ -38,8 +38,6 @@ class Reader():
         self.processed_files = []
         # This is the line storage
         self.lines = []
-        # This is the include storage
-        self.includes = []
         # This is a list of all known / implemented cards
         self.known_cards = self.card_interpreters.keys()
         # The cards are stored in a Pandas data frames, one frame per type of card.
@@ -57,50 +55,60 @@ class Reader():
             self.cards[card_name] = pd.DataFrame(df_definition)
 
     def process_deck(self, deck):
-        # Make sure deck is a list of filenames, not a single string
-        if isinstance(deck, str):
-            self.filenames = [deck]
-        else:
-            self.filenames = deck
         """
-        This is the iterative loop to capture all include statements.
+        This function parses a whole 'deck' of files and captures all include statements.
         Step 1: In case include statements are found, move them to filenames.
         Step 2: Re-run process_deck()
         Step 3: This loop terminates when the include list is empty, i.e. no more includes are found.
         """
-        self.read_lines_from_files()
-        self.read_cards_from_lines()
+        # Make sure the deck is a list of filenames, not a single string
+        if isinstance(deck, str):
+            filenames = [deck]
+        else:
+            filenames = deck
 
-        if self.includes:
-            logging.info('Found include(s):')
-            self.filenames = copy.deepcopy(self.includes)
-            self.includes = []
-            self.process_deck(self.filenames)
-
+        for filename in filenames:
+            # Parse all lines.
+            self.read_lines_from_file(filename)
+            # Interprete all lines.
+            self.read_cards_from_lines()
+            # In case include statements are found, move them to self.includes.
+            # At the same time, establish the path to the included file.
+            root = os.path.dirname(filename)
+            includes = []
+            for filename_include in self.cards['INCLUDE'].squeeze().to_list():
+                if os.path.isabs(filename_include):
+                    includes += [filename_include]
+                else:
+                    includes += [os.path.join(root, filename_include)]
+            self.cards['INCLUDE'].drop(self.cards['INCLUDE'].index, inplace=True)
+            # Re-run process_deck()
+            if includes:
+                logging.info('Found include(s):')
+                self.process_deck(includes)
+        # Do some post-processing
         self.aggregate_cards(['ASET1'])
         self.remove_duplicate_cards()
         return
 
-    def read_lines_from_files(self):
+    def read_lines_from_file(self, filename):
         # reset the line storage before reading new files
         self.lines = []
-        # loop over all filenames and read all lines
-        for filename in self.filenames:
-            # to save time, make sure the same file is not parsed twice
-            if filename in self.processed_files:
-                logging.info('File already processed: {}'.format(filename))
-            # make sure the given filename exists, if not, skip that file
-            elif os.path.exists(filename):
-                logging.info('Read from file: {}'.format(filename))
-                with open(filename, 'r') as fid:
-                    self.lines += fid.readlines()
-                self.processed_files += [filename]
-            else:
-                logging.warning('File NOT found: {}'.format(filename))
+        # to save time, make sure the same file is not parsed twice
+        if filename in self.processed_files:
+            logging.info('File already processed: {}'.format(filename))
+        # make sure the given filename exists, if not, skip that file
+        elif os.path.exists(filename):
+            logging.info('Read from file: {}'.format(filename))
+            with open(filename, 'r') as fid:
+                self.lines += fid.readlines()
+        else:
+            logging.warning('File NOT found: {}'.format(filename))
+        self.processed_files += [filename]
 
     def read_cards_from_lines(self):
         if self.lines:
-            logging.info('Read BDF cards from {} lines...'.format(len(self.lines)))
+            logging.debug('Read BDF cards from {} lines...'.format(len(self.lines)))
         # loop over all lines until empty
         while self.lines:
             # test the first 8 characters of the line for a known card

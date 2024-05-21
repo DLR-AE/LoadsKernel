@@ -95,6 +95,31 @@ class ListCard(SimpleCard):
         return card
 
 
+class StringCard(SimpleCard):
+
+    @classmethod
+    def parse(cls, card_as_string, _):
+        card = cls.parse_string(cls, card_as_string)
+        return card
+
+    def parse_string(self, card_as_string):
+        # create an empty dictionary to store the card
+        card = {}
+        name = self.field_names[0]
+        """
+        This is the decision logic to parse fields:
+        Case 1: See if the card is suffiently long --> the field exists
+        Case 2: The field is missing --> issue a warning
+        """
+        if len(card_as_string) > 0:
+            # convert field and store in dictionary
+            tmp = card_as_string.strip("'*, ")
+            card[name] = tmp.replace(" ", "")
+        else:
+            logging.error('Field {} expected but missing in {} card: {}'.format(name, type(self).__name__, card_as_string))
+        return card
+
+
 class GRID(SimpleCard):
     expected_lines = 1
     # field of interest (any other fields are not implemented)
@@ -233,3 +258,10 @@ class ASET1(ListCard):
     # Blank strings (e.g. trailing spaces) shall be replaced with None.
     optional_fields = ['ID', 'values']
     optional_defaults = [123456, None]
+
+
+class INCLUDE(StringCard):
+    expected_lines = None
+    # field of interest (any other fields are not implemented)
+    field_names = ['filename']
+    field_types = ['str']

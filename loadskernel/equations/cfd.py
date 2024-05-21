@@ -90,7 +90,6 @@ class CfdSteady(Steady):
                         'Pf': Pf,
                         'alpha': np.array([alpha]),
                         'beta': np.array([beta]),
-                        # 'Pg_aero': np.dot(PHIk_strc.T, Pk_aero),
                         'Ux2': Ux2,
                         'dUcg_dt': dUcg_dt,
                         'd2Ucg_dt2': d2Ucg_dt2,

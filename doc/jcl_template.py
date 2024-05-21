@@ -52,14 +52,17 @@ class jcl:
                      'filename_monstations': ['monstation_MON1.bdf', 'monstation_MON2.bdf'],
                      # The following matrices are required for some mass methods. However, the stiffness is geometry
                      # and not mass dependent. Overview:
-                     # KGG via DMAP Alter und OP4            - required for mass method = 'modalanalysis', 'guyan' or 'B2000'
-                     # USET via DMAP Alter und OP4           - required for mass method = 'modalanalysis', 'guyan'
-                     # matrix GM via DMAP Alter und OP4      - required for mass method = 'modalanalysis', 'guyan'
+                     # KGG via DMAP Alter (.op4 or .h5)      - required for mass method = 'modalanalysis', 'guyan' or 'B2000'
+                     # GM via DMAP Alter (.op4 or .h5)       - required for mass method = 'modalanalysis', 'guyan'
+                     # USET via DMAP Alter and OP2           - required for mass method = 'modalanalysis', 'guyan'
                      # bdf file(s) with ASET1-card           - required for mass method = 'guyan'
-                     # matrix R_trans frum B2000             - required for mass method = 'B2000'
+                     # matrix R_trans from B2000             - required for mass method = 'B2000'
+                     # The HDF5 file format is preferred over OP4 due to better performance and higher precision. Because the
+                     # uset is a table, not a matrix, it can't be included in the HDF5 file and still needs to be given as OP2.
+                     'filename_h5': 'SOL103.mtx.h5',
                      'filename_KGG': 'KGG.dat',
-                     'filename_uset': 'uset.op2',
                      'filename_GM': 'GM.dat',
+                     'filename_uset': 'uset.op2',
                      'filename_aset': 'aset.bdf',
                      'filename_Rtrans': 'Rtrans.csv',
                      }
@@ -111,8 +114,8 @@ class jcl:
                      'Cm_alpha_corr': [0.22],
                      # Correction coefficient at MAC, Cd = Cd0 + dCd/dalpha^2 * alpha^2
                      'viscous_drag': 'coefficients',
-                     'Cd_0': [0.005],
-                     'Cd_alpha^2': [0.018 * 6.28 ** 2.0],
+                     'Cd_0': 0.005,
+                     'Cd_alpha^2': 0.018 * 6.28 ** 2.0,
                      # True or False, calculates local induced drag e.g. for roll-yaw-coupling
                      'induced_drag': False,
                      # Symmetry about xz-plane: Only the right hand side on the aero mesh is give.
@@ -143,7 +146,9 @@ class jcl:
         # Settings for the structural dynamics.
         self.mass = {'method': 'modalanalysis', # Inplemented interfaces: 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000'
                      'key': ['M1', 'M2'],
-                     # MGG via DMAP Alter and OP4 - always required
+                     # MGG via DMAP Alter and HDF5
+                     'filename_h5': ['SOL103_M1.mtx.h5', 'SOL103_M2.mtx.h5'],
+                     # MGG via DMAP Alter and OP4
                      'filename_MGG': ['MGG_M1.dat', 'MGG_M2.dat'],
                      # eigenvalues and eigenvectors from .f06-file - required for 'mona'
                      'filename_S103': ['SOL103_M1.f06', 'SOL103_M1.f06'],

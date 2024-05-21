@@ -11,18 +11,17 @@ pytables
 pyyaml
 pandas
 
-# Extras, otional
+# Extras, optional
 mpi4py
-pyfmi
 mayavi
 traits
 traitsui
 pyface
+jupyter
 
 # Regression tests
 pytest
 pytest-cov
-jupyter
 jupyter-book
 
 # Coding style

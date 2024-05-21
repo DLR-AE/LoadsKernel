@@ -19,7 +19,7 @@ class Steady(Common):
         Ux2 = self.get_Ux2(X)
 
         # aerodynamics
-        Pk_rbm, wj_rbm = self.rbm(onflow, alpha, q_dyn, Vtas)
+        Pk_rbm, wj_rbm = self.rbm(onflow, q_dyn, Vtas)
         Pk_cam, wj_cam = self.camber_twist(q_dyn)
         Pk_cs, wj_cs = self.cs(X, Ux2, q_dyn)
         Pk_f, wj_f = self.flexible(Uf, dUf_dt, onflow, q_dyn, Vtas)
@@ -27,7 +27,6 @@ class Steady(Common):
 
         wj = wj_rbm + wj_cam + wj_cs + wj_f + wj_gust
         Pk_idrag = self.idrag(wj, q_dyn)
-
         Pk_unsteady = Pk_rbm * 0.0
 
         Pextra, Pb_ext, Pf_ext = self.engine(X, Vtas, q_dyn, Uf, dUf_dt, t)

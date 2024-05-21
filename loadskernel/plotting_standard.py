@@ -9,11 +9,6 @@ from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
-try:
-    from mayavi import mlab
-except ImportError:
-    pass
-
 from loadskernel.units import tas2eas, eas2tas
 from loadskernel.io_functions.data_handling import load_hdf5_dict
 
@@ -86,83 +81,7 @@ class LoadPlots():
                            + (self.strcgrid['offset'][:, 1].max() - self.strcgrid['offset'][:, 1].min()) ** 2
                            + (self.strcgrid['offset'][:, 2].max() - self.strcgrid['offset'][:, 2].min()) ** 2) ** 0.5
         # Set some parameters which typically give a good view.
-        self.pscale = np.min([self.model_size / 400.0, 0.04])
-
-    def plot_forces_deformation_interactive(self):
-        # loop over all responses
-        for response in self.responses:
-            trimcase = self.jcl.trimcase[response['i'][()]]
-            logging.info('interactive plotting of forces and deformations for trim {:s}'.format(trimcase['desc']))
-
-            # plot aerodynamic forces
-            x = self.aerogrid['offset_k'][:, 0]
-            y = self.aerogrid['offset_k'][:, 1]
-            z = self.aerogrid['offset_k'][:, 2]
-            fscale = 0.5 * self.model_size / np.max(np.abs(response['Pk_aero'][0][self.aerogrid['set_k'][:, (0, 1, 2)]]))
-            for name in ['Pk_aero', 'Pk_rbm', 'Pk_cam', 'Pk_cs', 'Pk_f', 'Pk_idrag']:
-                if response[name][0].sum() != 0.0:
-                    fx = response[name][0][self.aerogrid['set_k'][:, 0]]
-                    fy = response[name][0][self.aerogrid['set_k'][:, 1]]
-                    fz = response[name][0][self.aerogrid['set_k'][:, 2]]
-                    mlab.figure()
-                    mlab.points3d(x, y, z, scale_factor=self.pscale)
-                    mlab.quiver3d(x, y, z, fx, fy, fz, color=(0, 1, 0), scale_factor=fscale)
-                    mlab.title(name, size=0.5, height=0.9)
-                else:
-                    logging.info('Forces "{}" are zero, skip plotting')
-
-            # plot structural deformations
-            x = self.strcgrid['offset'][:, 0]
-            y = self.strcgrid['offset'][:, 1]
-            z = self.strcgrid['offset'][:, 2]
-            x_r = self.strcgrid['offset'][:, 0] + response['Ug_r'][0][self.strcgrid['set'][:, 0]]
-            y_r = self.strcgrid['offset'][:, 1] + response['Ug_r'][0][self.strcgrid['set'][:, 1]]
-            z_r = self.strcgrid['offset'][:, 2] + response['Ug_r'][0][self.strcgrid['set'][:, 2]]
-            x_f = self.strcgrid['offset'][:, 0] + response['Ug'][0][self.strcgrid['set'][:, 0]]
-            y_f = self.strcgrid['offset'][:, 1] + response['Ug'][0][self.strcgrid['set'][:, 1]]
-            z_f = self.strcgrid['offset'][:, 2] + response['Ug'][0][self.strcgrid['set'][:, 2]]
-
-            mlab.figure()
-            mlab.points3d(x_r, y_r, z_r, color=(0, 1, 0), scale_factor=self.pscale)
-            mlab.points3d(x_f, y_f, z_f, color=(0, 0, 1), scale_factor=self.pscale)
-            mlab.title('rbm (green) and flexible deformation (blue, true scale) in 9300 coord', size=0.5, height=0.9)
-
-            # plot structural forces
-            mlab.figure()
-            mlab.points3d(x, y, z, scale_factor=self.pscale)
-            fscale = 0.5 * self.model_size / np.max(np.abs(response['Pg'][0][self.strcgrid['set'][:, (0, 1, 2)]]))
-            fx = response['Pg'][0][self.strcgrid['set'][:, 0]]
-            fy = response['Pg'][0][self.strcgrid['set'][:, 1]]
-            fz = response['Pg'][0][self.strcgrid['set'][:, 2]]
-            mlab.quiver3d(x, y, z, fx * fscale, fy * fscale, fz * fscale, color=(1, 1, 0), mode='2ddash', opacity=0.4,
-                          scale_mode='vector', scale_factor=1.0)
-            mlab.quiver3d(x + fx * fscale, y + fy * fscale, z + fz * fscale, fx * fscale, fy * fscale, fz * fscale,
-                          color=(1, 1, 0), mode='cone', scale_mode='vector', scale_factor=0.1, resolution=16)
-            mlab.points3d(self.splinegrid['offset'][:, 0], self.splinegrid['offset'][:, 1], self.splinegrid['offset'][:, 2],
-                          color=(1, 1, 0), scale_factor=self.pscale * 1.5)
-            mlab.title('Pg', size=0.5, height=0.9)
-
-            if response['Pg_cfd'][0].sum() != 0.0:
-                mlab.figure()
-                mlab.points3d(x, y, z, scale_factor=self.pscale)
-                fscale = 0.5 * self.model_size / np.max(np.abs(response['Pg_cfd'][0][self.strcgrid['set'][:, (0, 1, 2)]]))
-                fx = response['Pg_cfd'][0][self.strcgrid['set'][:, 0]]
-                fy = response['Pg_cfd'][0][self.strcgrid['set'][:, 1]]
-                fz = response['Pg_cfd'][0][self.strcgrid['set'][:, 2]]
-                mlab.quiver3d(x, y, z, fx * fscale, fy * fscale, fz * fscale, color=(1, 1, 0), mode='2ddash',
-                              opacity=0.4, scale_mode='vector', scale_factor=1.0)
-                mlab.quiver3d(x + fx * fscale, y + fy * fscale, z + fz * fscale, fx * fscale, fy * fscale, fz * fscale,
-                              color=(1, 1, 0), mode='cone', scale_mode='vector', scale_factor=0.1, resolution=16)
-                mlab.points3d(self.splinegrid['offset'][:, 0],
-                              self.splinegrid['offset'][:, 1],
-                              self.splinegrid['offset'][:, 2],
-                              color=(1, 1, 0), scale_factor=self.pscale * 1.5)
-                mlab.title('Pg_cfd', size=0.5, height=0.9)
-            else:
-                logging.info('CFD forces are zero, skip plotting')
-
-            # Render all plots
-            mlab.show()
+        self.pscale = np.min([self.model_size / 400.0, 0.1])
 
     def plot_monstations(self, filename_pdf):
         # launch plotting
@@ -288,49 +207,72 @@ class LoadPlots():
 
     def cuttingforces_along_wing_plots(self):
         logging.info('start plotting cutting forces along wing...')
-        self.subplot = self.create_axes()
-        cuttingforces = ['Fx [N]', 'Fy [N]', 'Fz [N]', 'Mx [Nm]', 'My [Nm]', 'Mz [Nm]']
+        # Read the data required for plotting.
         loads = []
         offsets = []
+        subcases = []
         for station in self.cuttingforces_wing:
             # trigger to read the data now with [:]
             loads.append(list(self.monstations[station]['loads'][:]))
             offsets.append(list(self.monstations[station]['offset'][:]))
+            # Get subcase description at monitoring station
+            if isinstance(self.monstations[station]['subcases'], list):
+                # This is an exception if source is not a hdf5 file.
+                # For example, the monstations have been pre-processed by a merge script and are lists already.
+                subcases.append(self.monstations[station]['subcases'])
+            else:
+                # make sure this is a list of strings
+                subcases.append(list(self.monstations[station]['subcases'].asstr()[:]))
         loads = np.array(loads)
         offsets = np.array(offsets)
 
-        for i_cuttingforce in range(len(cuttingforces)):
-            i_max = np.argmax(loads[:, :, i_cuttingforce], 1)
-            i_min = np.argmin(loads[:, :, i_cuttingforce], 1)
-            self.subplot.cla()
-            if loads.shape[1] > 50:
-                logging.debug(
-                    'plotting of every load case skipped due to large number (>50) of cases')
-            else:
-                self.subplot.plot(offsets[:, 1], loads[:, :, i_cuttingforce], color='cornflowerblue',
-                                  linestyle='-', marker='.', zorder=-2)
-            for i_station in range(len(self.cuttingforces_wing)):
-                # verticalalignment or va 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
-                # max
-                self.subplot.scatter(offsets[i_station, 1], loads[i_station, i_max[i_station], i_cuttingforce], color='r')
-                self.subplot.text(offsets[i_station, 1], loads[i_station, i_max[i_station], i_cuttingforce],
-                                  str(self.monstations[list(self.monstations)[0]]['subcases'][i_max[i_station]]),
-                                  fontsize=4, verticalalignment='bottom')
-                # min
-                self.subplot.scatter(offsets[i_station, 1], loads[i_station, i_min[i_station], i_cuttingforce], color='r')
-                self.subplot.text(offsets[i_station, 1], loads[i_station, i_min[i_station], i_cuttingforce],
-                                  str(self.monstations[list(self.monstations)[0]]['subcases'][i_min[i_station]]),
-                                  fontsize=4, verticalalignment='top')
+        # Loop over all six components of the cutting loads.
+        label_loads = ['Fx [N]', 'Fy [N]', 'Fz [N]', 'Mx [Nm]', 'My [Nm]', 'Mz [Nm]']
+        subplot = self.create_axes()
+        for idx_load in range(6):
+            # Recycle the existing subplot.
+            subplot.cla()
 
-            self.subplot.set_title('Wing')
-            self.subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2, 2))
-            self.subplot.grid(visible=True, which='major', axis='both')
-            self.subplot.minorticks_on()
-            yax = self.subplot.get_yaxis()
+            # Plot loads.
+            if loads.shape[1] > 50:
+                logging.debug('plotting of every load case skipped due to large number (>50) of cases')
+            else:
+                subplot.plot(offsets[:, 1], loads[:, :, idx_load], color='cornflowerblue',
+                             linestyle='-', marker='.', zorder=-2)
+
+            # Loop over all stations and label min and max loads.
+            for idx_station in range(len(self.cuttingforces_wing)):
+                # Identifiy min and max loads
+                idx_max_loads = np.argmax(loads[idx_station, :, idx_load])
+                idx_min_loads = np.argmin(loads[idx_station, :, idx_load])
+
+                # Highlight max loads with red dot and print subcase description.
+                subplot.scatter(offsets[idx_station, 1],
+                                loads[idx_station, idx_max_loads, idx_load],
+                                color='r')
+                subplot.text(offsets[idx_station, 1],
+                             loads[idx_station, idx_max_loads, idx_load],
+                             str(subcases[idx_station][idx_max_loads]),
+                             fontsize=4, verticalalignment='bottom')
+
+                # Highlight min loads with red dot and print subcase description.
+                subplot.scatter(offsets[idx_station, 1],
+                                loads[idx_station, idx_min_loads, idx_load],
+                                color='r')
+                subplot.text(offsets[idx_station, 1],
+                             loads[idx_station, idx_min_loads, idx_load],
+                             str(subcases[idx_station][idx_min_loads]),
+                             fontsize=4, verticalalignment='top')
+
+            subplot.set_title('Wing')
+            subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2, 2))
+            subplot.grid(visible=True, which='major', axis='both')
+            subplot.minorticks_on()
+            yax = subplot.get_yaxis()
             yax.set_label_coords(x=-0.18, y=0.5)
-            self.subplot.set_xlabel('y [m]')
-            self.subplot.set_ylabel(cuttingforces[i_cuttingforce])
-            self.subplot.set_rasterization_zorder(-1)
+            subplot.set_xlabel('y [m]')
+            subplot.set_ylabel(label_loads[idx_load])
+            subplot.set_rasterization_zorder(-1)
             self.pp.savefig()
         plt.close()
 

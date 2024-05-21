@@ -1,6 +1,10 @@
 # Note
 New releases are marked in the repository using tags. Simply checkout the master branch for the lastest version or use git checkout if you require a specific release, for example 'git checkout 2022.10'.
 
+# Release 2024.05
+- Maintenance release maily with bug fixes, perfromance improvements and updated documentation
+- Dropped support for Python versions lower than 3.10
+
 # Release 2024.02
 - Publish as PyPi package
 - Added continuous integration workflows on GitHub.com

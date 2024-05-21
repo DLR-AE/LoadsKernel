@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+from itertools import compress
 
 from pyface.qt import QtCore
 from pyface.qt.QtGui import (QApplication, QWidget, QTabWidget, QSizePolicy, QGridLayout, QMainWindow, QAction, QListWidget,
@@ -206,20 +207,21 @@ class Compare():
 
     def update_plot(self):
         if self.lb_dataset.currentItem() is not None and self.lb_mon.currentItem() is not None:
-            # Reverse current selection of datasets for plotting. The dataset added/created last is plotted first.
-            # This is useful for example after merging different datasets. The resulting dataset would obscure the view if
-            # plotted last.
-            current_selection = [item.row() for item in self.lb_dataset.selectedIndexes()]
-            dataset_sel = [self.datasets['dataset'][i] for i in current_selection]
-            color_sel = [self.datasets['color'][i] for i in current_selection]
-            desc_sel = [self.datasets['desc'][i] for i in current_selection]
+            # Get the items selected by the user.
             mon_sel = self.common_monstations[self.lb_mon.currentRow()]
-            n_subcases = [len(dataset[mon_sel]['subcases']) for dataset in dataset_sel]
-
-            self.plotting.potato_plots(dataset_sel,
+            dataset_sel = [item.row() for item in self.lb_dataset.selectedIndexes()]
+            # Check that monitoring stations exists in all selected datasets.
+            mon_existing = [mon_sel in self.datasets['dataset'][i] for i in dataset_sel]
+            dataset_sel = list(compress(dataset_sel, mon_existing))
+            # Get the selected datasets, colors and a description.
+            datasets = [self.datasets['dataset'][i] for i in dataset_sel]
+            colors = [self.datasets['color'][i] for i in dataset_sel]
+            desciptions = [self.datasets['desc'][i] for i in dataset_sel]
+            # Call the plotting function.
+            self.plotting.potato_plots(datasets,
                                        mon_sel,
-                                       desc_sel,
-                                       color_sel,
+                                       desciptions,
+                                       colors,
                                        self.cb_xaxis.currentIndex(),
                                        self.cb_yaxis.currentIndex(),
                                        self.cb_xaxis.currentText(),
@@ -228,6 +230,8 @@ class Compare():
                                        self.cb_labels.isChecked(),
                                        self.cb_minmax.isChecked(),
                                        )
+            # Update the text box with number of plotted load cases.
+            n_subcases = [len(dataset[mon_sel]['subcases']) for dataset in datasets]
             self.label_n_loadcases.setText('Selected load case: {}'.format(np.sum(n_subcases)))
         else:
             self.plotting.plot_nothing()
@@ -306,7 +310,9 @@ class Compare():
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
             self.lb_dataset.addItem(item)
 
-        keys = [list(dataset) for dataset in self.datasets['dataset']]
+        keys = []
+        for dataset in self.datasets['dataset']:
+            keys += dataset.keys()
         self.common_monstations = np.unique(keys)
         self.lb_mon.clear()
         for x in self.common_monstations:

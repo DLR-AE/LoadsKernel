@@ -13,7 +13,7 @@ from setuptools import setup, find_packages
 
 def my_setup():
     setup(name='LoadsKernel',
-          version='2024.02',
+          version='2024.05',
           description="""The Loads Kernel Software allows for the calculation of quasi-steady and dynamic maneuver loads,
           unsteady gust loads in the time and frequency domain as well as dynamic landing loads based on a generic landing
           gear module.""",
@@ -30,7 +30,7 @@ def my_setup():
           include_package_data=True,
           package_data={'loadskernel': ['graphics/*.*'],
                         'loadscompare': ['graphics/*.*'], },
-          python_requires='>=3.8',
+          python_requires='>=3.10',
           install_requires=['PanelAero',
                             'matplotlib',
                             'numpy',
@@ -42,17 +42,20 @@ def my_setup():
                             'pandas',
                             ],
           extras_require={'extras': ['mpi4py',
-                                     'pyfmi',
                                      'mayavi',
                                      'traits',
                                      'traitsui',
                                      'pyface',
-                                     'pyiges',
+                                     'jupyter',
+                                     'pyiges',  # only available with pip, not with conda
                                      ],
+                          'difficult': ['pyfmi',  # frequent version conflicts
+                                        ],
                           'test': ['pytest',
                                    'pytest-cov',
-                                   'jupyter',
                                    'jupyter-book==0.15.1',  # version 1.0.0 fails, wait for updates
+                                   'flake8',
+                                   'pylint',
                                    ]},
           )
 
