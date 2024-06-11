@@ -7,7 +7,6 @@ Note that this documentation of parameters is comprehensive, but a) not all para
 every kind of simulation and b) some parameters are for experts only --> your JCL might be much smaller.
 """
 import numpy as np
-import platform
 import os
 from loadskernel.units import ft2m, tas2Ma
 from loadskernel import jcl_helper
@@ -37,7 +36,7 @@ class jcl:
         to be implemented as a python module.
         """
         # Electronic flight control system
-        self.efcs = {'version': 'efcs_dc3', # Name of the corresponding python module
+        self.efcs = {'version': 'efcs_dc3',  # Name of the corresponding python module
                      # Path where to find the EFCS module
                      'path': os.path.join(model_root, 'efcs'),
                      }
@@ -74,7 +73,7 @@ class jcl:
                      # aerogrid is given by CAERO1, CAERO7 or by CQUAD4 cards
                      'method_caero': 'CAERO1',
                      # bdf file(s) with CAERO1 or CQUAD4-cards for aerogrid. IDs in ascending order.
-                     'filename_caero_bdf': [os.path.join(model_root, 'aero', 'vt',  'vt.CAERO1'),
+                     'filename_caero_bdf': [os.path.join(model_root, 'aero', 'vt', 'vt.CAERO1'),
                                             os.path.join(model_root, 'aero', 'left-ht', 'left-ht.CAERO1'),
                                             os.path.join(model_root, 'aero', 'right-ht', 'right-ht.CAERO1'),
                                             os.path.join(model_root, 'aero', 'left-wing', 'left-wing.CAERO1'),
@@ -83,18 +82,18 @@ class jcl:
                      # DMI Matrix for camber and twist correction. Same order as the aerogrid.
                      'filename_DMI_W2GJ': [os.path.join(model_root, 'fem', 'w2gj_list.DMI_merge')],
                      # bdf file(s) with AESURF-cards
-                     'filename_aesurf': [os.path.join(model_root, 'aero','vt', 'vt.AESURF'),
-                                         os.path.join(model_root, 'aero', 'left-ht','left-ht.AESURF'),
+                     'filename_aesurf': [os.path.join(model_root, 'aero', 'vt', 'vt.AESURF'),
+                                         os.path.join(model_root, 'aero', 'left-ht', 'left-ht.AESURF'),
                                          os.path.join(model_root, 'aero', 'right-ht', 'right-ht.AESURF'),
-                                         os.path.join(model_root, 'aero', 'left-wing','left-wing.AESURF'),
-                                         os.path.join(model_root, 'aero', 'right-wing','right-wing.AESURF'),
+                                         os.path.join(model_root, 'aero', 'left-wing', 'left-wing.AESURF'),
+                                         os.path.join(model_root, 'aero', 'right-wing', 'right-wing.AESURF'),
                                          ],
                      # bdf file(s) with AELIST-cards
                      'filename_aelist': [os.path.join(model_root, 'aero', 'vt', 'vt.AELIST'),
                                          os.path.join(model_root, 'aero', 'left-ht', 'left-ht.AELIST'),
                                          os.path.join(model_root, 'aero', 'right-ht', 'right-ht.AELIST'),
-                                         os.path.join(model_root, 'aero', 'left-wing','left-wing.AELIST'),
-                                         os.path.join(model_root, 'aero', 'right-wing','right-wing.AELIST'),
+                                         os.path.join(model_root, 'aero', 'left-wing', 'left-wing.AELIST'),
+                                         os.path.join(model_root, 'aero', 'right-wing', 'right-wing.AELIST'),
                                          ],
                      # The hingeline of a CS is given by a CORD. Either the y- or the z-axis is taken as hingeline. 'y', 'z'
                      'hingeline': 'y',
@@ -111,27 +110,22 @@ class jcl:
                        'filename_splinegrid': ['splinegrid.bdf']
                        }
         # Settings for the structural dynamics.
-        self.mass = {'method': 'modalanalysis', # Inplemented interfaces: 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000'
+        self.mass = {'method': 'modalanalysis',  # Inplemented interfaces: 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000'
                      'key': ['M3'],
                      # MGG via DMAP Alter and OP4 - always required
-                     'filename_h5': [
-                                     os.path.join(model_root, 'fem', 'SOL103_M3.mtx.h5'),
-                                     ],
+                     'filename_h5': [os.path.join(model_root, 'fem', 'SOL103_M3.mtx.h5')],
                      # True or False, omits first six modes
                      'omit_rb_modes': True,
                      # list(s) of modes to use
-                     'modes': [np.arange(1, 71), np.arange(1, 71), np.arange(1, 71), np.arange(1, 71)],
-                     }
+                     'modes': [np.arange(1, 71), np.arange(1, 71), np.arange(1, 71), np.arange(1, 71)]}
         # Modal damping can be applied as a factor of the stiffness matrix.
         self.damping = {'method': 'modal',
-                        'damping': 0.02,
-                        }
+                        'damping': 0.02}
         # The international standard atmosphere (ISA)
         self.atmo = {'method': 'ISA',
                      'key': ['FL000', 'FL055', 'FL075', 'FL210'],
                      # Altitude in meters
-                     'h': ft2m([0, 5500, 7500, 21000,]),
-                     }
+                     'h': ft2m([0, 5500, 7500, 21000,])}
         # Setting of the rigid body equations of motion
         self.eom = {'version': 'waszak'}  # 'linear' or 'waszak'
 
@@ -142,19 +136,25 @@ class jcl:
         cards for the dimensioning load cases.
         """
         self.loadplots = {'potatos_fz_mx': [],
-                          'potatos_mx_my': ['WL01','WL03','WL05','WL07','WL09','WL11','WL13','WL15','WL17','WL19','WL21','WL23','WL25','WL27','WL29','WL31','WR31','WR29','WR27','WR25','WR23','WR21','WR19','WR17','WR15','WR13','WR11','WR09','WR07','WR05','WR03','WR01'],
+                          'potatos_mx_my': ['WL01', 'WL03', 'WL05', 'WL07', 'WL09', 'WL11', 'WL13', 'WL15', 'WL17',
+                                            'WL19', 'WL21', 'WL23', 'WL25', 'WL27', 'WL29', 'WL31', 'WR31', 'WR29',
+                                            'WR27', 'WR25', 'WR23', 'WR21', 'WR19', 'WR17', 'WR15', 'WR13', 'WR11',
+                                            'WR09', 'WR07', 'WR05', 'WR03', 'WR01'],
                           'potatos_fz_my': [],
                           'potatos_fy_mx': [],
                           'potatos_mx_mz': [],
                           'potatos_my_mz': [],
-                          'cuttingforces_wing': ['WL01','WL03','WL05','WL07','WL09','WL11','WL13','WL15','WL17','WL19','WL21','WL23','WL25','WL27','WL29','WL31','WR31','WR29','WR27','WR25','WR23','WR21','WR19','WR17','WR15','WR13','WR11','WR09','WR07','WR05','WR03','WR01'],
+                          'cuttingforces_wing': ['WL01', 'WL03', 'WL05', 'WL07', 'WL09', 'WL11', 'WL13', 'WL15',
+                                                 'WL17', 'WL19', 'WL21', 'WL23', 'WL25', 'WL27', 'WL29', 'WL31',
+                                                 'WR31', 'WR29', 'WR27', 'WR25', 'WR23', 'WR21', 'WR19', 'WR17',
+                                                 'WR15', 'WR13', 'WR11', 'WR09', 'WR07', 'WR05', 'WR03', 'WR01'],
                           }
         """
         The trimcase defines the maneuver load case, one dictionary per load case.
         There may be hundreds or thousands of load cases, so at some point it might be beneficial to script this section or
         import an excel sheet.
         """
-        self.trimcase = [{'desc': 'CC.M3.OVCFL000.level', # Descriptive string of the maneuver case
+        self.trimcase = [{'desc': 'CC.M3.OVCFL000.level',  # Descriptive string of the maneuver case
                           # Kind of trim condition, blank for trim about all three axes, for more trim conditions see
                           # trim_conditions.py
                           'maneuver': '',
@@ -179,7 +179,7 @@ class jcl:
                           # Yaw rate in rad/s
                           'r': 0.0,
                           # Roll acceleration in rad/s^2
-                          'pdot': 0.0 ,
+                          'pdot': 0.0,
                           # Pitch acceleration in rad/s^2
                           'qdot': 0.0,
                           # Yaw acceleration in rad/s^2
@@ -313,5 +313,5 @@ class jcl:
         For every trimcase, a corresponding simcase is required. For maneuvers, it may be empty self.simcase = [{}].
         A time simulation is triggered if the simcase contains at least 'dt' and 't_final'
         """
-        self.simcase  = jcl_helper.generate_empty_listofdicts(self.trimcase)
+        self.simcase = jcl_helper.generate_empty_listofdicts(self.trimcase)
         # End

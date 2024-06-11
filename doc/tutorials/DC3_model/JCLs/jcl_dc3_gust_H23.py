@@ -7,10 +7,8 @@ Note that this documentation of parameters is comprehensive, but a) not all para
 every kind of simulation and b) some parameters are for experts only --> your JCL might be much smaller.
 """
 import numpy as np
-import platform
 import os
 from loadskernel.units import ft2m, tas2Ma
-from loadskernel import jcl_helper
 import pathlib
 
 
@@ -164,7 +162,7 @@ class jcl:
         There may be hundreds or thousands of load cases, so at some point it might be beneficial to script this section or
         import an excel sheet.
         """
-        self.trimcase = [{'desc': 'CC.M3.OVCFL000.level', # Descriptive string of the maneuver case
+        self.trimcase = [{'desc': 'CC.M3.OVCFL000.level',  # Descriptive string of the maneuver case
                           # Kind of trim condition, blank for trim about all three axes, for more trim conditions see
                           # trim_conditions.py
                           'maneuver': '',
@@ -189,7 +187,7 @@ class jcl:
                           # Yaw rate in rad/s
                           'r': 0.0,
                           # Roll acceleration in rad/s^2
-                          'pdot': 0.0 ,
+                          'pdot': 0.0,
                           # Pitch acceleration in rad/s^2
                           'qdot': 0.0,
                           # Yaw acceleration in rad/s^2

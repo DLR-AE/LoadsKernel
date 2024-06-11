@@ -6,12 +6,12 @@ of the input, e.g. to convert units, generate mutiple load cases, etc.
 Note that this documentation of parameters is comprehensive, but a) not all parameters are necessary for
 every kind of simulation and b) some parameters are for experts only --> your JCL might be much smaller.
 """
-import numpy as np
-import platform
 import os
-from loadskernel.units import ft2m, tas2Ma
-from loadskernel import jcl_helper
 import pathlib
+
+import numpy as np
+
+from loadskernel.units import ft2m, tas2Ma
 
 
 class jcl:
@@ -36,7 +36,7 @@ class jcl:
         to be implemented as a python module.
         """
         # Electronic flight control system
-        self.efcs = {'version': 'efcs_dc3', # Name of the corresponding python module
+        self.efcs = {'version': 'efcs_dc3',  # Name of the corresponding python module
                      # Path where to find the EFCS module
                      'path': os.path.join(model_root, 'efcs'),
                      }
@@ -114,16 +114,14 @@ class jcl:
                        'filename_splinegrid': ['splinegrid.bdf']
                        }
         # Settings for the structural dynamics.
-        self.mass = {'method': 'modalanalysis', # Inplemented interfaces: 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000'
+        self.mass = {'method': 'modalanalysis',  # Inplemented interfaces: 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000'
                      'key': ['M3'],
                      # MGG via DMAP Alter and OP4 - always required
-                     'filename_h5': [
-                      os.path.join(model_root, 'fem', 'SOL103_M3.mtx.h5'),
-                     ],
+                     'filename_h5': [os.path.join(model_root, 'fem', 'SOL103_M3.mtx.h5')],
                      # True or False, omits first six modes
                      'omit_rb_modes': True,
                      # list(s) of modes to use
-                     'modes': [ np.arange(1, 22)],
+                     'modes': [np.arange(1, 22)],
                      }
         # Modal damping can be applied as a factor of the stiffness matrix.
         self.damping = {'method': 'modal',
@@ -137,27 +135,12 @@ class jcl:
                      }
         # Setting of the rigid body equations of motion
         self.eom = {'version': 'waszak'}  # 'linear' or 'waszak'
-
-        """
-        This section controls the automatic plotting and selection of dimensioning load cases.
-        Simply put a list of names of the monitoring stations (e.g. ['MON1', 'MON2',...]) into the dictionary
-        of possible load plots listed below. This will generate a pdf document and nastran force and moment
-        cards for the dimensioning load cases.
-        """
-        #self.loadplots = {'potatos_fz_mx': ['MON5'],
-        #                  'potatos_mx_my': ['MON1', 'MON2', 'MON3', 'MON4', 'MON334'],
-        #                  'potatos_fz_my': [],
-        #                  'potatos_fy_mx': [],
-        #                  'potatos_mx_mz': ['MON324'],
-        #                  'potatos_my_mz': [],
-        #                  'cuttingforces_wing': ['MON1', 'MON2', 'MON3', 'MON4'],
-        #                  }
         """
         The trimcase defines the maneuver load case, one dictionary per load case.
         There may be hundreds or thousands of load cases, so at some point it might be beneficial to script this section or
         import an excel sheet.
         """
-        self.trimcase = [{'desc': 'CC.M3.OVCFL000.KE-Method', # Descriptive string of the maneuver case
+        self.trimcase = [{'desc': 'CC.M3.OVCFL000.KE-Method',  # Descriptive string of the maneuver case
                           # Kind of trim condition, blank for trim about all three axes, for more trim conditions see
                           # trim_conditions.py
                           'maneuver': '',
@@ -182,13 +165,13 @@ class jcl:
                           # Yaw rate in rad/s
                           'r': 0.0,
                           # Roll acceleration in rad/s^2
-                          'pdot': 0.0 ,
+                          'pdot': 0.0,
                           # Pitch acceleration in rad/s^2
                           'qdot': 0.0,
                           # Yaw acceleration in rad/s^2
                           'rdot': 0.0,
                           },
-                         {'desc': 'CC.M3.OVCFL000.PK-Method', # Descriptive string of the maneuver case
+                         {'desc': 'CC.M3.OVCFL000.PK-Method',  # Descriptive string of the maneuver case
                           # Kind of trim condition, blank for trim about all three axes, for more trim conditions see
                           # trim_conditions.py
                           'maneuver': '',
@@ -213,7 +196,7 @@ class jcl:
                           # Yaw rate in rad/s
                           'r': 0.0,
                           # Roll acceleration in rad/s^2
-                          'pdot': 0.0 ,
+                          'pdot': 0.0,
                           # Pitch acceleration in rad/s^2
                           'qdot': 0.0,
                           # Yaw acceleration in rad/s^2
@@ -223,8 +206,7 @@ class jcl:
         For every trimcase, a corresponding simcase is required. For maneuvers, it may be empty self.simcase = [{}].
         A time simulation is triggered if the simcase contains at least 'dt' and 't_final'
         """
-        self.simcase = [{# True or False, enables 1-cosine gust according to CS-25
-                         'gust': False,
+        self.simcase = [{'gust': False,  # True or False, enables 1-cosine gust according to CS-25
                          # True or False, enables continuous turbulence excitation
                          'turbulence': False,
                          # True or False, calculates limit turbulence according to CS-25
@@ -240,10 +222,8 @@ class jcl:
                          # True or False, enables flutter check with k, ke or pk method
                          'flutter': True,
                          # flutter parameters for k and ke method
-                         'flutter_para': {'method': 'ke', 'k_red': np.linspace(3.0, 0.001, 100)},
-                         },
-                        {# True or False, enables 1-cosine gust according to CS-25
-                         'gust': False,
+                         'flutter_para': {'method': 'ke', 'k_red': np.linspace(3.0, 0.001, 100)}},
+                        {'gust': False,  # True or False, enables 1-cosine gust according to CS-25
                          # True or False, enables continuous turbulence excitation
                          'turbulence': False,
                          # True or False, calculates limit turbulence according to CS-25
@@ -259,7 +239,5 @@ class jcl:
                          # True or False, enables flutter check with k, ke or pk method
                          'flutter': True,
                          # flutter parameters for pk method
-                         'flutter_para': {'method': 'pk', 'Vtas': np.linspace(20.0, 300.0, 20)},
-                         },
-                        ]
+                         'flutter_para': {'method': 'pk', 'Vtas': np.linspace(20.0, 300.0, 20)}}]
         # End
