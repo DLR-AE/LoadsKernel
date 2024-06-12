@@ -1,17 +1,10 @@
 # Aeroelastic Model of the DC3
 
-<p>In this Jupyter notebook the aeroelastic modelling of the Douglas DC-3 is going to be exposed and explained. This model will include the finite element model, aerodynamic model, mass model, and fuel model. Additionally, the different mass configurations and various modified models will be detailed. The model was created with the aim of getting as close as possible to reality. Nonetheless, the model needs to fullfill some requirements, that are descriminated in front, and that is why modified models of the original models were created. Finally, the eigenmodes of the final modified model will be analysed. The aim of exposing the aeroelastic model is to show the different parts that the model should include and the level of detail. In the following figure, the aircraft in question can be seen:</p>
+In this Jupyter notebook the aeroelastic modelling of the Douglas DC-3 is going to be exposed and explained. This model will include the finite element model, aerodynamic model, mass model, and fuel model. Additionally, the different mass configurations and various modified models will be detailed. The model was created with the aim of getting as close as possible to reality. Nonetheless, the model needs to fullfill some requirements, that are descriminated in front, and that is why modified models of the original models were created. Finally, the eigenmodes of the final modified model will be analysed. The aim of exposing the aeroelastic model is to show the different parts that the model should include and the level of detail. In the following figure, the aircraft in question can be seen:
 
+<img src="./images/dc3.png" width="300" alt="DC3">
 
-<center>
-<figure>
-    <img src="./images/dc3.png" width="300"
-         alt="DC3">
-    <center>
-    <figcaption><em>A DC-3 operated by Scandinavian Airlines.</em></figcaption>
-    </center>
-</figure>
-</center>
+*A DC-3 operated by Scandinavian Airlines.*
 
 
 
