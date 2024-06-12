@@ -570,7 +570,7 @@ class PKMethod(KMethod):
                 e = 1.0
                 n_iter = 0
                 # iteration to match k_red with Vtas and omega of the mode under investigation
-                while e >= 1e-2:
+                while e >= 1e-3:
                     eigenvalues_new, eigenvectors_new = self.calc_eigenvalues(self.system(k_old).real, eigenvectors_old)
                     k_now = np.abs(eigenvalues_new[i_mode].imag) * self.macgrid['c_ref'] / 2.0 / self.Vtas
                     # Use relaxation for improved convergence, which helps in some cases to avoid oscillations of the
