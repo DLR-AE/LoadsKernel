@@ -2,7 +2,7 @@
 # Learn more at https://jupyterbook.org/customize/config.html
 
 title: Loads Kernel Tutorials
-author: Arne Voß
+author: Arne Voß and Francisco Carvalho
 logo: ../../graphics/LK_logo2.png
 
 # Force re-execution of notebooks on each build.
