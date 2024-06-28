@@ -20,7 +20,7 @@ Ug_f2 = response2['Ug_f'][:]
 Ug_f3 = response3['Ug_f'][:]
 
 # extract ID, offset and set matrices
-filename = '/data/carn_fr/DC3_LoadsKernel/model_jcl_dc3_more_flexibility3_trim_cases.hdf5'
+filename = path = os.path.join(path_root, 'DC3_results', 'model_jcl_dc3_trim.hdf5')
 model = h5py.File(filename, 'r')
 strcgrid = model['strcgrid']
 ID = strcgrid['ID'][:]
