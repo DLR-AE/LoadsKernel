@@ -52,12 +52,13 @@ jobs:
       run: |
         # Install same requirements as to be used during regression testing
         source $CONDA/etc/profile.d/conda.sh
-        conda activate
+        conda create -n pylint_env python=${{ matrix.python-version }}
+        conda activate pylint_env
         conda install -y -c conda-forge --file ./tests/list_of_packages.txt || true
         # Install the package itself to make sure that all imports work.
         pip install .[extras]
     - name: Analysing the code with pylint
       run: |
         source $CONDA/etc/profile.d/conda.sh
-        conda activate
+        conda activate pylint_env
         pylint $(git ls-files '*.py') --fail-under=7.0
