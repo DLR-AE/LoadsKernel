@@ -1,0 +1,22 @@
+$ Mono, 10pt,   column  width   17mm,   no spacing                         
+$2345678                                                                   
+$ NAC-P nodes                                                              
+$ GRID        ID      CP      X1      X2      X3      CD                   
+GRID    54100001           5.129  -2.745   0.000                           
+GRID    54100002           5.897  -2.745   0.000                           
+GRID    54100003           7.105  -2.745   0.000                           
+                                                                           
+                                                                           
+$NAC-P  rigid   body    connect to wing LRA                                
+$RBE2        EID      GN      CM     GM1     GM2     GM3     GM4        GM5+          
+$            GM6     GM7     GM8     etc   ALPHA    TREF                   
+RBE2    5410000054090006  123456541000015410000254100003                   
+$ NAC-S mass    model                                                      
+$ CONM2      EID       G     CID       M      X1      X2                   +          
+$            I11     I21     I22     I31     I32     I33      X3           
+CONM2    541100154100001       0   287.8    0.00    0.00                   +          
+          73.257    0.00    0.00    0.00    0.00    0.00    0.00           
+CONM2    541100254100002       0  470.95    0.00    0.00                   +          
+         102.107    0.00    0.00    0.00    0.00    0.00    0.00           
+CONM2    541100354100003       0  183.15    0.00    0.00                   +          
+          33.408    0.00    0.00    0.00    0.00    0.00    0.00           

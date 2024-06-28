@@ -5,3 +5,9 @@ format: jb-book
 root: intro
 chapters:
 - file: first_steps
+- file: simulation_set_up
+- file: aeroelastic_modeling
+- file: trim
+- file: maneuver_loads
+- file: gust_time_domain
+- file: flutter
