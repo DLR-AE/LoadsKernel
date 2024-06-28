@@ -74,7 +74,7 @@ There are two GUIs to visualize a simulation model (the Model Viewer) and to com
 model-viewer
 loads-compare
 ```
-## Tutorials & Examples
+# Tutorials & Examples
 There is a growing number of tutorials based on Jupyter notebooks. You can either have a look at the static html tutorials or use the Jupyter notebooks interactively. For the latter, start a jupyter notebook server, which will open a dashboard in your web browser. Then open one of the *.ipynb notebooks from ./doc/tutorials and walk through the tutorials step-by-step.
 
 [View html tutorials](https://dlr-ae.github.io/LoadsKernel/tutorials/)
