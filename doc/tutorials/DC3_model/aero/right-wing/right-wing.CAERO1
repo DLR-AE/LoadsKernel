@@ -1,0 +1,44 @@
+$
+$***********************************************************************
+$ Created by ModGen (Version 2.2401.01  (latest version))
+$ Operating System: Linux    
+$ Date & Time: 2024-03-28 15:15:16
+$***********************************************************************
+$
+$ TITLE= DC-3                                                                                                                
+$
+$
+$-----------------------------------------------------------------------
+$
+$
+$
+$
+CAERO1   6401001    1001       0       7      12                       1+       
++        6.88999 0.00000 .150999 4.32000 6.88999 3.68000 .150999 4.32000
+$
+CAERO1   6402001    1001       0       5      12                       1+       
++        6.88999 3.68000 .150999 4.32000 7.65850 6.34324 .357169 3.55150
+$
+CAERO1   6403001    1001       0      20      10                       1+       
++        7.65850 6.34324 .357169 2.61390 9.78999 13.7299 .929000 1.04512
+$
+CAERO1   6404001    1001       0      20       4                       1+       
++        10.2724 6.34324 .357169 .937596 10.8351 13.7299 .929000 .374879
+$
+$
+$***********************************************************************
+$ ModGen is a program to set up Nastran structural, aerodynamic, and
+$ optimization models for aircraft structures like wing and fuselage
+$ including optional pre-sizing.
+$
+$ ModGen is developed by:
+$
+$       DLR German Aerospace Center
+$       Institute of Aeroelasticity
+$       37073 Goettingen
+$       Internet www.dlr.de/ae
+$       Contact: thomas.klimmek@dlr.de
+$
+$***********************************************************************
+$
+$

@@ -74,6 +74,16 @@ There are two GUIs to visualize a simulation model (the Model Viewer) and to com
 model-viewer
 loads-compare
 ```
+# Tutorials & Examples
+There is a growing number of tutorials based on Jupyter notebooks. You can either have a look at the static html tutorials or use the Jupyter notebooks interactively. For the latter, start a jupyter notebook server, which will open a dashboard in your web browser. Then open one of the *.ipynb notebooks from ./doc/tutorials and walk through the tutorials step-by-step.
+
+[View html tutorials](https://dlr-ae.github.io/LoadsKernel/tutorials/)
+
+or
+
+```
+jupyter notebook
+```
 
 # License
 This software is developed for scientific applications and is delivered as open source without any liability (BSD 3-Clause, please see [LICENSE](LICENSE) for details). For every new aircraft, a validation against test data and/or other simulation tools is highly recommended and in the responsibility of the user. 
@@ -103,23 +113,8 @@ Development branch
 [![Regression Tests](https://github.com/DLR-AE/LoadsKernel/actions/workflows/regression-tests.yml/badge.svg?branch=devel)](https://github.com/DLR-AE/LoadsKernel/actions/workflows/regression-tests.yml)
 [![Coding style](https://github.com/DLR-AE/LoadsKernel/actions/workflows/coding-style.yml/badge.svg?branch=devel)](https://github.com/DLR-AE/LoadsKernel/actions/workflows/coding-style.yml)
 
-# Internal Part (DLR)
+# DLR-Internal Long-Term Continuous Integration
 
-## Examples
-There are a number of typical examples, which cover different analyses and simulations. The examples are stored in an additional (internal) DLR GitLab repository:
-
-```
-git clone https://gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
-```
-
-## Tutorials
-In the ./doc folder, there are is a growing number of tutorials based on Jupyter notebooks. You can either have a look at the [static html tutorials](https://loads-kernel.pages.gitlab.dlr.de/loads-kernel/tutorials/) or use the Jupyter notebooks interactively. Start the jupyter notebook server, which will open a dashborad in your web browser. Then navigate to the ./doc/tutorials, open one of the *.ipynb notebooks and you can walk through the tutorials step-by-step.
-
-```
-jupyter notebook
-```
-
-## Continuous Integration
 In addition to the public regression testing (see above), additional and more comprehensive tests are performed and compared against long standing reference results. This is an internal process and the status of the continuous integration pipelines can only be accessed from within DLR:
 
 Master branch [![pipeline status](https://gitlab.dlr.de/loads-kernel/loads-kernel/badges/master/pipeline.svg)](https://gitlab.dlr.de/loads-kernel/loads-kernel/-/commits/master)

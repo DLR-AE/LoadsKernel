@@ -1,0 +1,72 @@
+$
+$-----------------------------------------------------------------------
+$ Interface FUS/Right-wing, FUS/Left_wing
+$------><------><------><------><------><------><------><------><------>
+RBE2      200001  100004  1234566409000154090001
+$
+$ Interface FUS/Right-ht, FUS/Left-ht
+$------><------><------><------><------><------><------><------><------>
+RBE2      200002  100010  1234563349000133390001
+$
+$ Interface FUS/Vt
+$------><------><------><------><------><------><------><------><------>
+RBE2      200003  100010  12345633290001
+$
+$
+$-----------------------------------------------------------------------
+$ Fuselage
+include '../fem/export_FUS.csv'
+$-----------------------------------------------------------------------
+$ Left-wing
+$ LRA
+include '../fem/left-wing/left-wing.GRID_LREFAX_5400001'
+include '../fem/left-wing/left-wing.RBE2_LREFAX_5400001'
+include '../fem/left-wing/left-wing.CORD2R_LREFAX'
+$ bdf model
+include '../fem/left-wing/left-wing.MAT_ZR'
+include '../fem/left-wing/export_left-wing.csv'
+$-----------------------------------------------------------------------
+$ Right-wing
+$ LRA
+include '../fem/right-wing/right-wing.GRID_LREFAX_6400001'
+include '../fem/right-wing/right-wing.RBE2_LREFAX_6400001'
+include '../fem/right-wing/right-wing.CORD2R_LREFAX'
+$ bdf model
+include '../fem/right-wing/right-wing.MAT_ZR'
+include '../fem/right-wing//export_right-wing.csv'
+$-----------------------------------------------------------------------
+$ Left-ht
+$ LRA
+include '../fem/left-ht/left-ht.GRID_LREFAX_3330001'
+include '../fem/left-ht/left-ht.RBE2_LREFAX_3330001'
+include '../fem/left-ht/left-ht.CORD2R_LREFAX'
+$ bdf model
+include '../fem/left-ht/left-ht.MAT_ZR'
+include '../fem/left-ht/export_left-ht.csv'
+$-----------------------------------------------------------------------
+$ Right-ht
+$ LRA
+include '../fem/right-ht/right-ht.GRID_LREFAX_3340001'
+include '../fem/right-ht/right-ht.RBE2_LREFAX_3340001'
+include '../fem/right-ht/right-ht.CORD2R_LREFAX'
+$ bdf model
+include '../fem/right-ht/right-ht.MAT_ZR'
+include '../fem/right-ht/export_right-ht.csv'
+$-----------------------------------------------------------------------
+$ Vt
+$ LRA
+include '../fem/vt/vt.GRID_LREFAX_3320001'
+include '../fem/vt/vt.RBE2_LREFAX_3320001'
+include '../fem/vt/vt.CORD2R_LREFAX'
+$ bdf model
+include '../fem/vt/vt.MAT_ZR'
+include '../fem/vt/export_vt.csv'
+$-----------------------------------------------------------------------
+$ Left-nacell
+include '../fem/export_left-nacell.csv'
+$-----------------------------------------------------------------------
+$ Right-nacell
+include '../fem/export_right-nacell.csv'
+$-----------------------------------------------------------------------
+
+

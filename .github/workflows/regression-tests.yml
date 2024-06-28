@@ -32,14 +32,15 @@ jobs:
         /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 1920x1200x24 -ac +extension GLX
         # Install same requirements as to be used during regression testing
         source $CONDA/etc/profile.d/conda.sh
-        conda activate
+        conda create -n pytest_env python=${{ matrix.python-version }}
+        conda activate pytest_env
         conda install -y -c conda-forge --file ./tests/list_of_packages.txt  || true
         # Install the package itself to make sure that all imports work.
-        pip install -e .[extras]
+        pip install -e .[extras,test]
     - name: Analysing the code with pytest
       run: |
         source $CONDA/etc/profile.d/conda.sh
-        conda activate
+        conda activate pytest_env
         # Run the actual testing of the code with pytest
         # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
         python -m pytest -v --basetemp=./tmp -k 'test_unittests or test_gui' --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
