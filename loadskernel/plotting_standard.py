@@ -31,6 +31,7 @@ class LoadPlots():
         self.potatos_mx_mz = []  # VTP
         self.potatos_my_mz = []  # FUS
         self.cuttingforces_wing = []
+        self.cuttingforces_fuselage = []
         self.im = plt.imread(os.path.join(
             os.path.dirname(__file__), 'graphics', 'LK_logo2.png'))
 
@@ -55,6 +56,8 @@ class LoadPlots():
                 self.potatos_my_mz = self.jcl.loadplots['potatos_my_mz']
             if 'cuttingforces_wing' in self.jcl.loadplots:
                 self.cuttingforces_wing = self.jcl.loadplots['cuttingforces_wing']
+            if 'cuttingforces_fuselage' in self.jcl.loadplots:
+                self.cuttingforces_fuselage = self.jcl.loadplots['cuttingforces_fuselage']
         else:
             logging.info('jcl.loadplots not specified in the JCL - no automatic plotting of load envelopes possible.')
 
@@ -88,9 +91,11 @@ class LoadPlots():
         self.pp = PdfPages(filename_pdf, keep_empty=False)
         self.potato_plots()
         if self.cuttingforces_wing:
-            self.cuttingforces_along_wing_plots()
+            self.cuttingforces_along_axis_plots(monstations=self.cuttingforces_wing, axis=1)
+        if self.cuttingforces_fuselage:
+            self.cuttingforces_along_axis_plots(monstations=self.cuttingforces_fuselage, axis=0)
         self.pp.close()
-        logging.info('plots saved as ' + filename_pdf)
+        logging.info('Plots saved as ' + filename_pdf)
 
     def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull=True, show_labels=False, show_minmax=False):
         loads = np.array(self.monstations[station]['loads'])
@@ -160,7 +165,7 @@ class LoadPlots():
         self.pp.savefig()
 
     def potato_plots(self):
-        logging.info('start potato-plotting...')
+        logging.info('Start potato-plotting...')
         self.subplot = self.create_axes()
 
         potato = np.sort(np.unique(self.potatos_fz_mx + self.potatos_mx_my + self.potatos_fz_my + self.potatos_fy_mx
@@ -205,13 +210,14 @@ class LoadPlots():
                 self.potato_plot_nicely(station, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
         plt.close()
 
-    def cuttingforces_along_wing_plots(self):
-        logging.info('start plotting cutting forces along wing...')
+    def cuttingforces_along_axis_plots(self, monstations, axis):
+        assert axis in [0, 1, 2], 'Plotting along an axis only supported for axis 0, 1 or 2!'
+        logging.info('Start plotting cutting forces along axis {}...'.format(axis))
         # Read the data required for plotting.
         loads = []
         offsets = []
         subcases = []
-        for station in self.cuttingforces_wing:
+        for station in monstations:
             # trigger to read the data now with [:]
             loads.append(list(self.monstations[station]['loads'][:]))
             offsets.append(list(self.monstations[station]['offset'][:]))
@@ -235,42 +241,46 @@ class LoadPlots():
 
             # Plot loads.
             if loads.shape[1] > 50:
-                logging.debug('plotting of every load case skipped due to large number (>50) of cases')
+                logging.debug('Plotting of every load case skipped due to large number (>50) of cases')
             else:
-                subplot.plot(offsets[:, 1], loads[:, :, idx_load], color='cornflowerblue',
+                subplot.plot(offsets[:, axis], loads[:, :, idx_load], color='cornflowerblue',
                              linestyle='-', marker='.', zorder=-2)
 
             # Loop over all stations and label min and max loads.
-            for idx_station in range(len(self.cuttingforces_wing)):
+            for idx_station in range(len(monstations)):
                 # Identifiy min and max loads
                 idx_max_loads = np.argmax(loads[idx_station, :, idx_load])
                 idx_min_loads = np.argmin(loads[idx_station, :, idx_load])
 
                 # Highlight max loads with red dot and print subcase description.
-                subplot.scatter(offsets[idx_station, 1],
+                subplot.scatter(offsets[idx_station, axis],
                                 loads[idx_station, idx_max_loads, idx_load],
                                 color='r')
-                subplot.text(offsets[idx_station, 1],
+                subplot.text(offsets[idx_station, axis],
                              loads[idx_station, idx_max_loads, idx_load],
                              str(subcases[idx_station][idx_max_loads]),
                              fontsize=4, verticalalignment='bottom')
 
                 # Highlight min loads with red dot and print subcase description.
-                subplot.scatter(offsets[idx_station, 1],
+                subplot.scatter(offsets[idx_station, axis],
                                 loads[idx_station, idx_min_loads, idx_load],
                                 color='r')
-                subplot.text(offsets[idx_station, 1],
+                subplot.text(offsets[idx_station, axis],
                              loads[idx_station, idx_min_loads, idx_load],
                              str(subcases[idx_station][idx_min_loads]),
                              fontsize=4, verticalalignment='top')
 
-            subplot.set_title('Wing')
             subplot.ticklabel_format(style='sci', axis='y', scilimits=(-2, 2))
             subplot.grid(visible=True, which='major', axis='both')
             subplot.minorticks_on()
             yax = subplot.get_yaxis()
             yax.set_label_coords(x=-0.18, y=0.5)
-            subplot.set_xlabel('y [m]')
+            if axis == 0:
+                subplot.set_xlabel('x [m]')
+            elif axis == 1:
+                subplot.set_xlabel('y [m]')
+            elif axis == 3:
+                subplot.set_xlabel('z [m]')
             subplot.set_ylabel(label_loads[idx_load])
             subplot.set_rasterization_zorder(-1)
             self.pp.savefig()
