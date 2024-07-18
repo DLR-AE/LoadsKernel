@@ -10,7 +10,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 from loadskernel.units import tas2eas, eas2tas
-from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 plt.rcParams.update({'font.size': 16,
                      'svg.fonttype': 'none',
@@ -34,12 +33,6 @@ class LoadPlots():
         self.cuttingforces_fuselage = []
         self.im = plt.imread(os.path.join(
             os.path.dirname(__file__), 'graphics', 'LK_logo2.png'))
-
-        # load data from HDF5
-        self.aerogrid = load_hdf5_dict(self.model['aerogrid'])
-        self.strcgrid = load_hdf5_dict(self.model['strcgrid'])
-        self.splinegrid = load_hdf5_dict(self.model['splinegrid'])
-        self.calc_parameters_from_model_size()
 
         if hasattr(self.jcl, 'loadplots'):
             if 'potatos_fz_mx' in self.jcl.loadplots:
@@ -77,14 +70,6 @@ class LoadPlots():
             newax.axis('off')
             newax.set_rasterization_zorder(-1)
         return ax
-
-    def calc_parameters_from_model_size(self):
-        # Calculate the overall size of the model.
-        self.model_size = ((self.strcgrid['offset'][:, 0].max() - self.strcgrid['offset'][:, 0].min()) ** 2
-                           + (self.strcgrid['offset'][:, 1].max() - self.strcgrid['offset'][:, 1].min()) ** 2
-                           + (self.strcgrid['offset'][:, 2].max() - self.strcgrid['offset'][:, 2].min()) ** 2) ** 0.5
-        # Set some parameters which typically give a good view.
-        self.pscale = np.min([self.model_size / 400.0, 0.1])
 
     def plot_monstations(self, filename_pdf):
         # launch plotting
