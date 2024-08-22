@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 import numpy as np
 
 from loadscompare import plotting
-from loadskernel import io_functions
+from loadskernel.io_functions import data_handling
 
 
 matplotlib.use('Qt5Agg')
@@ -45,7 +45,7 @@ class Compare():
         # Init the application's menues, tabs, etc.
         self.initGUI()
         # Start the main event loop.
-        app.exec_()
+        app.exec()
 
     def test(self):
         """
@@ -96,7 +96,7 @@ class Compare():
 
         self.cb_color = QComboBox()
         self.cb_color.addItems(self.colors)
-        self.cb_color.activated[str].connect(self.update_color)
+        self.cb_color.activated.connect(self.update_color)
 
         self.cb_xaxis = QComboBox()
         self.cb_xaxis.addItems(self.dof)
@@ -198,7 +198,7 @@ class Compare():
         self.update_plot()
 
     def update_color(self, color):
-        self.datasets['color'][self.lb_dataset.currentRow()] = color
+        self.datasets['color'][self.lb_dataset.currentRow()] = self.colors[color]
         self.update_plot()
 
     def update_desc(self, *args):
@@ -274,9 +274,9 @@ class Compare():
         if filename != '':
             if '.pickle' in filename:
                 with open(filename, 'rb') as f:
-                    dataset = io_functions.data_handling.load_pickle(f)
+                    dataset = data_handling.load_pickle(f)
             elif '.hdf5' in filename:
-                dataset = io_functions.data_handling.load_hdf5(filename)
+                dataset = data_handling.load_hdf5(filename)
 
             # save into data structure
             self.datasets['ID'].append(self.datasets['n'])
@@ -299,9 +299,9 @@ class Compare():
                                                    self.file_opt['filters'])[0]
             if filename != '' and '.pickle' in filename:
                 with open(filename, 'wb') as f:
-                    io_functions.data_handling.dump_pickle(dataset_sel, f)
+                    data_handling.dump_pickle(dataset_sel, f)
             if filename != '' and '.hdf5' in filename:
-                io_functions.data_handling.dump_hdf5(filename, dataset_sel)
+                data_handling.dump_hdf5(filename, dataset_sel)
 
     def update_fields(self):
         self.lb_dataset.clear()
