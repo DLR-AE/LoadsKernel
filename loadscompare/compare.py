@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 from itertools import compress
 
 from pyface.qt import QtCore
@@ -41,7 +42,7 @@ class Compare():
 
     def run(self):
         # Create the app.
-        app = QApplication([])
+        app = self.initApp()
         # Init the application's menues, tabs, etc.
         self.initGUI()
         # Start the main event loop.
@@ -52,9 +53,17 @@ class Compare():
         This function is intended for CI testing. To test at least some parts of the code, the app is initialized, but never
         started. Instead, all windows are closed again.
         """
-        app = QApplication([])
+        app = self.initApp()
         self.initGUI()
         app.closeAllWindows()
+
+    def initApp(self):
+        # Init the QApplication in a robust way.
+        # See https://stackoverflow.com/questions/54281439/pyside2-not-closing-correctly-with-basic-example
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication(sys.argv)
+        return app
 
     def initGUI(self):
         # Use one Widget as a main container.
