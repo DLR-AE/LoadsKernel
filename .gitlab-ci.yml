@@ -2,12 +2,12 @@ variables:
   GIT_STRATEGY: clone
 
 stages:
-  - build
   - test
   - deploy
 
 .virtenv: &virtualenv
   - source /work/f_jwsb/software/miniforge3/etc/profile.d/conda.sh
+  # This is the environment where I installed all dependencies via 'conda install loadskernel-extras'.
   - conda activate my_env
   # To make things faster, re-use existing site packages. 
   - python -m venv virtualenv --system-site-packages
@@ -22,59 +22,7 @@ stages:
   # Check location
   - pwd
   
-pip-installation:
-  # This stage only tests if the installation is possible.
-  # The evironment created herein will be discared and re-created in the test stage.
-  stage: build
-  tags:
-    - lk
-  script:
-    - *virtualenv
-    - pip install -e .
-    # Check result of installation
-    - python -c "import loadskernel"
-    - which loads-kernel
-    - which model-viewer
-    - which loads-compare
-
-Jupyter:
-  stage: build
-  tags:
-    - lk
-  script:
-    - *virtualenv
-    # Assemble the tutorials to a jupyter book and build htlm pages
-    - jupyter-book build ./doc/tutorials
-  artifacts:
-    when: always
-    paths:
-      - ./doc/tutorials
-
-Flake8:
-  stage: test
-  tags:
-    - lk
-  script:
-    - *virtualenv
-    - pip install flake8
-    # stop the build if there are Python syntax errors or undefined names
-    - flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-    # Lint with flake8
-    - flake8 . --count --statistics
-    
-Pylint:
-   stage: test
-   tags:
-    - lk
-   script:
-     - *virtualenv
-     - pip install pylint
-     # Install the package itself to make sure that all imports work.
-     - pip install .[extras]
-     # Analyse the code with pylint
-     - pylint $(git ls-files '*.py') --fail-under=7.0
-
-Pytest:
+LongTermContinuousIntegration:
   stage: test
   timeout: 3 hours
   coverage: '/^TOTAL.+?(\d+\%)$/'
@@ -84,7 +32,7 @@ Pytest:
     # Set-up the environement
     - *virtualenv
     # Install with -e (in editable mode) to allow the tracking of the test coverage
-    - pip install -e .[test]
+    - pip install -e .[test,extras]
     - pip list
     # Get the examples repository
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
@@ -112,14 +60,11 @@ deploy-pages:
   tags:
     - lk
   dependencies:
-    - Jupyter
-    - Pytest
+    - LongTermContinuousIntegration
   script:
     - mkdir public
     # Publish the coverage htlm results
     - mv coverage ./public/coverage
-    # Publish the htlm tutorials
-    - mv ./doc/tutorials/_build/html ./public/tutorials
   artifacts:
     paths:
       - public
