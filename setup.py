@@ -33,7 +33,7 @@ def my_setup():
           python_requires='>=3.10',
           install_requires=['PanelAero',
                             'matplotlib',
-                            'numpy',
+                            'numpy==1.26.*',  # changes in numpy > 2.0 need to be investigated / reviewed first
                             'scipy',
                             'psutil',
                             'h5py',

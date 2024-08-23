@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 from itertools import compress
 
 from pyface.qt import QtCore
@@ -12,7 +13,7 @@ from matplotlib.figure import Figure
 import numpy as np
 
 from loadscompare import plotting
-from loadskernel import io_functions
+from loadskernel.io_functions import data_handling
 
 
 matplotlib.use('Qt5Agg')
@@ -41,20 +42,28 @@ class Compare():
 
     def run(self):
         # Create the app.
-        app = QApplication([])
+        app = self.initApp()
         # Init the application's menues, tabs, etc.
         self.initGUI()
         # Start the main event loop.
-        app.exec_()
+        app.exec()
 
     def test(self):
         """
         This function is intended for CI testing. To test at least some parts of the code, the app is initialized, but never
         started. Instead, all windows are closed again.
         """
-        app = QApplication([])
+        app = self.initApp()
         self.initGUI()
         app.closeAllWindows()
+
+    def initApp(self):
+        # Init the QApplication in a robust way.
+        # See https://stackoverflow.com/questions/54281439/pyside2-not-closing-correctly-with-basic-example
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication(sys.argv)
+        return app
 
     def initGUI(self):
         # Use one Widget as a main container.
@@ -96,7 +105,7 @@ class Compare():
 
         self.cb_color = QComboBox()
         self.cb_color.addItems(self.colors)
-        self.cb_color.activated[str].connect(self.update_color)
+        self.cb_color.activated.connect(self.update_color)
 
         self.cb_xaxis = QComboBox()
         self.cb_xaxis.addItems(self.dof)
@@ -198,7 +207,7 @@ class Compare():
         self.update_plot()
 
     def update_color(self, color):
-        self.datasets['color'][self.lb_dataset.currentRow()] = color
+        self.datasets['color'][self.lb_dataset.currentRow()] = self.colors[color]
         self.update_plot()
 
     def update_desc(self, *args):
@@ -274,9 +283,9 @@ class Compare():
         if filename != '':
             if '.pickle' in filename:
                 with open(filename, 'rb') as f:
-                    dataset = io_functions.data_handling.load_pickle(f)
+                    dataset = data_handling.load_pickle(f)
             elif '.hdf5' in filename:
-                dataset = io_functions.data_handling.load_hdf5(filename)
+                dataset = data_handling.load_hdf5(filename)
 
             # save into data structure
             self.datasets['ID'].append(self.datasets['n'])
@@ -299,9 +308,9 @@ class Compare():
                                                    self.file_opt['filters'])[0]
             if filename != '' and '.pickle' in filename:
                 with open(filename, 'wb') as f:
-                    io_functions.data_handling.dump_pickle(dataset_sel, f)
+                    data_handling.dump_pickle(dataset_sel, f)
             if filename != '' and '.hdf5' in filename:
-                io_functions.data_handling.dump_hdf5(filename, dataset_sel)
+                data_handling.dump_hdf5(filename, dataset_sel)
 
     def update_fields(self):
         self.lb_dataset.clear()
