@@ -53,7 +53,7 @@ def my_setup():
                                         ],
                           'test': ['pytest',
                                    'pytest-cov',
-                                   'jupyter-book==0.15.1',  # version 1.0.0 fails, wait for updates
+                                   'jupyter-book',
                                    'flake8',
                                    'pylint',
                                    ]},
