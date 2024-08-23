@@ -32,7 +32,7 @@ class SolutionSequences(TrimConditions):
         func    - A vector-valued function of the form f(x,*args)
         epsilon - The peturbation used to determine the partial derivatives
         """
-        X0 = np.asfarray(X0)
+        X0 = np.asarray(X0, dtype=np.double)
         jac = np.zeros([len(func(*(X0, 0.0, 'sim'))), len(X0)])
         dX = np.zeros(len(X0))
         for i in range(len(X0)):
