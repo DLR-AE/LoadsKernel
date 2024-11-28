@@ -68,9 +68,9 @@ def spline_rbf(grid_i, set_i, grid_d, set_d,
                rbf_type='tps', surface_spline=False,
                dimensions='', support_radius=2.0):
     """
-    This is a convenience function that wraps the SplineRadiaBasisFunctions class and returns the spline matrix PHI.
+    This is a convenience function that wraps the SplineRadialBasisFunctions class and returns the spline matrix PHI.
     """
-    rbf = SplineRadiaBasisFunctions(grid_i['offset' + set_i].T,
+    rbf = SplineRadialBasisFunctions(grid_i['offset' + set_i].T,
                                     grid_d['offset' + set_d].T,
                                     rbf_type, surface_spline, support_radius)
     rbf.build_M()
@@ -80,7 +80,7 @@ def spline_rbf(grid_i, set_i, grid_d, set_d,
     return rbf.PHI_expanded
 
 
-class SplineRadiaBasisFunctions:
+class SplineRadialBasisFunctions:
     """
     The mathematical procedure is described in [1] and can be summarized as follows.
     |0   A | * |a| = |B|
