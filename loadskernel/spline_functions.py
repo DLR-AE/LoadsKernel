@@ -68,26 +68,40 @@ def spline_rbf(grid_i, set_i, grid_d, set_d,
                rbf_type='tps', surface_spline=False,
                dimensions='', support_radius=2.0):
     """
-    This is a convenience function that wraps the Spline_rbf class and returns the spline matrix PHI.
+    This is a convenience function that wraps the SplineRadialBasisFunctions class and returns the spline matrix PHI.
     """
-    rbf = Spline_rbf(grid_i['offset' + set_i].T, grid_d['offset' + set_d].T, rbf_type, surface_spline, support_radius)
+    rbf = SplineRadialBasisFunctions(grid_i['offset' + set_i].T,
+                                     grid_d['offset' + set_d].T,
+                                     rbf_type, surface_spline, support_radius)
     rbf.build_M()
     rbf.build_BC()
-    rbf.build_splinematrix()
+    rbf.solve_for_H()
     rbf.expand_splinematrix(grid_i, set_i, grid_d, set_d, dimensions)
     return rbf.PHI_expanded
 
 
-class Spline_rbf:
+class SplineRadialBasisFunctions:
+    """
+    The mathematical procedure is described in [1] and can be summarized as follows.
+    |0   A | * |a| = |B|
+    |A' phi|   |b|   |C|
+
+    with M = |0   A | and H = |a|
+             |A' phi|         |b|
+    such that  M * H = BC can be solved for H
+
+    This class organizes the calculation of the spline matrix in four steps:
+    1. build_M()
+    2. build_BC()
+    3. solve_for_H()
+    4. expand_splinematrix()
+
+    [1] Neumann, J., “Identifikation radialer Basisfunktionen zur räumlichen Strömungs-Struktur-Kopplung unter
+    Berücksichtigung des Interpolations- und des Lasttransformationsfehlers”, Institute of Aeroelasticity, Göttingen,
+    Germany, Internal Report DLR IB 232-2008 J 01, 2008, https://elib.dlr.de/54449/.
+    """
 
     def __init__(self, nodes_fe, nodes_cfd, rbf_type, surface_spline, support_radius):
-        """
-        This class organizes the calculation of the spline matrix in four steps:
-        1. build_M()
-        2. build_BC()
-        3. build_splinematrix()
-        4. expand_splinematrix()
-        """
         self.surface_spline = surface_spline
         self.rbf_type = rbf_type
         self.rbf_type = 'wendland2'
@@ -107,9 +121,10 @@ class Spline_rbf:
         logging.debug('Splining (rbf) of {:.0f} points to {:.0f} points...'.format(self.n_cfd, self.n_fe))
 
     def build_M(self):
-        # Nomenklatur nach Neumann & Krueger
         logging.debug(' - building M')
+        # Build matrix A
         self.A = np.vstack((np.ones(self.n_fe), self.nodes_fe))
+        # Build matrix phi
         phi = np.zeros((self.n_fe, self.n_fe))
         for i in range(self.n_fe):
             r_ii_vec = self.nodes_fe[:, :i + 1] - np.tile(self.nodes_fe[:, i], (i + 1, 1)).T
@@ -117,20 +132,14 @@ class Spline_rbf:
             rbf_values = self.eval_rbf(r_ii)
             phi[i, :i + 1] = rbf_values
             phi[:i + 1, i] = rbf_values
-
-        # Gleichungssystem aufstellen und loesen
-        # M * ab = rechte_seite
-        # 0   A  * a = 0
-        # A' phi   b   y
-
-        # linke Seite basteln
+        # Build matrix M
         M1 = np.hstack((np.zeros((self.n, self.n)), self.A))
         M2 = np.hstack((self.A.transpose(), phi))
         self.M = np.vstack((M1, M2))
 
     def build_BC(self):
-        # Nomenklatur nach Neumann & Krueger
         logging.debug(' - building B and C')
+        # Build matrices B and C
         B = np.vstack((np.ones(self.n_cfd), self.nodes_cfd))
         C = np.zeros((self.n_fe, self.n_cfd))
         for i in range(self.n_fe):
@@ -141,35 +150,32 @@ class Spline_rbf:
             C[i, :] = rbf_values
         self.BC = np.vstack((B, C))
 
-    def build_splinematrix(self):
+    def solve_for_H(self):
         """
         Now that the system of equations is set-up, we can work on the solution.
-        Note 1: Instead of calculating the inverse of M, we solve the system, which
-        can be faster.
-        Note 2: In PyCSM_CouplingMatrix_3D.py by Jens Neumann a slightly different
-        approach is used by first reducing the system size (M * E) and the solving
-        the system. However, this requires two more matrix multiplications and showed
+        Note 1: Instead of calculating the inverse of M, we solve the system, which can be faster.
+        Note 2: In PyCSM_CouplingMatrix_3D.py by Jens Neumann a slightly different approach is used by first reducing the
+        system size (M * E) and the solving the system. However, this requires two more matrix multiplications and showed
         no advantages in terms of speed, so I decided to stay with my formulation.
-        Note 3: The results are numerically equivalent (using np.allclose(self.PHI, self.G))
-        to results obtained with PyCSM_CouplingMatrix_3D.py.
+        Note 3: The results are numerically equivalent (using np.allclose(self.PHI, self.G)) to results obtained with
+        PyCSM_CouplingMatrix_3D.py.
         """
-        # solve the system
+        # Solve the system
         t_start = time.time()
         logging.debug(' - solving M*H=BC for H')
         H = scipy.linalg.solve(self.M, self.BC).T
         logging.debug(' - done in {:.2f} sec'.format(time.time() - t_start))
-        # finally, extract the complete splining matrix PHI from H
+        # Extract the splining matrix PHI from H (equivalent to application of [0 E])
         self.PHI = H[:, self.n:]
 
     def expand_splinematrix(self, grid_i, set_i, grid_d, set_d, dimensions):
         """
         This functions does three things:
         a) The spline matrix applies to all three translational degrees of freedom.
-        b) The size of the splining matrix is expanded as one might want the matrix to be
-        bigger than actually needed. One example might be the multiplication of the (smaller)
-        x2grid with the (larger) AIC matrix.
-        c) Because the spline matrix can contain many zeros, a sparse matrix might be a better
-        choice compared to a full numpy array.
+        b) The size of the splining matrix is expanded as one might want the matrix to be bigger than actually needed.
+        One example might be the multiplication of the (smaller) x2grid with the (larger) AIC matrix.
+        c) Because the spline matrix can contain many zeros, a sparse matrix might be a better choice compared to a full
+        numpy array.
         """
         if dimensions != '' and len(dimensions) == 2:
             dimensions_i = dimensions[0]
@@ -180,12 +186,12 @@ class Spline_rbf:
         t_start = time.time()
         logging.debug(
             ' - expanding spline matrix to {:.0f} DOFs and {:.0f} DOFs...'.format(dimensions_d, dimensions_i))
-        # coo sparse matrices are good for inserting new data
+        # Coo sparse matrices are good for inserting new data
         PHI_coo = sp.coo_matrix((dimensions_d, dimensions_i))
         PHI_coo = insert_coo(PHI_coo, self.PHI, grid_d['set' + set_d][:, 0], grid_i['set' + set_i][:, 0])
         PHI_coo = insert_coo(PHI_coo, self.PHI, grid_d['set' + set_d][:, 1], grid_i['set' + set_i][:, 1])
         PHI_coo = insert_coo(PHI_coo, self.PHI, grid_d['set' + set_d][:, 2], grid_i['set' + set_i][:, 2])
-        # better sparse format than coo
+        # Better sparse format than coo
         self.PHI_expanded = PHI_coo.tocsc()
         logging.debug(' - done in {:.2f} sec'.format(time.time() - t_start))
 
