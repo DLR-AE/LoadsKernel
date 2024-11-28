@@ -71,8 +71,8 @@ def spline_rbf(grid_i, set_i, grid_d, set_d,
     This is a convenience function that wraps the SplineRadialBasisFunctions class and returns the spline matrix PHI.
     """
     rbf = SplineRadialBasisFunctions(grid_i['offset' + set_i].T,
-                                    grid_d['offset' + set_d].T,
-                                    rbf_type, surface_spline, support_radius)
+                                     grid_d['offset' + set_d].T,
+                                     rbf_type, surface_spline, support_radius)
     rbf.build_M()
     rbf.build_BC()
     rbf.solve_for_H()
