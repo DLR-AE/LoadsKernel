@@ -16,6 +16,7 @@ class Plotting:
         self.show_strc = False
         self.show_mode = False
         self.show_aero = False
+        self.show_panel_normal_vectors = False
         self.show_cfdgrids = False
         self.show_coupling = False
         self.show_cs = False
@@ -192,15 +193,28 @@ class Plotting:
         self.ug_strc.modified()
 
     def hide_aero(self):
-        self.src_aerogrid.remove()
-        self.src_MAC.remove()
-        self.show_aero = False
-        mlab.draw(self.fig)
+        if self.show_aero:
+            self.src_aerogrid.remove()
+            self.src_MAC.remove()
+            self.show_aero = False
+            mlab.draw(self.fig)
+        if self.show_panel_normal_vectors:
+            self.src_panel_normal_vectors.remove()
+            self.show_panel_normal_vectors = False
 
     def plot_aero(self, scalars=None, colormap='coolwarm', vminmax=[-10.0, 10.0]):
         self.setup_aero_display(scalars, colormap, vminmax)
         self.setup_mac_display()
         self.show_aero = True
+        mlab.draw(self.fig)
+
+    def plot_panel_normal_vectors(self):
+        # This function plots the normal vectors on each aerodynamic panel to identify the orientation visually.
+        x, y, z = self.aerogrid['offset_k'][:,0], self.aerogrid['offset_k'][:,1], self.aerogrid['offset_k'][:,2]
+        Nx, Ny, Nz, = self.aerogrid['N'][:,0], self.aerogrid['N'][:,1], self.aerogrid['N'][:,2]
+        self.src_panel_normal_vectors = mlab.quiver3d(x, y, z, Nx, Ny, Nz, color=(0,1,0), opacity=0.4, 
+                                                      scale_mode='vector', scale_factor=1.0)
+        self.show_panel_normal_vectors = True
         mlab.draw(self.fig)
 
     def setup_mac_display(self):

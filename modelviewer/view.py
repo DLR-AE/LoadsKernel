@@ -226,6 +226,9 @@ class Modelviewer():
         self.cb_w2gj = QtGui.QCheckBox('Color by W2GJ [deg]')
         self.cb_w2gj.setChecked(False)
         self.cb_w2gj.stateChanged.connect(self.get_aero_for_plotting)
+        self.cb_normal_vectors = QtGui.QCheckBox('Panel normal vectors')
+        self.cb_normal_vectors.setChecked(False)
+        self.cb_normal_vectors.stateChanged.connect(self.get_aero_for_plotting)
         bt_aero_hide = QtGui.QPushButton('Hide')
         bt_aero_hide.clicked.connect(self.plotting.hide_aero)
         self.lb_MAC = QtGui.QLabel(
@@ -245,6 +248,7 @@ class Modelviewer():
         layout_aero.addWidget(self.lb_MAC)
         layout_aero.addWidget(self.lb_MAC2)
         layout_aero.addWidget(self.cb_w2gj)
+        layout_aero.addWidget(self.cb_normal_vectors)
         layout_aero.addWidget(bt_aero_hide)
         layout_aero.addWidget(self.list_markers)
         layout_aero.addWidget(bt_cfdgrid_hide)
@@ -517,19 +521,16 @@ class Modelviewer():
         if self.list_aero.currentItem() is not None:
             key = self.list_aero.currentItem().data(0)
             self.calc_MAC(key)
-            self.lb_MAC.setText(
-                'MAC: x={:0.4f}, y={:0.4f} m'.format(self.MAC[0], self.MAC[1]))
-            self.lb_MAC2.setText(
-                '(based on AIC from "{}", rigid, subsonic)'.format(key))
+            self.lb_MAC.setText('MAC: x={:0.4f}, y={:0.4f} m'.format(self.MAC[0], self.MAC[1]))
+            self.lb_MAC2.setText('(based on AIC from "{}", rigid, subsonic)'.format(key))
+            if self.plotting.show_aero:
+                self.plotting.hide_aero()
             if self.cb_w2gj.isChecked():
-                if self.plotting.show_aero:
-                    self.plotting.hide_aero()
-                self.plotting.plot_aero(
-                    self.model['camber_twist']['cam_rad'][()] / np.pi * 180.0)
+                self.plotting.plot_aero(self.model['camber_twist']['cam_rad'][()] / np.pi * 180.0)
             else:
-                if self.plotting.show_aero:
-                    self.plotting.hide_aero()
                 self.plotting.plot_aero()
+            if self.cb_normal_vectors.isChecked():
+                self.plotting.plot_panel_normal_vectors()
 
     def get_new_cs_for_plotting(self, *args):
         # To show a different control surface, new points need to be created. Thus, remove last control surface from plot.
