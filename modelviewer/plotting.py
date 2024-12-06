@@ -210,9 +210,9 @@ class Plotting:
 
     def plot_panel_normal_vectors(self):
         # This function plots the normal vectors on each aerodynamic panel to identify the orientation visually.
-        x, y, z = self.aerogrid['offset_k'][:,0], self.aerogrid['offset_k'][:,1], self.aerogrid['offset_k'][:,2]
-        Nx, Ny, Nz, = self.aerogrid['N'][:,0], self.aerogrid['N'][:,1], self.aerogrid['N'][:,2]
-        self.src_panel_normal_vectors = mlab.quiver3d(x, y, z, Nx, Ny, Nz, color=(0,1,0), opacity=0.4, 
+        x, y, z = self.aerogrid['offset_k'][:, 0], self.aerogrid['offset_k'][:, 1], self.aerogrid['offset_k'][:, 2]
+        Nx, Ny, Nz, = self.aerogrid['N'][:, 0], self.aerogrid['N'][:, 1], self.aerogrid['N'][:, 2]
+        self.src_panel_normal_vectors = mlab.quiver3d(x, y, z, Nx, Ny, Nz, color=(0, 1, 0), opacity=0.4,
                                                       scale_mode='vector', scale_factor=1.0)
         self.show_panel_normal_vectors = True
         mlab.draw(self.fig)
