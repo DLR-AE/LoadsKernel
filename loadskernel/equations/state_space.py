@@ -4,10 +4,10 @@ import numpy as np
 
 from scipy import linalg
 
-from loadskernel.equations.frequency_domain import PKMethod
+from loadskernel.equations.frequency_domain import PKMethodSchwochow
 
 
-class StateSpaceAnalysis(PKMethod):
+class StateSpaceAnalysis(PKMethodSchwochow):
 
     def eval_equations(self):
         self.setup_frequence_parameters()
@@ -85,7 +85,7 @@ class StateSpaceAnalysis(PKMethod):
         return A
 
 
-class JacobiAnalysis(PKMethod):
+class JacobiAnalysis(PKMethodSchwochow):
 
     def __init__(self, response):
         self.response = response

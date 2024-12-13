@@ -520,7 +520,17 @@ class KEMethod(KMethod):
         self.Vtas = np.array(Vtas)
 
 
-class PKMethod(KMethod):
+class PKMethodSchwochow(KMethod):
+    """
+    This PK-Method uses a formulation proposed by Schwochow [1].
+    Summary: The aerodynamic forces are split in a velocity and a deformation dependent part and added to the damping and
+    stiffness term in the futter equation respectively. In this way, the aerodynamic damping and stiffness are treated
+    seperately and in a more physical way. According to Schwochow, this leads to a better approximation of the damping in the
+    flutter solution.
+
+    [1] Schwochow, J., “Die aeroelastische Stabilitätsanalyse - Ein praxisnaher Ansatz Intervalltheoretischen Betrachtung von
+    Modellierungsunsicherheiten am Flugzeug zur”, Dissertation, Universität Kassel, Kassel, 2012.
+    """
 
     def setup_frequence_parameters(self):
         self.n_modes_rbm = 5
@@ -570,7 +580,7 @@ class PKMethod(KMethod):
                 e = 1.0
                 n_iter = 0
                 # iteration to match k_red with Vtas and omega of the mode under investigation
-                while e >= 1e-3:
+                while e >= 1e-5:
                     eigenvalues_new, eigenvectors_new = self.calc_eigenvalues(self.system(k_old).real, eigenvectors_old)
                     k_now = np.abs(eigenvalues_new[i_mode].imag) * self.macgrid['c_ref'] / 2.0 / self.Vtas
                     # Use relaxation for improved convergence, which helps in some cases to avoid oscillations of the
@@ -579,12 +589,16 @@ class PKMethod(KMethod):
                     e = np.abs(k_new - k_old)
                     k_old = k_new
                     n_iter += 1
-                    if n_iter > 80:
-                        logging.warning('poor convergence for mode {} at Vtas={:.2f} with k_red={:.5f} and e={:.5f}'.format(
+                    if n_iter == 30:
+                        logging.warning('Poor convergence for mode {} at Vtas={:.2f} with k_red={:.5f} and e={:.5f}'.format(
                             i_mode + 1, V, k_new, e))
-                    if n_iter > 100:
-                        logging.warning('p-k iteration NOT converged after 100 loops.')
+                    if n_iter > 50:
                         break
+                if n_iter > 50:
+                    logging.warning('p-k iteration NOT converged after 50 loops.')
+                else:
+                    logging.debug('Convergence for mode {} at Vtas={:.2f} with k_red={:.5f} after {} iterations'.format(
+                        i_mode + 1, V, k_new, n_iter))
                 eigenvectors_old = eigenvectors_new
                 eigenvalues_per_mode.append(eigenvalues_new[i_mode])
                 eigenvectors_per_mode.append(eigenvectors_new[:, i_mode])
@@ -673,6 +687,43 @@ class PKMethod(KMethod):
                                      np.eye(self.n_modes, dtype='complex128')), axis=1)
         lower_part = np.concatenate((-Mhh_inv.dot(self.Khh - rho / 2.0 * self.Vtas ** 2.0 * Qhh_1),
                                      -Mhh_inv.dot(self.Dhh - rho / 2.0 * self.Vtas * Qhh_2)), axis=1)
+        A = np.concatenate((upper_part, lower_part))
+
+        return A
+
+
+class PKMethodRodden(PKMethodSchwochow):
+    """
+    This PK-Method uses a formulation as implemented in Nastran by Rodden and Johnson [2], Section 2.6, Equation (2-131).
+    Summary: The matrix of the aerodynamic forces Qhh includes both a velocity and a deformation dependent part. The real and
+    the imaginary parts are then added to the damping and stiffness term in the futter equation respectively.
+
+    [2] Rodden, W., and Johnson, E., MSC.Nastran Version 68 Aeroelastic Analysis User’s Guide. MSC.Software Corporation, 2010.
+    """
+
+    def build_AIC_interpolators(self):
+        # Same formulation as in K-Method, but with custom, linear matrix interpolation
+        Qhh = []
+        for Qjj_unsteady, k_red in zip(self.aero['Qjj_unsteady'], self.aero['k_red']):
+            Qhh.append(self.PHIlh.T.dot(self.aerogrid['Nmat'].T.dot(self.aerogrid['Amat'].dot(Qjj_unsteady).dot(
+                self.Djh_1 + complex(0, 1) * k_red / (self.macgrid['c_ref'] / 2.0) * self.Djh_2))))
+        self.Qhh_interp = MatrixInterpolation(self.aero['k_red'], Qhh)
+
+    def system(self, k_red):
+        rho = self.atmo['rho']
+
+        # Make sure that k_red is not zero due to the division by k_red. In addition, limit k_red to the smallest
+        # frequency the AIC matrices were calculated for.
+        k_red = np.max([k_red, np.min(self.aero['k_red'])])
+
+        Qhh = self.Qhh_interp(k_red)
+        Mhh_inv = np.linalg.inv(self.Mhh)
+
+        upper_part = np.concatenate((np.zeros((self.n_modes, self.n_modes), dtype='complex128'),
+                                     np.eye(self.n_modes, dtype='complex128')), axis=1)
+        lower_part = np.concatenate((-Mhh_inv.dot(self.Khh - rho / 2 * self.Vtas ** 2.0 * Qhh.real),
+                                     -Mhh_inv.dot(self.Dhh - rho / 4 * self.Vtas * self.macgrid['c_ref'] / k_red * Qhh.imag)),
+                                    axis=1)
         A = np.concatenate((upper_part, lower_part))
 
         return A
