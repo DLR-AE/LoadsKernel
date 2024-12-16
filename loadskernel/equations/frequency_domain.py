@@ -554,7 +554,7 @@ class PKMethodSchwochow(KMethod):
         logging.info('starting p-k iterations to match k_red with Vtas and omega')
         # compute initial guess at k_red=0.0 and first flight speed
         self.Vtas = self.Vvec[0]
-        eigenvalue, eigenvector = linalg.eig(self.system(k_red=0.0).real)
+        eigenvalue, eigenvector = linalg.eig(self.system(k_red=0.0))
         bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
         idx_pos = np.where(eigenvalue.__abs__() / bandbreite >= 1e-3)[0]  # no zero eigenvalues
         idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
@@ -573,6 +573,7 @@ class PKMethodSchwochow(KMethod):
             eigenvalues_per_mode = []
             eigenvectors_per_mode = []
             k_old = copy.deepcopy(k0[i_mode])
+            eigenvalues_old = copy.deepcopy(eigenvalues0)
             eigenvectors_old = copy.deepcopy(eigenvectors0)
             # loop over Vtas
             for _, V in enumerate(self.Vvec):
@@ -581,8 +582,9 @@ class PKMethodSchwochow(KMethod):
                 n_iter = 0
                 # iteration to match k_red with Vtas and omega of the mode under investigation
                 while e >= 1e-3:
-                    eigenvalues_new, eigenvectors_new = self.calc_eigenvalues(self.system(k_old).real, eigenvectors_old)
-                    k_now = np.abs(eigenvalues_new[i_mode].imag) * self.macgrid['c_ref'] / 2.0 / self.Vtas
+                    eigenvalues_new, eigenvectors_new = self.calc_eigenvalues(self.system(k_old),
+                                                                              eigenvalues_old, eigenvectors_old)
+                    k_now = eigenvalues_new[i_mode].imag * self.macgrid['c_ref'] / 2.0 / self.Vtas
                     # Use relaxation for improved convergence, which helps in some cases to avoid oscillations of the
                     # iterative solution.
                     k_new = k_old + 0.8 * (k_now - k_old)
@@ -599,6 +601,7 @@ class PKMethodSchwochow(KMethod):
                 else:
                     logging.debug('Convergence for mode {} at Vtas={:.2f} with k_red={:.5f} after {} iterations'.format(
                         i_mode + 1, V, k_new, n_iter))
+                eigenvalues_old = eigenvalues_new
                 eigenvectors_old = eigenvectors_new
                 eigenvalues_per_mode.append(eigenvalues_new[i_mode])
                 eigenvectors_per_mode.append(eigenvectors_new[:, i_mode])
@@ -619,10 +622,13 @@ class PKMethodSchwochow(KMethod):
                     }
         return response
 
-    def calc_eigenvalues(self, A, eigenvector_old):
+    def calc_eigenvalues(self, A, eigenvalues_old, eigenvector_old):
         eigenvalue, eigenvector = linalg.eig(A)
-        # idx_pos = np.where(eigenvalue.imag >= 0.0)[0]  # nur oszillierende Eigenbewegungen
-        # idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
+        # bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
+        # idx_pos = np.where(eigenvalue.__abs__() / bandbreite >= 1e-3)[0]  # no zero eigenvalues
+        # eigenvalue = eigenvalue[idx_pos]
+        # eigenvector = eigenvector[:, idx_pos]
+        # MACXP = fem_helper.calc_MACXP(eigenvalues_old, eigenvector_old, eigenvalue, eigenvector, plot=True)
         MAC = fem_helper.calc_MAC(eigenvector_old, eigenvector, plot=False)
         idx_pos = self.get_best_match(MAC)
         eigenvalues = eigenvalue[idx_pos]  # [idx_sort]
@@ -655,26 +661,17 @@ class PKMethodSchwochow(KMethod):
         return self.PHIlh.T.dot(self.aerogrid['Nmat'].T.dot(self.aerogrid['Amat'].dot(Qjj_unsteady).dot(self.Djh_2)))
 
     def build_AIC_interpolators(self):
-        # do some pre-multiplications first, then the interpolation
         Qhh_1 = []
         Qhh_2 = []
-        if self.jcl.aero['method'] in ['freq_dom']:
-            for Qjj_unsteady in self.aero['Qjj_unsteady']:
-                Qhh_1.append(self.calc_Qhh_1(Qjj_unsteady))
-                Qhh_2.append(self.calc_Qhh_2(Qjj_unsteady))
-        elif self.jcl.aero['method'] in ['mona_unsteady']:
-            ABCD = self.aero['ABCD']
-            for k_red in self.aero['k_red']:
-                D = np.zeros((self.aerogrid['n'], self.aerogrid['n']), dtype='complex')
-                j = 1j  # imaginary number
-                for i_pole, beta in zip(np.arange(0, self.aero['n_poles']), self.aero['betas']):
-                    D += ABCD[3 + i_pole, :, :] * j * k_red / (j * k_red + beta)
-                Qjj_unsteady = ABCD[0, :, :] + ABCD[1, :, :] * j * k_red + ABCD[2, :, :] * (j * k_red) ** 2 + D
-                Qhh_1.append(self.calc_Qhh_1(Qjj_unsteady))
-                Qhh_2.append(self.calc_Qhh_2(Qjj_unsteady))
-
-        self.Qhh_1_interp = MatrixInterpolation(self.aero['k_red'], Qhh_1)
-        self.Qhh_2_interp = MatrixInterpolation(self.aero['k_red'], Qhh_2)
+        # Mirror the AIC matrices with respect to the real axis to allow negative reduced frequencies.
+        Qjj_mirrored = np.concatenate((np.flip(self.aero['Qjj_unsteady'].conj(), axis=0), self.aero['Qjj_unsteady']), axis=0)
+        k_mirrored = np.concatenate((np.flip(-self.aero['k_red']), self.aero['k_red']))
+        # Do some pre-multiplications first, then the interpolation
+        for Qjj in Qjj_mirrored:
+            Qhh_1.append(self.calc_Qhh_1(Qjj))
+            Qhh_2.append(self.calc_Qhh_2(Qjj))
+        self.Qhh_1_interp = MatrixInterpolation(k_mirrored, Qhh_1)
+        self.Qhh_2_interp = MatrixInterpolation(k_mirrored, Qhh_2)
 
     def system(self, k_red):
         rho = self.atmo['rho']
