@@ -580,7 +580,7 @@ class PKMethodSchwochow(KMethod):
                 e = 1.0
                 n_iter = 0
                 # iteration to match k_red with Vtas and omega of the mode under investigation
-                while e >= 1e-5:
+                while e >= 1e-3:
                     eigenvalues_new, eigenvectors_new = self.calc_eigenvalues(self.system(k_old).real, eigenvectors_old)
                     k_now = np.abs(eigenvalues_new[i_mode].imag) * self.macgrid['c_ref'] / 2.0 / self.Vtas
                     # Use relaxation for improved convergence, which helps in some cases to avoid oscillations of the
@@ -589,13 +589,13 @@ class PKMethodSchwochow(KMethod):
                     e = np.abs(k_new - k_old)
                     k_old = k_new
                     n_iter += 1
-                    if n_iter == 30:
+                    if n_iter == 80:
                         logging.warning('Poor convergence for mode {} at Vtas={:.2f} with k_red={:.5f} and e={:.5f}'.format(
                             i_mode + 1, V, k_new, e))
-                    if n_iter > 50:
+                    if n_iter > 100:
                         break
-                if n_iter > 50:
-                    logging.warning('p-k iteration NOT converged after 50 loops.')
+                if n_iter > 100:
+                    logging.warning('p-k iteration NOT converged after 100 loops.')
                 else:
                     logging.debug('Convergence for mode {} at Vtas={:.2f} with k_red={:.5f} after {} iterations'.format(
                         i_mode + 1, V, k_new, n_iter))
