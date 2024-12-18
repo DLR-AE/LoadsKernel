@@ -584,7 +584,13 @@ class PKMethodSchwochow(KMethod):
                 while e >= 1e-3:
                     eigenvalues_new, eigenvectors_new = self.calc_eigenvalues(self.system(k_old),
                                                                               eigenvalues_old, eigenvectors_old)
-                    k_now = eigenvalues_new[i_mode].imag * self.macgrid['c_ref'] / 2.0 / self.Vtas
+                    # Small switch since this function is reused by class PKMethodRodden
+                    if self.simcase['flutter_para']['method'] in ['pk', 'pk_schwochow']:
+                        # For this implementaion, the reduced frequency may become negative.
+                        k_now = eigenvalues_new[i_mode].imag * self.macgrid['c_ref'] / 2.0 / self.Vtas
+                    elif self.simcase['flutter_para']['method'] in ['pk_rodden']:
+                        # Allow only positive reduced frequencies in the implementation following Rodden.
+                        k_now = np.abs(eigenvalues_new[i_mode].imag) * self.macgrid['c_ref'] / 2.0 / self.Vtas
                     # Use relaxation for improved convergence, which helps in some cases to avoid oscillations of the
                     # iterative solution.
                     k_new = k_old + 0.8 * (k_now - k_old)
@@ -622,25 +628,21 @@ class PKMethodSchwochow(KMethod):
                     }
         return response
 
-    def calc_eigenvalues(self, A, eigenvalues_old, eigenvector_old):
+    def calc_eigenvalues(self, A, eigenvalues_old, eigenvectors_old):
         eigenvalue, eigenvector = linalg.eig(A)
-        # bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
-        # idx_pos = np.where(eigenvalue.__abs__() / bandbreite >= 1e-3)[0]  # no zero eigenvalues
-        # eigenvalue = eigenvalue[idx_pos]
-        # eigenvector = eigenvector[:, idx_pos]
-        # MACXP = fem_helper.calc_MACXP(eigenvalues_old, eigenvector_old, eigenvalue, eigenvector, plot=True)
-        MAC = fem_helper.calc_MAC(eigenvector_old, eigenvector, plot=False)
-        idx_pos = self.get_best_match(MAC)
-        eigenvalues = eigenvalue[idx_pos]  # [idx_sort]
-        eigenvectors = eigenvector[:, idx_pos]  # [:, idx_sort]
+        # To match the modes with the previous step, use a combination of modal assurance criterion and pole correlation.
+        # This improves the handling of complex conjugate poles.
+        MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector, plot=False)
+        PCC = fem_helper.calc_PCC(eigenvalues_old, eigenvalue, plot=False)
+        idx_pos = self.get_best_match(MAC*PCC)
+        eigenvalues = eigenvalue[idx_pos]
+        eigenvectors = eigenvector[:, idx_pos]
         return eigenvalues, eigenvectors
 
     def get_best_match(self, MAC):
         """
-        Before: idx_pos = [MAC[x, :].argmax() for x in range(MAC.shape[0])]
-        With purely real eigenvalues it happens that the selection (only) by highest MAC value does not work.
-        The result is that from two different eigenvalues one is take twice. The solution is to keep record
-        of the matches that are still available so that, if the bets match is already taken, the second best match is selected.
+        In some cases a pole may be dropped or one pole is selected twice. The solution is to keep record of the matches
+        that are still available so that, if the best match is already taken, the second best match is selected.
         """
         possible_matches = [True] * MAC.shape[1]
         possible_idx = np.arange(MAC.shape[1])
