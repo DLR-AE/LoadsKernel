@@ -628,11 +628,19 @@ class PKMethodSchwochow(KMethod):
 
     def calc_eigenvalues(self, A, eigenvalues_old, eigenvectors_old):
         eigenvalue, eigenvector = linalg.eig(A)
-        # To match the modes with the previous step, use a combination of modal assurance criterion and pole correlation.
-        # This improves the handling of complex conjugate poles.
-        MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector)
-        PCC = fem_helper.calc_PCC(eigenvalues_old, eigenvalue)
-        idx_pos = self.get_best_match(MAC * PCC)
+        # To match the modes with the previous step, use a correlation cirterion as specified in the JCL.
+        # The MAC matrix is used as default.
+        if 'tracking' not in self.simcase['flutter_para']:
+            MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector)
+        elif self.simcase['flutter_para']['tracking'] == 'MAC':
+            MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector)
+        elif self.simcase['flutter_para']['tracking'] == 'MACXP':
+            MAC = fem_helper.calc_MACXP(eigenvectors_old, eigenvector)
+        elif self.simcase['flutter_para']['tracking'] == 'MAC*PCC':
+            # This is a combination of modal assurance criterion and pole correlation and improves the handling of complex
+            # conjugate poles.
+            MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector) * fem_helper.calc_PCC(eigenvalues_old, eigenvalue)
+        idx_pos = self.get_best_match(MAC)
         eigenvalues = eigenvalue[idx_pos]
         eigenvectors = eigenvector[:, idx_pos]
         return eigenvalues, eigenvectors
