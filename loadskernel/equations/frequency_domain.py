@@ -550,14 +550,16 @@ class PKMethodSchwochow(KMethod):
         self.setup_frequence_parameters()
 
         logging.info('building systems')
-        self.build_AIC_interpolators()  # unsteady
+        self.build_AIC_interpolators()
         logging.info('starting p-k iterations to match k_red with Vtas and omega')
-        # compute initial guess at k_red=0.0 and first flight speed
+        # Compute initial guess at k_red=0.0 and first flight speed
         self.Vtas = self.Vvec[0]
         eigenvalue, eigenvector = linalg.eig(self.system(k_red=0.0))
         bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
-        idx_pos = np.where(eigenvalue.__abs__() / bandbreite >= 1e-3)[0]  # no zero eigenvalues
-        idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
+        # No zero eigenvalues
+        idx_pos = np.where(eigenvalue.__abs__() / bandbreite >= 1e-3)[0]
+        # Sort initial results by eigenvalue
+        idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))
         eigenvalues0 = eigenvalue[idx_pos][idx_sort]
         eigenvectors0 = eigenvector[:, idx_pos][:, idx_sort]
         k0 = eigenvalues0.imag * self.macgrid['c_ref'] / 2.0 / self.Vtas
@@ -567,7 +569,7 @@ class PKMethodSchwochow(KMethod):
         freqs = []
         damping = []
         Vtas = []
-        # loop over modes
+        # Loop over modes
         for i_mode in range(len(eigenvalues0)):
             logging.debug('Mode {}'.format(i_mode + 1))
             eigenvalues_per_mode = []
@@ -575,12 +577,12 @@ class PKMethodSchwochow(KMethod):
             k_old = copy.deepcopy(k0[i_mode])
             eigenvalues_old = copy.deepcopy(eigenvalues0)
             eigenvectors_old = copy.deepcopy(eigenvectors0)
-            # loop over Vtas
+            # Loop over Vtas
             for _, V in enumerate(self.Vvec):
                 self.Vtas = V
                 e = 1.0
                 n_iter = 0
-                # iteration to match k_red with Vtas and omega of the mode under investigation
+                # Iteration to match k_red with Vtas and omega of the mode under investigation
                 while e >= 1e-3:
                     eigenvalues_new, eigenvectors_new = self.calc_eigenvalues(self.system(k_old),
                                                                               eigenvalues_old, eigenvectors_old)
@@ -597,21 +599,17 @@ class PKMethodSchwochow(KMethod):
                     e = np.abs(k_new - k_old)
                     k_old = k_new
                     n_iter += 1
-                    if n_iter == 80:
-                        logging.warning('Poor convergence for mode {} at Vtas={:.2f} with k_red={:.5f} and e={:.5f}'.format(
+                    # If no convergence is achieved, stop and issue a warning. Typically, the iteration converges in less than
+                    # ten loops, so 50 should be more than enough and prevents excessive calculation times.
+                    if n_iter > 50:
+                        logging.warning('No convergence for mode {} at Vtas={:.2f} with k_red={:.5f} and e={:.5f}'.format(
                             i_mode + 1, V, k_new, e))
-                    if n_iter > 100:
                         break
-                if n_iter > 100:
-                    logging.warning('p-k iteration NOT converged after 100 loops.')
-                else:
-                    logging.debug('Convergence for mode {} at Vtas={:.2f} with k_red={:.5f} after {} iterations'.format(
-                        i_mode + 1, V, k_new, n_iter))
                 eigenvalues_old = eigenvalues_new
                 eigenvectors_old = eigenvectors_new
                 eigenvalues_per_mode.append(eigenvalues_new[i_mode])
                 eigenvectors_per_mode.append(eigenvectors_new[:, i_mode])
-            # store
+            # Store results
             eigenvalues_per_mode = np.array(eigenvalues_per_mode)
             eigenvalues.append(eigenvalues_per_mode)
             eigenvectors.append(np.array(eigenvectors_per_mode).T)
@@ -632,17 +630,17 @@ class PKMethodSchwochow(KMethod):
         eigenvalue, eigenvector = linalg.eig(A)
         # To match the modes with the previous step, use a combination of modal assurance criterion and pole correlation.
         # This improves the handling of complex conjugate poles.
-        MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector, plot=False)
-        PCC = fem_helper.calc_PCC(eigenvalues_old, eigenvalue, plot=False)
-        idx_pos = self.get_best_match(MAC*PCC)
+        MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector)
+        PCC = fem_helper.calc_PCC(eigenvalues_old, eigenvalue)
+        idx_pos = self.get_best_match(MAC * PCC)
         eigenvalues = eigenvalue[idx_pos]
         eigenvectors = eigenvector[:, idx_pos]
         return eigenvalues, eigenvectors
 
     def get_best_match(self, MAC):
         """
-        In some cases a pole may be dropped or one pole is selected twice. The solution is to keep record of the matches
-        that are still available so that, if the best match is already taken, the second best match is selected.
+        It is important that no pole is dropped or selected twice. The solution is to keep record of the matches that are
+        still available so that, if the best match is already taken, the second best match is selected.
         """
         possible_matches = [True] * MAC.shape[1]
         possible_idx = np.arange(MAC.shape[1])
@@ -687,7 +685,6 @@ class PKMethodSchwochow(KMethod):
         lower_part = np.concatenate((-Mhh_inv.dot(self.Khh - rho / 2.0 * self.Vtas ** 2.0 * Qhh_1),
                                      -Mhh_inv.dot(self.Dhh - rho / 2.0 * self.Vtas * Qhh_2)), axis=1)
         A = np.concatenate((upper_part, lower_part))
-
         return A
 
 
@@ -724,5 +721,4 @@ class PKMethodRodden(PKMethodSchwochow):
                                      -Mhh_inv.dot(self.Dhh - rho / 4 * self.Vtas * self.macgrid['c_ref'] / k_red * Qhh.imag)),
                                     axis=1)
         A = np.concatenate((upper_part, lower_part))
-
         return A

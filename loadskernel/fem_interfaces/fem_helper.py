@@ -1,4 +1,3 @@
-import logging
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -31,6 +30,7 @@ def calc_MAC(X, Y, plot=False):
         return MAC, plt
     return MAC
 
+
 def calc_MACXP(lam_1, my_1, lam_2, my_2, plot=False):
     """
     This is function vectorizes the calculation of the pole-weighted modal assurance criterion (MACXP), see equation 28 in [1].
@@ -46,10 +46,10 @@ def calc_MACXP(lam_1, my_1, lam_2, my_2, plot=False):
 
     # Helper functions
     def nominator(lam_1, my_1, lam_2, my_2):
-        return np.abs(my_1.T.dot(my_2)) / np.tile(np.abs(lam_1 + lam_2),(len(lam_1),1))
+        return np.abs(my_1.T.dot(my_2)) / np.tile(np.abs(lam_1 + lam_2), (len(lam_1), 1))
 
     def denom(lam, my):
-        return np.diag(my.conj().T.dot(my) / (2.0*np.abs(np.real(lam))) + np.abs(my.T.dot(my)) / (2.0*np.abs(lam)))
+        return np.diag(my.conj().T.dot(my) / (2.0 * np.abs(np.real(lam))) + np.abs(my.T.dot(my)) / (2.0 * np.abs(lam)))
 
     # Pre-compute the terms in the nominator and denominator
     nomin1 = nominator(lam_1.conj(), my_1.conj(), lam_2, my_2)
@@ -70,6 +70,7 @@ def calc_MACXP(lam_1, my_1, lam_2, my_2, plot=False):
         return MACXP, plt
     return MACXP
 
+
 def calc_PCC(lam_1, lam_2, plot=False):
     """
     This is the most simple pole correlation criterion I could think of. It calculated a value between 0.0 and 1.0 where
@@ -80,7 +81,7 @@ def calc_PCC(lam_1, lam_2, plot=False):
         # Calculate the delta with respect to all other poles.
         delta = np.abs(lam_1 - lam_2[jj])
         # Scale the values to the range of 0.0 to 1.0 and store in matrix.
-        PCC[:,jj] =  1.0 - delta / delta.max()
+        PCC[:, jj] = 1.0 - delta / delta.max()
     # Optionally, visualize the results
     if plot:
         plt.figure()
@@ -90,6 +91,7 @@ def calc_PCC(lam_1, lam_2, plot=False):
         plt.title('PCC')
         return PCC, plt
     return PCC
+
 
 def force_matrix_symmetry(matrix):
     return (matrix + matrix.T) / 2.0
