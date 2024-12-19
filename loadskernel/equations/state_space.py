@@ -19,7 +19,7 @@ class StateSpaceAnalysis(PKMethodSchwochow):
         bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
         idx_pos = np.where(eigenvalue.__abs__() / bandbreite >= 1e-3)[0]  # no zero eigenvalues
         idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))  # sort result by eigenvalue
-        # eigenvalues0 = eigenvalue[idx_pos][idx_sort]
+        eigenvalues0 = eigenvalue[idx_pos][idx_sort]
         eigenvectors0 = eigenvector[:, idx_pos][:, idx_sort]
 
         eigenvalues = []
@@ -27,11 +27,12 @@ class StateSpaceAnalysis(PKMethodSchwochow):
         freqs = []
         damping = []
         Vtas = []
+        eigenvalues_old = copy.deepcopy(eigenvalues0)
         eigenvectors_old = copy.deepcopy(eigenvectors0)
         # loop over Vtas
         for _, V in enumerate(self.Vvec):
             Vtas_i = V
-            eigenvalues_i, eigenvectors_i = self.calc_eigenvalues(self.system(Vtas_i), eigenvectors_old)
+            eigenvalues_i, eigenvectors_i = self.calc_eigenvalues(self.system(Vtas_i), eigenvalues_old, eigenvectors_old)
 
             # store
             eigenvalues.append(eigenvalues_i)
@@ -40,6 +41,7 @@ class StateSpaceAnalysis(PKMethodSchwochow):
             damping.append(eigenvalues_i.real / np.abs(eigenvalues_i))
             Vtas.append([Vtas_i] * len(eigenvalues_i))
 
+            eigenvalues_old = eigenvalues_i
             eigenvectors_old = eigenvectors_i
 
         response = {'eigenvalues': np.array(eigenvalues),
