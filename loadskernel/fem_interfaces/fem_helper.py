@@ -31,46 +31,6 @@ def calc_MAC(X, Y, plot=False):
     return MAC
 
 
-def calc_MACXP(lam_1, my_1, lam_2, my_2, plot=False):
-    """
-    This is function vectorizes the calculation of the pole-weighted modal assurance criterion (MACXP), see equation 28 in [1].
-    Notation: eigenvalues = lam_1,2 and eigenvectors = my_1,2
-
-    [1] Vacher, P., Jacquier, B., and Bucharles, A., “Extensions of the MAC criterion to complex mode”, in Proceedings of the
-    international conference on noise and vibration engineering., Leuven, Belgium, 2010.
-    """
-    # For the MACXP criterion, the number of modes has to be the same
-    assert len(lam_1) == len(lam_2), 'Number of eigenvalues not equal: {} vs. {}'.format(len(lam_1), len(lam_2))
-    assert my_1.shape[0] == my_1.shape[1], 'Size of eigenvector 1 not square: {}'.format(my_1.shape)
-    assert my_2.shape[0] == my_2.shape[1], 'Size of eigenvector 2 not square: {}'.format(my_2.shape)
-
-    # Helper functions
-    def nominator(lam_1, my_1, lam_2, my_2):
-        return np.abs(my_1.T.dot(my_2)) / np.tile(np.abs(lam_1 + lam_2), (len(lam_1), 1))
-
-    def denom(lam, my):
-        return np.diag(my.conj().T.dot(my) / (2.0 * np.abs(np.real(lam))) + np.abs(my.T.dot(my)) / (2.0 * np.abs(lam)))
-
-    # Pre-compute the terms in the nominator and denominator
-    nomin1 = nominator(lam_1.conj(), my_1.conj(), lam_2, my_2)
-    nomin2 = nominator(lam_1, my_1, lam_2, my_2)
-    denom1 = denom(lam_1, my_1)
-    denom2 = denom(lam_2, my_2)
-    # Assemble everything
-    MACXP = (nomin1 + nomin2) ** 2.0 / (denom1 * denom2)
-    # The results should be completely real, but an imaginary part that is numerically zero remains and is discarded here.
-    MACXP = np.abs(MACXP)
-    # Optionally, visualize the results
-    if plot:
-        plt.figure()
-        plt.pcolor(MACXP, cmap='hot_r')
-        plt.colorbar()
-        plt.grid('on')
-        plt.title('MACXP')
-        return MACXP, plt
-    return MACXP
-
-
 def calc_PCC(lam_1, lam_2, plot=False):
     """
     This is the most simple pole correlation criterion I could think of. It calculated a value between 0.0 and 1.0 where

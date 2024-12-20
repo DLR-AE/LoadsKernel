@@ -339,7 +339,7 @@ class jcl:
                          'flutter_para': {'method': 'k', 'k_red': np.linspace(2.0, 0.001, 1000)},
                          # Flutter parameters for pk method
                          # There are two implementations of the PK method: 'pk_schwochow', 'pk_rodden'
-                         # Available mode tracking algortihms: 'MAC', 'MACXP', 'MAC*PCC' (recommended)
+                         # Available mode tracking algortihms: 'MAC', 'MAC*PCC' (recommended)
                          # 'flutter_para': {'method': 'pk', 'Vtas': np.linspace(100.0, 500.0, 100),
                          #                  'tracking': 'MAC*PCC'},
                          },

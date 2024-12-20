@@ -634,11 +634,9 @@ class PKMethodSchwochow(KMethod):
             MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector)
         elif self.simcase['flutter_para']['tracking'] == 'MAC':
             MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector)
-        elif self.simcase['flutter_para']['tracking'] == 'MACXP':
-            MAC = fem_helper.calc_MACXP(eigenvectors_old, eigenvector)
         elif self.simcase['flutter_para']['tracking'] == 'MAC*PCC':
             # This is a combination of modal assurance criterion and pole correlation and improves the handling of complex
-            # conjugate poles.
+            # conjugate poles using MAC*PCC.
             MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector) * fem_helper.calc_PCC(eigenvalues_old, eigenvalue)
         idx_pos = self.get_best_match(MAC)
         eigenvalues = eigenvalue[idx_pos]
