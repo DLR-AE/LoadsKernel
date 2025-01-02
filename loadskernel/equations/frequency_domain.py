@@ -632,7 +632,7 @@ class PKMethodSchwochow(KMethod):
         # To match the modes with the previous step, use a correlation cirterion as specified in the JCL.
         if 'tracking' not in self.simcase['flutter_para']:
             # Set a default.
-            tracking_method = 'MAC*PCC'
+            tracking_method = 'MAC'
         else:
             tracking_method = self.simcase['flutter_para']['tracking']
         # Calculate the correlation bewteen the old and current modes.
