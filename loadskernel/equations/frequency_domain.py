@@ -627,18 +627,26 @@ class PKMethodSchwochow(KMethod):
         return response
 
     def calc_eigenvalues(self, A, eigenvalues_old, eigenvectors_old):
+        # Find all eigenvalues and eigenvectors
         eigenvalue, eigenvector = linalg.eig(A)
         # To match the modes with the previous step, use a correlation cirterion as specified in the JCL.
-        # The MAC matrix is used as default.
         if 'tracking' not in self.simcase['flutter_para']:
-            MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector)
-        elif self.simcase['flutter_para']['tracking'] == 'MAC':
-            MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector)
-        elif self.simcase['flutter_para']['tracking'] == 'MAC*PCC':
-            # This is a combination of modal assurance criterion and pole correlation and improves the handling of complex
-            # conjugate poles using MAC*PCC.
-            MAC = fem_helper.calc_MAC(eigenvectors_old, eigenvector) * fem_helper.calc_PCC(eigenvalues_old, eigenvalue)
-        idx_pos = self.get_best_match(MAC)
+            # Set a default.
+            tracking_method = 'MAC*PCC'
+        else:
+            tracking_method = self.simcase['flutter_para']['tracking']
+        # Calculate the correlation bewteen the old and current modes.
+        if tracking_method == 'MAC':
+            # Most simple, use only the modal assurance criterion (MAC).
+            correlation = fem_helper.calc_MAC(eigenvectors_old, eigenvector)
+        elif tracking_method == 'MAC*PCC':
+            # Combining MAC and pole correlation cirterion (PCC) for improved handling of complex conjugate pairs.
+            correlation = fem_helper.calc_MAC(eigenvectors_old, eigenvector) * fem_helper.calc_PCC(eigenvalues_old, eigenvalue)
+        elif tracking_method == 'MAC*HDM':
+            # Combining MAC and hyperboloic distance metric (HDM) for improved handling of complex conjugate pairs.
+            correlation = fem_helper.calc_MAC(eigenvectors_old, eigenvector) * fem_helper.calc_HDM(eigenvalues_old, eigenvalue)
+        # Based on the correlation matrix, find the best match and apply to the modes.
+        idx_pos = self.get_best_match(correlation)
         eigenvalues = eigenvalue[idx_pos]
         eigenvectors = eigenvector[:, idx_pos]
         return eigenvalues, eigenvectors
