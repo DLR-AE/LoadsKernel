@@ -15,7 +15,8 @@ from loadskernel.equations.frequency_domain import GustExcitation
 from loadskernel.equations.frequency_domain import TurbulenceExcitation, LimitTurbulence
 from loadskernel.equations.frequency_domain import KMethod
 from loadskernel.equations.frequency_domain import KEMethod
-from loadskernel.equations.frequency_domain import PKMethod
+from loadskernel.equations.frequency_domain import PKMethodRodden
+from loadskernel.equations.frequency_domain import PKMethodSchwochow
 from loadskernel.equations.state_space import StateSpaceAnalysis
 from loadskernel.equations.state_space import JacobiAnalysis
 from loadskernel.trim_conditions import TrimConditions
@@ -512,8 +513,10 @@ class SolutionSequences(TrimConditions):
             equations = KMethod(self, X0)
         elif self.simcase['flutter_para']['method'] == 'ke':
             equations = KEMethod(self, X0)
-        elif self.simcase['flutter_para']['method'] == 'pk':
-            equations = PKMethod(self, X0)
+        elif self.simcase['flutter_para']['method'] in ['pk', 'pk_schwochow']:
+            equations = PKMethodSchwochow(self, X0)
+        elif self.simcase['flutter_para']['method'] in ['pk_rodden']:
+            equations = PKMethodRodden(self, X0)
         elif self.simcase['flutter_para']['method'] == 'statespace':
             equations = StateSpaceAnalysis(self, X0)
         response_flutter = equations.eval_equations()

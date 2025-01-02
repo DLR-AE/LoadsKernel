@@ -440,9 +440,9 @@ class FlutterPlots(LoadPlots):
             h = self.model['atmo'][trimcase['altitude']]['h'][()]
 
             # this kind of plot is only feasible for methods which iterate over Vtas, e.g. not the K- or KE-methods
-            if 'flutter' in simcase and simcase['flutter_para']['method'] not in ['pk', 'statespace']:
-                logging.info(
-                    'skip plotting of eigenvalues and -vectors for {}'.format(trimcase['desc']))
+            if 'flutter' in simcase and simcase['flutter_para']['method'] not in ['pk_rodden', 'pk_schwochow',
+                                                                                  'pk', 'statespace']:
+                logging.info('skip plotting of eigenvalues and -vectors for {}'.format(trimcase['desc']))
                 continue
 
             # Plot boundaries
