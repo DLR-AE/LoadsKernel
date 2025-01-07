@@ -10,12 +10,15 @@ class HelperFunctions():
     # This makes the addidtion of new stuff easier and compatible with older reference results.
     list_skip = []
     # List of items where the sign shall be ignored.
-    # This is usefull for the comparison of matrices related to eigenvalues and eigenvectors.
+    # This is useful for the comparison of matrices related to eigenvalues and eigenvectors.
     list_ignore_sign = ['Mff', 'Mhh', 'Kff', 'Khh', 'Mfcg',
                         'PHIf_strc', 'PHIh_strc', 'PHIjf', 'PHIlf', 'PHIkf', 'PHIjh', 'PHIlh', 'PHIkh', 'PHIf_extra',
                         'PHIf_sensor',
                         'Uf', 'dUf_dt', 'd2Uf_dt2', 'Pf', 'X', 'Y',
                         'eigenvalues', 'eigenvectors', 'freqs', 'jac', 'A', 'B', 'C', 'D', 'X0', 'rigid_derivatives']
+    # List of items where the sum (along the last axis) shall be compared.
+    # This is useful for the comparison of flutter results where the sorting changes easily.
+    list_sum = ['eigenvalues', 'eigenvectors', 'freqs', 'damping']
 
     def compare_lists(self, list_a, list_b, key=''):
         is_equal = []
@@ -63,10 +66,15 @@ class HelperFunctions():
             return self.compare_items(item_a[()], item_b, key)
 
     def compare_items(self, item_a, item_b, key):
-        # check if the sign shall be ignored for this key
+        # Check if the item shall be handled in a special way
         if key in self.list_ignore_sign:
+            # Compare the absolute values.
             item_a = np.abs(item_a)
             item_b = np.abs(item_b)
+        elif key in self.list_sum:
+            # Calculate the sum along the last axis.
+            item_a = np.sum(item_a, axis=-1)
+            item_b = np.sum(item_b, axis=-1)
 
         if issparse(item_a):
             # sparse efficiency, compare != instead of ==
