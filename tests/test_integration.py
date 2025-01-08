@@ -28,7 +28,7 @@ def get_test_dir(tmpdir_factory):
     return str(test_dir)
 
 
-class TestDiscus2c(HelperFunctions):
+class PreMainPostFunctional(HelperFunctions):
     job_name = 'jcl_Discus2c'
     path_input = os.path.join(path_examples, 'Discus2c', 'JCLs')
 
@@ -52,6 +52,10 @@ class TestDiscus2c(HelperFunctions):
                                 path_input=self.path_input,
                                 path_output=get_test_dir)
         k.run()
+
+class TestDiscus2c(PreMainPostFunctional):
+    job_name = 'jcl_Discus2c'
+    path_input = os.path.join(path_examples, 'Discus2c', 'JCLs')
 
     def test_preprocessing_results(self, get_test_dir):
         # do comparisons
@@ -167,31 +171,51 @@ class TestAllegraFreqdom(TestDiscus2c):
     path_input = os.path.join(path_examples, 'Allegra', 'JCLs')
 
 
-class TestAllegraFlutter(HelperFunctions):
+class TestAllegraFlutter(PreMainPostFunctional):
     job_name = 'jcl_ALLEGRA_flutter'
     path_input = os.path.join(path_examples, 'Allegra', 'JCLs')
 
-    def test_preprocessing_functional(self, get_test_dir):
-        # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False,
-                                path_input=self.path_input,
-                                path_output=get_test_dir)
-        k.run()
+    def test_preprocessing_results(self, get_test_dir):
+        # do comparisons
+        logging.info('Comparing model with reference')
+        model = io_functions.data_handling.load_hdf5(get_test_dir + 'model_' + self.job_name + '.hdf5')
+        reference_model = io_functions.data_handling.load_hdf5(path_reference + 'model_' + self.job_name + '.hdf5')
+        assert self.compare_dictionaries(model, reference_model), "model does NOT match reference"
 
-    def test_mainprocessing_functional(self, get_test_dir):
-        # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False,
-                                path_input=self.path_input,
-                                path_output=get_test_dir)
-        k.run()
+    def test_mainprocessing_results(self, get_test_dir):
+        logging.info('Comparing response with reference')
+        responses = io_functions.data_handling.load_hdf5_responses(self.job_name, get_test_dir)
+        reference_responses = io_functions.data_handling.load_hdf5_responses(self.job_name, path_reference)
+        
+        # Responses 0 and 1: For the K and KE method, Vtas, damping and frequencies are quantities of interest.
+        for resp_a, resp_b in zip(responses[:2], reference_responses[:2]):
+            # Only compare results in an area where the results are meaningful.
+            pos_a = (resp_a['Vtas'][()] > 350.0) & (resp_a['Vtas'][()] < 450.0)
+            pos_b = (resp_b['Vtas'][()] > 350.0) & (resp_b['Vtas'][()] < 450.0)
+            assert self.compare_items(resp_a['Vtas'][pos_a], 
+                                      resp_b['Vtas'][pos_b], 'Vtas'), "Vtas does NOT match reference"
+            assert self.compare_items(resp_a['damping'][pos_a], 
+                                      resp_b['damping'][pos_b], 'damping'), "damping does NOT match reference"
+            assert self.compare_items(resp_a['freqs'][pos_a], 
+                                      resp_b['freqs'][pos_b], 'freqs'), "freqs do NOT match reference"
+        
+        # Responses 2 and 3: For the PK methods, eigenvalues, damping and freqs are quantities of interest.
+        for resp_a, resp_b in zip(responses[2:], reference_responses[2:]):
+            # Only compare results in an area where the results are meaningful.
+            pos_a = (resp_a['Vtas'][()] > 350.0) & (resp_a['Vtas'][()] < 450.0)
+            pos_b = (resp_b['Vtas'][()] > 350.0) & (resp_b['Vtas'][()] < 450.0)
+            assert self.compare_items(resp_a['eigenvalues'][pos_a], 
+                                      resp_b['eigenvalues'][pos_b], 'eigenvalues'), "eigenvalues do NOT match reference"
+            assert self.compare_items(resp_a['damping'][pos_a], 
+                                      resp_b['damping'][pos_b], 'damping'), "damping does NOT match reference"
+            assert self.compare_items(resp_a['freqs'][pos_a], 
+                                      resp_b['freqs'][pos_b], 'freqs'), "freqs do NOT match reference"
 
-    def test_postprocessing_functional(self, get_test_dir):
-        # Here you launch the Loads Kernel with your job
-        k = program_flow.Kernel(self.job_name, pre=False, main=False, post=True,
-                                path_input=self.path_input,
-                                path_output=get_test_dir)
-        k.run()
 
+class TestAllegraLimitTurbulence(PreMainPostFunctional):
+    job_name = 'jcl_ALLEGRA_limitturbulence'
+    path_input = os.path.join(path_examples, 'Allegra', 'JCLs')
+    
     def test_preprocessing_results(self, get_test_dir):
         # do comparisons
         logging.info('Comparing model with reference')
@@ -207,21 +231,16 @@ class TestAllegraFlutter(HelperFunctions):
         assert self.compare_lists(responses, reference_responses), "response does NOT match reference"
 
 
-class TestAllegraLimitTurbulence(TestAllegraFlutter):
-    job_name = 'jcl_ALLEGRA_limitturbulence'
-    path_input = os.path.join(path_examples, 'Allegra', 'JCLs')
-
-
 class TestHAPO6Trim(TestDiscus2c):
     job_name = 'jcl_HAP-O6'
     path_input = os.path.join(path_examples, 'HAP-O6', 'JCLs')
 
 
-class TestHAPO6Derivatives(TestAllegraFlutter):
+class TestHAPO6Derivatives(TestAllegraLimitTurbulence):
     job_name = 'jcl_HAP-O6_derivatives'
     path_input = os.path.join(path_examples, 'HAP-O6', 'JCLs')
 
 
-class TestHAPO6StateSpaceSystem(TestAllegraFlutter):
+class TestHAPO6StateSpaceSystem(TestAllegraLimitTurbulence):
     job_name = 'jcl_HAP-O6_sss'
     path_input = os.path.join(path_examples, 'HAP-O6', 'JCLs')

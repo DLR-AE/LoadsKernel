@@ -66,12 +66,12 @@ class HelperFunctions():
             return self.compare_items(item_a[()], item_b, key)
 
     def compare_items(self, item_a, item_b, key):
-        # Check if the item shall be handled in a special way
+        # Check if the item shall be handled in a special way.
         if key in self.list_ignore_sign:
             # Compare the absolute values.
             item_a = np.abs(item_a)
             item_b = np.abs(item_b)
-        elif key in self.list_sum:
+        if key in self.list_sum:
             # Calculate the sum along the last axis.
             item_a = np.sum(item_a, axis=-1)
             item_b = np.sum(item_b, axis=-1)
@@ -79,7 +79,7 @@ class HelperFunctions():
         if issparse(item_a):
             # sparse efficiency, compare != instead of ==
             result = np.all(np.invert((item_a != item_b).toarray()))
-        elif isinstance(item_a, np.ndarray):
+        elif isinstance(item_a, (np.ndarray, float)):
             if item_a.dtype == 'object':
                 # numpy objects can be compare with np.equal
                 result = np.all(np.equal(item_a, item_b))
