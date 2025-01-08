@@ -79,7 +79,7 @@ class HelperFunctions():
         if issparse(item_a):
             # sparse efficiency, compare != instead of ==
             result = np.all(np.invert((item_a != item_b).toarray()))
-        elif isinstance(item_a, np.ndarray):
+        elif isinstance(item_a, (np.ndarray, float)):
             if item_a.dtype == 'object':
                 # numpy objects can be compare with np.equal
                 result = np.all(np.equal(item_a, item_b))
