@@ -73,7 +73,7 @@ class LoadPlots():
 
     def plot_monstations(self, filename_pdf):
         # launch plotting
-        self.pp = PdfPages(filename_pdf, keep_empty=False)
+        self.pp = PdfPages(filename_pdf)
         self.potato_plots()
         if self.cuttingforces_wing:
             self.cuttingforces_along_axis_plots(monstations=self.cuttingforces_wing, axis=1)
