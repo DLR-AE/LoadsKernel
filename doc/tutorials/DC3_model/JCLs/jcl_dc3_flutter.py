@@ -239,5 +239,5 @@ class jcl:
                          # True or False, enables flutter check with k, ke or pk method
                          'flutter': True,
                          # flutter parameters for pk method
-                         'flutter_para': {'method': 'pk', 'Vtas': np.linspace(20.0, 300.0, 20)}}]
+                         'flutter_para': {'method': 'pk', 'Vtas': np.linspace(20.0, 300.0, 20), 'tracking': 'MAC*PCC'}}]
         # End

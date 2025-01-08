@@ -12,67 +12,39 @@ except ImportError:
     pass
 
 from loadskernel import plotting_standard
+from modelviewer import plotting as plotting_modelviewer
+from loadskernel.io_functions.data_handling import load_hdf5_dict
 
 plt.rcParams.update({'font.size': 16,
                      'svg.fonttype': 'none'})
 
 
-class DetailedPlots(plotting_standard.LoadPlots):
+class DetailedPlots(plotting_standard.LoadPlots, plotting_modelviewer.Plotting):
 
-    def plot_aerogrid(self, scalars=None, colormap='plasma', value_min=None, value_max=None):
-        # create the unstructured grid
-        points = self.aerogrid['cornerpoint_grids'][:, (1, 2, 3)]
-        ug = tvtk.UnstructuredGrid(points=points)
-        shells = []
-        for shell in self.aerogrid['cornerpoint_panels']:
-            shells.append([np.where(self.aerogrid['cornerpoint_grids'][:, 0] == id)[
-                          0][0] for id in shell])
-        shell_type = tvtk.Polygon().cell_type
-        ug.set_cells(shell_type, shells)
-        ug.cell_data.scalars = scalars
-
-        # hand over unstructured grid to mayavi
-        mlab.figure(bgcolor=(1, 1, 1))
-        src_aerogrid = mlab.pipeline.add_dataset(ug)
-
-        # determine if suitable scalar data is given
-        if scalars is not None:
-            # determine an upper and lower limit of the colorbar, if not given
-            if value_min is None:
-                value_min = scalars.min()
-            if value_max is None:
-                value_max = scalars.max()
-            surface = mlab.pipeline.surface(src_aerogrid, opacity=1.0, line_width=0.5,
-                                            colormap=colormap, vmin=value_min, vmax=value_max)
-            surface.actor.mapper.scalar_visibility = True
-
-            surface.module_manager.scalar_lut_manager.show_legend = True
-            surface.module_manager.scalar_lut_manager.data_name = 'dCp'
-            surface.module_manager.scalar_lut_manager.label_text_property.color = (0, 0, 0)
-            surface.module_manager.scalar_lut_manager.label_text_property.font_family = 'times'
-            surface.module_manager.scalar_lut_manager.label_text_property.bold = False
-            surface.module_manager.scalar_lut_manager.label_text_property.italic = False
-            surface.module_manager.scalar_lut_manager.title_text_property.color = (0, 0, 0)
-            surface.module_manager.scalar_lut_manager.title_text_property.font_family = 'times'
-            surface.module_manager.scalar_lut_manager.title_text_property.bold = False
-            surface.module_manager.scalar_lut_manager.title_text_property.italic = False
-            surface.module_manager.scalar_lut_manager.number_of_labels = 5
-        else:
-            surface = mlab.pipeline.surface(src_aerogrid, opacity=1.0, line_width=0.5)
-            surface.actor.mapper.scalar_visibility = False
-        surface.actor.property.edge_visibility = True
-        mlab.show()
+    def __init__(self, jcl, model):
+        self.jcl = jcl
+        self.model = model
+        # load data from HDF5
+        self.aerogrid = load_hdf5_dict(self.model['aerogrid'])
+        self.strcgrid = load_hdf5_dict(self.model['strcgrid'])
+        self.splinegrid = load_hdf5_dict(self.model['splinegrid'])
+        self.calc_parameters_from_model_size()
+        self.calc_focalpoint()
 
     def plot_pressure_distribution(self):
         for response in self.responses:
             trimcase = self.jcl.trimcase[response['i'][()]]
             logging.info('interactive plotting of resulting pressure distributions for trim {:s}'.format(trimcase['desc']))
             Pk = response['Pk_aero']  # response['Pk_rbm'] + response['Pk_cam']
-            rho = self.model['atmo'][trimcase['altitude']]['rho']
-            Vtas = trimcase['Ma'] * self.model['atmo'][trimcase['altitude']]['a']
+            rho = self.model['atmo'][trimcase['altitude']]['rho'][()]
+            Vtas = trimcase['Ma'] * self.model['atmo'][trimcase['altitude']]['a'][()]
             F = Pk[0, self.aerogrid['set_k'][:, 2]]  # * -1.0
             cp = F / (rho / 2.0 * Vtas ** 2) / self.aerogrid['A']
-            self.plot_aerogrid(cp)
+            cp_minmax = [cp.min(), cp.max()]
+            self.add_figure(mlab.figure())
+            self.setup_aero_display(scalars=cp, colormap='plasma', vminmax=cp_minmax)
+            self.set_view_left_above()
+            mlab.show()
 
     def plot_time_data(self):
         # Create all plots
@@ -292,7 +264,7 @@ class DetailedPlots(plotting_standard.LoadPlots):
             mlab.show()
 
 
-class Animations(plotting_standard.LoadPlots):
+class Animations(DetailedPlots):
 
     def make_movie(self, path_output, speedup_factor=1.0):
         for response in self.responses:
@@ -492,12 +464,8 @@ class Animations(plotting_standard.LoadPlots):
         # setup_runway(self, length=1000.0, width=30.0, elevation=0.0)
         setup_grid(self, 0.0)
 
-        distance = 2.5 * ((self.x[0, :].max() - self.x[0, :].min()) ** 2
-                          + (self.y[0, :].max() - self.y[0, :].min()) ** 2
-                          + (self.z[0, :].max() - self.z[0, :].min()) ** 2) ** 0.5
         # view from left and above
-        mlab.view(azimuth=-120.0, elevation=100.0, roll=-75.0, distance=distance,
-                  focalpoint=np.array([self.x[0, :].mean(), self.y[0, :].mean(), self.z[0, :].mean()]))
+        mlab.view(azimuth=-120.0, elevation=100.0, roll=-75.0, distance=self.distance, focalpoint=self.focalpoint)
 
         if make_movie:
             if not os.path.exists('{}anim/'.format(path_output)):

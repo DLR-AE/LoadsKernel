@@ -1,6 +1,11 @@
 # Note
 New releases are marked in the repository using tags. Simply checkout the master branch for the lastest version or use git checkout if you require a specific release, for example 'git checkout 2022.10'.
 
+# Release 2025.01
+- Update of flutter solution sequence including updated description in the User Guide and of the tutorials
+- Numpy 2.2 and Python 3.12 compatibility
+- More robust continuous integration testing
+
 # Release 2024.06
 - Added comprehensive tutorials as well as coresponding aeroelastic models of the DC3 created by Francisco Carvalho
 

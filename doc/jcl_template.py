@@ -335,10 +335,13 @@ class jcl:
                          'support': [0, 1, 2, 3, 4, 5],
                          # True or False, enables flutter check with k, ke or pk method
                          'flutter': False,
-                         # flutter parameters for k and ke method
+                         # Flutter parameters for k and ke method
                          'flutter_para': {'method': 'k', 'k_red': np.linspace(2.0, 0.001, 1000)},
-                         # flutter parameters for pk method
-                         # 'flutter_para': {'method': 'pk', 'Vtas': np.linspace(100.0, 500.0, 100)},
+                         # Flutter parameters for pk method
+                         # There are two implementations of the PK method: 'pk_schwochow', 'pk_rodden'
+                         # Available mode tracking algortihms: 'MAC', 'MAC*PCC' (recommended), 'MAC*HDM'
+                         # 'flutter_para': {'method': 'pk', 'Vtas': np.linspace(100.0, 500.0, 100),
+                         #                  'tracking': 'MAC*PCC'},
                          },
                         ]
         # End

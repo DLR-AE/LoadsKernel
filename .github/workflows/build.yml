@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
       # Add multiple Python versions here to run tests on new(er) versions.
-        python-version: ["3.10", "3.11"]
+        python-version: ["3.10", "3.11", "3.12"]
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
@@ -42,7 +42,7 @@ jobs:
     strategy:
       matrix:
       # Add multiple Python versions here to run tests on new(er) versions.
-        python-version: ["3.10", "3.11"]
+        python-version: ["3.10", "3.11", "3.12"]
       fail-fast: false
     # Step 1 to make GUIs work, see https://pytest-qt.readthedocs.io/en/latest/troubleshooting.html
     env:

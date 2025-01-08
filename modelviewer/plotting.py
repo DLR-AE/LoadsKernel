@@ -16,6 +16,7 @@ class Plotting:
         self.show_strc = False
         self.show_mode = False
         self.show_aero = False
+        self.show_panel_normal_vectors = False
         self.show_cfdgrids = False
         self.show_coupling = False
         self.show_cs = False
@@ -52,6 +53,7 @@ class Plotting:
                       + (self.strcgrid['offset'][:, 1].max() - self.strcgrid['offset'][:, 1].min()) ** 2
                       + (self.strcgrid['offset'][:, 2].max() - self.strcgrid['offset'][:, 2].min()) ** 2) ** 0.5
         # Set some parameters which typically give a good view.
+        self.model_size = model_size
         self.distance = model_size * 1.5
         self.pscale = np.min([model_size / 400.0, 0.1])
         self.macscale = np.min([model_size / 10.0, 1.0])
@@ -191,47 +193,64 @@ class Plotting:
         self.ug_strc.modified()
 
     def hide_aero(self):
-        self.src_aerogrid.remove()
-        self.src_MAC.remove()
-        self.show_aero = False
-        mlab.draw(self.fig)
+        if self.show_aero:
+            self.src_aerogrid.remove()
+            self.src_MAC.remove()
+            self.show_aero = False
+            mlab.draw(self.fig)
+        if self.show_panel_normal_vectors:
+            self.src_panel_normal_vectors.remove()
+            self.show_panel_normal_vectors = False
 
-    def plot_aero(self, scalars=None, vminmax=[-10.0, 10.0]):
-        self.setup_aero_display(scalars, vminmax)
+    def plot_aero(self, scalars=None, colormap='coolwarm', vminmax=[-10.0, 10.0]):
+        self.setup_aero_display(scalars, colormap, vminmax)
+        self.setup_mac_display()
         self.show_aero = True
         mlab.draw(self.fig)
 
-    def setup_aero_display(self, scalars, vminmax):
-        ug1 = tvtk.UnstructuredGrid(
-            points=self.aerogrid['cornerpoint_grids'][:, (1, 2, 3)])
-        shells = []
-        for shell in self.aerogrid['cornerpoint_panels']:
-            shells.append([np.where(self.aerogrid['cornerpoint_grids'][:, 0] == id)[
-                          0][0] for id in shell])
-        shell_type = tvtk.Polygon().cell_type
-        ug1.set_cells(shell_type, shells)
-        if scalars is not None:
-            ug1.cell_data.scalars = scalars
-        self.src_aerogrid = mlab.pipeline.add_dataset(ug1)
+    def plot_panel_normal_vectors(self):
+        # This function plots the normal vectors on each aerodynamic panel to identify the orientation visually.
+        x, y, z = self.aerogrid['offset_k'][:, 0], self.aerogrid['offset_k'][:, 1], self.aerogrid['offset_k'][:, 2]
+        Nx, Ny, Nz, = self.aerogrid['N'][:, 0], self.aerogrid['N'][:, 1], self.aerogrid['N'][:, 2]
+        self.src_panel_normal_vectors = mlab.quiver3d(x, y, z, Nx, Ny, Nz, color=(0, 1, 0), opacity=0.4,
+                                                      scale_mode='vector', scale_factor=1.0)
+        self.show_panel_normal_vectors = True
+        mlab.draw(self.fig)
 
+    def setup_mac_display(self):
         ug2 = tvtk.UnstructuredGrid(points=np.array([self.MAC]))
         self.src_MAC = mlab.pipeline.add_dataset(ug2)
         points = mlab.pipeline.glyph(self.src_MAC, scale_mode='scalar', scale_factor=self.macscale, color=(1, 0, 0),
                                      opacity=0.4, resolution=64)
         points.glyph.glyph.clamping = False
 
+    def setup_aero_display(self, scalars, colormap, vminmax):
+        # Generate an unstructured grid from the aerodynamic panels and connect them to shell elements
+        ug1 = tvtk.UnstructuredGrid(points=self.aerogrid['cornerpoint_grids'][:, (1, 2, 3)])
+        shells = []
+        for shell in self.aerogrid['cornerpoint_panels']:
+            shells.append([np.where(self.aerogrid['cornerpoint_grids'][:, 0] == id)[0][0] for id in shell])
+        shell_type = tvtk.Polygon().cell_type
+        ug1.set_cells(shell_type, shells)
+
         if scalars is not None:
-            surface = mlab.pipeline.surface(
-                self.src_aerogrid, colormap='coolwarm', vmin=vminmax[0], vmax=vminmax[1])
+            # Add unstructured grid with scalar data per shell element
+            ug1.cell_data.scalars = scalars
+            self.src_aerogrid = mlab.pipeline.add_dataset(ug1)
+            # Generate surface plot from that data
+            surface = mlab.pipeline.surface(self.src_aerogrid, colormap=colormap, vmin=vminmax[0], vmax=vminmax[1])
             surface.module_manager.scalar_lut_manager.show_legend = True
             surface.module_manager.scalar_lut_manager.label_text_property.color = (
                 0, 0, 0)
-            surface.module_manager.scalar_lut_manager.label_text_property.font_family = 'times'
+            surface.module_manager.scalar_lut_manager.label_text_property.font_family = 'courier'
             surface.module_manager.scalar_lut_manager.label_text_property.bold = False
             surface.module_manager.scalar_lut_manager.label_text_property.italic = False
             surface.module_manager.scalar_lut_manager.number_of_labels = 5
 
         else:
+            # Add unstructured grid without any scalar data
+            self.src_aerogrid = mlab.pipeline.add_dataset(ug1)
+            # Generate surface plot
             surface = mlab.pipeline.surface(self.src_aerogrid, color=(1, 1, 1))
         surface.actor.property.edge_visibility = True
         surface.actor.property.edge_color = (0, 0, 0)
