@@ -7,8 +7,8 @@ stages:
 
 .virtenv: &virtualenv
   - source /work/f_jwsb/software/miniforge3/etc/profile.d/conda.sh
-  # This is the environment where I installed all dependencies via 'conda install loadskernel-extras'.
-  - conda activate my_env
+  # This is the environment where I installed all dependencies.
+  - conda activate lk_ci_python3.12
   # To make things faster, re-use existing site packages. 
   - python -m venv virtualenv --system-site-packages
   - source virtualenv/bin/activate

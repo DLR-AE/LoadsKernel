@@ -218,7 +218,7 @@ class TurbulenceExcitation(GustExcitation):
         if freqs[0] == 0.0:
             psd_karman[0] = 0.0
         # Calculate the RMS value for cross-checking. Exclude first frequency with f=0.0 from the integral.
-        logging.info('RMS of PSD input (should approach 1.0): {:.4f}'.format(np.trapz(psd_karman[1:], freqs[1:]) ** 0.5))
+        logging.info('RMS of PSD input (should approach 1.0): {:.4f}'.format(np.trapezoid(psd_karman[1:], freqs[1:]) ** 0.5))
         return psd_karman
 
     def calc_gust_excitation(self, freqs, t):
@@ -266,8 +266,8 @@ class TurbulenceExcitation(GustExcitation):
         plt.grid(True)
         plt.show()
 
-        print('RMS of PSD input (must be close to u_sigma): {:.4f}'.format(np.trapz(psd_karman, freqs)**0.5))
-        print('RMS in freq. dom: {:.4f}'.format(np.trapz(psd_scaled, freqs)**0.5))
+        print('RMS of PSD input (must be close to u_sigma): {:.4f}'.format(np.trapezoid(psd_karman, freqs)**0.5))
+        print('RMS in freq. dom: {:.4f}'.format(np.trapezoid(psd_scaled, freqs)**0.5))
 
         w_turb_f = psd_scaled*np.exp(1j*random_phases)
         print('The amplitude may not change after adding a random phase: {}'.format(np.allclose(np.abs(w_turb_f), psd_scaled)))
@@ -337,7 +337,7 @@ class LimitTurbulence(TurbulenceExcitation):
         # Force Summation Method: P = Pext + Piner
         H = Haero + Hgust + Hiner
 
-        A = np.trapz(np.real(H * H.conj()) * psd_karman, self.positiv_fftfreqs) ** 0.5
+        A = np.trapezoid(np.real(H * H.conj()) * psd_karman, self.positiv_fftfreqs) ** 0.5
         Pmon = self.u_sigma * A
 
         logging.info('calculating correlations')
@@ -346,7 +346,7 @@ class LimitTurbulence(TurbulenceExcitation):
         # Once the integral is done, the matrix is much smaller.
         correlations = np.zeros((self.mongrid['n'] * 6, self.mongrid['n'] * 6))
         for i_row in range(6 * self.mongrid['n']):
-            correlations[i_row, :] = np.trapz(np.real(H[i_row, :].conj() * H) * psd_karman, self.positiv_fftfreqs)
+            correlations[i_row, :] = np.trapezoid(np.real(H[i_row, :].conj() * H) * psd_karman, self.positiv_fftfreqs)
         correlations /= (A * A[:, None])
 
         response = {'Pmon_turb': np.expand_dims(Pmon, axis=0),
