@@ -53,6 +53,7 @@ class PreMainPostFunctional(HelperFunctions):
                                 path_output=get_test_dir)
         k.run()
 
+
 class TestDiscus2c(PreMainPostFunctional):
     job_name = 'jcl_Discus2c'
     path_input = os.path.join(path_examples, 'Discus2c', 'JCLs')
@@ -186,36 +187,36 @@ class TestAllegraFlutter(PreMainPostFunctional):
         logging.info('Comparing response with reference')
         responses = io_functions.data_handling.load_hdf5_responses(self.job_name, get_test_dir)
         reference_responses = io_functions.data_handling.load_hdf5_responses(self.job_name, path_reference)
-        
+
         # Responses 0 and 1: For the K and KE method, Vtas, damping and frequencies are quantities of interest.
         for resp_a, resp_b in zip(responses[:2], reference_responses[:2]):
             # Only compare results in an area where the results are meaningful.
             pos_a = (resp_a['Vtas'][()] > 350.0) & (resp_a['Vtas'][()] < 450.0)
             pos_b = (resp_b['Vtas'][()] > 350.0) & (resp_b['Vtas'][()] < 450.0)
-            assert self.compare_items(resp_a['Vtas'][pos_a], 
+            assert self.compare_items(resp_a['Vtas'][pos_a],
                                       resp_b['Vtas'][pos_b], 'Vtas'), "Vtas does NOT match reference"
-            assert self.compare_items(resp_a['damping'][pos_a], 
+            assert self.compare_items(resp_a['damping'][pos_a],
                                       resp_b['damping'][pos_b], 'damping'), "damping does NOT match reference"
-            assert self.compare_items(resp_a['freqs'][pos_a], 
+            assert self.compare_items(resp_a['freqs'][pos_a],
                                       resp_b['freqs'][pos_b], 'freqs'), "freqs do NOT match reference"
-        
+
         # Responses 2 and 3: For the PK methods, eigenvalues, damping and freqs are quantities of interest.
         for resp_a, resp_b in zip(responses[2:], reference_responses[2:]):
             # Only compare results in an area where the results are meaningful.
             pos_a = (resp_a['Vtas'][()] > 350.0) & (resp_a['Vtas'][()] < 450.0)
             pos_b = (resp_b['Vtas'][()] > 350.0) & (resp_b['Vtas'][()] < 450.0)
-            assert self.compare_items(resp_a['eigenvalues'][pos_a], 
+            assert self.compare_items(resp_a['eigenvalues'][pos_a],
                                       resp_b['eigenvalues'][pos_b], 'eigenvalues'), "eigenvalues do NOT match reference"
-            assert self.compare_items(resp_a['damping'][pos_a], 
+            assert self.compare_items(resp_a['damping'][pos_a],
                                       resp_b['damping'][pos_b], 'damping'), "damping does NOT match reference"
-            assert self.compare_items(resp_a['freqs'][pos_a], 
+            assert self.compare_items(resp_a['freqs'][pos_a],
                                       resp_b['freqs'][pos_b], 'freqs'), "freqs do NOT match reference"
 
 
 class TestAllegraLimitTurbulence(PreMainPostFunctional):
     job_name = 'jcl_ALLEGRA_limitturbulence'
     path_input = os.path.join(path_examples, 'Allegra', 'JCLs')
-    
+
     def test_preprocessing_results(self, get_test_dir):
         # do comparisons
         logging.info('Comparing model with reference')
