@@ -65,6 +65,8 @@ deploy-pages:
     - mkdir public
     # Publish the coverage htlm results
     - mv coverage ./public/coverage
+  # Specifies that this is a Pages job
+  pages: true
   artifacts:
     paths:
       - public
