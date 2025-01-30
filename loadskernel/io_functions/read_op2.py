@@ -94,10 +94,9 @@ import numpy as np
 class OP2():
     """Class for reading Nastran op2 files and nas2cam data files."""
 
-    def __init__(self, filename=None):
+    def __init__(self, filename):
         self._fileh = None
-        if isinstance(filename, str):
-            self._op2_open(filename)
+        self._op2_open(filename)
 
     def __del__(self):
         if self._fileh:
