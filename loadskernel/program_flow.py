@@ -1,16 +1,19 @@
 import argparse
 import copy
 import getpass
+from importlib import metadata
 import logging
 import platform
 import sys
 import time
+
 
 try:
     from mpi4py import MPI
 except ImportError:
     pass
 
+import loadskernel
 from loadskernel import solution_sequences, post_processing, gather_loads, auxiliary_output, plotting_standard
 from loadskernel.io_functions import data_handling
 import loadskernel.model as model_modul
@@ -134,6 +137,12 @@ class Kernel(ProgramFlowHelper):
         self.setup_logger()
         logging.info('Starting Loads Kernel with job: ' + self.job_name)
         logging.info('User ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
+        logging.info('Software versions:')
+        logging.info(' - Loads Kernel ' + metadata.version('loadskernel') + ' (' + repr(loadskernel) + ')')
+        logging.info(' - Panel Aero ' + metadata.version('panelaero'))
+        logging.info(' - Python ' + platform.python_version())
+        logging.info(' - Numpy ' + metadata.version('numpy'))
+        logging.info(' - Scipy ' + metadata.version('scipy'))
         logging.info('pre:  ' + str(self.pre))
         logging.info('main: ' + str(self.main))
         logging.info('post: ' + str(self.post))
