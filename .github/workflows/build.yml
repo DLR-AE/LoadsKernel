@@ -65,7 +65,7 @@ jobs:
         source $CONDA/etc/profile.d/conda.sh
         conda create -n my_env python=${{ matrix.python-version }}
         conda activate my_env
-        conda install -y -c conda-forge --file ./tests/list_of_packages.txt || true
+        conda install -y -q -c conda-forge --file ./tests/list_of_packages.txt || true
         # Install with -e (in editable mode) to allow the tracking of the test coverage
         pip install -e .[extras,test]
         # Check result of installation

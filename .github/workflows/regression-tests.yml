@@ -36,7 +36,7 @@ jobs:
         source $CONDA/etc/profile.d/conda.sh
         conda create -n pytest_env python=${{ matrix.python-version }}
         conda activate pytest_env
-        conda install -y -c conda-forge --file ./tests/list_of_packages.txt  || true
+        conda install -y -q -c conda-forge --file ./tests/list_of_packages.txt  || true
         # Install the package itself to make sure that all imports work.
         pip install -e .[extras,test]
     - name: Analysing the code with pytest
