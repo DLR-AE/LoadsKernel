@@ -64,7 +64,7 @@ class DetailedPlots(plotting_standard.LoadPlots, plotting_modelviewer.Plotting):
 
             self.n_modes = self.model['mass'][trimcase['mass']]['n_modes'][()]
 
-            if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady']:
+            if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'nonlin_steady']:
                 Cl = response['Pmac'][:, 2] / response['q_dyn'][:].T / self.jcl.general['A_ref']
                 ax11.plot(response['t'], response['Pmac'][:, 2], 'b-')
                 ax12.plot(response['t'], Cl.T, 'b-')
