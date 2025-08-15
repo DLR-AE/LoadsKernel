@@ -84,13 +84,13 @@ class DetailedPlots(plotting_standard.LoadPlots, plotting_modelviewer.Plotting):
                 ax11.plot(response['t'], Pb_gust, 'k-')
                 ax11.plot(response['t'], Pb_unsteady, 'r-')
 
+            ax31.plot(response['t'], response['X'][:, 0], 'b-')
+            ax31.plot(response['t'], response['X'][:, 1], 'g-')
+            ax31.plot(response['t'], response['X'][:, 2], 'r-')
+
             ax32.plot(response['t'], response['X'][:, 3] / np.pi * 180.0, 'b-')
             ax32.plot(response['t'], response['X'][:, 4] / np.pi * 180.0, 'g-')
             ax32.plot(response['t'], response['X'][:, 5] / np.pi * 180.0, 'r-')
-
-            ax41.plot(response['t'], response['X'][:, 6], 'b-')
-            ax41.plot(response['t'], response['X'][:, 7], 'g-')
-            ax41.plot(response['t'], response['X'][:, 8], 'r-')
 
             ax41.plot(response['t'], response['X'][:, 6], 'b-')
             ax41.plot(response['t'], response['X'][:, 7], 'g-')
