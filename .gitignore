@@ -2,3 +2,8 @@
 .pytest_cache/
 LoadsKernel.egg-info
 loads-kernel-examples
+.settings/org.eclipse.core.resources.prefs
+.vscode/launch.json
+.project
+.gitignore
+.pydevproject
