@@ -1,3 +1,4 @@
 *.pyc
 .pytest_cache/
-Loads_Kernel.egg-info/
+LoadsKernel.egg-info
+loads-kernel-examples
