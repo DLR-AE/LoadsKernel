@@ -537,12 +537,12 @@ class PKMethodSchwochow(KMethod):
         self.n_modes_f = self.model['mass'][self.trimcase['mass']]['n_modes'][()]
         self.n_modes = self.n_modes_f + self.n_modes_rbm
 
-        self.states = ["y'", "z'", "$\Phi'$", "$\Theta'$", "$\Psi'$", ]  # noqa: W605
+        self.states = ["y'", "z'", "$\\Phi'$", "$\\Theta'$", "$\\Psi'$", ]  # noqa: W605
         for i_mode in range(1, self.n_modes_f + 1):
             self.states += ['Uf' + str(i_mode)]
         self.states += ["v'", "w'", "p'", "q'", "r'"]
         for i_mode in range(1, self.n_modes_f + 1):
-            self.states += ['$\mathrm{{ \dot Uf{} }}$'.format(str(i_mode))]  # noqa: W605
+            self.states += ['$\\mathrm{{ \\dot Uf{} }}$'.format(str(i_mode))]  # noqa: W605
 
         self.Vvec = self.simcase['flutter_para']['Vtas']
 
