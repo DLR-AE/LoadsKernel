@@ -134,3 +134,17 @@ def calc_fg(altitude, Z_mo, MLW, MTOW, MZFW):
     else:
         fg = fg_sl + (1.0 - fg_sl) * altitude / Z_mo
     return fg
+
+def calc_pulse(dt, t_final, eps):
+    # Create a 1-cos pulse signal with timestep dt up to t_final with magnitude eps
+    t = np.arange(0.0, t_final + dt, dt)
+    # Time before pulse starts
+    lead_time = 0.1 
+    # Half-length of pulse in seconds
+    half_length = 0.2
+    # Calculate time signal
+    pulse = eps * 0.5 * (1 - np.cos(np.pi * (t - lead_time) / half_length))
+    # Set values outside the pulse to zero
+    pulse[np.where(t < lead_time)] = 0.0
+    pulse[np.where(t > half_length * 2.0 + lead_time)] = 0.0
+    return t, pulse
