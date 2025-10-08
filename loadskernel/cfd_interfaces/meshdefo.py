@@ -10,25 +10,28 @@ class Meshdefo():
     """
 
     def Ux2(self, Ux2):
-        logging.info('Apply control surface deflections to cfdgrid.')
-        Ujx2 = np.zeros(self.aerogrid['n'] * 6)
-        if 'hingeline' in self.jcl.aero and self.jcl.aero['hingeline'] == 'y':
-            hingeline = 'y'
-        elif 'hingeline' in self.jcl.aero and self.jcl.aero['hingeline'] == 'z':
-            hingeline = 'z'
-        else:  # default
-            hingeline = 'y'
-        for i_x2 in range(len(self.x2grid['key'])):
-            logging.debug('Apply deflection of {} for {:0.4f} [deg].'.format(
-                self.x2grid['key'][i_x2], Ux2[i_x2] / np.pi * 180.0))
-            if hingeline == 'y':
-                Ujx2 += np.dot(self.Djx2[i_x2], [0, 0, 0, 0, Ux2[i_x2], 0])
-            elif hingeline == 'z':
-                Ujx2 += np.dot(self.Djx2[i_x2], [0, 0, 0, 0, 0, Ux2[i_x2]])
-        self.transfer_deformations(self.aerogrid, Ujx2, '_k', rbf_type='wendland2', surface_spline=False, support_radius=1.5)
+        if np.any(Ux2):
+            logging.info('Apply control surface deflections to cfdgrid.')
+            Ujx2 = np.zeros(self.aerogrid['n'] * 6)
+            if 'hingeline' in self.jcl.aero and self.jcl.aero['hingeline'] == 'y':
+                hingeline = 'y'
+            elif 'hingeline' in self.jcl.aero and self.jcl.aero['hingeline'] == 'z':
+                hingeline = 'z'
+            else:  # default
+                hingeline = 'y'
+            for i_x2 in range(len(self.x2grid['key'])):
+                logging.debug('Apply deflection of {} for {:0.4f} [deg].'.format(
+                    self.x2grid['key'][i_x2], Ux2[i_x2] / np.pi * 180.0))
+                if hingeline == 'y':
+                    Ujx2 += np.dot(self.Djx2[i_x2], [0, 0, 0, 0, Ux2[i_x2], 0])
+                elif hingeline == 'z':
+                    Ujx2 += np.dot(self.Djx2[i_x2], [0, 0, 0, 0, 0, Ux2[i_x2]])
+            self.transfer_deformations(self.aerogrid, Ujx2, '_k', rbf_type='wendland2', surface_spline=False, support_radius=1.5)
+        else:
+            logging.info('Apply NO control surface deflections to cfdgrid.')
 
     def Uf(self, Uf):
-        if 'flex' in self.jcl.aero and self.jcl.aero['flex']:
+        if 'flex' in self.jcl.aero and self.jcl.aero['flex'] and np.any(Uf):
             logging.info('Apply flexible deformations to cfdgrid.')
             # set-up spline grid
             if self.jcl.spline['splinegrid']:
