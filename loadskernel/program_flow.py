@@ -193,6 +193,8 @@ class Kernel(ProgramFlowHelper):
         elif solution_i.successful and 'derivatives' in jcl.simcase[i] and jcl.simcase[i]['derivatives']:
             solution_i.calc_jacobian()
             solution_i.calc_derivatives()
+        elif solution_i.successful and 'gaf' in jcl.simcase[i] and jcl.simcase[i]['gaf']:
+            solution_i.calc_gafs()
         response = solution_i.response
         response['i'] = i
         response['successful'] = solution_i.successful
