@@ -135,16 +135,25 @@ def calc_fg(altitude, Z_mo, MLW, MTOW, MZFW):
         fg = fg_sl + (1.0 - fg_sl) * altitude / Z_mo
     return fg
 
+
 def calc_pulse(dt, t_final, eps):
-    # Create a 1-cos pulse signal with timestep dt up to t_final with magnitude eps
+    # Create a pulse signal with timestep dt up to t_final with magnitude eps.
+    # The pulse uses a 5th-order polynomial following eq. 2.26 in [1].
+    # [1] Koch, C., “Whirl Flutter Stability Analysis Using Propeller Transfer Matrices”,
+    # Deutsches Zentrum für Luft- und Raumfahrt e. V. (DLR), 2024, https://doi.org/10.57676/BF00-1962.
+
+    # Pulse width in seconds, dt*60 should excite mostly low frequencies up to 10% of fmax.
+    tw = dt * 60
     t = np.arange(0.0, t_final + dt, dt)
-    # Time before pulse starts
-    lead_time = 0.1 
-    # Half-length of pulse in seconds
-    half_length = 0.2
-    # Calculate time signal
-    pulse = eps * 0.5 * (1 - np.cos(np.pi * (t - lead_time) / half_length))
-    # Set values outside the pulse to zero
-    pulse[np.where(t < lead_time)] = 0.0
-    pulse[np.where(t > half_length * 2.0 + lead_time)] = 0.0
+    # The pulse is assembled from two half pulses; the up and down strokes.
+    stroke_up = -4.0 * (2.0 * t / tw - 1.0)**5 - 15 * (2.0 * t / tw - 1.0)**4 - 20 * (2.0 * t / tw - 1.0)**3 \
+        - 10 * (2.0 * t / tw - 1.0)**2 + 1
+    stroke_down = +4.0 * (2.0 * t / tw - 1.0)**5 - 15 * (2.0 * t / tw - 1.0)**4 + 20 * (2.0 * t / tw - 1.0)**3 \
+        - 10 * (2.0 * t / tw - 1.0)**2 + 1
+    n_stroke = int(tw / 2 / dt)
+    n_lead = 10
+    pulse = np.zeros(t.shape)
+    pulse[n_lead:n_lead + n_stroke] = stroke_up[:n_stroke]
+    pulse[n_lead + n_stroke:n_lead + n_stroke * 2] = stroke_down[n_stroke:n_stroke * 2]
+    pulse *= eps
     return t, pulse
