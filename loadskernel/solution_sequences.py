@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import scipy.optimize as so
 from scipy.integrate import ode
+from scipy.fftpack import fft, fftfreq
 
 from loadskernel.integrate import RungeKutta4, ExplicitEuler, AdamsBashforth
 from loadskernel.equations.steady import Steady
@@ -21,7 +22,8 @@ from loadskernel.equations.state_space import StateSpaceAnalysis
 from loadskernel.equations.state_space import JacobiAnalysis
 from loadskernel.trim_conditions import TrimConditions
 from loadskernel.cfd_interfaces.tau_interface import TauError
-from loadskernel.io_functions.data_handling import load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load_hdf5_dict
+from loadskernel.solution_tools import calc_pulse
 
 
 class SolutionSequences(TrimConditions):
@@ -523,4 +525,104 @@ class SolutionSequences(TrimConditions):
         logging.info('Flutter analysis finished.')
         for key in response_flutter.keys():
             self.response[key] = response_flutter[key]
+        self.successful = True
+
+    def calc_gafs(self):
+        # Get initial solution from trim
+        X0 = self.response['X'][0, :]
+
+        # Inline function to calculate reduced frequencies, Nastran definition
+        def f2k(f):
+            Vtas = sum(X0[6:9] ** 2) ** 0.5
+            return 2.0 * np.pi * f * self.jcl.general['c_ref'] / 2.0 / Vtas
+
+        # Get number of modes
+        n_modes_rbm = 5
+        n_modes_flex = self.model['mass'][self.trimcase['mass']]['n_modes'][()]
+        n_modes_flex = 2  # for testing only
+        n_modes = n_modes_rbm + n_modes_flex
+        idx_modes = list(range(1, n_modes_rbm + 1)) + list(range(1 + n_modes_rbm + 6, 1 + n_modes_rbm + 6 + n_modes_flex))
+        logging.info(f'Calculating GAFs for {n_modes_rbm} rigid body modes and {n_modes_flex} flexible modes...')
+        # Load matrices
+        PHIcfd_strc = load_hdf5_sparse_matrix(self.model['PHIcfd_strc'])
+        PHIcfd_cg = self.model['mass'][self.trimcase['mass']]['PHIcfd_cg'][()]
+
+        # Step 1: set-up frequency parameters, generate pulse signal, and init storage
+        n_freqs = int(self.simcase['gaf_para']['fmax'] / self.simcase['gaf_para']['df'])
+        if n_freqs % 2 != 0:  # n_freq is odd
+            n_freqs += 1  # make even
+        # Calculate all parameters from the number of freqs
+        fmax = n_freqs * self.simcase['gaf_para']['df']
+        dt = 1.0 / fmax
+        t_final = 1.0 / self.simcase['gaf_para']['df']
+        # Update simcase for time domain simulation
+        self.simcase['dt'] = dt
+        self.simcase['t_final'] = t_final
+        # Whole frequency space including negative frequencies
+        fftfreqs = fftfreq(n_freqs, dt)
+        # Positive only frequencies where we need to calculate the TFs and excitations
+        positiv_fftfreqs = np.abs(fftfreqs[:n_freqs // 2 + 1])
+        # Only reduced frequencies < 3.0 are of interest
+        k = f2k(positiv_fftfreqs)
+        idx_k = np.where(k < 3.0)[0]
+        # Generate small-amplitude pulse signal
+        t, pulse = calc_pulse(dt, t_final, eps=0.01)
+        pulse_f = fft(pulse)
+        # Init storage for CFD forces
+        # To avoid an excessive amount of data, e.g. during unsteady cfd simulations,
+        # keep only the response data on the first mpi process (id = 0).
+        if self.myid == 0:
+            n_cfd = len(self.response['Pcfd'].squeeze())
+            Pcfd_ref = np.zeros((n_cfd, len(t)))
+            Pcfd_pulse = np.zeros((n_cfd, len(t)))
+            Pb = np.zeros((n_modes, 6, len(t)))
+            TFs = np.zeros((n_modes, self.model['strcgrid']['n'][()] * 6, len(idx_k)), dtype=complex)
+
+        # Step 2: Run reference simulation without pulse
+        # Select CFD solution sequence and initialize
+        equations = CfdUnsteady(self, X0)
+        logging.info(f'Running reference time simulation for {t_final} sec...')
+        # Loop over time steps
+        for i_step in range(len(t)):
+            X = copy.deepcopy(X0)
+            output_dict = equations.eval_equations(X, t[i_step], modus='sim_full_output')
+            if self.myid == 0:
+                Pcfd_ref[:, i_step] = output_dict['Pcfd']
+        equations.finalize()
+
+        # Step 3: Run pulse simulations for all modes
+        for i_mode, idx_mode in zip(range(n_modes), idx_modes):
+            # Re-initialze CFD solution sequence for each mode
+            equations = CfdUnsteady(self, X0)
+            logging.info(f'Running time simulation for mode {i_mode} for {t_final} sec...')
+            # Loop over time steps
+            for i_step in range(len(t)):
+                X = copy.deepcopy(X0)
+                X[idx_mode] += pulse[i_step]
+                output_dict = equations.eval_equations(X, t[i_step], modus='sim_full_output')
+                if self.myid == 0:
+                    Pcfd_pulse[:, i_step] = output_dict['Pcfd']
+            equations.finalize()
+
+            # Step 4: Calculate GAFs
+            logging.info('Calculating transfer functions...')
+            if self.myid == 0:
+                # Compensate for initial condition and drift over time, transfer to structural grid
+                Pcfd = Pcfd_pulse - Pcfd_ref
+                Pg = PHIcfd_strc.T.dot(Pcfd)
+                # Calculate transfer functions
+                Pg_f = fft(Pg, axis=1)
+                Tf = Pg_f / pulse_f
+                # Store
+                TFs[i_mode, :, :] = Tf[:, idx_k]
+                Pb[i_mode, :, :] = np.dot(PHIcfd_cg.T, Pcfd)
+
+        if self.myid == 0:
+            # Store results in response dictionary
+            self.response['pulse'] = pulse
+            self.response['t_gaf'] = t
+            self.response['Pb_gaf'] = Pb
+            self.response['k_red'] = k[idx_k]
+            self.response['GAFh_strc'] = TFs
+
         self.successful = True

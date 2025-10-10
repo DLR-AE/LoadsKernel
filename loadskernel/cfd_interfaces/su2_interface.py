@@ -515,11 +515,19 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             In the time domain, simply rely on the the density residual to establish convergence.
             This is because SU2 only needs a few inner iterations per time step, which are too few for a meaningful
             cauchy convergence.
+            In case of GAF computation, no convergence criterion can be used because the reference / zero solution
+            (without a pulse) has to be have exactly the same number of steps as the pulse solution.
             """
+            if 'gaf' in self.simcase and self.simcase['gaf']:
+                config['INNER_ITER'] = 4
+                if 'CONV_RESIDUAL_MINVAL' in config:
+                    config.pop('CONV_RESIDUAL_MINVAL')
+            else:
+                config['INNER_ITER'] = 30
+                config['CONV_RESIDUAL_MINVAL'] = -6
+            # Remove other convergence criteria
             if 'CONV_FIELD' in config:
                 config.pop('CONV_FIELD')
-            config['INNER_ITER'] = 30
-            config['CONV_RESIDUAL_MINVAL'] = -6
 
             # There is no need for restart solutions, they only take up storage space. Write plotting files only.
             config['OUTPUT_FILES'] = ['TECPLOT', 'SURFACE_TECPLOT']
