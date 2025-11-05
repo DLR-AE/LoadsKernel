@@ -542,9 +542,10 @@ class SolutionSequences(TrimConditions):
         n_modes_flex = 2  # for testing only
         n_modes = n_modes_rbm + n_modes_flex
         idx_modes = list(range(1, n_modes_rbm + 1)) + list(range(1 + n_modes_rbm + 6, 1 + n_modes_rbm + 6 + n_modes_flex))
-        logging.info(f'Calculating GAFs for {n_modes_rbm} rigid body modes and {n_modes_flex} flexible modes...')
+        logging.info('Calculating GAFs for %d rigid body modes and %d flexible modes...',
+                     n_modes_rbm, n_modes_flex)
         # Load matrices
-        PHIcfd_strc = load_hdf5_sparse_matrix(self.model['PHIcfd_strc'])
+        PHIk_cfd = load_hdf5_sparse_matrix(self.model['PHIk_cfd'])
         PHIcfd_cg = self.model['mass'][self.trimcase['mass']]['PHIcfd_cg'][()]
 
         # Step 1: set-up frequency parameters, generate pulse signal, and init storage
@@ -565,6 +566,7 @@ class SolutionSequences(TrimConditions):
         # Only reduced frequencies < 3.0 are of interest
         k = f2k(positiv_fftfreqs)
         idx_k = np.where(k < 3.0)[0]
+        k_red = k[idx_k]
         # Generate small-amplitude pulse signal
         t, pulse = calc_pulse(dt, t_final, eps=0.01)
         pulse_f = fft(pulse)
@@ -575,17 +577,17 @@ class SolutionSequences(TrimConditions):
             n_cfd = len(self.response['Pcfd'].squeeze())
             Pcfd_ref = np.zeros((n_cfd, len(t)))
             Pcfd_pulse = np.zeros((n_cfd, len(t)))
-            Pb = np.zeros((n_modes, 6, len(t)))
-            TFs = np.zeros((n_modes, self.model['strcgrid']['n'][()] * 6, len(idx_k)), dtype=complex)
+            Pb = np.zeros((6, n_modes, len(t)))
+            TFs = np.zeros((self.model['aerogrid']['n'][()] * 6, n_modes, len(k_red)), dtype=complex)
 
         # Step 2: Run reference simulation without pulse
         # Select CFD solution sequence and initialize
         equations = CfdUnsteady(self, X0)
-        logging.info(f'Running reference time simulation for {t_final} sec...')
+        logging.info('Running reference time simulation for %g sec...', t_final)
         # Loop over time steps
-        for i_step in range(len(t)):
+        for i_step, t_step in enumerate(t):
             X = copy.deepcopy(X0)
-            output_dict = equations.eval_equations(X, t[i_step], modus='sim_full_output')
+            output_dict = equations.eval_equations(X, t_step, modus='sim_full_output')
             if self.myid == 0:
                 Pcfd_ref[:, i_step] = output_dict['Pcfd']
         equations.finalize()
@@ -594,12 +596,12 @@ class SolutionSequences(TrimConditions):
         for i_mode, idx_mode in zip(range(n_modes), idx_modes):
             # Re-initialze CFD solution sequence for each mode
             equations = CfdUnsteady(self, X0)
-            logging.info(f'Running time simulation for mode {i_mode} for {t_final} sec...')
+            logging.info('Running time simulation for mode %d for %g sec...', i_mode, t_final)
             # Loop over time steps
-            for i_step in range(len(t)):
+            for i_step, t_step in enumerate(t):
                 X = copy.deepcopy(X0)
                 X[idx_mode] += pulse[i_step]
-                output_dict = equations.eval_equations(X, t[i_step], modus='sim_full_output')
+                output_dict = equations.eval_equations(X, t_step, modus='sim_full_output')
                 if self.myid == 0:
                     Pcfd_pulse[:, i_step] = output_dict['Pcfd']
             equations.finalize()
@@ -607,22 +609,22 @@ class SolutionSequences(TrimConditions):
             # Step 4: Calculate GAFs
             logging.info('Calculating transfer functions...')
             if self.myid == 0:
-                # Compensate for initial condition and drift over time, transfer to structural grid
+                # Compensate for initial condition and drift over time, transfer to aero grid 'k'
                 Pcfd = Pcfd_pulse - Pcfd_ref
-                Pg = PHIcfd_strc.T.dot(Pcfd)
+                Pk = PHIk_cfd.T.dot(Pcfd)
                 # Calculate transfer functions
-                Pg_f = fft(Pg, axis=1)
-                Tf = Pg_f / pulse_f
+                Pk_f = fft(Pk, axis=1)
+                Tf = Pk_f / pulse_f
                 # Store
-                TFs[i_mode, :, :] = Tf[:, idx_k]
-                Pb[i_mode, :, :] = np.dot(PHIcfd_cg.T, Pcfd)
+                TFs[:, i_mode, :] = Tf[:, idx_k]
+                Pb[:, i_mode, :] = np.dot(PHIcfd_cg.T, Pcfd)
 
         if self.myid == 0:
             # Store results in response dictionary
             self.response['pulse'] = pulse
             self.response['t_gaf'] = t
             self.response['Pb_gaf'] = Pb
-            self.response['k_red'] = k[idx_k]
-            self.response['GAFh_strc'] = TFs
+            self.response['k_red'] = k_red
+            self.response['GAFh_k'] = TFs
 
         self.successful = True
