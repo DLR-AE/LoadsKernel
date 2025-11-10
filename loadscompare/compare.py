@@ -96,7 +96,7 @@ class Compare():
         self.tabs_widget.addTab(tab_loads, 'Section Loads')
         # Elements of loads tab
         self.lb_dataset = QListWidget()
-        self.lb_dataset.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.lb_dataset.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.lb_dataset.itemSelectionChanged.connect(self.show_choice)
         self.lb_dataset.itemChanged.connect(self.update_desc)
 
