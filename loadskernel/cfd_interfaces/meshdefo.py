@@ -26,7 +26,8 @@ class Meshdefo():
                     Ujx2 += np.dot(self.Djx2[i_x2], [0, 0, 0, 0, Ux2[i_x2], 0])
                 elif hingeline == 'z':
                     Ujx2 += np.dot(self.Djx2[i_x2], [0, 0, 0, 0, 0, Ux2[i_x2]])
-            self.transfer_deformations(self.aerogrid, Ujx2, '_k', rbf_type='wendland2', surface_spline=False, support_radius=1.5)
+            self.transfer_deformations(self.aerogrid, Ujx2, '_k', rbf_type='wendland2',
+                                       surface_spline=False, support_radius=1.5)
         else:
             logging.info('Apply NO control surface deflections to cfdgrid.')
 
