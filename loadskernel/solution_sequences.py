@@ -565,7 +565,7 @@ class SolutionSequences(TrimConditions):
         positiv_fftfreqs = np.abs(fftfreqs[:n_freqs // 2 + 1])
         # Only reduced frequencies < 3.0 are of interest
         k = f2k(positiv_fftfreqs)
-        idx_k = np.where(k < 3.0)[0]
+        idx_k = np.where(k <= 3.0)[0]
         k_red = k[idx_k]
         # Generate small-amplitude pulse signal
         t, pulse = calc_pulse(dt, t_final, eps=0.001)
