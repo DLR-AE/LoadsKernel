@@ -568,8 +568,10 @@ class SolutionSequences(TrimConditions):
         idx_k = np.where(k < 3.0)[0]
         k_red = k[idx_k]
         # Generate small-amplitude pulse signal
-        t, pulse = calc_pulse(dt, t_final, eps=0.01)
+        t, pulse = calc_pulse(dt, t_final, eps=0.001)
         pulse_f = fft(pulse)
+        # The pulse's sign is used to align the aicraft rigid body motion with the nastran coordinate system
+        pulse_sign = [1.0, -1.0, -1.0, 1.0, -1.0] + [1.0] * n_modes_flex
         # Init storage for CFD forces
         # To avoid an excessive amount of data, e.g. during unsteady cfd simulations,
         # keep only the response data on the first mpi process (id = 0).
@@ -600,7 +602,7 @@ class SolutionSequences(TrimConditions):
             # Loop over time steps
             for i_step, t_step in enumerate(t):
                 X = copy.deepcopy(X0)
-                X[idx_mode] += pulse[i_step]
+                X[idx_mode] += pulse[i_step] * pulse_sign[i_mode]
                 output_dict = equations.eval_equations(X, t_step, modus='sim_full_output')
                 if self.myid == 0:
                     Pcfd_pulse[:, i_step] = output_dict['Pcfd']
