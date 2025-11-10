@@ -53,7 +53,7 @@ def my_setup():
                                         ],
                           'test': ['pytest',
                                    'pytest-cov',
-                                   'jupyter-book',
+                                   'jupyter-book==1.0.4',  # Jupyter book 2.xx is not yet generating static html pages
                                    'flake8',
                                    'pylint',
                                    ]},
