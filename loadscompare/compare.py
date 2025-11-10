@@ -83,7 +83,7 @@ class Compare():
         # Configure tabs widget
         self.tabs_widget = QTabWidget()
         # configure sizing, limit width of tabs widget in favor of plotting area
-        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self.tabs_widget.setSizePolicy(sizePolicy)
         self.tabs_widget.setMinimumWidth(300)
         self.tabs_widget.setMaximumWidth(450)
@@ -154,7 +154,7 @@ class Compare():
         self.canvas = FigureCanvasQTAgg(fig1)
         self.canvas.draw()
         # configure sizing, set minimum size
-        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self.canvas.setSizePolicy(sizePolicy)
         self.canvas.setMinimumWidth(800)
         self.canvas.setMinimumHeight(600)
