@@ -1,101 +1,123 @@
 """
 For the following tests, the loads-kernel-examples and the loads-kernel-reference-results are
-used, which are located in dedictaed repositories. The examples are cloned by the CI-Pipeline.
-The reference results are not updated automatically during testing, this has to be done manually.
-Finally, a tempory directory is used for the outputs in order to avoid pollution of the
-repositories.
+used, which are located in dedictaed repositories. The examples are cloned by the first test.
+A tempory directory is used for the outputs in order to avoid pollution of the user's workspace.
 """
 
 import logging
 import os
 import shlex
 import subprocess
-
 import pytest
+from git import Repo
 
 from loadskernel import program_flow, io_functions
 from tests.helper_functions import HelperFunctions
 
 
-path_examples = './loads-kernel-examples/'
-path_reference = '/work/voss_ar/loads-kernel-reference-results/'
-
-
-@pytest.fixture(scope='class')
-def get_test_dir(tmpdir_factory):
+@pytest.fixture(name='tmp_output', scope='class')
+def fixture_tmp_output(tmpdir_factory):
     test_dir = tmpdir_factory.mktemp('output')
     test_dir = io_functions.data_handling.check_path(test_dir)
     return str(test_dir)
 
 
+@pytest.fixture(name='examples_repo', scope='session')
+def fixture_examples_repo(tmpdir_factory):
+    # Clone the examples repository and return its path
+    repo = Repo.clone_from('git@gitlab.dlr.de:loads-kernel/loads-kernel-examples.git',
+                           tmpdir_factory.mktemp('loads-kernel-examples'))
+    repo_path = io_functions.data_handling.check_path(repo.working_dir)
+    return repo_path
+
+
+@pytest.fixture(name='reference_repo', scope='session')
+def fixture_reference_repo(tmpdir_factory):
+    # Clone the reference results. As above, but to save some time omitt the repo's history.
+    repo = Repo.clone_from('git@gitlab.dlr.de:loads-kernel/loads-kernel-reference-results.git',
+                           tmpdir_factory.mktemp('loads-kernel-reference-results'),
+                           depth=1, filter=['tree:0', 'blob:none'])
+    repo_path = io_functions.data_handling.check_path(repo.working_dir)
+    return repo_path
+
+
+class TestCloneRepositories():
+
+    def test_clone_repositories_once(self, examples_repo, reference_repo):
+        # This test is used to trigger the cloning of the repositories once at the beginning of a pytest session.
+        logging.info('Cloned repositories to: ')
+        logging.info(' - %s', examples_repo)
+        logging.info(' - %s', reference_repo)
+
+
 class PreMainPostFunctional(HelperFunctions):
     job_name = 'jcl_Discus2c'
-    path_input = os.path.join(path_examples, 'Discus2c', 'JCLs')
+    aircraft_name = 'Discus2c'
 
-    def test_preprocessing_functional(self, get_test_dir):
+    def test_preprocessing_functional(self, tmp_output, examples_repo):
         # Here you launch the Loads Kernel with your job
         k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False,
-                                path_input=self.path_input,
-                                path_output=get_test_dir)
+                                path_input=os.path.join(examples_repo, self.aircraft_name, 'JCLs'),
+                                path_output=tmp_output)
         k.run()
 
-    def test_mainprocessing_functional(self, get_test_dir):
+    def test_mainprocessing_functional(self, tmp_output, examples_repo):
         # Here you launch the Loads Kernel with your job
         k = program_flow.Kernel(self.job_name, pre=False, main=True, post=False,
-                                path_input=self.path_input,
-                                path_output=get_test_dir)
+                                path_input=os.path.join(examples_repo, self.aircraft_name, 'JCLs'),
+                                path_output=tmp_output)
         k.run()
 
-    def test_postprocessing_functional(self, get_test_dir):
+    def test_postprocessing_functional(self, tmp_output, examples_repo):
         # Here you launch the Loads Kernel with your job
         k = program_flow.Kernel(self.job_name, pre=False, main=False, post=True,
-                                path_input=self.path_input,
-                                path_output=get_test_dir)
+                                path_input=os.path.join(examples_repo, self.aircraft_name, 'JCLs'),
+                                path_output=tmp_output)
         k.run()
 
 
 class TestDiscus2c(PreMainPostFunctional):
     job_name = 'jcl_Discus2c'
-    path_input = os.path.join(path_examples, 'Discus2c', 'JCLs')
+    aircraft_name = 'Discus2c'
 
-    def test_preprocessing_results(self, get_test_dir):
+    def test_preprocessing_results(self, tmp_output, reference_repo):
         # do comparisons
         logging.info('Comparing model with reference')
-        model = io_functions.data_handling.load_hdf5(get_test_dir + 'model_' + self.job_name + '.hdf5')
-        reference_model = io_functions.data_handling.load_hdf5(path_reference + 'model_' + self.job_name + '.hdf5')
+        model = io_functions.data_handling.load_hdf5(tmp_output + 'model_' + self.job_name + '.hdf5')
+        reference_model = io_functions.data_handling.load_hdf5(reference_repo + 'model_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(model, reference_model), "model does NOT match reference"
 
-    def test_mainprocessing_results(self, get_test_dir):
+    def test_mainprocessing_results(self, tmp_output, reference_repo):
         # do comparisons
         logging.info('Comparing response with reference')
-        responses = io_functions.data_handling.load_hdf5_responses(self.job_name, get_test_dir)
-        reference_responses = io_functions.data_handling.load_hdf5_responses(self.job_name, path_reference)
+        responses = io_functions.data_handling.load_hdf5_responses(self.job_name, tmp_output)
+        reference_responses = io_functions.data_handling.load_hdf5_responses(self.job_name, reference_repo)
         assert self.compare_lists(responses, reference_responses), "response does NOT match reference"
 
         logging.info('Comparing monstations with reference')
-        monstations = io_functions.data_handling.load_hdf5(get_test_dir + 'monstations_' + self.job_name + '.hdf5')
-        reference_monstations = io_functions.data_handling.load_hdf5(path_reference + 'monstations_' + self.job_name + '.hdf5')
+        monstations = io_functions.data_handling.load_hdf5(tmp_output + 'monstations_' + self.job_name + '.hdf5')
+        reference_monstations = io_functions.data_handling.load_hdf5(reference_repo + 'monstations_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(monstations, reference_monstations), "monstations do NOT match reference"
 
         # do comparisons
         logging.info('Comparing dyn2stat with reference')
-        dyn2stat_data = io_functions.data_handling.load_hdf5(get_test_dir + 'dyn2stat_' + self.job_name + '.hdf5')
-        reference_dyn2stat_data = io_functions.data_handling.load_hdf5(path_reference + 'dyn2stat_' + self.job_name + '.hdf5')
+        dyn2stat_data = io_functions.data_handling.load_hdf5(tmp_output + 'dyn2stat_' + self.job_name + '.hdf5')
+        reference_dyn2stat_data = io_functions.data_handling.load_hdf5(reference_repo + 'dyn2stat_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(dyn2stat_data, reference_dyn2stat_data), "dyn2stat does NOT match reference"
 
-    def test_postprocessing_results(self, get_test_dir):
+    def test_postprocessing_results(self, tmp_output, reference_repo):
         # do comparisons
         logging.info('Comparing crit_trimcases with reference')
-        with open(get_test_dir + 'crit_trimcases_' + self.job_name + '.csv', 'r') as f:
+        with open(tmp_output + 'crit_trimcases_' + self.job_name + '.csv', 'r') as f:
             lines = f.readlines()
-        with open(path_reference + 'crit_trimcases_' + self.job_name + '.csv', 'r') as f:
+        with open(reference_repo + 'crit_trimcases_' + self.job_name + '.csv', 'r') as f:
             reference_lines = f.readlines()
         assert self.compare_lists(lines, reference_lines), "crit_trimcases do NOT match reference"
 
         logging.info('Comparing subcases with reference')
-        with open(get_test_dir + 'nodalloads_' + self.job_name + '.bdf_subcases', 'r') as f:
+        with open(tmp_output + 'nodalloads_' + self.job_name + '.bdf_subcases', 'r') as f:
             lines = f.readlines()
-        with open(path_reference + 'nodalloads_' + self.job_name + '.bdf_subcases', 'r') as f:
+        with open(reference_repo + 'nodalloads_' + self.job_name + '.bdf_subcases', 'r') as f:
             reference_lines = f.readlines()
         assert self.compare_lists(
             lines, reference_lines), "subcases do NOT match reference"
@@ -103,90 +125,92 @@ class TestDiscus2c(PreMainPostFunctional):
 
 class TestDiscus2cParallelProcessing(HelperFunctions):
     job_name = 'jcl_Discus2c_parallelprocessing'
-    path_input = os.path.join(path_examples, 'Discus2c', 'JCLs')
+    aircraft_name = 'Discus2c'
 
-    def test_preprocessing_functional_via_command_line_interface(self, get_test_dir):
+    def test_preprocessing_functional_via_command_line_interface(self, tmp_output, examples_repo):
         # Here we us the command line interface
-        args = shlex.split('loads-kernel --job_name %s \
+        args = shlex.split("loads-kernel --job_name {self.job_name} \
             --pre True --main False --post False \
-            --path_input %s --path_output %s' % (self.job_name, self.path_input, get_test_dir))
-        out = subprocess.run(args, env=os.environ)
+            --path_input {os.path.join(examples_repo, self.aircraft_name, 'JCLs')} \
+            --path_output {tmp_output}")
+        out = subprocess.run(args, env=os.environ, check=False)
         assert out.returncode == 0, "subprocess failed: " + str(args)
 
-    def test_mainprocessing_functional_via_command_line_interface(self, get_test_dir):
+    def test_mainprocessing_functional_via_command_line_interface(self, tmp_output, examples_repo):
         # Here we us the command line interface
-        args = shlex.split('mpiexec -n 2 loads-kernel --job_name %s \
+        args = shlex.split(f"mpiexec -n 2 loads-kernel --job_name {self.job_name} \
             --pre False --main True --post False \
-            --path_input %s --path_output %s' % (self.job_name, self.path_input, get_test_dir))
-        out = subprocess.run(args, env=os.environ)
+            --path_input {os.path.join(examples_repo, self.aircraft_name, 'JCLs')} \
+            --path_output {tmp_output}")
+        out = subprocess.run(args, env=os.environ, check=False)
         assert out.returncode == 0, "subprocess failed: " + str(args)
 
-    def test_preprocessing_results(self, get_test_dir):
+    def test_preprocessing_results(self, tmp_output, reference_repo):
         # do comparisons
         logging.info('Comparing model with reference')
-        model = io_functions.data_handling.load_hdf5(get_test_dir + 'model_' + self.job_name + '.hdf5')
-        reference_model = io_functions.data_handling.load_hdf5(path_reference + 'model_' + self.job_name + '.hdf5')
+        model = io_functions.data_handling.load_hdf5(tmp_output + 'model_' + self.job_name + '.hdf5')
+        reference_model = io_functions.data_handling.load_hdf5(reference_repo + 'model_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(model, reference_model), "model does NOT match reference"
 
-    def test_mainprocessing_results(self, get_test_dir):
+    def test_mainprocessing_results(self, tmp_output, reference_repo):
         # do comparisons
         logging.info('Comparing response with reference')
-        responses = io_functions.data_handling.load_hdf5_responses(self.job_name, get_test_dir)
-        reference_responses = io_functions.data_handling.load_hdf5_responses(self.job_name, path_reference)
+        responses = io_functions.data_handling.load_hdf5_responses(self.job_name, tmp_output)
+        reference_responses = io_functions.data_handling.load_hdf5_responses(self.job_name, reference_repo)
         assert self.compare_lists(responses, reference_responses), "response does NOT match reference"
 
         logging.info('Comparing monstations with reference')
-        monstations = io_functions.data_handling.load_hdf5(get_test_dir + 'monstations_' + self.job_name + '.hdf5')
-        reference_monstations = io_functions.data_handling.load_hdf5(path_reference + 'monstations_' + self.job_name + '.hdf5')
+        monstations = io_functions.data_handling.load_hdf5(tmp_output + 'monstations_' + self.job_name + '.hdf5')
+        reference_monstations = io_functions.data_handling.load_hdf5(reference_repo + 'monstations_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(monstations, reference_monstations), "monstations do NOT match reference"
 
         # do comparisons
         logging.info('Comparing dyn2stat with reference')
-        dyn2stat_data = io_functions.data_handling.load_hdf5(get_test_dir + 'dyn2stat_' + self.job_name + '.hdf5')
-        reference_dyn2stat_data = io_functions.data_handling.load_hdf5(path_reference + 'dyn2stat_' + self.job_name + '.hdf5')
+        dyn2stat_data = io_functions.data_handling.load_hdf5(tmp_output + 'dyn2stat_' + self.job_name + '.hdf5')
+        reference_dyn2stat_data = io_functions.data_handling.load_hdf5(reference_repo + 'dyn2stat_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(dyn2stat_data, reference_dyn2stat_data), "dyn2stat does NOT match reference"
 
 
 class TestDiscus2cNonlinSteady(TestDiscus2c):
     job_name = 'jcl_Discus2c_nonlin_steady'
-    path_input = os.path.join(path_examples, 'Discus2c', 'JCLs')
+    aircraft_name = 'Discus2c'
 
 
 class TestDiscus2cTimedom(TestDiscus2c):
     job_name = 'jcl_Discus2c_timedom'
-    path_input = os.path.join(path_examples, 'Discus2c', 'JCLs')
+    aircraft_name = 'Discus2c'
 
 
 class TestDiscus2cB2000(TestDiscus2c):
     job_name = 'jcl_Discus2c_B2000'
-    path_input = os.path.join(path_examples, 'Discus2c', 'JCLs')
+    aircraft_name = 'Discus2c'
 
 
 class TestAllegraTimedom(TestDiscus2c):
     job_name = 'jcl_ALLEGRA_timedom'
-    path_input = os.path.join(path_examples, 'Allegra', 'JCLs')
+    aircraft_name = 'Allegra'
 
 
 class TestAllegraFreqdom(TestDiscus2c):
     job_name = 'jcl_ALLEGRA_freqdom'
-    path_input = os.path.join(path_examples, 'Allegra', 'JCLs')
+    aircraft_name = 'Allegra'
 
 
 class TestAllegraFlutter(PreMainPostFunctional):
     job_name = 'jcl_ALLEGRA_flutter'
-    path_input = os.path.join(path_examples, 'Allegra', 'JCLs')
+    aircraft_name = 'Allegra'
 
-    def test_preprocessing_results(self, get_test_dir):
+    def test_preprocessing_results(self, tmp_output, reference_repo):
         # do comparisons
         logging.info('Comparing model with reference')
-        model = io_functions.data_handling.load_hdf5(get_test_dir + 'model_' + self.job_name + '.hdf5')
-        reference_model = io_functions.data_handling.load_hdf5(path_reference + 'model_' + self.job_name + '.hdf5')
+        model = io_functions.data_handling.load_hdf5(tmp_output + 'model_' + self.job_name + '.hdf5')
+        reference_model = io_functions.data_handling.load_hdf5(reference_repo + 'model_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(model, reference_model), "model does NOT match reference"
 
-    def test_mainprocessing_results(self, get_test_dir):
+    def test_mainprocessing_results(self, tmp_output, reference_repo):
         logging.info('Comparing response with reference')
-        responses = io_functions.data_handling.load_hdf5_responses(self.job_name, get_test_dir)
-        reference_responses = io_functions.data_handling.load_hdf5_responses(self.job_name, path_reference)
+        responses = io_functions.data_handling.load_hdf5_responses(self.job_name, tmp_output)
+        reference_responses = io_functions.data_handling.load_hdf5_responses(self.job_name, reference_repo)
 
         # Responses 0 and 1: For the K and KE method, Vtas, damping and frequencies are quantities of interest.
         for resp_a, resp_b in zip(responses[:2], reference_responses[:2]):
@@ -215,33 +239,33 @@ class TestAllegraFlutter(PreMainPostFunctional):
 
 class TestAllegraLimitTurbulence(PreMainPostFunctional):
     job_name = 'jcl_ALLEGRA_limitturbulence'
-    path_input = os.path.join(path_examples, 'Allegra', 'JCLs')
+    aircraft_name = 'Allegra'
 
-    def test_preprocessing_results(self, get_test_dir):
+    def test_preprocessing_results(self, tmp_output, reference_repo):
         # do comparisons
         logging.info('Comparing model with reference')
-        model = io_functions.data_handling.load_hdf5(get_test_dir + 'model_' + self.job_name + '.hdf5')
-        reference_model = io_functions.data_handling.load_hdf5(path_reference + 'model_' + self.job_name + '.hdf5')
+        model = io_functions.data_handling.load_hdf5(tmp_output + 'model_' + self.job_name + '.hdf5')
+        reference_model = io_functions.data_handling.load_hdf5(reference_repo + 'model_' + self.job_name + '.hdf5')
         assert self.compare_dictionaries(model, reference_model), "model does NOT match reference"
 
-    def test_mainprocessing_results(self, get_test_dir):
+    def test_mainprocessing_results(self, tmp_output, reference_repo):
         # do comparisons
         logging.info('Comparing response with reference')
-        responses = io_functions.data_handling.load_hdf5_responses(self.job_name, get_test_dir)
-        reference_responses = io_functions.data_handling.load_hdf5_responses(self.job_name, path_reference)
+        responses = io_functions.data_handling.load_hdf5_responses(self.job_name, tmp_output)
+        reference_responses = io_functions.data_handling.load_hdf5_responses(self.job_name, reference_repo)
         assert self.compare_lists(responses, reference_responses), "response does NOT match reference"
 
 
 class TestHAPO6Trim(TestDiscus2c):
     job_name = 'jcl_HAP-O6'
-    path_input = os.path.join(path_examples, 'HAP-O6', 'JCLs')
+    aircraft_name = 'HAP-O6'
 
 
 class TestHAPO6Derivatives(TestAllegraLimitTurbulence):
     job_name = 'jcl_HAP-O6_derivatives'
-    path_input = os.path.join(path_examples, 'HAP-O6', 'JCLs')
+    aircraft_name = 'HAP-O6'
 
 
 class TestHAPO6StateSpaceSystem(TestAllegraLimitTurbulence):
     job_name = 'jcl_HAP-O6_sss'
-    path_input = os.path.join(path_examples, 'HAP-O6', 'JCLs')
+    aircraft_name = 'HAP-O6'

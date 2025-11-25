@@ -48,14 +48,14 @@ def my_setup():
                                      'pyface',
                                      'jupyter',
                                      'pyiges',  # only available with pip, not with conda
+                                     'pyfmi'
                                      ],
-                          'difficult': ['pyfmi',  # frequent version conflicts
-                                        ],
                           'test': ['pytest',
                                    'pytest-cov',
                                    'jupyter-book',
                                    'flake8',
                                    'pylint',
+                                   'gitpython'
                                    ]},
           )
 
