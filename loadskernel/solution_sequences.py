@@ -539,7 +539,7 @@ class SolutionSequences(TrimConditions):
         # Get number of modes
         n_modes_rbm = 5
         n_modes_flex = self.model['mass'][self.trimcase['mass']]['n_modes'][()]
-        n_modes_flex = 2  # for testing only
+        # n_modes_flex = 2  # for testing only
         n_modes = n_modes_rbm + n_modes_flex
         idx_modes = list(range(1, n_modes_rbm + 1)) + list(range(1 + n_modes_rbm + 6, 1 + n_modes_rbm + 6 + n_modes_flex))
         logging.info('Calculating GAFs for %d rigid body modes and %d flexible modes...',
@@ -568,10 +568,10 @@ class SolutionSequences(TrimConditions):
         idx_k = np.where(k < 3.0)[0]
         k_red = k[idx_k]
         # Generate small-amplitude pulse signal
-        t, pulse = calc_pulse(dt, t_final, eps=0.001)
+        t, pulse = calc_pulse(dt, t_final, eps=0.01)
         pulse_f = fft(pulse)
         # The pulse's sign is used to align the aicraft rigid body motion with the nastran coordinate system
-        pulse_sign = [1.0, -1.0, -1.0, 1.0, -1.0] + [1.0] * n_modes_flex
+        pulse_factor = [0.1, -0.1, -0.1, 0.1, -0.1] + [1.0] * n_modes_flex
         # Init storage for CFD forces
         # To avoid an excessive amount of data, e.g. during unsteady cfd simulations,
         # keep only the response data on the first mpi process (id = 0).
@@ -602,7 +602,7 @@ class SolutionSequences(TrimConditions):
             # Loop over time steps
             for i_step, t_step in enumerate(t):
                 X = copy.deepcopy(X0)
-                X[idx_mode] += pulse[i_step] * pulse_sign[i_mode]
+                X[idx_mode] += pulse[i_step] * pulse_factor[i_mode]
                 output_dict = equations.eval_equations(X, t_step, modus='sim_full_output')
                 if self.myid == 0:
                     Pcfd_pulse[:, i_step] = output_dict['Pcfd']
@@ -616,7 +616,7 @@ class SolutionSequences(TrimConditions):
                 Pk = PHIk_cfd.T.dot(Pcfd)
                 # Calculate transfer functions
                 Pk_f = fft(Pk, axis=1)
-                Tf = Pk_f / pulse_f
+                Tf = Pk_f / (pulse_f * np.abs(pulse_factor[i_mode]))
                 # Store
                 TFs[:, i_mode, :] = Tf[:, idx_k]
                 Pb[:, i_mode, :] = np.dot(PHIcfd_cg.T, Pcfd)
