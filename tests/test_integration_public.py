@@ -28,7 +28,7 @@ def fixture_tutorials_repo():
 @pytest.fixture(name='reference_repo', scope='session')
 def fixture_reference_repo():
     # The reference results repository was cloned by the pipeline, so just check the path.
-    repo_path = io_functions.data_handling.check_path(os.path.join('..', 'LoadsKernel-public-reference-results'))
+    repo_path = io_functions.data_handling.check_path(os.path.join('.', 'LoadsKernel-public-reference-results'))
     return repo_path
 
 
