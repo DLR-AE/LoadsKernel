@@ -34,6 +34,10 @@ LongTermContinuousIntegration:
     # Install with -e (in editable mode) to allow the tracking of the test coverage
     - pip install -e .[test,extras]
     - pip list
+    # Get the examples repository
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
+    # Get the reference results repository 
+    - git clone --depth=1 --filter=blob:none https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-reference-results.git
     # Run the actual testing of the code with pytest
     # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
     - python -m pytest -v --basetemp=./tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml

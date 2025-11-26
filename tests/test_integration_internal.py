@@ -1,6 +1,8 @@
 """
+Comprehensive integration tests are performed and compared against long standing reference
+results. This is an internal process and the repositories can only be accessed from within DLR.
 For the following tests, the loads-kernel-examples and the loads-kernel-reference-results are
-used, which are located in dedictaed repositories. The examples are cloned by the first test.
+used, which are located in dedictaed repositories, which are cloned by the GitLab pipeline.
 A tempory directory is used for the outputs in order to avoid pollution of the user's workspace.
 """
 
@@ -9,7 +11,6 @@ import os
 import shlex
 import subprocess
 import pytest
-from git import Repo
 
 from loadskernel import program_flow, io_functions
 from tests.helper_functions import HelperFunctions
@@ -24,28 +25,23 @@ def fixture_tmp_output(tmpdir_factory):
 
 @pytest.fixture(name='examples_repo', scope='session')
 def fixture_examples_repo(tmpdir_factory):
-    # Clone the examples repository and return its path
-    repo = Repo.clone_from('git@gitlab.dlr.de:loads-kernel/loads-kernel-examples.git',
-                           tmpdir_factory.mktemp('loads-kernel-examples'))
-    repo_path = io_functions.data_handling.check_path(repo.working_dir)
+    # The examples repository was cloned by the pipeline already. So just check out the path.
+    repo_path = io_functions.data_handling.check_path(os.path.join('.', 'loads-kernel-examples'))
     return repo_path
 
 
 @pytest.fixture(name='reference_repo', scope='session')
 def fixture_reference_repo(tmpdir_factory):
-    # Clone the reference results. As above, but to save some time omitt the repo's history.
-    repo = Repo.clone_from('git@gitlab.dlr.de:loads-kernel/loads-kernel-reference-results.git',
-                           tmpdir_factory.mktemp('loads-kernel-reference-results'),
-                           depth=1, filter=['tree:0', 'blob:none'])
-    repo_path = io_functions.data_handling.check_path(repo.working_dir)
+    # The reference results repository was cloned by the pipeline, too.
+    repo_path = io_functions.data_handling.check_path(os.path.join('.', 'loads-kernel-reference-results'))
     return repo_path
 
 
-class TestCloneRepositories():
+class TestClonedRepositories():
 
-    def test_clone_repositories_once(self, examples_repo, reference_repo):
-        # This test is used to trigger the cloning of the repositories once at the beginning of a pytest session.
-        logging.info('Cloned repositories to: ')
+    def test_cloned_repositories_once(self, examples_repo, reference_repo):
+        # This test is used to run the fixtures once / check if the cloned repositories are there.
+        logging.info('Cloned repositories are here: ')
         logging.info(' - %s', examples_repo)
         logging.info(' - %s', reference_repo)
 
