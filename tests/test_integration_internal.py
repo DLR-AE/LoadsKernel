@@ -31,7 +31,7 @@ def fixture_examples_repo(tmpdir_factory):
 
 
 @pytest.fixture(name='reference_repo', scope='session')
-def fixture_reference_repo(tmpdir_factory):
+def fixture_reference_repo():
     # The reference results repository was cloned by the pipeline, too.
     repo_path = io_functions.data_handling.check_path(os.path.join('.', 'loads-kernel-reference-results'))
     return repo_path
@@ -41,7 +41,7 @@ class TestClonedRepositories():
 
     def test_cloned_repositories_once(self, examples_repo, reference_repo):
         # This test is used to run the fixtures once / check if the cloned repositories are there.
-        logging.info('Cloned repositories are here: ')
+        logging.info('Cloned repositories are here:')
         logging.info(' - %s', examples_repo)
         logging.info(' - %s', reference_repo)
 
