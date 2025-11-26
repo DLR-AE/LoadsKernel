@@ -41,9 +41,6 @@ jobs:
         conda install -y -q --file ./tests/list_of_packages.txt  || true
         # Install the package itself to make sure that all imports work.
         pip install -e .[extras,test]
-    - name: Get the public reference results repository
-      run: |
-        git clone --depth=1 --filter=blob:none https://github.com/DLR-AE/LoadsKernel-public-reference-results.git
     - name: Analysing the code with pytest
       run: |
         source $CONDA/etc/profile.d/conda.sh
