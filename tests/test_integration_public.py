@@ -114,12 +114,12 @@ class TestDC3Trim(PreMainPostFunctional):
             lines, reference_lines), "subcases do NOT match reference"
 
 
-class TestDC3Maneuvers(PreMainPostFunctional):
+class TestDC3Maneuvers(TestDC3Trim):
     job_name = 'jcl_dc3_maneuvers'
     aircraft_name = 'DC3_model'
 
 
-class TestDC3Gust(PreMainPostFunctional):
+class TestDC3Gust(TestDC3Trim):
     job_name = 'jcl_dc3_gust_H23'
     aircraft_name = 'DC3_model'
 
