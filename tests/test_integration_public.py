@@ -5,10 +5,7 @@ functional tests without comparison to reference results.
 
 import logging
 import os
-import shlex
-import subprocess
 import pytest
-from git import Repo
 
 from loadskernel import program_flow, io_functions
 from tests.helper_functions import HelperFunctions
