@@ -125,7 +125,7 @@ class TestDiscus2cParallelProcessing(HelperFunctions):
 
     def test_preprocessing_functional_via_command_line_interface(self, tmp_output, examples_repo):
         # Here we us the command line interface
-        args = shlex.split("loads-kernel --job_name {self.job_name} \
+        args = shlex.split(f"loads-kernel --job_name {self.job_name} \
             --pre True --main False --post False \
             --path_input {os.path.join(examples_repo, self.aircraft_name, 'JCLs')} \
             --path_output {tmp_output}")
