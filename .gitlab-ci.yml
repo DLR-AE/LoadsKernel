@@ -39,7 +39,7 @@ LongTermContinuousIntegration:
     # Get the internal reference results repository 
     - git clone --depth=1 --filter=blob:none https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-reference-results.git ../loads-kernel-reference-results
     # Get the public reference results repository 
-    - git clone --depth=1 --filter=blob:none git@github.com:DLR-AE/LoadsKernel-public-reference-results.git ../LoadsKernel-public-reference-results
+    - git clone --depth=1 --filter=blob:none https://github.com/DLR-AE/LoadsKernel-public-reference-results.git ../LoadsKernel-public-reference-results
     # Run the actual testing of the code with pytest
     # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
     - python -m pytest -v --basetemp=./tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml

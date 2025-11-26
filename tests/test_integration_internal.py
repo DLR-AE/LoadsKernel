@@ -26,14 +26,14 @@ def fixture_tmp_output(tmpdir_factory):
 @pytest.fixture(name='examples_repo', scope='session')
 def fixture_examples_repo(tmpdir_factory):
     # The examples repository was cloned by the pipeline already. So just check out the path.
-    repo_path = io_functions.data_handling.check_path(os.path.join('.', 'loads-kernel-examples'))
+    repo_path = io_functions.data_handling.check_path(os.path.join('..', 'loads-kernel-examples'))
     return repo_path
 
 
 @pytest.fixture(name='reference_repo', scope='session')
 def fixture_reference_repo():
     # The reference results repository was cloned by the pipeline, too.
-    repo_path = io_functions.data_handling.check_path(os.path.join('.', 'loads-kernel-reference-results'))
+    repo_path = io_functions.data_handling.check_path(os.path.join('..', 'loads-kernel-reference-results'))
     return repo_path
 
 
