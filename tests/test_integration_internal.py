@@ -24,7 +24,7 @@ def fixture_tmp_output(tmpdir_factory):
 
 
 @pytest.fixture(name='examples_repo', scope='session')
-def fixture_examples_repo(tmpdir_factory):
+def fixture_examples_repo():
     # The examples repository was cloned by the pipeline already. So just check out the path.
     repo_path = io_functions.data_handling.check_path(os.path.join('.', 'loads-kernel-examples'))
     return repo_path
@@ -104,16 +104,16 @@ class TestDiscus2c(PreMainPostFunctional):
     def test_postprocessing_results(self, tmp_output, reference_repo):
         # do comparisons
         logging.info('Comparing crit_trimcases with reference')
-        with open(tmp_output + 'crit_trimcases_' + self.job_name + '.csv', 'r') as f:
+        with open(tmp_output + 'crit_trimcases_' + self.job_name + '.csv', 'r', encoding="utf-8") as f:
             lines = f.readlines()
-        with open(reference_repo + 'crit_trimcases_' + self.job_name + '.csv', 'r') as f:
+        with open(reference_repo + 'crit_trimcases_' + self.job_name + '.csv', 'r', encoding="utf-8") as f:
             reference_lines = f.readlines()
         assert self.compare_lists(lines, reference_lines), "crit_trimcases do NOT match reference"
 
         logging.info('Comparing subcases with reference')
-        with open(tmp_output + 'nodalloads_' + self.job_name + '.bdf_subcases', 'r') as f:
+        with open(tmp_output + 'nodalloads_' + self.job_name + '.bdf_subcases', 'r', encoding="utf-8") as f:
             lines = f.readlines()
-        with open(reference_repo + 'nodalloads_' + self.job_name + '.bdf_subcases', 'r') as f:
+        with open(reference_repo + 'nodalloads_' + self.job_name + '.bdf_subcases', 'r', encoding="utf-8") as f:
             reference_lines = f.readlines()
         assert self.compare_lists(
             lines, reference_lines), "subcases do NOT match reference"
