@@ -282,6 +282,11 @@ class TestHAPO6StateSpaceSystem(TestAllegraLimitTurbulence):
 class TestDC3Trim(HelperFunctions):
     job_name = 'jcl_dc3_trim'
     aircraft_name = 'DC3_model'
+    # Because the DC3 model uses up to 70 elastic modes, small differences are very likely to occur in the modal analaysis
+    # depending on the hard- and software setup. The sum of the mass and stiffness matrices is a good / more relaxed
+    # way to check if the model is basically correct.
+    list_sum = ['eigenvalues', 'eigenvectors', 'freqs', 'damping']  # Repetition from HelperFunctions
+    list_sum += ['Mff', 'Mhh', 'Kff', 'Khh']
 
     def test_preprocessing_functional(self, tmp_output, tutorials_repo):
         # Here you launch the Loads Kernel with your job
@@ -360,6 +365,11 @@ class TestDC3Gust(TestDC3Trim):
 class TestDC3Flutter(HelperFunctions):
     job_name = 'jcl_dc3_flutter'
     aircraft_name = 'DC3_model'
+    # Because the DC3 model uses up to 70 elastic modes, small differences are very likely to occur in the modal analaysis
+    # depending on the hard- and software setup. The sum of the mass and stiffness matrices is a good / more relaxed
+    # way to check if the model is basically correct.
+    list_sum = ['eigenvalues', 'eigenvectors', 'freqs', 'damping']  # Repetition from HelperFunctions
+    list_sum += ['Mff', 'Mhh', 'Kff', 'Khh']
 
     def test_preprocessing_functional(self, tmp_output, tutorials_repo):
         # Here you launch the Loads Kernel with your job
