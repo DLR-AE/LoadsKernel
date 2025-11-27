@@ -18,6 +18,7 @@ traits
 traitsui
 pyface
 jupyter
+pyfmi
 
 # Regression tests
 pytest

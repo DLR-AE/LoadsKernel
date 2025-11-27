@@ -2,6 +2,8 @@
 .pytest_cache/
 LoadsKernel.egg-info
 loads-kernel-examples
+loads-kernel-reference-results
+LoadsKernel-public-reference-results
 .settings/
 .vscode/
 .project
