@@ -8,7 +8,7 @@ stages:
 .virtenv: &virtualenv
   - source /work/f_jwsb/software/miniforge3/etc/profile.d/conda.sh
   # This is the environment where I installed all dependencies.
-  - conda activate lk_ci_python3.12
+  - conda activate lk_ci
   # To make things faster, re-use existing site packages. 
   - python -m venv virtualenv --system-site-packages
   - source virtualenv/bin/activate
@@ -34,11 +34,13 @@ LongTermContinuousIntegration:
     # Install with -e (in editable mode) to allow the tracking of the test coverage
     - pip install -e .[test,extras]
     - pip list
-    # Get the examples repository
+    # Get the internal examples repository
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
+    # Get the internal reference results repository 
+    - git clone --depth=1 --filter=blob:none https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-reference-results.git
     # Run the actual testing of the code with pytest
     # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
-    - python -m pytest -v --basetemp=./tmp --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
+    - python -m pytest -v --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
     # Create some reports
     - coverage report
     - coverage xml -o coverage.xml

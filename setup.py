@@ -48,14 +48,14 @@ def my_setup():
                                      'pyface',
                                      'jupyter',
                                      'pyiges',  # only available with pip, not with conda
+                                     'pyfmi'
                                      ],
-                          'difficult': ['pyfmi',  # frequent version conflicts
-                                        ],
                           'test': ['pytest',
                                    'pytest-cov',
                                    'jupyter-book==1.0.4',  # Jupyter book 2.xx is not yet generating static html pages
                                    'flake8',
                                    'pylint',
+                                   'gitpython'
                                    ]},
           )
 
