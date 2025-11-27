@@ -288,6 +288,8 @@ class TestDC3Trim(HelperFunctions):
     list_sum = ['eigenvalues', 'eigenvectors', 'freqs', 'damping']  # Repetition from HelperFunctions
     list_sum += ['Mff', 'Mhh', 'Kff', 'Khh']
 
+    # The following functions are identical to those from above, but have a different fixture as input.
+
     def test_preprocessing_functional(self, tmp_output, tutorials_repo):
         # Here you launch the Loads Kernel with your job
         k = program_flow.Kernel(self.job_name, pre=True, main=False, post=False,
@@ -370,6 +372,9 @@ class TestDC3Flutter(HelperFunctions):
     # way to check if the model is basically correct.
     list_sum = ['eigenvalues', 'eigenvectors', 'freqs', 'damping']  # Repetition from HelperFunctions
     list_sum += ['Mff', 'Mhh', 'Kff', 'Khh']
+
+    # The following functions are a copy from those in TestAllegraFlutter but have a different fixture as input and use 
+    # a different range for Vtas.
 
     def test_preprocessing_functional(self, tmp_output, tutorials_repo):
         # Here you launch the Loads Kernel with your job

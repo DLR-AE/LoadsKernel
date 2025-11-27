@@ -1,6 +1,7 @@
 """
-Comprehensive integration tests are performed based on the tutorials. Currently, these are puerly
-functional tests without comparison to reference results.
+Comprehensive integration tests are performed based on the tutorials. Currently, these are purely
+functional tests without comparison to reference results. Unfortunately, due to GitHub LFS budget limits,
+we cannot provide the reference results publicly.
 """
 
 import logging
