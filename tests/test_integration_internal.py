@@ -373,7 +373,7 @@ class TestDC3Flutter(HelperFunctions):
     list_sum = ['eigenvalues', 'eigenvectors', 'freqs', 'damping']  # Repetition from HelperFunctions
     list_sum += ['Mff', 'Mhh', 'Kff', 'Khh']
 
-    # The following functions are a copy from those in TestAllegraFlutter but have a different fixture as input and use 
+    # The following functions are a copy from those in TestAllegraFlutter but have a different fixture as input and use
     # a different range for Vtas.
 
     def test_preprocessing_functional(self, tmp_output, tutorials_repo):
