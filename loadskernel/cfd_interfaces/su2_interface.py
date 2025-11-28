@@ -113,7 +113,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         Communicate the change of coordinates of the fluid interface to the fluid solver.
         Prepare the fluid solver for mesh deformation.
         """
-        logging.info('Sending surface deformations to SU2.')
+        logging.debug('Sending surface deformations to SU2.')
         for x in range(self.local_mesh['n']):
             self.FluidSolver.SetMarkerCustomDisplacement(self.local_mesh['MarkerID'][x],
                                                          self.local_mesh['VertexIndex'][x],
@@ -199,7 +199,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
             self.get_local_mesh()
 
     def run_solver(self, i_timestep=0):
-        logging.info('Waiting until all processes are ready to perform a coordinated start...')
+        logging.debug('Waiting until all processes are ready to perform a coordinated start...')
         self.comm.barrier()
         logging.info('Launch SU2 for time step {}.'.format(i_timestep))
         # start timer

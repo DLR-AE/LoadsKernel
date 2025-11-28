@@ -11,7 +11,7 @@ class Meshdefo():
 
     def Ux2(self, Ux2):
         if np.any(Ux2):
-            logging.info('Apply control surface deflections to cfdgrid.')
+            logging.debug('Apply control surface deflections to cfdgrid.')
             Ujx2 = np.zeros(self.aerogrid['n'] * 6)
             if 'hingeline' in self.jcl.aero and self.jcl.aero['hingeline'] == 'y':
                 hingeline = 'y'
@@ -29,11 +29,11 @@ class Meshdefo():
             self.transfer_deformations(self.aerogrid, Ujx2, '_k', rbf_type='wendland2',
                                        surface_spline=False, support_radius=1.5)
         else:
-            logging.info('Apply NO control surface deflections to cfdgrid.')
+            logging.debug('Apply NO control surface deflections to cfdgrid.')
 
     def Uf(self, Uf):
         if 'flex' in self.jcl.aero and self.jcl.aero['flex'] and np.any(Uf):
-            logging.info('Apply flexible deformations to cfdgrid.')
+            logging.debug('Apply flexible deformations to cfdgrid.')
             # set-up spline grid
             if self.jcl.spline['splinegrid']:
                 # make sure that there are no double points in the spline grid as this would cause a singularity of the
@@ -49,4 +49,4 @@ class Meshdefo():
 
             self.transfer_deformations(splinegrid, Ug_f_body, '', rbf_type='tps', surface_spline=False)
         else:
-            logging.info('Apply NO flexible deformations to cfdgrid.')
+            logging.debug('Apply NO flexible deformations to cfdgrid.')
