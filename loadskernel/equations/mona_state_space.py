@@ -4,7 +4,7 @@ import numpy as np
 
 from scipy import linalg
 
-from loadskernel.equations.frequency_domain import PKMethodSchwochow
+from loadskernel.equations.mona_frequency_domain import PKMethodSchwochow
 
 
 class StateSpaceAnalysis(PKMethodSchwochow):

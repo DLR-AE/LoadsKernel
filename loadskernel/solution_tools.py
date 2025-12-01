@@ -142,8 +142,8 @@ def calc_pulse(dt, t_final, eps):
     # [1] Koch, C., “Whirl Flutter Stability Analysis Using Propeller Transfer Matrices”,
     # Deutsches Zentrum für Luft- und Raumfahrt e. V. (DLR), 2024, https://doi.org/10.57676/BF00-1962.
 
-    # Pulse width in seconds, dt*60 should excite mostly low frequencies up to 10% of fmax.
-    tw = dt * 60
+    # Pulse width in seconds, dt*50 should excite mostly low frequencies up to 10% of fmax.
+    tw = dt * 50
     t = np.arange(0.0, t_final + dt, dt)
     # The pulse is assembled from two half pulses; the up and down strokes.
     stroke_up = -4.0 * (2.0 * t / tw - 1.0)**5 - 15 * (2.0 * t / tw - 1.0)**4 - 20 * (2.0 * t / tw - 1.0)**3 \

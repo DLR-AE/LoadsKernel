@@ -128,25 +128,25 @@ class ProgramFlowHelper():
             # add the handler(s) to the root logger
             logger.addHandler(console)
 
-        logger.info('This is the log for process {}.'.format(self.myid))
+        logger.info('This is the log for process %s.', self.myid)
 
 
 class Kernel(ProgramFlowHelper):
 
     def run(self):
         self.setup_logger()
-        logging.info('Starting Loads Kernel with job: ' + self.job_name)
-        logging.info('User ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
+        logging.info('Starting Loads Kernel with job: %s', self.job_name)
+        logging.info('User %s on %s (%s)', getpass.getuser(), platform.node(), platform.platform())
         logging.info('Software versions:')
-        logging.info(' - Loads Kernel ' + metadata.version('loadskernel') + ' (' + repr(loadskernel) + ')')
-        logging.info(' - Panel Aero ' + metadata.version('panelaero'))
-        logging.info(' - Python ' + platform.python_version())
-        logging.info(' - Numpy ' + metadata.version('numpy'))
-        logging.info(' - Scipy ' + metadata.version('scipy'))
-        logging.info('pre:  ' + str(self.pre))
-        logging.info('main: ' + str(self.main))
-        logging.info('post: ' + str(self.post))
-        logging.info('test: ' + str(self.test))
+        logging.info(' - Loads Kernel %s (%s)', metadata.version('loadskernel'), repr(loadskernel))
+        logging.info(' - Panel Aero %s', metadata.version('panelaero'))
+        logging.info(' - Python %s', platform.python_version())
+        logging.info(' - Numpy %s', metadata.version('numpy'))
+        logging.info(' - Scipy %s', metadata.version('scipy'))
+        logging.info('pre:  %s', self.pre)
+        logging.info('main: %s', self.main)
+        logging.info('post: %s', self.post)
+        logging.info('test: %s', self.test)
         self.jcl = data_handling.load_jcl(self.job_name, self.path_input, self.jcl)
         # add machinefile to jcl
         self.jcl.machinefile = self.machinefile
@@ -166,21 +166,21 @@ class Kernel(ProgramFlowHelper):
         self.print_logo()
 
     def run_pre(self):
-        logging.info('--> Starting preprocessing.')
+        logging.info('Starting preprocessing.')
         t_start = time.time()
         model = model_modul.Model(self.jcl, self.path_output)
         model.build_model()
 
-        logging.info('--> Saving model data.')
+        logging.info('Saving model data.')
         data_handling.dump_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5', model.__dict__)
-        logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
+        logging.info('Done in %s.', seconds2string(time.time() - t_start))
 
     def main_common(self, model, jcl, i):
         logging.info('')
         logging.info('========================================')
-        logging.info('trimcase: ' + jcl.trimcase[i]['desc'])
-        logging.info('subcase: ' + str(jcl.trimcase[i]['subcase']))
-        logging.info('(case ' + str(i + 1) + ' of ' + str(len(jcl.trimcase)) + ')')
+        logging.info('trimcase: %s', jcl.trimcase[i]['desc'])
+        logging.info('subcase: %s', jcl.trimcase[i]['subcase'])
+        logging.info('(case %d of %d)', i + 1, len(jcl.trimcase))
         logging.info('========================================')
         solution_i = solution_sequences.SolutionSequences(model, jcl, jcl.trimcase[i], jcl.simcase[i])
         solution_i.set_trimcond()
@@ -208,7 +208,7 @@ class Kernel(ProgramFlowHelper):
         return response
 
     def run_main_sequential(self):
-        logging.info('--> Starting Main in sequential mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
+        logging.info('Starting Main in sequential mode for %d trimcase(s).', len(self.jcl.trimcase))
         t_start = time.time()
         model = data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         if self.myid == 0:
@@ -219,7 +219,7 @@ class Kernel(ProgramFlowHelper):
                 responses = data_handling.load_hdf5_responses(self.job_name, self.path_output)
             fid = data_handling.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
 
-        for i in range(len(self.jcl.trimcase)):
+        for i, trimcase in enumerate(self.jcl.trimcase):
             if self.restart and i in [response['i'][()] for response in responses]:
                 logging.info('Restart option: found existing response.')
                 response = responses[[response['i'][()] for response in responses].index(i)]
@@ -227,20 +227,20 @@ class Kernel(ProgramFlowHelper):
                 jcl = copy.deepcopy(self.jcl)
                 response = self.main_common(model, jcl, i)
             if self.myid == 0 and response['successful']:
-                mon.gather_monstations(self.jcl.trimcase[i], response)
+                mon.gather_monstations(trimcase, response)
                 mon.gather_dyn2stat(response)
-                logging.info('--> Saving response(s).')
+                logging.info('Saving response(s).')
                 data_handling.write_hdf5(fid, response, path='/' + str(response['i']))
         if self.myid == 0:
             # close response
             data_handling.close_hdf5(fid)
 
-            logging.info('--> Saving monstation(s).')
+            logging.info('Saving monstation(s).')
             data_handling.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5', mon.monstations)
 
-            logging.info('--> Saving dyn2stat.')
+            logging.info('Saving dyn2stat.')
             data_handling.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5', mon.dyn2stat)
-        logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
+        logging.info('Done in %s.', seconds2string(time.time() - t_start))
 
     def run_main_multiprocessing(self):
         """
@@ -251,7 +251,7 @@ class Kernel(ProgramFlowHelper):
         09-task-pull.py)
         """
         logging.info(
-            '--> Starting Main in multiprocessing mode for %d trimcase(s).', len(self.jcl.trimcase))
+            'Starting Main in multiprocessing mode for %d trimcase(s).', len(self.jcl.trimcase))
         t_start = time.time()
         model = data_handling.load_hdf5(
             self.path_output + 'model_' + self.job_name + '.hdf5')
@@ -264,7 +264,7 @@ class Kernel(ProgramFlowHelper):
         # The master process runs on the first processor
         if self.myid == 0:
             n_workers = self.comm.Get_size() - 1
-            logging.info('--> I am the master with %d worker(s).', n_workers)
+            logging.info('I am the master with %d worker(s).', n_workers)
 
             mon = gather_loads.GatherLoads(self.jcl, model)
             # open response
@@ -283,7 +283,7 @@ class Kernel(ProgramFlowHelper):
                     # Worker is ready, send out a new subcase.
                     if i_subcase < len(self.jcl.trimcase):
                         self.comm.send(i_subcase, dest=source, tag=tags['start'])
-                        logging.info('--> Sending case %d of %d to worker %d', i_subcase + 1, len(self.jcl.trimcase), source)
+                        logging.info('Sending case %d of %d to worker %d', i_subcase + 1, len(self.jcl.trimcase), source)
                         i_subcase += 1
                     else:
                         # No more task to do, send the exit signal.
@@ -293,13 +293,13 @@ class Kernel(ProgramFlowHelper):
                     # The worker has returned a response.
                     response = data
                     if response['successful']:
-                        logging.info("--> Received response ('successful') from worker %d.", source)
+                        logging.info("Received response ('successful') from worker %d.", source)
                         mon.gather_monstations(self.jcl.trimcase[response['i']], response)
                         mon.gather_dyn2stat(response)
                     else:
                         # Trim failed, no post processing, save the empty response
-                        logging.info("--> Received response ('failed') from worker %d.", source)
-                    logging.info('--> Saving response(s).')
+                        logging.info("Received response ('failed') from worker %d.", source)
+                    logging.info('Saving response(s).')
                     data_handling.write_hdf5(fid, response, path='/' + str(response['i']))
 
                 elif tag == tags['exit']:
@@ -308,11 +308,11 @@ class Kernel(ProgramFlowHelper):
                     closed_workers += 1
             # close response
             data_handling.close_hdf5(fid)
-            logging.info('--> Saving monstation(s).')
+            logging.info('Saving monstation(s).')
             data_handling.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
                                     mon.monstations)
 
-            logging.info('--> Saving dyn2stat.')
+            logging.info('Saving dyn2stat.')
             data_handling.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
                                     mon.dyn2stat)
         # The worker process runs on all other processors
@@ -334,17 +334,17 @@ class Kernel(ProgramFlowHelper):
             # Confirm the exit signal.
             self.comm.send(None, dest=0, tag=tags['exit'])
 
-        logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
+        logging.info('Done in %s.', seconds2string(time.time() - t_start))
 
     def run_post(self):
         model = data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         responses = data_handling.load_hdf5_responses(self.job_name, self.path_output)
-        logging.info('--> Loading monstations(s).')
+        logging.info('Loading monstations(s).')
         monstations = data_handling.load_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5')
-        logging.info('--> Loading dyn2stat.')
+        logging.info('Loading dyn2stat.')
         dyn2stat_data = data_handling.load_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5')
 
-        logging.info('--> Drawing some standard plots.')
+        logging.info('Drawing some standard plots.')
         if 'flutter' in self.jcl.simcase[0] and self.jcl.simcase[0]['flutter']:
             plt = plotting_standard.FlutterPlots(self.jcl, model)
             plt.add_responses(responses)
@@ -369,7 +369,7 @@ class Kernel(ProgramFlowHelper):
                                                                                   'cs_signal', 'controller']]):
                 plt.plot_monstations_time(self.path_output + 'monstations_time_' + self.job_name + '.pdf')  # nur sim
 
-            logging.info('--> Saving auxiliary output data.')
+            logging.info('Saving auxiliary output data.')
             aux_out = auxiliary_output.AuxiliaryOutput(self.jcl, model, self.jcl.trimcase)
             aux_out.crit_trimcases = plt.crit_trimcases
             aux_out.dyn2stat_data = dyn2stat_data
@@ -403,7 +403,7 @@ class Kernel(ProgramFlowHelper):
         model = data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         responses = data_handling.load_hdf5_responses(self.job_name, self.path_output)
 
-        logging.info('--> Drawing some more detailed plots.')
+        logging.info('Drawing some more detailed plots.')
         plt = plotting_extra.DetailedPlots(self.jcl, model)
         plt.add_responses(responses)
         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
@@ -451,7 +451,7 @@ class ClusterMode(Kernel):
     k = program_flow.ClusterMode('jcl_name', ...)
     k.run_cluster(sys.argv[2])
     or
-    k.gather_cluster()
+    k.gather_responses()
     """
 
     def run_cluster(self, i):
@@ -460,8 +460,8 @@ class ClusterMode(Kernel):
         # add machinefile to jcl
         self.jcl.machinefile = self.machinefile
         self.setup_logger_cluster(i=i)
-        logging.info('Starting Loads Kernel with job: ' + self.job_name)
-        logging.info('User ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
+        logging.info('Starting Loads Kernel with job: %s', self.job_name)
+        logging.info('User %s on %s (%s)', getpass.getuser(), platform.node(), platform.platform())
         logging.info('Cluster array mode')
 
         self.run_main_single(i)
@@ -473,7 +473,7 @@ class ClusterMode(Kernel):
         """
         This function calculates one single load case, e.g. using CFD with mpi hosts on a cluster.
         """
-        logging.info('--> Starting main in single mode for {} trimcase(s).'.format(len(self.jcl.trimcase)))
+        logging.info('Starting main in single mode for %d trimcase(s).', len(self.jcl.trimcase))
         t_start = time.time()
         model = data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         jcl = copy.deepcopy(self.jcl)
@@ -495,45 +495,74 @@ class ClusterMode(Kernel):
         response = self.main_common(model, jcl, i)
         # Overwrite the empty response from above
         if self.myid == 0:
-            logging.info('--> Saving response(s).')
+            logging.info('Saving response(s).')
             path_responses = data_handling.check_path(self.path_output + 'responses/')
             with open(path_responses + 'response_' + self.job_name + '_subcase_'
                       + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb') as f:
                 data_handling.dump_pickle(response, f)
-        logging.info('--> Done in {}.'.format(seconds2string(time.time() - t_start)))
+        logging.info('Done in %s.', seconds2string(time.time() - t_start))
 
-    def gather_cluster(self):
+    def gather_responses(self):
         self.setup_logger()
-        t_start = time.time()
-        logging.info('Starting Loads Kernel with job: ' + self.job_name)
-        logging.info('user ' + getpass.getuser() + ' on ' + platform.node() + ' (' + platform.platform() + ')')
-        logging.info('cluster gather mode')
+        logging.info('Starting Loads Kernel with job: %s', self.job_name)
+        logging.info('User %s on %s (%s)', getpass.getuser(), platform.node(), platform.platform())
+        logging.info('response gather mode')
         self.jcl = data_handling.load_jcl(self.job_name, self.path_input, self.jcl)
         model = data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         responses = data_handling.gather_responses(self.job_name, data_handling.check_path(self.path_output + 'responses'))
         mon = gather_loads.GatherLoads(self.jcl, model)
         fid = data_handling.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
-        for i in range(len(self.jcl.trimcase)):
+        for i, (trimcase) in enumerate(self.jcl.trimcase):
             response = responses[[response['i'] for response in responses].index(i)]
             if response['successful']:
-                mon.gather_monstations(self.jcl.trimcase[i], response)
+                mon.gather_monstations(trimcase, response)
                 mon.gather_dyn2stat(response)
 
-            logging.info('--> Saving response(s).')
+            logging.info('Saving response(s).')
             data_handling.write_hdf5(fid, response, path='/' + str(response['i']))
         # close response
         data_handling.close_hdf5(fid)
 
-        logging.info('--> Saving monstation(s).')
+        logging.info('Saving monstation(s).')
         data_handling.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
                                 mon.monstations)
 
-        logging.info('--> Saving dyn2stat.')
+        logging.info('Saving dyn2stat.')
         data_handling.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
                                 mon.dyn2stat)
-        logging.info(
-            '--> Done in {}.'.format(seconds2string(time.time() - t_start)))
-
+        
+        logging.info('Loads Kernel finished.')
+        self.print_logo()
+    
+    def gather_gafs(self):
+        self.setup_logger()
+        logging.info('Starting Loads Kernel with job: %s', self.job_name)
+        logging.info('User %s on %s (%s)', getpass.getuser(), platform.node(), platform.platform())
+        logging.info('GAF gather mode')
+        self.jcl = data_handling.load_jcl(self.job_name, self.path_input, self.jcl)
+        # Open model file to store GAFs in append mode, don't overwrite
+        fid = data_handling.append_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
+        responses = data_handling.gather_responses(self.job_name, data_handling.check_path(self.path_output + 'responses'))
+        logging.info('Moving GAFs from responses into model:')
+        for i, (trimcase, simcase) in enumerate(zip(self.jcl.trimcase, self.jcl.simcase)):
+            response = responses[[response['i'] for response in responses].index(i)]
+            if 'gaf' in simcase and simcase['gaf'] and response['successful']:
+                # Pick relevant data from response
+                GAFs = {}
+                GAFs['pulse'] = response['pulse']
+                GAFs['t_gaf'] = response['t_gaf']
+                GAFs['k_red'] = response['k_red']
+                GAFs['Qhk'] = response['GAFh_k']
+                # Write info about which GAFs we found in the response
+                key = '.'.join(trimcase['desc'].split('.')[:-1])
+                if '/GAFs/' + key in fid:
+                    logging.info(' - Overwriting existing entry for subcase %s, %s', trimcase['subcase'], key)
+                    del fid['/GAFs/' + key]
+                else:
+                    logging.info(' - subcase %s, %s', trimcase['subcase'], key)
+                # Store GAFs in model
+                data_handling.write_hdf5(fid, GAFs, path='/GAFs/' + key)
+        fid.close()
         logging.info('Loads Kernel finished.')
         self.print_logo()
 
@@ -553,7 +582,7 @@ def str2bool(v):
 def seconds2string(seconds):
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
-    return '{:n}:{:02n}:{:02n} [h:mm:ss]'.format(h, m, round(s))
+    return f'{h:n}:{m:02n}:{round(s):02n} [h:mm:ss]'
 
 
 def command_line_interface():

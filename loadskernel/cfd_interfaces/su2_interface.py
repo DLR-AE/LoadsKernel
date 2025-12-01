@@ -519,7 +519,7 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             (without a pulse) has to be have exactly the same number of steps as the pulse solution.
             """
             if 'gaf' in self.simcase and self.simcase['gaf']:
-                config['INNER_ITER'] = 4
+                config['INNER_ITER'] = 3
                 if 'CONV_RESIDUAL_MINVAL' in config:
                     config.pop('CONV_RESIDUAL_MINVAL')
             else:

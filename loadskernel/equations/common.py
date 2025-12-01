@@ -207,14 +207,27 @@ class Common():
                                   self.trimcond_Y[np.where(self.trimcond_Y[:, 0] == 'Nz')[0][0], 2])]),
                               })
             else:
-                logging.error('Unknown EFCS: {}'.format(self.jcl.efcs['version']))
+                logging.error('Unknown EFCS: %s', self.jcl.efcs['version'])
 
     def setup_aero_matrices(self):
-        if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'freq_dom']:
+        if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'freq_dom', 'mona_freq_dom']:
             self.Djf_1 = self.aerogrid['Nmat'].dot(self.aerogrid['Rmat'].dot(self.PHIjf))
             self.Djf_2 = self.aerogrid['Nmat'].dot(self.PHIjf) * -1.0
             self.Djh_1 = self.aerogrid['Nmat'].dot(self.aerogrid['Rmat'].dot(self.PHIjh))
             self.Djh_2 = self.aerogrid['Nmat'].dot(self.PHIjh) * -1.0
+
+    def load_GAFs(self):
+        if self.jcl.aero['method'] in ['gafs']:
+            # Derive the paht/key from the trimcase description
+            key = '.'.join(self.trimcase['desc'].split('.')[:-1])
+            if key in self.model['gafs']:
+                self.GAFs = load_hdf5_dict(self.model['gafs'][key])
+            else:
+                logging.error('No GAFs found for "%s" in model!', key)
+                msg = """GAFs depend on the operational point, mass case, etc. They are organized by the trimcase description
+                         'desc' in the JCL, e.g. 'CC.M1.OVCFL000.xxx'. Please make sure that the GAFs for the requested
+                         trimcase have bee computed and gathered/added to the model file."""
+                logging.info(msg)
 
     def setup_engine_interface(self):
         if hasattr(self.jcl, 'engine'):

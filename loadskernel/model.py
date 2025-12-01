@@ -200,8 +200,9 @@ class Model():
 
     def build_aero(self):
         logging.info('Building aero model...')
-        if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady',
-                                       'cfd_steady', 'cfd_unsteady', 'freq_dom']:
+        if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'nonlin_steady',
+                                       'freq_dom', 'mona_freq_dom',
+                                       'cfd_steady', 'cfd_unsteady', 'cfd_freq_dom']:
             self.build_aerogrid()
             self.build_aero_matrices()
             self.build_W2GJ()
@@ -351,7 +352,7 @@ class Model():
                 self.build_rfa()
             else:
                 logging.error('Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
-        elif self.jcl.aero['method'] in ['freq_dom']:
+        elif self.jcl.aero['method'] in ['freq_dom', 'mona_freq_dom']:
             if self.jcl.aero['method_AIC'] == 'dlm':
                 self.build_AICs_DLM()
             elif self.jcl.aero['method_AIC'] == 'nastran':

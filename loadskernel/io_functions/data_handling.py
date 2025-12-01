@@ -40,6 +40,10 @@ def open_hdf5(filename):
     return h5py.File(filename, 'w')
 
 
+def append_hdf5(filename):
+    return h5py.File(filename, 'a')
+
+
 def write_hdf5(fid, dic, path=''):
     recursively_save_dict_to_hdf5(fid, dic, path)
 
@@ -85,7 +89,7 @@ def recursively_save_dict_to_hdf5(fid, dic, path=''):
 
 
 def load_hdf5_responses(job_name, path_output):
-    logging.info('--> Opening response(s).')
+    logging.info('Opening response(s).')
     filename = path_output + 'response_' + job_name + '.hdf5'
     fid = load_hdf5(filename)
     response = [fid[key] for key in sorted(fid.keys(), key=int) if fid[key]['successful'][()]]
@@ -130,7 +134,7 @@ def load_hdf5_sparse_matrix(hdf5_group):
 
 def load_jcl(job_name, path_input, jcl):
     if jcl is None:
-        logging.info('--> Reading parameters from JCL.')
+        logging.info('Reading parameters from JCL.')
         # import jcl dynamically by filename
         # this is the newer way used in Python 3
         spec = importlib.util.spec_from_file_location('jcl', os.path.join(path_input, job_name + '.py'))
@@ -146,7 +150,7 @@ def load_jcl(job_name, path_input, jcl):
 
 
 def gather_responses(job_name, path):
-    logging.info('--> Gathering response(s).')
+    logging.info('Gathering response(s).')
     filenames = os.listdir(path)
     filenames.sort()
     response = []

@@ -1,6 +1,6 @@
 import numpy as np
 
-from loadskernel.equations.steady import Steady
+from loadskernel.equations.mona_time_domain import Steady
 from loadskernel.solution_tools import gravitation_on_earth
 
 
