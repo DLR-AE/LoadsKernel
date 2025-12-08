@@ -357,8 +357,11 @@ class Kernel(ProgramFlowHelper):
         elif 'limit_turbulence' in self.jcl.simcase[0] and self.jcl.simcase[0]['limit_turbulence']:
             plt = plotting_standard.TurbulencePlots(self.jcl, model)
             plt.add_monstations(monstations)
-            plt.plot_monstations(
-                self.path_output + 'monstations_turbulence_' + self.job_name + '.pdf')
+            plt.plot_monstations(self.path_output + 'monstations_turbulence_' + self.job_name + '.pdf')
+        elif 'gaf' in self.jcl.simcase[0] and self.jcl.simcase[0]['gaf']:
+            plt = plotting_standard.GAFPlots(self.jcl, model)
+            plt.add_responses(responses)
+            plt.plot_pluse(self.path_output + 'pulse_' + self.job_name + '.pdf')
         else:
             # Here come the loads plots
             plt = plotting_standard.LoadPlots(self.jcl, model)
@@ -553,6 +556,7 @@ class ClusterMode(Kernel):
                 GAFs['t'] = response['t_pulse']
                 GAFs['k_red'] = response['k_red']
                 GAFs['Qhk'] = response['Qhk']
+                GAFs['Qhh'] = response['Qhh']
                 GAFs['X0'] = response['X']
                 # Write info about which GAFs we found in the response
                 key = '.'.join(trimcase['desc'].split('.')[:-1])
