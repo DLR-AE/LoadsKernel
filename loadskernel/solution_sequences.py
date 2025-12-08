@@ -557,7 +557,7 @@ class SolutionSequences(TrimConditions):
         # Get number of modes
         n_modes_rbm = 5
         n_modes_flex = self.model['mass'][self.trimcase['mass']]['n_modes'][()]
-        # n_modes_flex = 2  # for testing only
+        PHIkh = self.model['mass'][self.trimcase['mass']]['PHIkh'][()]
         n_modes = n_modes_rbm + n_modes_flex
         idx_modes = list(range(1, n_modes_rbm + 1)) + list(range(1 + n_modes_rbm + 6, 1 + n_modes_rbm + 6 + n_modes_flex))
         logging.info('Calculating GAFs for %d rigid body modes and %d flexible modes...',
@@ -603,6 +603,7 @@ class SolutionSequences(TrimConditions):
             Pcfd_pulse = np.zeros((n_cfd, len(t)))
             Pb = np.zeros((6, n_modes, len(t)))
             Qhk = np.zeros((self.model['aerogrid']['n'][()] * 6, n_modes, len(k_red)), dtype=complex)
+            Qhh = np.zeros((n_modes, n_modes, len(k_red)), dtype=complex)
 
         # Step 2: Run reference simulation without pulse
         # Select CFD solution sequence and initialize
@@ -646,11 +647,15 @@ class SolutionSequences(TrimConditions):
         # Step 5: Run pulse simulation for gust mode (ToDo)
 
         if self.myid == 0:
+            # Apply modal transformation per frequency k_red to obtain Qhh
+            for i, _ in enumerate(k_red):
+                Qhh[:, :, i] = PHIkh.T.dot(Qhk[:, :, i])
             # Store results in response dictionary
             self.response['pulse'] = pulse
             self.response['t_pulse'] = t
             self.response['Pb_pulse'] = Pb
             self.response['k_red'] = k_red
             self.response['Qhk'] = Qhk
+            self.response['Qhh'] = Qhh
 
         self.successful = True
