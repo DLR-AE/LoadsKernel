@@ -38,6 +38,7 @@ class Common():
         self.defo_old = 0.0
         # load data needed for subsequent simulation
         self.load_data()
+        self.load_GAFs()
         # set-up simulation parameters
         self.setup_hingeline()
         self.setup_efcs()
@@ -92,6 +93,20 @@ class Common():
         self.cam_rad = self.model['camber_twist']['cam_rad'][()]
 
         self.Qjj = self.aero['Qjj']
+
+    def load_GAFs(self):
+        if self.jcl.aero['method'] in ['cfd_freq_dom']:
+            # Derive the paht/key from the trimcase description
+            key = '.'.join(self.trimcase['desc'].split('.')[:-1])
+            if key in self.model['GAFs']:
+                self.GAFs = load_hdf5_dict(self.model['GAFs'][key])
+                self.X0 = self.GAFs['X0']
+            else:
+                logging.error('No GAFs found for "%s" in model!', key)
+                msg = """GAFs depend on the operational point, mass case, etc. They are organized by the trimcase description
+                         'desc' in the JCL, e.g. 'CC.M1.OVCFL000.xxx'. Please make sure that the GAFs for the requested
+                         trimcase have bee computed and gathered/added to the model file."""
+                logging.info(msg)
 
     def setup_hingeline(self):
         # set hingeline for cs deflections
@@ -215,19 +230,6 @@ class Common():
             self.Djf_2 = self.aerogrid['Nmat'].dot(self.PHIjf) * -1.0
             self.Djh_1 = self.aerogrid['Nmat'].dot(self.aerogrid['Rmat'].dot(self.PHIjh))
             self.Djh_2 = self.aerogrid['Nmat'].dot(self.PHIjh) * -1.0
-
-    def load_GAFs(self):
-        if self.jcl.aero['method'] in ['gafs']:
-            # Derive the paht/key from the trimcase description
-            key = '.'.join(self.trimcase['desc'].split('.')[:-1])
-            if key in self.model['gafs']:
-                self.GAFs = load_hdf5_dict(self.model['gafs'][key])
-            else:
-                logging.error('No GAFs found for "%s" in model!', key)
-                msg = """GAFs depend on the operational point, mass case, etc. They are organized by the trimcase description
-                         'desc' in the JCL, e.g. 'CC.M1.OVCFL000.xxx'. Please make sure that the GAFs for the requested
-                         trimcase have bee computed and gathered/added to the model file."""
-                logging.info(msg)
 
     def setup_engine_interface(self):
         if hasattr(self.jcl, 'engine'):
