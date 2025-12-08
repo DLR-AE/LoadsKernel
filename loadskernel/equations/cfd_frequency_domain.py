@@ -13,7 +13,7 @@ class KMethod(MonaKMethod):
     def build_AIC_interpolators(self):
         Qhh = []
         for i_k, _ in enumerate(self.GAFs['k_red']):
-            Qhh.append(self.PHIlh.T.dot(self.GAFs['Qhk'][:, :, i_k]))
+            Qhh.append(self.PHIkh.T.dot(self.GAFs['Qhk'][:, :, i_k]))
         self.Qhh_interp = interp1d(self.GAFs['k_red'], Qhh, kind='cubic', axis=0, fill_value="extrapolate")
 
     def setup_frequence_parameters(self):
@@ -39,7 +39,7 @@ class PKMethodRodden(MonaPKMethodRodden):
         # Same formulation as in K-Method, but with custom, linear matrix interpolation
         Qhh = []
         for i_k, _ in enumerate(self.GAFs['k_red']):
-            Qhh.append(self.PHIlh.T.dot(self.GAFs['Qhk'][:, :, i_k]))
+            Qhh.append(self.PHIkh.T.dot(self.GAFs['Qhk'][:, :, i_k]))
         self.Qhh_interp = MatrixInterpolation(self.GAFs['k_red'], Qhh)
 
     def system(self, k_red):
