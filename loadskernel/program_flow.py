@@ -36,7 +36,6 @@ class ProgramFlowHelper():
         self.post = post  # True/False
         # debug options
         self.debug = False  # True/False
-        self.restart = False  # True/False
         # advanced options
         self.test = test  # True/False
         # job control options
@@ -175,7 +174,11 @@ class Kernel(ProgramFlowHelper):
         data_handling.dump_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5', model.__dict__)
         logging.info('Done in %s.', seconds2string(time.time() - t_start))
 
-    def main_common(self, model, jcl, i):
+    def main_core(self, model, jcl, i):
+        """
+        This functions performs the main processing for one trimcase / subcase.
+        It can be called either from various run_main_... functions.
+        """
         logging.info('')
         logging.info('========================================')
         logging.info('trimcase: %s', jcl.trimcase[i]['desc'])
@@ -183,63 +186,64 @@ class Kernel(ProgramFlowHelper):
         logging.info('(case %d of %d)', i + 1, len(jcl.trimcase))
         logging.info('========================================')
         solution_i = solution_sequences.SolutionSequences(model, jcl, jcl.trimcase[i], jcl.simcase[i])
+        # Set trim conditions and execute trim.
         solution_i.set_trimcond()
         solution_i.exec_trim()
-        # solution_i.iterative_trim()
+        # In case of successful trim, do time simulation if requested in the simcase.
         if solution_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
             solution_i.exec_sim()
-        elif solution_i.successful and 'flutter' in jcl.simcase[i] and jcl.simcase[i]['flutter']:
+        # The post processing applies only to trim and time simulations. Thus, an alternative place for
+        # post processing could be in the solution_sequence.py. Not sure which place is better...
+        # Also, the name 'post_processing' might be misleading here, as it is not post processing of the entire
+        # job (post=True), but only of the trim / sim solution sequence.
+        if solution_i.successful:
+            post_processing_i = post_processing.PostProcessing(jcl, model, jcl.trimcase[i], solution_i.response)
+            post_processing_i.force_summation_method()
+            post_processing_i.euler_transformation()
+            post_processing_i.cuttingforces()
+            del post_processing_i
+        # Look if any other special analyses are requested (such as flutter, derivatives, GAFs) in the simcase.
+        if 'flutter' in jcl.simcase[i] and jcl.simcase[i]['flutter']:
             solution_i.exec_flutter()
         elif solution_i.successful and 'derivatives' in jcl.simcase[i] and jcl.simcase[i]['derivatives']:
             solution_i.calc_jacobian()
             solution_i.calc_derivatives()
         elif solution_i.successful and 'gaf' in jcl.simcase[i] and jcl.simcase[i]['gaf']:
             solution_i.calc_gafs()
+        # Collect response from solution sequence, then destroy it to free memory.
         response = solution_i.response
         response['i'] = i
         response['successful'] = solution_i.successful
         del solution_i
-        if response['successful']:
-            post_processing_i = post_processing.PostProcessing(jcl, model, jcl.trimcase[i], response)
-            post_processing_i.force_summation_method()
-            post_processing_i.euler_transformation()
-            post_processing_i.cuttingforces()
-            del post_processing_i
         return response
 
     def run_main_sequential(self):
         logging.info('Starting Main in sequential mode for %d trimcase(s).', len(self.jcl.trimcase))
         t_start = time.time()
         model = data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
-        if self.myid == 0:
-            mon = gather_loads.GatherLoads(self.jcl, model)
-            if self.restart:
-                logging.info('Restart option: loading existing responses.')
-                # open response
-                responses = data_handling.load_hdf5_responses(self.job_name, self.path_output)
-            fid = data_handling.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')  # open response
-
+        # Initialize module to gather loads
+        loads = gather_loads.GatherLoads(self.jcl, model)
+        # Open response
+        fid = data_handling.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')
+        # Loop over all trimcases
         for i, trimcase in enumerate(self.jcl.trimcase):
-            if self.restart and i in [response['i'][()] for response in responses]:
-                logging.info('Restart option: found existing response.')
-                response = responses[[response['i'][()] for response in responses].index(i)]
-            else:
-                jcl = copy.deepcopy(self.jcl)
-                response = self.main_common(model, jcl, i)
-            if self.myid == 0 and response['successful']:
-                mon.gather_monstations(trimcase, response)
-                mon.gather_dyn2stat(response)
+            jcl = copy.deepcopy(self.jcl)
+            # Perfome the actual calculations for this trimcase
+            response = self.main_core(model, jcl, i)
+            if response['successful']:
+                # Gathers loads into monstations and dyn2stat data structures
+                loads.gather_monstations(trimcase, response)
+                loads.gather_dyn2stat(response)
+                # Save response to file
                 logging.info('Saving response(s).')
                 data_handling.write_hdf5(fid, response, path='/' + str(response['i']))
-        if self.myid == 0:
-            # close response
-            data_handling.close_hdf5(fid)
-
-            logging.info('Saving monstation(s).')
-            data_handling.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5', mon.monstations)
-
-            logging.info('Saving dyn2stat.')
-            data_handling.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5', mon.dyn2stat)
+        # Close response
+        data_handling.close_hdf5(fid)
+        # Save gathered loads, even if the data structures might be empty (e.g. if flutter analysis was requested).
+        logging.info('Saving monstation(s).')
+        data_handling.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5', loads.monstations)
+        logging.info('Saving dyn2stat.')
+        data_handling.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5', loads.dyn2stat)
         logging.info('Done in %s.', seconds2string(time.time() - t_start))
 
     def run_main_multiprocessing(self):
@@ -250,11 +254,9 @@ class Kernel(ProgramFlowHelper):
         This concept is adapted from Jörg Bornschein (see https://github.com/jbornschein/mpi4py-examples/blob/master/
         09-task-pull.py)
         """
-        logging.info(
-            'Starting Main in multiprocessing mode for %d trimcase(s).', len(self.jcl.trimcase))
+        logging.info('Starting Main in multiprocessing mode for %d trimcase(s).', len(self.jcl.trimcase))
         t_start = time.time()
-        model = data_handling.load_hdf5(
-            self.path_output + 'model_' + self.job_name + '.hdf5')
+        model = data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
         # MPI tags can be any integer values
         tags = {'ready': 0,
                 'start': 1,
@@ -266,7 +268,7 @@ class Kernel(ProgramFlowHelper):
             n_workers = self.comm.Get_size() - 1
             logging.info('I am the master with %d worker(s).', n_workers)
 
-            mon = gather_loads.GatherLoads(self.jcl, model)
+            loads = gather_loads.GatherLoads(self.jcl, model)
             # open response
             fid = data_handling.open_hdf5(self.path_output + 'response_' + self.job_name + '.hdf5')
 
@@ -294,8 +296,8 @@ class Kernel(ProgramFlowHelper):
                     response = data
                     if response['successful']:
                         logging.info("Received response ('successful') from worker %d.", source)
-                        mon.gather_monstations(self.jcl.trimcase[response['i']], response)
-                        mon.gather_dyn2stat(response)
+                        loads.gather_monstations(self.jcl.trimcase[response['i']], response)
+                        loads.gather_dyn2stat(response)
                     else:
                         # Trim failed, no post processing, save the empty response
                         logging.info("Received response ('failed') from worker %d.", source)
@@ -309,12 +311,10 @@ class Kernel(ProgramFlowHelper):
             # close response
             data_handling.close_hdf5(fid)
             logging.info('Saving monstation(s).')
-            data_handling.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5',
-                                    mon.monstations)
+            data_handling.dump_hdf5(self.path_output + 'monstations_' + self.job_name + '.hdf5', loads.monstations)
 
             logging.info('Saving dyn2stat.')
-            data_handling.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
-                                    mon.dyn2stat)
+            data_handling.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5', loads.dyn2stat)
         # The worker process runs on all other processors
         else:
             logging.info('I am worker on process %d.', self.myid)
@@ -326,7 +326,7 @@ class Kernel(ProgramFlowHelper):
 
                 if tag == tags['start']:
                     # Start a new job
-                    response = self.main_common(model, self.jcl, i_subcase)
+                    response = self.main_core(model, self.jcl, i_subcase)
                     self.comm.send(response, dest=0, tag=tags['done'])
                 elif tag == tags['exit']:
                     # Received an exit signal.
@@ -397,7 +397,7 @@ class Kernel(ProgramFlowHelper):
         """
         # Import plotting_extra not before here, as the import of graphical libraries such as mayavi takes a long time and
         # fails of systems without graphical display (such as HPS clusters).
-        from loadskernel import plotting_extra
+        from loadskernel import plotting_extra  # pylint: disable=import-outside-toplevel
 
         # Load the model and the response as usual
         model = data_handling.load_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
@@ -492,7 +492,7 @@ class ClusterMode(Kernel):
                       + str(self.jcl.trimcase[i]['subcase']) + '.pickle', 'wb') as f:
                 data_handling.dump_pickle(empty_response, f)
         # Start the simulation
-        response = self.main_common(model, jcl, i)
+        response = self.main_core(model, jcl, i)
         # Overwrite the empty response from above
         if self.myid == 0:
             logging.info('Saving response(s).')
@@ -530,10 +530,10 @@ class ClusterMode(Kernel):
         logging.info('Saving dyn2stat.')
         data_handling.dump_hdf5(self.path_output + 'dyn2stat_' + self.job_name + '.hdf5',
                                 mon.dyn2stat)
-        
+
         logging.info('Loads Kernel finished.')
         self.print_logo()
-    
+
     def gather_gafs(self):
         self.setup_logger()
         logging.info('Starting Loads Kernel with job: %s', self.job_name)
@@ -550,9 +550,10 @@ class ClusterMode(Kernel):
                 # Pick relevant data from response
                 GAFs = {}
                 GAFs['pulse'] = response['pulse']
-                GAFs['t_gaf'] = response['t_gaf']
+                GAFs['t'] = response['t_pulse']
                 GAFs['k_red'] = response['k_red']
-                GAFs['Qhk'] = response['GAFh_k']
+                GAFs['Qhk'] = response['Qhk']
+                GAFs['X0'] = response['X']
                 # Write info about which GAFs we found in the response
                 key = '.'.join(trimcase['desc'].split('.')[:-1])
                 if '/GAFs/' + key in fid:
