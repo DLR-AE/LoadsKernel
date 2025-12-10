@@ -449,7 +449,7 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             config['DEFORM_MESH'] = 'YES'
             config['MARKER_DEFORM_MESH'] = '( ' + ', '.join(self.jcl.meshdefo['surface']['markers']) + ' )'
             # there is no restart for the first execution
-            config['RESTART_SOL'] = 'YES'
+            config['RESTART_SOL'] = 'NO'
             # detrimine cfd solution output
             config['OUTPUT_FILES'] = ['RESTART', 'RESTART_ASCII', 'TECPLOT', 'SURFACE_TECPLOT']
             # set intemediate outputs
