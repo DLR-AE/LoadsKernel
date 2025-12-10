@@ -736,8 +736,8 @@ class PKMethodRodden(PKMethodSchwochow):
         Qhh = self.Qhh_interp(k_red)
         Mhh_inv = np.linalg.inv(self.Mhh)
 
-        upper_part = np.concatenate((np.zeros((self.n_modes, self.n_modes), dtype='complex128'),
-                                     np.eye(self.n_modes, dtype='complex128')), axis=1)
+        upper_part = np.concatenate((np.zeros((self.n_modes, self.n_modes)),
+                                     np.eye(self.n_modes)), axis=1)
         lower_part = np.concatenate((-Mhh_inv.dot(self.Khh - rho / 2 * self.Vtas ** 2.0 * Qhh.real),
                                      -Mhh_inv.dot(self.Dhh - rho / 4 * self.Vtas * self.macgrid['c_ref'] / k_red * Qhh.imag)),
                                     axis=1)
