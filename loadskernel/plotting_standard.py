@@ -720,7 +720,7 @@ class GAFPlots(LoadPlots):
             # Step 3: plot each mode separately
             fig, ax = plt.subplots(7, sharex=True, figsize=(8, 10))
             for i in range(Pb_pulse.shape[1]):
-                fig.suptitle(f'{trimcase['desc']}, Mode {i}', fontsize=16)
+                fig.suptitle(f'{trimcase['desc']}, Mode {i+2}', fontsize=16)
                 for a in ax:
                     a.cla()
                 ax[0].plot(t, pulse[i, :], '-', label='Pulse')
