@@ -537,40 +537,6 @@ class ClusterMode(Kernel):
         logging.info('Loads Kernel finished.')
         self.print_logo()
 
-    def gather_gafs(self):
-        self.setup_logger()
-        logging.info('Starting Loads Kernel with job: %s', self.job_name)
-        logging.info('User %s on %s (%s)', getpass.getuser(), platform.node(), platform.platform())
-        logging.info('GAF gather mode')
-        self.jcl = data_handling.load_jcl(self.job_name, self.path_input, self.jcl)
-        # Open model file to store GAFs in append mode, don't overwrite
-        fid = data_handling.append_hdf5(self.path_output + 'model_' + self.job_name + '.hdf5')
-        responses = data_handling.gather_responses(self.job_name, data_handling.check_path(self.path_output + 'responses'))
-        logging.info('Moving GAFs from responses into model:')
-        for i, (trimcase, simcase) in enumerate(zip(self.jcl.trimcase, self.jcl.simcase)):
-            response = responses[[response['i'] for response in responses].index(i)]
-            if 'gaf' in simcase and simcase['gaf'] and response['successful']:
-                # Pick relevant data from response
-                GAFs = {}
-                GAFs['pulse'] = response['pulse']
-                GAFs['t'] = response['t_pulse']
-                GAFs['k_red'] = response['k_red']
-                GAFs['Qhk'] = response['Qhk']
-                GAFs['Qhh'] = response['Qhh']
-                GAFs['X0'] = response['X']
-                # Write info about which GAFs we found in the response
-                key = '.'.join(trimcase['desc'].split('.')[:-1])
-                if '/GAFs/' + key in fid:
-                    logging.info(' - Overwriting existing entry for subcase %s, %s', trimcase['subcase'], key)
-                    del fid['/GAFs/' + key]
-                else:
-                    logging.info(' - subcase %s, %s', trimcase['subcase'], key)
-                # Store GAFs in model
-                data_handling.write_hdf5(fid, GAFs, path='/GAFs/' + key)
-        fid.close()
-        logging.info('Loads Kernel finished.')
-        self.print_logo()
-
 
 def str2bool(v):
     # This is a function outside the class to convert strings to boolean. Requirement for parsing command line arguments.

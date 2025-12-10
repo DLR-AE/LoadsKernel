@@ -14,6 +14,7 @@ from loadskernel import build_aero_functions
 from loadskernel import spline_rules
 from loadskernel import spline_functions
 from loadskernel import build_splinegrid
+from loadskernel.io_functions import data_handling
 from loadskernel.io_functions import read_mona, read_op4, read_bdf
 from loadskernel.io_functions import read_cfdgrids
 from loadskernel import grid_trafo
@@ -30,6 +31,8 @@ class Model():
         self.path_output = path_output
         # init the bdf reader
         self.bdf_reader = read_bdf.Reader()
+        # initialize empty dict for GAFs
+        self.GAFs = {}
 
     def build_model(self):
         # run all build function/stages
@@ -210,11 +213,33 @@ class Model():
             self.build_cs()
             self.build_AICs_steady()
             self.build_AICs_unsteady()
+            self.read_precomputed_GAFs()
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
 
         logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(
             self.aerogrid['n'], len(self.x2grid['ID_surf'])))
+
+    def read_precomputed_GAFs(self):
+        # The CFD-based frequency domain method requires precomputed GAFs from the responses of another job.
+        # The corresponding job name is given in the jcl.
+        if self.jcl.aero['method'] in ['cfd_freq_dom'] and 'job_name_gafs' in self.jcl.aero:
+            responses = data_handling.load_hdf5_responses(self.jcl.aero['job_name_gafs'], self.path_output)
+            logging.info('Moving GAFs from responses into model:')
+            for response in responses:
+                if response['successful'] and 'pulse' in response:
+                    # Write info about which GAFs we found in the response
+                    key = '.'.join(response['desc'].split('.')[:-1])
+                    logging.info(' - %s', key)
+                    # Pick relevant data from response
+                    self.GAFs[key] = {}
+                    self.GAFs[key]['pulse'] = response['pulse'][()]
+                    self.GAFs[key]['t'] = response['t_pulse'][()]
+                    self.GAFs[key]['k_red'] = response['k_red'][()]
+                    self.GAFs[key]['Qhk'] = response['Qhk'][()]
+                    self.GAFs[key]['Qhh'] = response['Qhh'][()]
+                    self.GAFs[key]['X0'] = response['X'][()]
+                    self.GAFs[key]['q_dyn'] = response['q_dyn'][()]
 
     def build_aerogrid(self):
         # To avoid interference with other CQUAD4 cards parsed earlier, clear those dataframes first
