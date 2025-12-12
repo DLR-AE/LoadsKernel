@@ -229,7 +229,7 @@ class Model():
             for response in responses:
                 if response['successful'] and 'pulse' in response:
                     # Write info about which GAFs we found in the response
-                    key = '.'.join(response['desc'].split('.')[:-1])
+                    key = '.'.join(response['desc'].asstr()[()].split('.')[:-1])
                     logging.info(' - %s', key)
                     # Pick relevant data from response
                     self.GAFs[key] = {}
