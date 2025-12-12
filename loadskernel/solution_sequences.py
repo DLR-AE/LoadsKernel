@@ -559,6 +559,7 @@ class SolutionSequences(TrimConditions):
         n_modes_flex = self.model['mass'][self.trimcase['mass']]['n_modes'][()]
         PHIkh = self.model['mass'][self.trimcase['mass']]['PHIkh'][()]
         n_modes = n_modes_rbm + n_modes_flex
+        # This is the index of each mode in the state vector X
         idx_modes = list(range(1, n_modes_rbm + 1)) + list(range(1 + n_modes_rbm + 6, 1 + n_modes_rbm + 6 + n_modes_flex))
         logging.info('Calculating GAFs for %d rigid body modes and %d flexible modes...',
                      n_modes_rbm, n_modes_flex)
@@ -587,10 +588,13 @@ class SolutionSequences(TrimConditions):
         k_red = k[idx_k]
         # Generate small-amplitude pulse signal
         t, unit_pulse = calc_pulse(dt, t_final, eps=1.0)
-        # Apply scaling to unit pulse for each mode. The pulse's sign is used to align the
-        # aicraft rigid body motion with the nastran coordinate system.
-        pulse_factor = [0.001, 0.001, 0.001, 0.001, 0.001] + [0.01] * n_modes_flex
-        pulse_sign = [1.0, -1.0, -1.0, 1.0, -1.] + [1.0] * n_modes_flex
+        # Scale the unit pulse for each mode such that the aplitudes are small.
+        # Right now the scaling is hard-codes based on test with the DC3, but might need to be adjusted
+        # for different configurations. On the other hand, I'm no fan of too many user-defined parameters...
+        pulse_factor = [1e-3, 1e-3, 1e-4, 1e-4, 1e-4] + [1e-3] * n_modes_flex
+        # The pulse's sign is used to align the aicraft rigid body motion with the nastran coordinate
+        # system (compatibility with DLM-based solutions).
+        pulse_sign = [1.0, -1.0, -1.0, 1.0, -1.0] + [1.0] * n_modes_flex
         pulse = [unit_pulse * factor for factor in pulse_factor]
         pulse = np.array(pulse)
         pulse_f = fft(pulse)
@@ -621,7 +625,7 @@ class SolutionSequences(TrimConditions):
         for i_mode, idx_mode in zip(range(n_modes), idx_modes):
             # Re-initialze CFD solution sequence for each mode
             equations = CfdUnsteady(self, X0)
-            logging.info('Running time simulation for mode %d for %g sec...', i_mode, t_final)
+            logging.info('Running time simulation for mode %d for %g sec...', i_mode + 2, t_final)
             # Loop over time steps
             for i_step, t_step in enumerate(t):
                 X = copy.deepcopy(X0)
@@ -657,5 +661,6 @@ class SolutionSequences(TrimConditions):
             self.response['k_red'] = k_red
             self.response['Qhk'] = Qhk
             self.response['Qhh'] = Qhh
+            self.response['desc'] = self.trimcase['desc']
 
         self.successful = True

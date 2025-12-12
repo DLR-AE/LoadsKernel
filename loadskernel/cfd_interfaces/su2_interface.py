@@ -510,19 +510,18 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
                 os.symlink(filename_steady, filename_unsteady1)
             except FileExistsError:
                 pass
-
-            """
-            In the time domain, simply rely on the the density residual to establish convergence.
-            This is because SU2 only needs a few inner iterations per time step, which are too few for a meaningful
-            cauchy convergence.
-            In case of GAF computation, no convergence criterion can be used because the reference / zero solution
-            (without a pulse) has to be have exactly the same number of steps as the pulse solution.
-            """
+            # Set-up inner iterations
             if 'gaf' in self.simcase and self.simcase['gaf']:
-                config['INNER_ITER'] = 3
+                # In case of GAF computation, no convergence criterion can be used because the reference / zero solution
+                # (without a pulse) has to have exactly the same number of steps as the pulse solution.
+                # Possibly, the number of inner iterations depends on the aircraft, mesh size, etc.
+                config['INNER_ITER'] = 4
                 if 'CONV_RESIDUAL_MINVAL' in config:
                     config.pop('CONV_RESIDUAL_MINVAL')
             else:
+                # In the time domain, simply rely on the the density residual to establish convergence.
+                # This is because SU2 only needs a few inner iterations per time step, which are too few for a meaningful
+                # cauchy convergence.
                 config['INNER_ITER'] = 30
                 config['CONV_RESIDUAL_MINVAL'] = -6
             # Remove other convergence criteria
