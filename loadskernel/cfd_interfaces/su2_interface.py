@@ -568,7 +568,6 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             # Note: In SU2 this is the full gust length, not the gust gradient H (half gust length).
             config['GUST_WAVELENGTH'] = 2.0 * self.simcase['gust_gradient']
             config['GUST_PERIODS'] = 1.0
-            config['GUST_AMPL'] = Vgust
             config['GUST_BEGIN_TIME'] = 0.0
             config['GUST_BEGIN_LOC'] = -2.0 * self.simcase['gust_gradient'] - self.simcase['gust_para']['T1'] * Vtas
 
