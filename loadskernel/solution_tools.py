@@ -59,8 +59,7 @@ def design_gust_cs_25_341(simcase, atmo, V):
         MTOW = float(simcase['gust_para']['MTOW'])  # Maximum Take-Off Weight
         MZFW = float(simcase['gust_para']['MZFW'])  # Maximum Zero Fuel Weight
         fg = calc_fg(altitude, Z_mo, MLW, MTOW, MZFW)
-    logging.info(
-        'CS25_Uds is set up with flight profile alleviation factor Fg = {}'.format(fg))
+    logging.info('CS25_Uds is set up with flight profile alleviation factor Fg = %s', fg)
 
     # reference gust velocity (EAS) [m/s]
     if altitude <= 4572:
@@ -136,7 +135,7 @@ def calc_fg(altitude, Z_mo, MLW, MTOW, MZFW):
     return fg
 
 
-def calc_pulse(dt, t_final, eps):
+def calc_polynomial_pulse(dt, t_final, eps):
     # Create a pulse signal with timestep dt up to t_final with magnitude eps.
     # The pulse uses a 5th-order polynomial following eq. 2.26 in [1].
     # [1] Koch, C., “Whirl Flutter Stability Analysis Using Propeller Transfer Matrices”,
@@ -157,3 +156,28 @@ def calc_pulse(dt, t_final, eps):
     pulse[n_lead + n_stroke:n_lead + n_stroke * 2] = stroke_down[n_stroke:n_stroke * 2]
     pulse *= eps
     return t, pulse
+
+
+def calc_one_m_cos_pulse(dt, t_final, Vtas, eps):
+    # Create a pulse signal with timestep dt up to t_final with magnitude eps.
+    # The pulse uses the 1-cosine gust shape according to CS-25.341.
+    # The downside of the 1-cosine pulse is that it has zeros in the frequency domain.
+    # For example, with f_max = 500 Hz, the first zero appears at 25 Hz. Because for gust analsysis
+    # mainly the low-frequency range is of interest, this pulse shape is still acceptable and
+    # implemented in most CFD codes.
+    t = np.arange(0.0, t_final + dt, dt)
+    # Pulse width in seconds
+    tw = dt * 40
+    # The flight speed has no influence on the pulse itself but determines the gust gradient / half length,
+    # which is an input for the CFD simulation.
+    half_length = tw / Vtas
+    # Calculate one-minus-cosine part
+    t_one_m_cos = np.arange(0.0, tw + dt, dt)
+    one_m_cos_part = eps * 0.5 * (1 - np.cos(np.pi * t_one_m_cos / tw * 2.0))
+    # Assemble full pulse
+    n_pulse = len(t_one_m_cos)
+    n_lead = 10
+    pulse = np.zeros(t.shape)
+    pulse[n_lead:n_lead + n_pulse] = one_m_cos_part
+    pulse *= eps
+    return t, pulse, half_length

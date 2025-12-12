@@ -13,7 +13,7 @@ from loadskernel.equations import mona_frequency_domain, cfd_frequency_domain, m
 from loadskernel.trim_conditions import TrimConditions
 from loadskernel.cfd_interfaces.tau_interface import TauError
 from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix
-from loadskernel.solution_tools import calc_pulse
+from loadskernel.solution_tools import calc_polynomial_pulse
 
 
 class SolutionSequences(TrimConditions):
@@ -587,7 +587,7 @@ class SolutionSequences(TrimConditions):
         idx_k = np.where(k < 3.0)[0]
         k_red = k[idx_k]
         # Generate small-amplitude pulse signal
-        t, unit_pulse = calc_pulse(dt, t_final, eps=1.0)
+        t, unit_pulse = calc_polynomial_pulse(dt, t_final, eps=1.0)
         # Scale the unit pulse for each mode such that the aplitudes are small.
         # Right now the scaling is hard-codes based on test with the DC3, but might need to be adjusted
         # for different configurations. On the other hand, I'm no fan of too many user-defined parameters...
