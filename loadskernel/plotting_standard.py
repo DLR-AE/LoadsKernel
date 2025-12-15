@@ -651,9 +651,11 @@ class GAFPlots(LoadPlots):
             # Get/load data from the response
             trimcase = self.jcl.trimcase[response['i'][()]]
             simcase = self.jcl.simcase[response['i'][()]]
-            pulse = response['pulse'][()]
+            pulse_signal = response['pulse_signal'][()]
+            gust_signal = response['gust_signal'][()]
             t = response['t_pulse'][()]
             Pb_pulse = response['Pb_pulse'][()]
+            Pb_gust = response['Pb_gust'][()]
             # Qhh = response['Qhh'][()]
             k_red = response['k_red'][()]
             Vtas = sum(response['X'][0, 6:9] ** 2) ** 0.5
@@ -661,7 +663,8 @@ class GAFPlots(LoadPlots):
             c_ref = self.jcl.general['c_ref']
 
             # Step 1: plot pulse in frequency domain
-            pulse_f = fft(pulse)
+            pulse_f = fft(pulse_signal)
+            gust_f = fft(gust_signal)
             n_freqs = int(simcase['gaf_para']['fmax'] / simcase['gaf_para']['df'])
             if n_freqs % 2 != 0:  # n_freq is odd
                 n_freqs += 1  # make even
@@ -673,19 +676,23 @@ class GAFPlots(LoadPlots):
             # Positive only frequencies where we need to calculate the TFs and excitations
             positiv_fftfreqs = np.abs(fftfreqs[:n_freqs // 2 + 1])
             # Do the actual plotting
-            fig = plt.figure()
-            ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
-            ax_k = ax.twiny()
-            ax_k.set_position([0.15, 0.30, 0.75, 0.6])
-            ax.plot(positiv_fftfreqs, np.abs(pulse_f[0, :len(positiv_fftfreqs)]), '-', label='FFT Pulse')
-            # the first x-axis
+            fig, ax = plt.subplots(2, sharex=True, figsize=(8, 10))
             fig.suptitle(f'{trimcase['desc']}', fontsize=16)
-            ax.set_xlabel('Frequency [Hz]')
+            
+            ax[0].set_position([0.15, 0.55, 0.75, 0.35])
+            ax[0].plot(positiv_fftfreqs, np.abs(pulse_f[0, :len(positiv_fftfreqs)]), '-', label='FFT Pulse')
+            ax[1].set_position([0.15, 0.15, 0.75, 0.35])
+            ax[1].plot(positiv_fftfreqs, np.abs(gust_f[:len(positiv_fftfreqs)]), '-', label='FFT Gust')
+            # the shared x-axis
+            ax[1].set_xlabel('Frequency [Hz]')
             f_max = 50.0  # I don't like hard-coded limits here, but 50 Hz is ok for most applications
             k_max = 2.0 * np.pi * f_max * c_ref / 2.0 / Vtas
-            ax.set_xlim((0.0, f_max))
-            self.make_as_nice([ax])
+            ax[1].set_xlim((0.0, f_max))
+            self.make_as_nice(ax)
+
             # set second x-axis
+            ax_k = ax[-1].twiny()
+            ax_k.set_position([0.15, 0.15, 0.75, 0.35])  # Move the axis on top of the lower plot
             ax_k.xaxis.set_ticks_position('bottom')
             ax_k.xaxis.set_label_position('bottom')
             ax_k.spines['bottom'].set_position(('outward', 60))
@@ -723,7 +730,7 @@ class GAFPlots(LoadPlots):
                 fig.suptitle(f'{trimcase['desc']}, Mode {i + 2}', fontsize=16)
                 for a in ax:
                     a.cla()
-                ax[0].plot(t, pulse[i, :], '-', label='Pulse')
+                ax[0].plot(t, pulse_signal[i, :], '-', label='Pulse')
                 ax[1].plot(t, Pb_pulse[0, i, :], '-', label='Fx')
                 ax[2].plot(t, Pb_pulse[1, i, :], '-', label='Fy')
                 ax[3].plot(t, Pb_pulse[2, i, :], '-', label='Fz')
@@ -741,5 +748,27 @@ class GAFPlots(LoadPlots):
                 ax[6].set_ylabel('[Nm]')
                 fig.tight_layout(pad=1.0)
                 pp.savefig()
+
+        # Step 4: plot gust
+            fig, ax = plt.subplots(7, sharex=True, figsize=(8, 10))
+            fig.suptitle(f'{trimcase['desc']}, Gust', fontsize=16)
+            ax[0].plot(t, gust_signal, '-', label='Gust')
+            ax[1].plot(t, Pb_gust[0, :], '-', label='Fx')
+            ax[2].plot(t, Pb_gust[1, :], '-', label='Fy')
+            ax[3].plot(t, Pb_gust[2, :], '-', label='Fz')
+            ax[4].plot(t, Pb_gust[3, :], '-', label='Mx')
+            ax[5].plot(t, Pb_gust[4, :], '-', label='My')
+            ax[6].plot(t, Pb_gust[5, :], '-', label='Mz')
+            self.make_as_nice(ax)
+            ax[-1].set_xlabel('Time [s]')
+            ax[0].set_ylabel('[-]')
+            ax[1].set_ylabel('[N]')
+            ax[2].set_ylabel('[N]')
+            ax[3].set_ylabel('[N]')
+            ax[4].set_ylabel('[Nm]')
+            ax[5].set_ylabel('[Nm]')
+            ax[6].set_ylabel('[Nm]')
+            fig.tight_layout(pad=1.0)
+            pp.savefig()
         pp.close()
         plt.close()

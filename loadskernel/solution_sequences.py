@@ -13,7 +13,7 @@ from loadskernel.equations import mona_frequency_domain, cfd_frequency_domain, m
 from loadskernel.trim_conditions import TrimConditions
 from loadskernel.cfd_interfaces.tau_interface import TauError
 from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix
-from loadskernel.solution_tools import calc_polynomial_pulse
+from loadskernel.solution_tools import polynomial_pulse, one_m_cosine_pulse
 
 
 class SolutionSequences(TrimConditions):
@@ -548,10 +548,10 @@ class SolutionSequences(TrimConditions):
     def calc_gafs(self):
         # Get initial solution from trim
         X0 = self.response['X'][0, :]
+        Vtas = sum(X0[6:9] ** 2) ** 0.5
 
         # Inline function to calculate reduced frequencies, Nastran definition
         def f2k(f):
-            Vtas = sum(X0[6:9] ** 2) ** 0.5
             return 2.0 * np.pi * f * self.jcl.general['c_ref'] / 2.0 / Vtas
 
         # Get number of modes
@@ -587,7 +587,7 @@ class SolutionSequences(TrimConditions):
         idx_k = np.where(k < 3.0)[0]
         k_red = k[idx_k]
         # Generate small-amplitude pulse signal
-        t, unit_pulse = calc_polynomial_pulse(dt, t_final, eps=1.0)
+        t, unit_pulse = polynomial_pulse(dt, t_final, eps=1.0)
         # Scale the unit pulse for each mode such that the aplitudes are small.
         # Right now the scaling is hard-codes based on test with the DC3, but might need to be adjusted
         # for different configurations. On the other hand, I'm no fan of too many user-defined parameters...
@@ -595,9 +595,9 @@ class SolutionSequences(TrimConditions):
         # The pulse's sign is used to align the aicraft rigid body motion with the nastran coordinate
         # system (compatibility with DLM-based solutions).
         pulse_sign = [1.0, -1.0, -1.0, 1.0, -1.0] + [1.0] * n_modes_flex
-        pulse = [unit_pulse * factor for factor in pulse_factor]
-        pulse = np.array(pulse)
-        pulse_f = fft(pulse)
+        pulse_signal = [unit_pulse * factor for factor in pulse_factor]
+        pulse_signal = np.array(pulse_signal)
+        gust_f = fft(pulse_signal)
         # Init storage for CFD forces
         # To avoid an excessive amount of data, e.g. during unsteady cfd simulations,
         # keep only the response data on the first mpi process (id = 0).
@@ -605,9 +605,11 @@ class SolutionSequences(TrimConditions):
             n_cfd = len(self.response['Pcfd'].squeeze())
             Pcfd_ref = np.zeros((n_cfd, len(t)))
             Pcfd_pulse = np.zeros((n_cfd, len(t)))
-            Pb = np.zeros((6, n_modes, len(t)))
+            Pcfd_gust = np.zeros((n_cfd, len(t)))
+            Pb_pulse = np.zeros((6, n_modes, len(t)))
             Qhk = np.zeros((self.model['aerogrid']['n'][()] * 6, n_modes, len(k_red)), dtype=complex)
             Qhh = np.zeros((n_modes, n_modes, len(k_red)), dtype=complex)
+            Qh_gust = np.zeros((n_modes, len(k_red)), dtype=complex)
 
         # Step 2: Run reference simulation without pulse
         # Select CFD solution sequence and initialize
@@ -621,21 +623,21 @@ class SolutionSequences(TrimConditions):
                 Pcfd_ref[:, i_step] = output_dict['Pcfd']
         equations.finalize()
 
-        # Step 3: Run pulse simulations for all modes
+        # Step 3a: Run pulse simulations for all modes
         for i_mode, idx_mode in zip(range(n_modes), idx_modes):
             # Re-initialze CFD solution sequence for each mode
             equations = CfdUnsteady(self, X0)
-            logging.info('Running time simulation for mode %d for %g sec...', i_mode + 2, t_final)
+            logging.info('Running small-amplitude pulse simulation for mode %d for %g sec...', i_mode + 2, t_final)
             # Loop over time steps
             for i_step, t_step in enumerate(t):
                 X = copy.deepcopy(X0)
-                X[idx_mode] += pulse[i_mode, i_step] * pulse_sign[i_mode]
+                X[idx_mode] += pulse_signal[i_mode, i_step] * pulse_sign[i_mode]
                 output_dict = equations.eval_equations(X, t_step, modus='sim_full_output')
                 if self.myid == 0:
                     Pcfd_pulse[:, i_step] = output_dict['Pcfd']
             equations.finalize()
 
-            # Step 4: Calculate TF for current mode
+            # Step 3b: Calculate TF for current mode
             logging.info('Calculating transfer functions...')
             if self.myid == 0:
                 # Compensate for initial condition and drift over time, transfer to aero grid 'k'
@@ -643,24 +645,62 @@ class SolutionSequences(TrimConditions):
                 Pk = PHIk_cfd.T.dot(Pcfd)
                 # Calculate transfer functions
                 Pk_f = fft(Pk, axis=1)
-                TF = Pk_f / (pulse_f[i_mode, :])
+                TF = Pk_f / (gust_f[i_mode, :])
                 # Store
                 Qhk[:, i_mode, :] = TF[:, idx_k]
-                Pb[:, i_mode, :] = np.dot(PHIcfd_cg.T, Pcfd)
+                Pb_pulse[:, i_mode, :] = np.dot(PHIcfd_cg.T, Pcfd)
 
-        # Step 5: Run pulse simulation for gust mode (ToDo)
+        # Step 4a: Run pulse simulation for gust mode
+        # Set-up small-amplitude 1-cosine gust with amplitude of 0.003 * Vtas
+        WG_TAS = 3e-3
+        t, gust_signal, half_length = one_m_cosine_pulse(dt, t_final, Vtas, eps=WG_TAS * Vtas)
+        gust_f = fft(gust_signal)
+        self.simcase['gust'] = True
+        self.simcase['gust_orientation'] = 0
+        self.simcase['gust_gradient'] = half_length
+        self.simcase['WG_TAS'] = WG_TAS
+        self.simcase['gust_para'] = {}
+        self.simcase['gust_para']['T1'] = 0.0
+        # Select CFD solution sequence and initialize
+        equations = CfdUnsteady(self, X0)
+        logging.info('Running small-amplitude gust simulation for %g sec...', t_final)
+        # Loop over time steps
+        for i_step, t_step in enumerate(t):
+            X = copy.deepcopy(X0)
+            output_dict = equations.eval_equations(X, t_step, modus='sim_full_output')
+            if self.myid == 0:
+                Pcfd_gust[:, i_step] = output_dict['Pcfd']
+        equations.finalize()
+
+        # Step 4b: Calculate TF for gust mode
+        logging.info('Calculating transfer functions...')
+        if self.myid == 0:
+            # Compensate for initial condition and drift over time, transfer to aero grid 'k'
+            Pcfd = Pcfd_gust - Pcfd_ref
+            Pk = PHIk_cfd.T.dot(Pcfd)
+            # Calculate transfer functions
+            Pk_f = fft(Pk, axis=1)
+            TF = Pk_f / gust_f
+            # Store
+            Qk_gust = TF[:, idx_k]
+            Pb_gust = np.dot(PHIcfd_cg.T, Pcfd)
 
         if self.myid == 0:
             # Apply modal transformation per frequency k_red to obtain Qhh
             for i, _ in enumerate(k_red):
                 Qhh[:, :, i] = PHIkh.T.dot(Qhk[:, :, i])
+                Qh_gust[:, i] = PHIkh.T.dot(Qk_gust[:, i])
             # Store results in response dictionary
-            self.response['pulse'] = pulse
+            self.response['desc'] = self.trimcase['desc']
+            self.response['pulse_signal'] = pulse_signal
+            self.response['gust_signal'] = gust_signal
             self.response['t_pulse'] = t
-            self.response['Pb_pulse'] = Pb
             self.response['k_red'] = k_red
             self.response['Qhk'] = Qhk
             self.response['Qhh'] = Qhh
-            self.response['desc'] = self.trimcase['desc']
+            self.response['Qk_gust'] = Qk_gust
+            # The time signals Pb_* are only saved for plotting / plausibility checking
+            self.response['Pb_pulse'] = Pb_pulse
+            self.response['Pb_gust'] = Pb_gust
 
         self.successful = True
