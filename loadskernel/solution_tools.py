@@ -135,15 +135,16 @@ def calc_fg(altitude, Z_mo, MLW, MTOW, MZFW):
     return fg
 
 
-def calc_polynomial_pulse(dt, t_final, eps):
+def polynomial_pulse(dt, t_final, eps):
     # Create a pulse signal with timestep dt up to t_final with magnitude eps.
     # The pulse uses a 5th-order polynomial following eq. 2.26 in [1].
     # [1] Koch, C., “Whirl Flutter Stability Analysis Using Propeller Transfer Matrices”,
     # Deutsches Zentrum für Luft- und Raumfahrt e. V. (DLR), 2024, https://doi.org/10.57676/BF00-1962.
-
+    t = np.arange(0.0, t_final + dt, dt)
     # Pulse width in seconds, dt*40 should excite the low frequencies up to 5% of fmax.
     tw = dt * 40
-    t = np.arange(0.0, t_final + dt, dt)
+    if tw > t_final:
+        logging.warning('The pulse signal is longer than the simulation time. Please increase fmax and/or decrease df.')
     # The pulse is assembled from two half pulses; the up and down strokes.
     stroke_up = -4.0 * (2.0 * t / tw - 1.0)**5 - 15 * (2.0 * t / tw - 1.0)**4 - 20 * (2.0 * t / tw - 1.0)**3 \
         - 10 * (2.0 * t / tw - 1.0)**2 + 1
@@ -158,25 +159,30 @@ def calc_polynomial_pulse(dt, t_final, eps):
     return t, pulse
 
 
-def calc_one_m_cos_pulse(dt, t_final, Vtas, eps):
+def one_m_cosine_pulse(dt, t_final, Vtas, eps):
     # Create a pulse signal with timestep dt up to t_final with magnitude eps.
     # The pulse uses the 1-cosine gust shape according to CS-25.341.
     # The downside of the 1-cosine pulse is that it has zeros in the frequency domain.
-    # For example, with f_max = 500 Hz, the first zero appears at 25 Hz. Because for gust analsysis
-    # mainly the low-frequency range is of interest, this pulse shape is still acceptable and
-    # implemented in most CFD codes.
+    # Because for gust analsysis mainly the low-frequency range is of interest, this
+    # pulse shape is acceptable and is implemented in most CFD codes. In addition,
+    # a pulse shorter than the shortest gust precribed in CS-25 should be suffcient.
     t = np.arange(0.0, t_final + dt, dt)
-    # Pulse width in seconds
-    tw = dt * 40
+    # Pulse half-width in seconds, derived from a gust with half length of 5m and rounded to full time steps.
+    n_steps = np.round(5.0 / Vtas / dt)
+    if n_steps < 20:
+        logging.warning('The gust signal is discretized only with %s time steps. Please increase f_max.', n_steps)
+    elif n_steps > len(t):
+        logging.warning('The gust signal is longer than the simulation time. Please decrease df.')
+    tw = n_steps * dt
     # The flight speed has no influence on the pulse itself but determines the gust gradient / half length,
-    # which is an input for the CFD simulation.
-    half_length = tw / Vtas
+    # which is an input for the CFD simulation. Check: The resulting half length sould be close to 5m.
+    half_length = tw * Vtas
     # Calculate one-minus-cosine part
     t_one_m_cos = np.arange(0.0, tw + dt, dt)
     one_m_cos_part = eps * 0.5 * (1 - np.cos(np.pi * t_one_m_cos / tw * 2.0))
     # Assemble full pulse
     n_pulse = len(t_one_m_cos)
-    n_lead = 10
+    n_lead = 0
     pulse = np.zeros(t.shape)
     pulse[n_lead:n_lead + n_pulse] = one_m_cos_part
     pulse *= eps
