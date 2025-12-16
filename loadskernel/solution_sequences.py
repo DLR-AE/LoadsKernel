@@ -12,7 +12,7 @@ from loadskernel.equations.common import ConvergenceError
 from loadskernel.equations import mona_frequency_domain, cfd_frequency_domain, mona_state_space
 from loadskernel.trim_conditions import TrimConditions
 from loadskernel.cfd_interfaces.tau_interface import TauError
-from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix
+from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load_hdf5_dict
 from loadskernel.solution_tools import polynomial_pulse, one_m_cosine_pulse
 
 
@@ -233,9 +233,15 @@ class SolutionSequences(TrimConditions):
         elif self.jcl.aero['method'] in ['cfd_steady', 'cfd_unsteady']:
             self.iterative_trim()
         elif self.jcl.aero['method'] in ['cfd_freq_dom']:
-            logging.info('Bypassing trim for frequency domain CFD simulation.')
-            self.response = {}
-            self.successful = False
+            logging.info('Using response / trim data form CFD-based GAF computation.')
+            # Here we should fetch some data from the GAF simulation and fill the response
+            key = '.'.join(self.trimcase['desc'].split('.')[:-1])
+            if key in self.model['GAFs']:
+                self.response = load_hdf5_dict(self.model['GAFs'][key]['response'])
+                self.successful = True
+            else:
+                logging.error('No response / trim data found for "%s" in model!', key)
+                self.successful = False
         else:
             logging.error('Unknown aero method: %s', str(self.jcl.aero['method']))
         if self.successful:
@@ -254,7 +260,7 @@ class SolutionSequences(TrimConditions):
         # http://www.math.utah.edu/software/minpack/minpack/hybrd.html
 
         if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady',
-                                       'freq_dom', 'mona_freq_dom'] and not hasattr(self.jcl, 'landinggear'):
+                                       'freq_dom', 'mona_freq_dom', 'cfd_freq_dom'] and not hasattr(self.jcl, 'landinggear'):
             equations = Steady(self)
         elif self.jcl.aero['method'] in ['nonlin_steady']:
             equations = NonlinSteady(self)
@@ -486,17 +492,28 @@ class SolutionSequences(TrimConditions):
     def exec_sim_freq_dom(self):
         # get initial solution from trim
         X0 = self.response['X'][0, :]
-        # select solution sequence
-        if self.simcase['gust']:
-            equations = mona_frequency_domain.GustExcitation(self, X0)
-        elif self.simcase['turbulence']:
-            equations = mona_frequency_domain.TurbulenceExcitation(self, X0)
-        elif self.simcase['limit_turbulence']:
-            equations = mona_frequency_domain.LimitTurbulence(self, X0)
-            self.response['Pmon_turb'] = 0.0
-            self.response['correlations'] = 0.0
+        if self.jcl.aero['method'] in ['freq_dom', 'mona_freq_dom']:
+            # select solution sequence
+            if self.simcase['gust']:
+                equations = mona_frequency_domain.GustExcitation(self, X0)
+            elif self.simcase['turbulence']:
+                equations = mona_frequency_domain.TurbulenceExcitation(self, X0)
+            elif self.simcase['limit_turbulence']:
+                equations = mona_frequency_domain.LimitTurbulence(self, X0)
+                self.response['Pmon_turb'] = 0.0
+                self.response['correlations'] = 0.0
+            else:
+                logging.error('Unknown frequency domain simulation type.')
+                equations = None
+        elif self.jcl.aero['method'] in ['cfd_freq_dom']:
+            # select solution sequence
+            if self.simcase['gust']:
+                equations = cfd_frequency_domain.GustExcitation(self, X0)
+            else:
+                logging.error('Unknown CFD-based simulation type.')
+                equations = None
         else:
-            logging.error('Unknown frequency domain simulation type.')
+            logging.error('Unknown aero method: %s', self.jcl.aero['method'])
             equations = None
         response_sim = equations.eval_equations()
         for key, item in response_sim.items():
@@ -692,14 +709,14 @@ class SolutionSequences(TrimConditions):
                 Qh_gust[:, i] = PHIkh.T.dot(Qk_gust[:, i])
             # Store results in response dictionary
             self.response['desc'] = self.trimcase['desc']
-            self.response['pulse_signal'] = pulse_signal
-            self.response['gust_signal'] = gust_signal
-            self.response['t_pulse'] = t
             self.response['k_red'] = k_red
             self.response['Qhk'] = Qhk
             self.response['Qhh'] = Qhh
             self.response['Qk_gust'] = Qk_gust
-            # The time signals Pb_* are only saved for plotting / plausibility checking
+            # The time signals are only saved for plotting / plausibility checking
+            self.response['pulse_signal'] = pulse_signal
+            self.response['gust_signal'] = gust_signal
+            self.response['t_pulse'] = t
             self.response['Pb_pulse'] = Pb_pulse
             self.response['Pb_gust'] = Pb_gust
 

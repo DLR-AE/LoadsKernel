@@ -227,19 +227,23 @@ class Model():
             responses = data_handling.load_hdf5_responses(self.jcl.aero['job_name_gafs'], self.path_output)
             logging.info('Moving GAFs from responses into model:')
             for response in responses:
-                if response['successful'] and 'pulse' in response:
+                if response['successful'] and 'pulse_signal' in response:
                     # Write info about which GAFs we found in the response
                     key = '.'.join(response['desc'].asstr()[()].split('.')[:-1])
                     logging.info(' - %s', key)
-                    # Pick relevant data from response
+                    # Pick relevant data from response and copy into model
                     self.GAFs[key] = {}
-                    self.GAFs[key]['pulse'] = response['pulse'][()]
-                    self.GAFs[key]['t'] = response['t_pulse'][()]
-                    self.GAFs[key]['k_red'] = response['k_red'][()]
-                    self.GAFs[key]['Qhk'] = response['Qhk'][()]
-                    self.GAFs[key]['Qhh'] = response['Qhh'][()]
-                    self.GAFs[key]['X0'] = response['X'][()]
-                    self.GAFs[key]['q_dyn'] = response['q_dyn'][()]
+                    gaf_items = ['k_red', 'Qhk', 'Qhh', 'Qk_gust', 'q_dyn']
+                    for item in gaf_items:
+                        self.GAFs[key][item] = response[item][()]
+                    # Copy the linearization point
+                    self.GAFs[key]['X0'] = response['X'][()].squeeze()
+                    # Pick relevant data from the linearization point and copy into model
+                    self.GAFs[key]['response'] = {}
+                    resp_items = ['X', 't', 'Pk_aero', 'Pk_gust', 'Pk_unsteady',
+                                  'dUcg_dt', 'd2Ucg_dt2', 'Uf', 'dUf_dt', 'd2Uf_dt2', 'g_cg']
+                    for item in resp_items:
+                        self.GAFs[key]['response'][item] = response[item][()].squeeze()
 
     def build_aerogrid(self):
         # To avoid interference with other CQUAD4 cards parsed earlier, clear those dataframes first

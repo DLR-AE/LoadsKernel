@@ -2,14 +2,81 @@ import logging
 import numpy as np
 
 from scipy.interpolate import interp1d
+from scipy.fftpack import fft
 
 from loadskernel.interpolate import MatrixInterpolation
 from loadskernel.equations.mona_frequency_domain import KMethod as MonaKMethod
 from loadskernel.equations.mona_frequency_domain import KEMethod as MonaKEMethod
 from loadskernel.equations.mona_frequency_domain import PKMethodRodden as MonaPKMethodRodden
+from loadskernel.equations.mona_frequency_domain import GustExcitation as MonaGustExcitation
+
+
+class GustExcitation(MonaGustExcitation):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Initialize additional attributes to avoid defining them outside __init__
+        # Interpolators
+        self.Qhh_interp = None
+        self.Qhk_interp = None
+        self.Qk_gust_interp = None
+
+    def build_AIC_interpolators(self):
+        # Similar as in the fultter solutions, but not scaled with the dynamic pressure q_dyn.
+        Qhh = []
+        for i_k, _ in enumerate(self.GAFs['k_red']):
+            Qhh.append(self.PHIkh.T.dot(self.GAFs['Qhk'][:, :, i_k]))
+        self.Qhh_interp = MatrixInterpolation(self.GAFs['k_red'], Qhh)
+        # Reorder matrices (freq, aero panels, modes) because the interpolator works along the first axis.
+        Qhk = np.moveaxis(self.GAFs['Qhk'], -1, 0)
+        Qk_gust = np.moveaxis(self.GAFs['Qk_gust'], -1, 0)
+        self.Qhk_interp = MatrixInterpolation(self.GAFs['k_red'], Qhk)
+        self.Qk_gust_interp = MatrixInterpolation(self.GAFs['k_red'], Qk_gust)
+
+    def transfer_function(self, f):
+        omega = 2.0 * np.pi * f
+        Qhh = self.Qhh_interp(self.f2k(f))
+        TF = np.linalg.inv(-self.Mhh * omega ** 2 + complex(0, 1) * omega * self.Dhh + self.Khh - Qhh)
+        return TF
+
+    def calc_gust_excitation(self, freqs, t):
+        gust_f = fft(self.one_m_cosine_gust(t))
+        Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
+        Pk_fourier = np.zeros((self.aerogrid['n'] * 6, len(freqs)), dtype='complex128')
+        for i, f in enumerate(freqs):
+            Qk_gust = self.Qk_gust_interp(self.f2k(f))
+            Pk_fourier[:, i] = Qk_gust.dot(gust_f[i])
+            Ph_fourier[:, i] = self.PHIkh.T.dot(Pk_fourier[:, i])
+        return Ph_fourier, Pk_fourier
+
+    def one_m_cosine_gust(self, t):
+        # This is "only" the gust signal; unlike with panel methods, there is no relationship with the aicraft geometry here.
+        # The effect of the aircraft penetrating into the gust was already captured during the GAF computations.
+        tw = self.simcase['gust_gradient'] * 2.0 / self.Vtas
+        gust = self.WG_TAS * 0.5 * (1 - np.cos(2.0 * np.pi * t / tw))
+        gust[np.where(t > tw)] = 0.0
+        return gust
+
+    def calc_aero_response(self, freqs, Uh, dUh_dt):
+        # Because the motion is included in the GAF computations, matrix Qhk is multiplied "only" by the generalized
+        # deformations Uh.
+        Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
+        Pk_fourier = np.zeros((self.aerogrid['n'] * 6, len(freqs)), dtype='complex128')
+        for i, f in enumerate(freqs):
+            Qhk = self.Qhk_interp(self.f2k(f))
+            Pk_fourier[:, i] = Qhk.dot(Uh[:, i])
+            Ph_fourier[:, i] = self.PHIkh.T.dot(Pk_fourier[:, i])
+        return Ph_fourier, Pk_fourier
 
 
 class KMethod(MonaKMethod):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # initialize frequently used attributes to satisfy linters/static analyzers
+        self.n_freqs = None
+        self.n_modes = None
+        self.k_reds = None
 
     def build_AIC_interpolators(self):
         Qhh = []
