@@ -15,6 +15,26 @@ from loadskernel.interpolate import MatrixInterpolation
 
 class GustExcitation(Common):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Initialize additional attributes to avoid defining them outside __init__
+        self.n_modes = None
+        self.Vtas = None
+        self.q_dyn = None
+        self.fmax = None
+        self.n_freqs = None
+        self.t = None
+        self.idx_output = None
+        self.freqs = None
+        self.fftomega = None
+        self.positiv_fftfreqs = None
+        self.positiv_fftomega = None
+        self.k_reds = None  # For compatibility with KMethod
+        # Interpolators
+        self.Qjj_interp = None
+        self.Qhh_1_interp = None
+        self.Qhh_2_interp = None
+
     def eval_equations(self):
         self.setup_frequence_parameters()
 
@@ -43,22 +63,22 @@ class GustExcitation(Common):
             np.array((Uh_fourier) * (1j * self.fftomega) ** 1).sum(axis=1)[:, :self.n_freqs // 2 + 1],)
         Ph_aero_fourier = self.mirror_fouriersamples_even(Ph_aero_fourier)
         Pk_aero_fourier = self.mirror_fouriersamples_even(Pk_aero_fourier)
-        Pk_aero = np.real(ifft(Pk_gust_fourier) + ifft(Pk_aero_fourier))[:, self.t_output]
-        Pk_gust = np.real(ifft(Pk_gust_fourier))[:, self.t_output]
+        Pk_aero = np.real(ifft(Pk_gust_fourier) + ifft(Pk_aero_fourier))[:, self.idx_output]
+        Pk_gust = np.real(ifft(Pk_gust_fourier))[:, self.idx_output]
 
         # split h-set into b- and f-set
         # remember that the x-component was omitted
-        Ucg = np.concatenate((np.zeros((len(self.t_output), 1)), Uh[:5, self.t_output].T.real - Uh[:5, 0].real), axis=1)
-        dUcg_dt = np.concatenate((np.zeros((len(self.t_output), 1)),
-                                  dUh_dt[:5, self.t_output].T.real - dUh_dt[:5, 0].real), axis=1)
-        d2Ucg_dt2 = np.concatenate((np.zeros((len(self.t_output), 1)),
-                                    d2Uh_dt2[:5, self.t_output].T.real - d2Uh_dt2[:5, 0].real), axis=1)
-        Uf = Uh[5:, self.t_output].T.real - Uh[5:, 0].real
-        dUf_dt = dUh_dt[5:, self.t_output].T.real - dUh_dt[5:, 0].real
-        d2Uf_dt2 = d2Uh_dt2[5:, self.t_output].T.real - d2Uh_dt2[5:, 0].real
+        Ucg = np.concatenate((np.zeros((len(self.idx_output), 1)), Uh[:5, self.idx_output].T.real - Uh[:5, 0].real), axis=1)
+        dUcg_dt = np.concatenate((np.zeros((len(self.idx_output), 1)),
+                                  dUh_dt[:5, self.idx_output].T.real - dUh_dt[:5, 0].real), axis=1)
+        d2Ucg_dt2 = np.concatenate((np.zeros((len(self.idx_output), 1)),
+                                    d2Uh_dt2[:5, self.idx_output].T.real - d2Uh_dt2[:5, 0].real), axis=1)
+        Uf = Uh[5:, self.idx_output].T.real - Uh[5:, 0].real
+        dUf_dt = dUh_dt[5:, self.idx_output].T.real - dUh_dt[5:, 0].real
+        d2Uf_dt2 = d2Uh_dt2[5:, self.idx_output].T.real - d2Uh_dt2[5:, 0].real
 
-        g_cg = np.zeros((len(self.t_output), 3))
-        commands = np.zeros((len(self.t_output), self.solution.n_inputs))
+        g_cg = np.zeros((len(self.idx_output), 3))
+        commands = np.zeros((len(self.idx_output), self.solution.n_inputs))
 
         #  x, y, z, Phi, Theta, Psi,  u, v, w, p, q, r in DIN 9300 body fixed system for flight physics
         X = np.concatenate((Ucg * np.array([-1., 1., -1., -1., 1., -1.]),
@@ -68,7 +88,7 @@ class GustExcitation(Common):
                             commands,
                             ), axis=1)
         response = {'X': X,
-                    't': np.array([self.t[self.t_output]]).T,
+                    't': np.array([self.t[self.idx_output]]).T,
                     'Pk_aero': Pk_aero.T,
                     'Pk_gust': Pk_gust.T,
                     'Pk_unsteady': Pk_aero.T * 0.0,
@@ -96,8 +116,8 @@ class GustExcitation(Common):
             self.n_freqs += 1  # make even
         # sample spacing
         self.t = np.linspace(0.0, self.n_freqs * dt, self.n_freqs)
-        # indices of time samples to returned for post-processing
-        self.t_output = np.where(self.t <= self.simcase['t_final'])[0]
+        # indices of time samples to be returned for post-processing
+        self.idx_output = np.where(self.t <= self.simcase['t_final'])[0]
         # samples only from zero up to the Nyquist frequency
         self.freqs = np.linspace(0.0, self.fmax / 2.0, self.n_freqs // 2)
         # whole frequency space including negative frequencies
@@ -109,9 +129,6 @@ class GustExcitation(Common):
 
         logging.info('Frequency domain solution with tfinal = %sx%s s, nfreq = %s, fmax=%s Hz and df = %s Hz',
                      t_factor, self.simcase['t_final'], self.n_freqs // 2, self.fmax / 2.0, self.fmax / self.n_freqs)
-        if self.f2k(self.freqs.max()) > np.max(self.aero['k_red']):
-            logging.warning('Required reduced frequency = %0.3f but AICs given only up to %0.3f',
-                            self.f2k(self.freqs.max()), np.max(self.aero['k_red']))
 
     def mirror_fouriersamples_even(self, fouriersamples):
         mirrored_fourier = np.zeros((fouriersamples.shape[0], self.n_freqs), dtype='complex128')
@@ -375,6 +392,16 @@ class LimitTurbulence(TurbulenceExcitation):
 
 class KMethod(GustExcitation):
 
+    def __init__(self, *args, **kwargs):
+        # Initialize additional attributes to avoid defining them outside __init__
+        super().__init__(*args, **kwargs)
+        self.k_reds = None
+        self.A = None
+        self.B = None
+        self.freqs = None
+        self.damping = None
+        self.Qhh_interp = None
+
     def eval_equations(self):
         self.setup_frequence_parameters()
 
@@ -464,6 +491,7 @@ class KMethod(GustExcitation):
 
 
 class KEMethod(KMethod):
+    # No new attributes needed, thus no init
 
     def system(self, k_red):
         rho = self.atmo['rho']
@@ -532,6 +560,14 @@ class PKMethodSchwochow(KMethod):
     [1] Schwochow, J., “Die aeroelastische Stabilitätsanalyse - Ein praxisnaher Ansatz Intervalltheoretischen Betrachtung von
     Modellierungsunsicherheiten am Flugzeug zur”, Dissertation, Universität Kassel, Kassel, 2012.
     """
+
+    def __init__(self, *args, **kwargs):
+        # Initialize additional attributes to avoid defining them outside __init__
+        super().__init__(*args, **kwargs)
+        self.n_modes_rbm = None
+        self.n_modes_f = None
+        self.states = None
+        self.Vvec = None
 
     def setup_frequence_parameters(self):
         self.n_modes_rbm = 5
