@@ -38,25 +38,25 @@ class GustExcitation(Common):
     def eval_equations(self):
         self.setup_frequence_parameters()
 
-        logging.info('building transfer functions')
+        logging.info('Building transfer functions')
         self.build_AIC_interpolators()  # unsteady
         positiv_TFs = self.build_transfer_functions(self.positiv_fftfreqs)
         TFs = np.zeros((self.n_modes, self.n_modes, self.n_freqs), dtype='complex128')
         for i_mode in range(self.n_modes):
             TFs[:, i_mode, :] = self.mirror_fouriersamples_even(positiv_TFs[:, i_mode, :])
 
-        logging.info('calculating gust excitation (in physical coordinates, this may take considerable time and memory)')
+        logging.info('Calculating gust excitation (in physical coordinates, this may take considerable time and memory)')
         Ph_gust_fourier, Pk_gust_fourier = self.calc_gust_excitation(self.positiv_fftfreqs, self.t)
         Ph_gust_fourier = self.mirror_fouriersamples_even(Ph_gust_fourier)
         Pk_gust_fourier = self.mirror_fouriersamples_even(Pk_gust_fourier)
 
-        logging.info('calculating responses')
+        logging.info('Calculating aircraft response')
         Uh_fourier = TFs * Ph_gust_fourier  # [Antwort, Anregung, Frequenz]
         Uh = ifft(np.array((Uh_fourier) * (1j * self.fftomega) ** 0).sum(axis=1))
         dUh_dt = ifft(np.array((Uh_fourier) * (1j * self.fftomega) ** 1).sum(axis=1))
         d2Uh_dt2 = ifft(np.array((Uh_fourier) * (1j * self.fftomega) ** 2).sum(axis=1))
 
-        logging.info('reconstructing aerodynamic forces (in physical coordinates, this may take considerable time and memory)')
+        logging.info('Reconstructing aerodynamic forces (in physical coordinates, this may take considerable time and memory)')
         Ph_aero_fourier, Pk_aero_fourier = self.calc_aero_response(
             self.positiv_fftfreqs,
             np.array((Uh_fourier) * (1j * self.fftomega) ** 0).sum(axis=1)[:, :self.n_freqs // 2 + 1],
@@ -127,7 +127,7 @@ class GustExcitation(Common):
         self.positiv_fftfreqs = np.abs(fftfreqs[:self.n_freqs // 2 + 1])
         self.positiv_fftomega = 2.0 * np.pi * self.positiv_fftfreqs
 
-        logging.info('Frequency domain solution with tfinal = %sx%s s, nfreq = %s, fmax=%s Hz and df = %s Hz',
+        logging.info('Frequency domain solution with t_final = %s x %s s, n_freq = %s, f_max = %s Hz and df = %s Hz',
                      t_factor, self.simcase['t_final'], self.n_freqs // 2, self.fmax / 2.0, self.fmax / self.n_freqs)
 
     def mirror_fouriersamples_even(self, fouriersamples):

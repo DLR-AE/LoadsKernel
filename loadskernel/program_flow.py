@@ -192,7 +192,7 @@ class Kernel(ProgramFlowHelper):
         # In case of successful trim, do time simulation if requested in the simcase.
         if solution_i.successful and 't_final' and 'dt' in jcl.simcase[i].keys():
             solution_i.exec_sim()
-        # The post processing applies only to trim and time simulations. Thus, an alternative place for
+        # The post processing applies only to trim and time/frequency simulations. Thus, an alternative place for
         # post processing could be in the solution_sequence.py. Not sure which place is better...
         # Also, the name 'post_processing' might be misleading here, as it is not post processing of the entire
         # job (post=True), but only of the trim / sim solution sequence.
