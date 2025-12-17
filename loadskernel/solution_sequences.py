@@ -234,7 +234,8 @@ class SolutionSequences(TrimConditions):
             self.iterative_trim()
         elif self.jcl.aero['method'] in ['cfd_freq_dom']:
             logging.info('Using response / trim data form CFD-based GAF computation.')
-            # Here we should fetch some data from the GAF simulation and fill the response
+            # Fetch data from the GAF computation and fill the response.
+            # The assumption is that the gust is superposed with the linearization point used in the GAF computation.
             key = '.'.join(self.trimcase['desc'].split('.')[:-1])
             if key in self.model['GAFs']:
                 self.response = load_hdf5_dict(self.model['GAFs'][key]['response'])
@@ -260,7 +261,7 @@ class SolutionSequences(TrimConditions):
         # http://www.math.utah.edu/software/minpack/minpack/hybrd.html
 
         if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady',
-                                       'freq_dom', 'mona_freq_dom', 'cfd_freq_dom'] and not hasattr(self.jcl, 'landinggear'):
+                                       'freq_dom', 'mona_freq_dom'] and not hasattr(self.jcl, 'landinggear'):
             equations = Steady(self)
         elif self.jcl.aero['method'] in ['nonlin_steady']:
             equations = NonlinSteady(self)
@@ -566,6 +567,8 @@ class SolutionSequences(TrimConditions):
         # Get initial solution from trim
         X0 = self.response['X'][0, :]
         Vtas = sum(X0[6:9] ** 2) ** 0.5
+        # In case I decide to scale the GAFs with the dynamic pressure, I can use q_dyn from here
+        # q_dyn = self.response['q_dyn'][0]
 
         # Inline function to calculate reduced frequencies, Nastran definition
         def f2k(f):
@@ -703,6 +706,9 @@ class SolutionSequences(TrimConditions):
             Pb_gust = np.dot(PHIcfd_cg.T, Pcfd)
 
         if self.myid == 0:
+            # Because the CFD-based GAFs are calculated on the VLM/DLM aerogrid 'k',
+            # project also the initial trim solution on the k-set.
+            self.response['Pk_aero'] = PHIk_cfd.T.dot(self.response['Pcfd'])
             # Apply modal transformation per frequency k_red to obtain Qhh
             for i, _ in enumerate(k_red):
                 Qhh[:, :, i] = PHIkh.T.dot(Qhk[:, :, i])

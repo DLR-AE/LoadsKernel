@@ -231,7 +231,7 @@ class Model():
                     # Write info about which GAFs we found in the response
                     key = '.'.join(response['desc'].asstr()[()].split('.')[:-1])
                     logging.info(' - %s', key)
-                    # Pick relevant data from response and copy into model
+                    # Pick GAF matrices from response and copy into model
                     self.GAFs[key] = {}
                     gaf_items = ['k_red', 'Qhk', 'Qhh', 'Qk_gust', 'q_dyn']
                     for item in gaf_items:
