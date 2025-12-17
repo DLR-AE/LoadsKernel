@@ -678,7 +678,6 @@ class GAFPlots(LoadPlots):
             # Do the actual plotting
             fig, ax = plt.subplots(2, sharex=True, figsize=(8, 10))
             fig.suptitle(f'{trimcase['desc']}', fontsize=16)
-            
             ax[0].set_position([0.15, 0.55, 0.75, 0.35])
             ax[0].plot(positiv_fftfreqs, np.abs(pulse_f[0, :len(positiv_fftfreqs)]), '-', label='FFT Pulse')
             ax[1].set_position([0.15, 0.15, 0.75, 0.35])
@@ -689,7 +688,6 @@ class GAFPlots(LoadPlots):
             k_max = 2.0 * np.pi * f_max * c_ref / 2.0 / Vtas
             ax[1].set_xlim((0.0, f_max))
             self.make_as_nice(ax)
-
             # set second x-axis
             ax_k = ax[-1].twiny()
             ax_k.set_position([0.15, 0.15, 0.75, 0.35])  # Move the axis on top of the lower plot
