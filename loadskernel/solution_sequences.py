@@ -708,7 +708,7 @@ class SolutionSequences(TrimConditions):
         if self.myid == 0:
             # Because the CFD-based GAFs are calculated on the VLM/DLM aerogrid 'k',
             # project also the initial trim solution on the k-set.
-            self.response['Pk_aero'] = PHIk_cfd.T.dot(self.response['Pcfd'])
+            self.response['Pk_aero'] = PHIk_cfd.T.dot(self.response['Pcfd'].squeeze())
             # Apply modal transformation per frequency k_red to obtain Qhh
             for i, _ in enumerate(k_red):
                 Qhh[:, :, i] = PHIkh.T.dot(Qhk[:, :, i])
