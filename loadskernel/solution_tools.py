@@ -143,7 +143,8 @@ def polynomial_pulse(dt, t_final, eps):
     t = np.arange(0.0, t_final + dt, dt)
     # Pulse width in seconds, dt*40 should excite the low frequencies up to 5% of fmax.
     tw = dt * 40
-    if tw > t_final:
+    t_lead = 0.2
+    if (tw + t_lead) > t_final:
         logging.warning('The pulse signal is longer than the simulation time. Please increase fmax and/or decrease df.')
     # The pulse is assembled from two half pulses; the up and down strokes.
     stroke_up = -4.0 * (2.0 * t / tw - 1.0)**5 - 15 * (2.0 * t / tw - 1.0)**4 - 20 * (2.0 * t / tw - 1.0)**3 \
@@ -151,7 +152,7 @@ def polynomial_pulse(dt, t_final, eps):
     stroke_down = +4.0 * (2.0 * t / tw - 1.0)**5 - 15 * (2.0 * t / tw - 1.0)**4 + 20 * (2.0 * t / tw - 1.0)**3 \
         - 10 * (2.0 * t / tw - 1.0)**2 + 1
     n_stroke = int(tw / 2 / dt)
-    n_lead = 10
+    n_lead = int(t_lead / dt)
     pulse = np.zeros(t.shape)
     pulse[n_lead:n_lead + n_stroke] = stroke_up[:n_stroke]
     pulse[n_lead + n_stroke:n_lead + n_stroke * 2] = stroke_down[n_stroke:n_stroke * 2]
