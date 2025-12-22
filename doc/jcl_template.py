@@ -345,9 +345,9 @@ class jcl:
                          #                  'Vtas': np.linspace(100.0, 500.0, 100),
                          #                  'tracking': 'MAC*PCC',  # Available: 'MAC', 'MAC*PCC' (recommended), 'MAC*HDM'
                          #                  },
-                         # True or False, enables computation of CFD-based generalized aerodynamic forces (GAFs)
-                         'gaf': True,
-                         'gaf_para': {'df': 1.0,  # The frequency resolution governs the time length.
+                         # True or False, enables computation of CFD-based generalized aerodynamic forces (pulses)
+                         'pulse': True,
+                         'pulse_para': {'df': 1.0,  # The frequency resolution governs the time length.
                                       # The max. frequency governs the dt of the time domain simulation.
                                       # Rule of thumb: 20x the highest frequency of interest.
                                       'fmax': 500.0

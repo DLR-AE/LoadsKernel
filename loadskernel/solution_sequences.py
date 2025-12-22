@@ -563,7 +563,7 @@ class SolutionSequences(TrimConditions):
             self.response[key] = item
         self.successful = True
 
-    def calc_gafs(self):
+    def exec_pulse(self):
         # Get initial solution from trim
         X0 = self.response['X'][0, :]
         Vtas = sum(X0[6:9] ** 2) ** 0.5
@@ -581,20 +581,20 @@ class SolutionSequences(TrimConditions):
         n_modes = n_modes_rbm + n_modes_flex
         # This is the index of each mode in the state vector X
         idx_modes = list(range(1, n_modes_rbm + 1)) + list(range(1 + n_modes_rbm + 6, 1 + n_modes_rbm + 6 + n_modes_flex))
-        logging.info('Calculating GAFs for %d rigid body modes and %d flexible modes...',
+        logging.info('Calculating GAFs via pulse excitation for %d rigid body modes and %d flexible modes...',
                      n_modes_rbm, n_modes_flex)
         # Load matrices
         PHIk_cfd = load_hdf5_sparse_matrix(self.model['PHIk_cfd'])
         PHIcfd_cg = self.model['mass'][self.trimcase['mass']]['PHIcfd_cg'][()]
 
         # Step 1: set-up frequency parameters, generate pulse signal, and init storage
-        n_freqs = int(self.simcase['gaf_para']['fmax'] / self.simcase['gaf_para']['df'])
+        n_freqs = int(self.simcase['pulse_para']['fmax'] / self.simcase['pulse_para']['df'])
         if n_freqs % 2 != 0:  # n_freq is odd
             n_freqs += 1  # make even
         # Calculate all parameters from the number of freqs
-        fmax = n_freqs * self.simcase['gaf_para']['df']
+        fmax = n_freqs * self.simcase['pulse_para']['df']
         dt = 1.0 / fmax
-        t_final = 1.0 / self.simcase['gaf_para']['df']
+        t_final = 1.0 / self.simcase['pulse_para']['df']
         # Update simcase for time domain simulation
         self.simcase['dt'] = dt
         self.simcase['t_final'] = t_final
@@ -670,17 +670,22 @@ class SolutionSequences(TrimConditions):
                 Qhk[:, i_mode, :] = TF[:, idx_k]
                 Pb_pulse[:, i_mode, :] = np.dot(PHIcfd_cg.T, Pcfd)
 
-        # Step 4a: Run pulse simulation for gust mode
+        # Step 4a: Run pulse simulation for gust mode in z-direction (orientation = 0 degrees)
         # Set-up small-amplitude 1-cosine gust with amplitude of 0.003 * Vtas
         WG_TAS = 3e-3
-        t, gust_signal, half_length = one_m_cosine_pulse(dt, t_final, Vtas, eps=WG_TAS * Vtas)
+        # Add a lead time so that the initialization of the gust happens ahead of the aircraft.
+        # This avoids a jump / wiggle in the first time steps of the CFD solution.
+        T1 = 0.1  # seconds
+        # Select a short gust gradient (shorter than the 9-107m prescribed in CS-25.341)
+        half_length = 4.0  # meters
+        t, gust_signal = one_m_cosine_pulse(dt, t_final, Vtas, eps=WG_TAS * Vtas, half_length=half_length, T1=T1)
         gust_f = fft(gust_signal)
         self.simcase['gust'] = True
         self.simcase['gust_orientation'] = 0
         self.simcase['gust_gradient'] = half_length
         self.simcase['WG_TAS'] = WG_TAS
         self.simcase['gust_para'] = {}
-        self.simcase['gust_para']['T1'] = 0.0
+        self.simcase['gust_para']['T1'] = T1
         # Select CFD solution sequence and initialize
         equations = CfdUnsteady(self, X0)
         logging.info('Running small-amplitude gust simulation for %g sec...', t_final)

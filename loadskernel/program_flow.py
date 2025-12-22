@@ -202,14 +202,14 @@ class Kernel(ProgramFlowHelper):
             post_processing_i.euler_transformation()
             post_processing_i.cuttingforces()
             del post_processing_i
-        # Look if any other special analyses are requested (such as flutter, derivatives, GAFs) in the simcase.
+        # Look if any other special analyses are requested (such as flutter, derivatives, pulses) in the simcase.
         if 'flutter' in jcl.simcase[i] and jcl.simcase[i]['flutter']:
             solution_i.exec_flutter()
         elif solution_i.successful and 'derivatives' in jcl.simcase[i] and jcl.simcase[i]['derivatives']:
             solution_i.calc_jacobian()
             solution_i.calc_derivatives()
-        elif solution_i.successful and 'gaf' in jcl.simcase[i] and jcl.simcase[i]['gaf']:
-            solution_i.calc_gafs()
+        elif solution_i.successful and 'pulse' in jcl.simcase[i] and jcl.simcase[i]['pulse']:
+            solution_i.exec_pulse()
         # Collect response from solution sequence, then destroy it to free memory.
         response = solution_i.response
         response['i'] = i
@@ -358,8 +358,8 @@ class Kernel(ProgramFlowHelper):
             plt = plotting_standard.TurbulencePlots(self.jcl, model)
             plt.add_monstations(monstations)
             plt.plot_monstations(self.path_output + 'monstations_turbulence_' + self.job_name + '.pdf')
-        elif 'gaf' in self.jcl.simcase[0] and self.jcl.simcase[0]['gaf']:
-            plt = plotting_standard.GAFPlots(self.jcl, model)
+        elif 'pulse' in self.jcl.simcase[0] and self.jcl.simcase[0]['pulse']:
+            plt = plotting_standard.PulsePlots(self.jcl, model)
             plt.add_responses(responses)
             plt.plot_pluse(self.path_output + 'pulse_' + self.job_name + '.pdf')
         else:

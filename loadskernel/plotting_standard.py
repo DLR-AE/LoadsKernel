@@ -635,7 +635,7 @@ class TurbulencePlots(LoadPlots):
         return X, Y
 
 
-class GAFPlots(LoadPlots):
+class PulsePlots(LoadPlots):
 
     def make_as_nice(self, ax):
         for a in ax:
@@ -665,11 +665,11 @@ class GAFPlots(LoadPlots):
             # Step 1: plot pulse in frequency domain
             pulse_f = fft(pulse_signal)
             gust_f = fft(gust_signal)
-            n_freqs = int(simcase['gaf_para']['fmax'] / simcase['gaf_para']['df'])
+            n_freqs = int(simcase['pulse_para']['fmax'] / simcase['pulse_para']['df'])
             if n_freqs % 2 != 0:  # n_freq is odd
                 n_freqs += 1  # make even
             # Calculate all parameters from the number of freqs
-            fmax = n_freqs * simcase['gaf_para']['df']
+            fmax = n_freqs * simcase['pulse_para']['df']
             dt = 1.0 / fmax
             # Whole frequency space including negative frequencies
             fftfreqs = fftfreq(n_freqs, dt)

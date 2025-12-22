@@ -53,8 +53,11 @@ class GustExcitation(MonaGustExcitation):
         # This is "only" the gust signal; unlike with panel methods, there is no relationship with the aicraft geometry here.
         # The effect of the aircraft penetrating into the gust was already captured during the GAF computations.
         tw = self.simcase['gust_gradient'] * 2.0 / self.Vtas
-        gust = self.Vtas * self.WG_TAS * 0.5 * (1 - np.cos(2.0 * np.pi * t / tw))
+        T1 = self.simcase['gust_para']['T1']
+        gust = self.Vtas * self.WG_TAS * 0.5 * (1 - np.cos(2.0 * np.pi * (t - T1) / tw))
         gust[np.where(t > tw)] = 0.0
+        gust[np.where(t < T1)] = 0.0
+        gust[np.where(t > tw + T1)] = 0.0
         return gust
 
     def calc_aero_response(self, freqs, Uh, dUh_dt):

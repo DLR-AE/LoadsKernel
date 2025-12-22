@@ -159,7 +159,7 @@ def polynomial_pulse(dt, t_final, eps):
     return t, pulse
 
 
-def one_m_cosine_pulse(dt, t_final, Vtas, eps):
+def one_m_cosine_pulse(dt, t_final, Vtas, eps=3e-3, half_length=4.0, T1=0.0):
     # Create a pulse signal with timestep dt up to t_final with magnitude eps.
     # The pulse uses the 1-cosine gust shape according to CS-25.341.
     # The downside of the 1-cosine pulse is that it has zeros in the frequency domain.
@@ -167,8 +167,8 @@ def one_m_cosine_pulse(dt, t_final, Vtas, eps):
     # pulse shape is acceptable and is implemented in most CFD codes. In addition,
     # a pulse shorter than the shortest gust precribed in CS-25 (9-107m) should be suffcient.
     t = np.arange(0.0, t_final + dt, dt)
-    half_length = 5.0  # meters
     tw = half_length * 2.0 / Vtas
-    pulse = eps * 0.5 * (1 - np.cos(2.0 * np.pi * t / tw))
-    pulse[np.where(t > tw)] = 0.0
-    return t, pulse, half_length
+    pulse = eps * 0.5 * (1 - np.cos(2.0 * np.pi * (t-T1) / tw))
+    pulse[np.where(t < T1)] = 0.0
+    pulse[np.where(t > tw + T1)] = 0.0
+    return t, pulse

@@ -511,7 +511,7 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             except FileExistsError:
                 pass
             # Set-up inner iterations
-            if 'gaf' in self.simcase and self.simcase['gaf']:
+            if 'pulse' in self.simcase and self.simcase['pulse']:
                 # In case of GAF computation, no convergence criterion can be used because the reference / zero solution
                 # (without a pulse) has to have exactly the same number of steps as the pulse solution.
                 # Possibly, the number of inner iterations depends on the aircraft, mesh size, etc.
