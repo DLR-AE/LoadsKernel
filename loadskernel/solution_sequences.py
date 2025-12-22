@@ -568,7 +568,7 @@ class SolutionSequences(TrimConditions):
         X0 = self.response['X'][0, :]
         Vtas = sum(X0[6:9] ** 2) ** 0.5
         # In case I decide to scale the GAFs with the dynamic pressure, I can use q_dyn from here
-        # q_dyn = self.response['q_dyn'][0]
+        q_dyn = self.response['q_dyn'][0]
 
         # Inline function to calculate reduced frequencies, Nastran definition
         def f2k(f):
@@ -577,7 +577,6 @@ class SolutionSequences(TrimConditions):
         # Get number of modes
         n_modes_rbm = 5
         n_modes_flex = self.model['mass'][self.trimcase['mass']]['n_modes'][()]
-        PHIkh = self.model['mass'][self.trimcase['mass']]['PHIkh'][()]
         n_modes = n_modes_rbm + n_modes_flex
         # This is the index of each mode in the state vector X
         idx_modes = list(range(1, n_modes_rbm + 1)) + list(range(1 + n_modes_rbm + 6, 1 + n_modes_rbm + 6 + n_modes_flex))
@@ -585,6 +584,9 @@ class SolutionSequences(TrimConditions):
                      n_modes_rbm, n_modes_flex)
         # Load matrices
         PHIk_cfd = load_hdf5_sparse_matrix(self.model['PHIk_cfd'])
+        PHIcfd_strc = load_hdf5_sparse_matrix(self.model['PHIcfd_strc'])
+        PHIh_strc = load_hdf5_sparse_matrix(self.model['mass'][self.trimcase['mass']]['PHIh_strc'])
+        PHIh_cfd = PHIcfd_strc.dot(PHIh_strc.T)
         PHIcfd_cg = self.model['mass'][self.trimcase['mass']]['PHIcfd_cg'][()]
 
         # Step 1: set-up frequency parameters, generate pulse signal, and init storage
@@ -617,7 +619,7 @@ class SolutionSequences(TrimConditions):
         pulse_sign = [1.0, -1.0, -1.0, 1.0, -1.0] + [1.0] * n_modes_flex
         pulse_signal = [unit_pulse * factor for factor in pulse_factor]
         pulse_signal = np.array(pulse_signal)
-        gust_f = fft(pulse_signal)
+        pulse_f = fft(pulse_signal)
         # Init storage for CFD forces
         # To avoid an excessive amount of data, e.g. during unsteady cfd simulations,
         # keep only the response data on the first mpi process (id = 0).
@@ -628,8 +630,9 @@ class SolutionSequences(TrimConditions):
             Pcfd_gust = np.zeros((n_cfd, len(t)))
             Pb_pulse = np.zeros((6, n_modes, len(t)))
             Qhk = np.zeros((self.model['aerogrid']['n'][()] * 6, n_modes, len(k_red)), dtype=complex)
+            Qhcfd = np.zeros((self.model['cfdgrid']['n'][()] * 6, n_modes, len(k_red)), dtype=complex)
             Qhh = np.zeros((n_modes, n_modes, len(k_red)), dtype=complex)
-            Qh_gust = np.zeros((n_modes, len(k_red)), dtype=complex)
+            Qgusth = np.zeros((n_modes, len(k_red)), dtype=complex)
 
         # Step 2: Run reference simulation without pulse
         # Select CFD solution sequence and initialize
@@ -662,13 +665,17 @@ class SolutionSequences(TrimConditions):
             if self.myid == 0:
                 # Compensate for initial condition and drift over time, transfer to aero grid 'k'
                 Pcfd = Pcfd_pulse - Pcfd_ref
-                Pk = PHIk_cfd.T.dot(Pcfd)
-                # Calculate transfer functions
-                Pk_f = fft(Pk, axis=1)
-                TF = Pk_f / (gust_f[i_mode, :])
-                # Store
-                Qhk[:, i_mode, :] = TF[:, idx_k]
+                # Save time history of forces at CG for plotting
                 Pb_pulse[:, i_mode, :] = np.dot(PHIcfd_cg.T, Pcfd)
+                # Calculate transfer functions on CFD surface
+                Pcfd_f = fft(Pcfd, axis=1)
+                TF = Pcfd_f / (pulse_f[i_mode, :]) / q_dyn
+                Qhcfd[:, i_mode, :] = TF[:, idx_k]
+                # Calculate transfer functions on k-set
+                Pk = PHIk_cfd.T.dot(Pcfd)
+                Pk_f = fft(Pk, axis=1)
+                TF = Pk_f / (pulse_f[i_mode, :]) / q_dyn
+                Qhk[:, i_mode, :] = TF[:, idx_k]
 
         # Step 4a: Run pulse simulation for gust mode in z-direction (orientation = 0 degrees)
         # Set-up small-amplitude 1-cosine gust with amplitude of 0.003 * Vtas
@@ -702,13 +709,16 @@ class SolutionSequences(TrimConditions):
         if self.myid == 0:
             # Compensate for initial condition and drift over time, transfer to aero grid 'k'
             Pcfd = Pcfd_gust - Pcfd_ref
-            Pk = PHIk_cfd.T.dot(Pcfd)
-            # Calculate transfer functions
-            Pk_f = fft(Pk, axis=1)
-            TF = Pk_f / gust_f
-            # Store
-            Qk_gust = TF[:, idx_k]
             Pb_gust = np.dot(PHIcfd_cg.T, Pcfd)
+            # Calculate transfer functions on CFD surface
+            Pcfd_f = fft(Pcfd, axis=1)
+            TF = Pcfd_f / gust_f / q_dyn
+            Qgustcfd = TF[:, idx_k]
+            # Calculate transfer functions on k-set
+            Pk = PHIk_cfd.T.dot(Pcfd)
+            Pk_f = fft(Pk, axis=1)
+            TF = Pk_f / gust_f / q_dyn
+            Qgustk = TF[:, idx_k]
 
         if self.myid == 0:
             # Because the CFD-based GAFs are calculated on the VLM/DLM aerogrid 'k',
@@ -716,14 +726,20 @@ class SolutionSequences(TrimConditions):
             self.response['Pk_aero'] = PHIk_cfd.T.dot(self.response['Pcfd'].squeeze())
             # Apply modal transformation per frequency k_red to obtain Qhh
             for i, _ in enumerate(k_red):
-                Qhh[:, :, i] = PHIkh.T.dot(Qhk[:, :, i])
-                Qh_gust[:, i] = PHIkh.T.dot(Qk_gust[:, i])
+                Qhh[:, :, i] = PHIh_cfd.T.dot(Qhcfd[:, :, i])
+                Qgusth[:, i] = PHIh_cfd.T.dot(Qgustcfd[:, i])
             # Store results in response dictionary
             self.response['desc'] = self.trimcase['desc']
+            self.response['aero'] = self.trimcase['aero']
+            self.response['mass'] = self.trimcase['mass']
+            self.response['altitude'] = self.trimcase['altitude']
             self.response['k_red'] = k_red
-            self.response['Qhk'] = Qhk
             self.response['Qhh'] = Qhh
-            self.response['Qk_gust'] = Qk_gust
+            self.response['Qhcfd'] = Qhcfd
+            self.response['Qhk'] = Qhk
+            self.response['Qgusth'] = Qgusth
+            self.response['Qgustcfd'] = Qgustcfd
+            self.response['Qgustk'] = Qgustk
             # The time signals are only saved for plotting / plausibility checking
             self.response['pulse_signal'] = pulse_signal
             self.response['gust_signal'] = gust_signal
