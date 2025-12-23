@@ -19,19 +19,19 @@ class GustExcitation(MonaGustExcitation):
         # Interpolators
         self.Qhh_interp = None
         self.Qhk_interp = None
-        self.Qk_gust_interp = None
+        self.Qgustk_interp = None
 
     def build_AIC_interpolators(self):
-        # Similar as in the fultter solutions, but not scaled with the dynamic pressure q_dyn.
-        Qhh = []
-        for i_k, _ in enumerate(self.GAFs['k_red']):
-            Qhh.append(self.PHIkh.T.dot(self.GAFs['Qhk'][:, :, i_k]))
+        # Similar as in the fultter solutions, but re-scale the Qxx matrices with dynamic pressure q_dyn to obtain forces
+        # in SI units. Also, reorder matrices (freq, aero panels, modes) because the interpolator works along the first axis.
+        Qhh = self.q_dyn * np.moveaxis(self.GAFs['Qhh'], -1, 0)
+        Qhk = self.q_dyn * np.moveaxis(self.GAFs['Qhk'], -1, 0)
+        Qgusth = self.q_dyn * np.moveaxis(self.GAFs['Qgusth'], -1, 0)
+        Qgustk = self.q_dyn * np.moveaxis(self.GAFs['Qgustk'], -1, 0)
         self.Qhh_interp = MatrixInterpolation(self.GAFs['k_red'], Qhh)
-        # Reorder matrices (freq, aero panels, modes) because the interpolator works along the first axis.
-        Qhk = np.moveaxis(self.GAFs['Qhk'], -1, 0)
-        Qk_gust = np.moveaxis(self.GAFs['Qk_gust'], -1, 0)
         self.Qhk_interp = MatrixInterpolation(self.GAFs['k_red'], Qhk)
-        self.Qk_gust_interp = MatrixInterpolation(self.GAFs['k_red'], Qk_gust)
+        self.Qgusth_interp = MatrixInterpolation(self.GAFs['k_red'], Qgusth)
+        self.Qgustk_interp = MatrixInterpolation(self.GAFs['k_red'], Qgustk)
 
     def transfer_function(self, f):
         omega = 2.0 * np.pi * f
@@ -44,9 +44,10 @@ class GustExcitation(MonaGustExcitation):
         Ph_fourier = np.zeros((self.n_modes, len(freqs)), dtype='complex128')
         Pk_fourier = np.zeros((self.aerogrid['n'] * 6, len(freqs)), dtype='complex128')
         for i, f in enumerate(freqs):
-            Qk_gust = self.Qk_gust_interp(self.f2k(f))
-            Pk_fourier[:, i] = Qk_gust.dot(gust_f[i])
-            Ph_fourier[:, i] = self.PHIkh.T.dot(Pk_fourier[:, i])
+            Qgusth = self.Qgusth_interp(self.f2k(f))
+            Qgustk = self.Qgustk_interp(self.f2k(f))
+            Pk_fourier[:, i] = Qgustk.dot(gust_f[i])
+            Ph_fourier[:, i] = Qgusth.dot(gust_f[i])
         return Ph_fourier, Pk_fourier
 
     def one_m_cosine_gust(self, t):
@@ -67,8 +68,9 @@ class GustExcitation(MonaGustExcitation):
         Pk_fourier = np.zeros((self.aerogrid['n'] * 6, len(freqs)), dtype='complex128')
         for i, f in enumerate(freqs):
             Qhk = self.Qhk_interp(self.f2k(f))
+            Qhh = self.Qhh_interp(self.f2k(f))
+            Ph_fourier[:, i] = Qhh.dot(Uh[:, i])
             Pk_fourier[:, i] = Qhk.dot(Uh[:, i])
-            Ph_fourier[:, i] = self.PHIkh.T.dot(Pk_fourier[:, i])
         return Ph_fourier, Pk_fourier
 
 
@@ -82,9 +84,8 @@ class KMethod(MonaKMethod):
         self.k_reds = None
 
     def build_AIC_interpolators(self):
-        Qhh = []
-        for i_k, _ in enumerate(self.GAFs['k_red']):
-            Qhh.append(self.PHIkh.T.dot(self.GAFs['Qhk'][:, :, i_k]) / self.GAFs['q_dyn'])
+        # Move k_red to axis 0, then create interpolator
+        Qhh = np.moveaxis(self.GAFs['Qhh'], -1, 0)
         self.Qhh_interp = interp1d(self.GAFs['k_red'], Qhh, kind='cubic', axis=0, fill_value="extrapolate")
 
     def setup_frequence_parameters(self):
@@ -108,9 +109,7 @@ class PKMethodRodden(MonaPKMethodRodden):
 
     def build_AIC_interpolators(self):
         # Same formulation as in K-Method, but with custom, linear matrix interpolation
-        Qhh = []
-        for i_k, _ in enumerate(self.GAFs['k_red']):
-            Qhh.append(self.PHIkh.T.dot(self.GAFs['Qhk'][:, :, i_k]) / self.GAFs['q_dyn'])
+        Qhh = np.moveaxis(self.GAFs['Qhh'], -1, 0)
         self.Qhh_interp = MatrixInterpolation(self.GAFs['k_red'], Qhh)
 
     def system(self, k_red):
