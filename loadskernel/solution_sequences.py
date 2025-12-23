@@ -608,8 +608,11 @@ class SolutionSequences(TrimConditions):
         k = f2k(positiv_fftfreqs)
         idx_k = np.where(k < 3.0)[0]
         k_red = k[idx_k]
+        # Add a lead time so that the initialization of the gust happens ahead of the aircraft.
+        # This avoids a jump / wiggle in the first time steps of the CFD solution. Also used for the pulse.
+        T1 = 0.1  # seconds
         # Generate small-amplitude pulse signal
-        t, unit_pulse = polynomial_pulse(dt, t_final, eps=1.0)
+        t, unit_pulse = polynomial_pulse(dt, t_final, eps=1.0, T1=T1)
         # Scale the unit pulse for each mode such that the aplitudes are small.
         # Right now the scaling is hard-codes based on test with the DC3, but might need to be adjusted
         # for different configurations. On the other hand, I'm no fan of too many user-defined parameters...
@@ -680,9 +683,6 @@ class SolutionSequences(TrimConditions):
         # Step 4a: Run pulse simulation for gust mode in z-direction (orientation = 0 degrees)
         # Set-up small-amplitude 1-cosine gust with amplitude of 0.003 * Vtas
         WG_TAS = 3e-3
-        # Add a lead time so that the initialization of the gust happens ahead of the aircraft.
-        # This avoids a jump / wiggle in the first time steps of the CFD solution.
-        T1 = 0.1  # seconds
         # Select a short gust gradient (shorter than the 9-107m prescribed in CS-25.341)
         half_length = 4.0  # meters
         t, gust_signal = one_m_cosine_pulse(dt, t_final, Vtas, eps=WG_TAS * Vtas, half_length=half_length, T1=T1)

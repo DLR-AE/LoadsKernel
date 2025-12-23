@@ -135,7 +135,7 @@ def calc_fg(altitude, Z_mo, MLW, MTOW, MZFW):
     return fg
 
 
-def polynomial_pulse(dt, t_final, eps):
+def polynomial_pulse(dt, t_final, eps, T1=0.1):
     # Create a pulse signal with timestep dt up to t_final with magnitude eps.
     # The pulse uses a 5th-order polynomial following eq. 2.26 in [1].
     # [1] Koch, C., “Whirl Flutter Stability Analysis Using Propeller Transfer Matrices”,
@@ -143,8 +143,8 @@ def polynomial_pulse(dt, t_final, eps):
     t = np.arange(0.0, t_final + dt, dt)
     # Pulse width in seconds, dt*40 should excite the low frequencies up to 5% of fmax.
     tw = dt * 40
-    t_lead = 0.2
-    if (tw + t_lead) > t_final:
+    T1 = 0.1
+    if (tw + T1) > t_final:
         logging.warning('The pulse signal is longer than the simulation time. Please increase fmax and/or decrease df.')
     # The pulse is assembled from two half pulses; the up and down strokes.
     stroke_up = -4.0 * (2.0 * t / tw - 1.0)**5 - 15 * (2.0 * t / tw - 1.0)**4 - 20 * (2.0 * t / tw - 1.0)**3 \
@@ -152,7 +152,7 @@ def polynomial_pulse(dt, t_final, eps):
     stroke_down = +4.0 * (2.0 * t / tw - 1.0)**5 - 15 * (2.0 * t / tw - 1.0)**4 + 20 * (2.0 * t / tw - 1.0)**3 \
         - 10 * (2.0 * t / tw - 1.0)**2 + 1
     n_stroke = int(tw / 2 / dt)
-    n_lead = int(t_lead / dt)
+    n_lead = int(T1 / dt)
     pulse = np.zeros(t.shape)
     pulse[n_lead:n_lead + n_stroke] = stroke_up[:n_stroke]
     pulse[n_lead + n_stroke:n_lead + n_stroke * 2] = stroke_down[n_stroke:n_stroke * 2]
@@ -160,7 +160,7 @@ def polynomial_pulse(dt, t_final, eps):
     return t, pulse
 
 
-def one_m_cosine_pulse(dt, t_final, Vtas, eps=3e-3, half_length=4.0, T1=0.0):
+def one_m_cosine_pulse(dt, t_final, Vtas, eps=3e-3, half_length=4.0, T1=0.1):
     # Create a pulse signal with timestep dt up to t_final with magnitude eps.
     # The pulse uses the 1-cosine gust shape according to CS-25.341.
     # The downside of the 1-cosine pulse is that it has zeros in the frequency domain.
