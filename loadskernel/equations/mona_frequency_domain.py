@@ -405,10 +405,10 @@ class KMethod(GustExcitation):
     def eval_equations(self):
         self.setup_frequence_parameters()
 
-        logging.info('building systems')
+        logging.info('Building systems')
         self.build_AIC_interpolators()  # unsteady
         self.build_systems()
-        logging.info('calculating eigenvalues')
+        logging.info('Calculating eigenvalues')
         self.calc_eigenvalues()
 
         response = {'freqs': self.freqs,
@@ -586,9 +586,9 @@ class PKMethodSchwochow(KMethod):
     def eval_equations(self):
         self.setup_frequence_parameters()
 
-        logging.info('building systems')
+        logging.info('Building systems')
         self.build_AIC_interpolators()
-        logging.info('starting p-k iterations to match k_red with Vtas and omega')
+        logging.info('Starting p-k iterations to match k_red with Vtas and omega')
         # Compute initial guess at k_red=0.0 and first flight speed
         self.Vtas = self.Vvec[0]
         eigenvalue, eigenvector = linalg.eig(self.system(k_red=0.0))
