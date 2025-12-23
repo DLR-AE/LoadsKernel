@@ -12,7 +12,7 @@ from loadskernel.equations.common import ConvergenceError
 from loadskernel.equations import mona_frequency_domain, cfd_frequency_domain, mona_state_space
 from loadskernel.trim_conditions import TrimConditions
 from loadskernel.cfd_interfaces.tau_interface import TauError
-from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load_hdf5_dict, check_nested_dict
 from loadskernel.solution_tools import polynomial_pulse, one_m_cosine_pulse
 
 
@@ -236,12 +236,14 @@ class SolutionSequences(TrimConditions):
             logging.info('Using response / trim data form CFD-based GAF computation.')
             # Fetch data from the GAF computation and fill the response.
             # The assumption is that the gust is superposed with the linearization point used in the GAF computation.
-            key = '.'.join(self.trimcase['desc'].split('.')[:-1])
-            if key in self.model['GAFs']:
-                self.response = load_hdf5_dict(self.model['GAFs'][key]['response'])
+            mass = self.trimcase['mass']
+            aero = self.trimcase['aero']
+            altitude = self.trimcase['altitude']
+            if check_nested_dict(self.model['GAFs'], [mass, aero, altitude]):
+                self.response = load_hdf5_dict(self.model['GAFs'][mass][aero][altitude]['response'])
                 self.successful = True
             else:
-                logging.error('No response / trim data found for "%s" in model!', key)
+                logging.error("No GAFs found for mass '%s', aero '%s', altitude '%s'", mass, aero, altitude)
                 self.successful = False
         else:
             logging.error('Unknown aero method: %s', str(self.jcl.aero['method']))
@@ -567,8 +569,6 @@ class SolutionSequences(TrimConditions):
         # Get initial solution from trim
         X0 = self.response['X'][0, :]
         Vtas = sum(X0[6:9] ** 2) ** 0.5
-        # In case I decide to scale the GAFs with the dynamic pressure, I can use q_dyn from here
-        q_dyn = self.response['q_dyn'][0]
 
         # Inline function to calculate reduced frequencies, Nastran definition
         def f2k(f):
@@ -632,9 +632,9 @@ class SolutionSequences(TrimConditions):
             Pcfd_pulse = np.zeros((n_cfd, len(t)))
             Pcfd_gust = np.zeros((n_cfd, len(t)))
             Pb_pulse = np.zeros((6, n_modes, len(t)))
+            Qhh = np.zeros((n_modes, n_modes, len(k_red)), dtype=complex)
             Qhk = np.zeros((self.model['aerogrid']['n'][()] * 6, n_modes, len(k_red)), dtype=complex)
             Qhcfd = np.zeros((self.model['cfdgrid']['n'][()] * 6, n_modes, len(k_red)), dtype=complex)
-            Qhh = np.zeros((n_modes, n_modes, len(k_red)), dtype=complex)
             Qgusth = np.zeros((n_modes, len(k_red)), dtype=complex)
 
         # Step 2: Run reference simulation without pulse
@@ -672,12 +672,12 @@ class SolutionSequences(TrimConditions):
                 Pb_pulse[:, i_mode, :] = np.dot(PHIcfd_cg.T, Pcfd)
                 # Calculate transfer functions on CFD surface
                 Pcfd_f = fft(Pcfd, axis=1)
-                TF = Pcfd_f / (pulse_f[i_mode, :]) / q_dyn
+                TF = Pcfd_f / (pulse_f[i_mode, :])
                 Qhcfd[:, i_mode, :] = TF[:, idx_k]
                 # Calculate transfer functions on k-set
                 Pk = PHIk_cfd.T.dot(Pcfd)
                 Pk_f = fft(Pk, axis=1)
-                TF = Pk_f / (pulse_f[i_mode, :]) / q_dyn
+                TF = Pk_f / (pulse_f[i_mode, :])
                 Qhk[:, i_mode, :] = TF[:, idx_k]
 
         # Step 4a: Run pulse simulation for gust mode in z-direction (orientation = 0 degrees)
@@ -712,12 +712,12 @@ class SolutionSequences(TrimConditions):
             Pb_gust = np.dot(PHIcfd_cg.T, Pcfd)
             # Calculate transfer functions on CFD surface
             Pcfd_f = fft(Pcfd, axis=1)
-            TF = Pcfd_f / gust_f / q_dyn
+            TF = Pcfd_f / gust_f
             Qgustcfd = TF[:, idx_k]
             # Calculate transfer functions on k-set
             Pk = PHIk_cfd.T.dot(Pcfd)
             Pk_f = fft(Pk, axis=1)
-            TF = Pk_f / gust_f / q_dyn
+            TF = Pk_f / gust_f
             Qgustk = TF[:, idx_k]
 
         if self.myid == 0:
@@ -735,11 +735,11 @@ class SolutionSequences(TrimConditions):
             self.response['altitude'] = self.trimcase['altitude']
             self.response['k_red'] = k_red
             self.response['Qhh'] = Qhh
-            self.response['Qhcfd'] = Qhcfd
             self.response['Qhk'] = Qhk
+            self.response['Qhcfd'] = Qhcfd
             self.response['Qgusth'] = Qgusth
-            self.response['Qgustcfd'] = Qgustcfd
             self.response['Qgustk'] = Qgustk
+            self.response['Qgustcfd'] = Qgustcfd
             # The time signals are only saved for plotting / plausibility checking
             self.response['pulse_signal'] = pulse_signal
             self.response['gust_signal'] = gust_signal

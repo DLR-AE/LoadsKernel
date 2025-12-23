@@ -229,21 +229,30 @@ class Model():
             for response in responses:
                 if response['successful'] and 'pulse_signal' in response:
                     # Write info about which GAFs we found in the response
-                    key = '.'.join(response['desc'].asstr()[()].split('.')[:-1])
-                    logging.info(' - %s', key)
+                    desc = response['desc'].asstr()[()]
+                    mass = response['mass'].asstr()[()]
+                    aero = response['aero'].asstr()[()]
+                    altitude = response['altitude'].asstr()[()]
+                    logging.info(" - trimcase '%s' wih mass '%s', aero '%s', altitude '%s'", desc, mass, aero, altitude)
+                    # Init hierarchical storage
+                    if mass not in self.GAFs:
+                        self.GAFs[mass] = {}
+                    if aero not in self.GAFs[mass]:
+                        self.GAFs[mass][aero] = {}
+                    if altitude not in self.GAFs[mass][aero]:
+                        self.GAFs[mass][aero][altitude] = {}
                     # Pick GAF matrices from response and copy into model
-                    self.GAFs[key] = {}
-                    gaf_items = ['k_red', 'Qhk', 'Qhh', 'Qk_gust', 'q_dyn']
+                    gaf_items = ['k_red', 'Qhh', 'Qhk', 'Qgusth', 'Qgustk', 'q_dyn']
                     for item in gaf_items:
-                        self.GAFs[key][item] = response[item][()]
+                        self.GAFs[mass][aero][altitude][item] = response[item][()]
                     # Copy the linearization point
-                    self.GAFs[key]['X0'] = response['X'][()].squeeze()
+                    self.GAFs[mass][aero][altitude]['X0'] = response['X'][()].squeeze()
                     # Pick relevant data from the linearization point and copy into model
-                    self.GAFs[key]['response'] = {}
+                    self.GAFs[mass][aero][altitude]['response'] = {}
                     resp_items = ['X', 't', 'Pk_aero', 'Pk_gust', 'Pk_unsteady',
                                   'dUcg_dt', 'd2Ucg_dt2', 'Uf', 'dUf_dt', 'd2Uf_dt2', 'g_cg']
                     for item in resp_items:
-                        self.GAFs[key]['response'][item] = response[item][()].squeeze()
+                        self.GAFs[mass][aero][altitude]['response'][item] = response[item][()].squeeze()
 
     def build_aerogrid(self):
         # To avoid interference with other CQUAD4 cards parsed earlier, clear those dataframes first

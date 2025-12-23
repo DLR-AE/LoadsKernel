@@ -169,7 +169,7 @@ def one_m_cosine_pulse(dt, t_final, Vtas, eps=3e-3, half_length=4.0, T1=0.1):
     # a pulse shorter than the shortest gust precribed in CS-25 (9-107m) should be suffcient.
     t = np.arange(0.0, t_final + dt, dt)
     tw = half_length * 2.0 / Vtas
-    pulse = eps * 0.5 * (1 - np.cos(2.0 * np.pi * (t-T1) / tw))
+    pulse = eps * 0.5 * (1 - np.cos(2.0 * np.pi * (t - T1) / tw))
     pulse[np.where(t < T1)] = 0.0
     pulse[np.where(t > tw + T1)] = 0.0
     return t, pulse

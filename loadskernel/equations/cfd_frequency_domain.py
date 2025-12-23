@@ -19,15 +19,16 @@ class GustExcitation(MonaGustExcitation):
         # Interpolators
         self.Qhh_interp = None
         self.Qhk_interp = None
+        self.Qgusth_interp = None
         self.Qgustk_interp = None
 
     def build_AIC_interpolators(self):
         # Similar as in the fultter solutions, but re-scale the Qxx matrices with dynamic pressure q_dyn to obtain forces
         # in SI units. Also, reorder matrices (freq, aero panels, modes) because the interpolator works along the first axis.
-        Qhh = self.q_dyn * np.moveaxis(self.GAFs['Qhh'], -1, 0)
-        Qhk = self.q_dyn * np.moveaxis(self.GAFs['Qhk'], -1, 0)
-        Qgusth = self.q_dyn * np.moveaxis(self.GAFs['Qgusth'], -1, 0)
-        Qgustk = self.q_dyn * np.moveaxis(self.GAFs['Qgustk'], -1, 0)
+        Qhh = np.moveaxis(self.GAFs['Qhh'], -1, 0)
+        Qhk = np.moveaxis(self.GAFs['Qhk'], -1, 0)
+        Qgusth = np.moveaxis(self.GAFs['Qgusth'], -1, 0)
+        Qgustk = np.moveaxis(self.GAFs['Qgustk'], -1, 0)
         self.Qhh_interp = MatrixInterpolation(self.GAFs['k_red'], Qhh)
         self.Qhk_interp = MatrixInterpolation(self.GAFs['k_red'], Qhk)
         self.Qgusth_interp = MatrixInterpolation(self.GAFs['k_red'], Qgusth)
@@ -84,8 +85,9 @@ class KMethod(MonaKMethod):
         self.k_reds = None
 
     def build_AIC_interpolators(self):
-        # Move k_red to axis 0, then create interpolator
+        # Move k_red to axis 0, scale with q_dyn, then create interpolator
         Qhh = np.moveaxis(self.GAFs['Qhh'], -1, 0)
+        Qhh /= self.GAFs['q_dyn']
         self.Qhh_interp = interp1d(self.GAFs['k_red'], Qhh, kind='cubic', axis=0, fill_value="extrapolate")
 
     def setup_frequence_parameters(self):
@@ -110,6 +112,7 @@ class PKMethodRodden(MonaPKMethodRodden):
     def build_AIC_interpolators(self):
         # Same formulation as in K-Method, but with custom, linear matrix interpolation
         Qhh = np.moveaxis(self.GAFs['Qhh'], -1, 0)
+        Qhh /= self.GAFs['q_dyn']
         self.Qhh_interp = MatrixInterpolation(self.GAFs['k_red'], Qhh)
 
     def system(self, k_red):

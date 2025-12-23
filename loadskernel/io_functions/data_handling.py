@@ -171,3 +171,17 @@ def check_path(path):
         return os.path.join(path, '')
     logging.critical('Path ' + str(path) + ' not valid. Exit.')
     sys.exit()
+
+
+def check_nested_dict(d, nested_keys):
+    # This function checks if a path exists in a nested dictionary or HDF file.
+    if len(nested_keys) == 0:
+        # We reached the end, the path has to exist.
+        # (Or the nested key were empty from the beginning, which would be stupid...)
+        exists = True
+    elif nested_keys[0] in d:
+        # The key is there, dive one level deeper
+        exists = check_nested_dict(d[nested_keys[0]], nested_keys[1:])
+    else:
+        exists = False
+    return exists
