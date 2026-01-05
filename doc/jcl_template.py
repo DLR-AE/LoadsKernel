@@ -347,11 +347,11 @@ class jcl:
                          #                  },
                          # True or False, enables computation of CFD-based generalized aerodynamic forces (pulses)
                          'pulse': True,
-                         'pulse_para': {'df': 1.0,  # The frequency resolution governs the time length.
-                                      # The max. frequency governs the dt of the time domain simulation.
-                                      # Rule of thumb: 20x the highest frequency of interest.
-                                      'fmax': 500.0
-                                      },
+                         'pulse_para': {'df': 0.5,  # The frequency resolution governs the time length.
+                                        # The max. frequency governs the dt of the time domain simulation.
+                                        # Rule of thumb: 20x the highest frequency of interest.
+                                        'fmax': 500.0
+                                        },
                          },
                         ]
         # End
