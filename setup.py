@@ -35,7 +35,6 @@ def my_setup():
                             'matplotlib',
                             'numpy<2.4.0',  # Mayavi does not support numpy >= 2.4.0
                             'scipy',
-                            'psutil',
                             'h5py',
                             'tables',
                             'pyyaml',
@@ -48,7 +47,8 @@ def my_setup():
                                      'pyface',
                                      'jupyter',
                                      'pyiges',  # only available with pip, not with conda
-                                     'pyfmi'
+                                     'pyfmi',
+                                     'pyside6'
                                      ],
                           'test': ['pytest',
                                    'pytest-cov',
