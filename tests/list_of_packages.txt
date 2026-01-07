@@ -13,10 +13,8 @@ pandas
 
 # Extras, optional
 mpi4py
-mayavi
-traits
-traitsui
-pyface
+pyvista
+pyvistaqt
 jupyter
 pyfmi
 

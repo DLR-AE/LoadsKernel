@@ -42,10 +42,8 @@ def my_setup():
                             'pandas',
                             ],
           extras_require={'extras': ['mpi4py',
-                                     'mayavi',
-                                     'traits',
-                                     'traitsui',
-                                     'pyface',
+                                     'pyvista',
+                                     'pyvistaqt',
                                      'jupyter',
                                      'pyiges',  # only available with pip, not with conda
                                      'pyfmi'

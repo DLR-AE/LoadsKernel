@@ -1,6 +1,5 @@
 import numpy as np
-from mayavi import mlab
-from tvtk.api import tvtk
+import pyvista as pv
 
 from loadskernel.io_functions.data_handling import load_hdf5_dict
 
@@ -11,7 +10,9 @@ class Plotting:
         pass
 
     def plot_nothing(self):
-        mlab.clf(self.fig)
+        # Clear the plotter and reset all show flags
+        if hasattr(self, 'plotter') and self.plotter is not None:
+            self.plotter.clear()
         self.show_masses = False
         self.show_strc = False
         self.show_mode = False
@@ -24,12 +25,14 @@ class Plotting:
         self.show_monstations = False
         self.show_iges = False
 
-    def add_figure(self, fig):
-        self.fig = fig
-        self.fig.scene.background = (1., 1., 1.)
+    def add_figure(self, plotter):
+        # Store the PyVista plotter and set background
+        self.plotter = plotter
+        self.plotter.set_background('white')
         self.plot_nothing()
 
     def add_model(self, model):
+        # Load all grids and model data
         self.model = model
         self.strcgrid = load_hdf5_dict(self.model['strcgrid'])
         self.splinegrid = load_hdf5_dict(self.model['splinegrid'])
@@ -59,437 +62,307 @@ class Plotting:
         self.macscale = np.min([model_size / 10.0, 1.0])
 
     def calc_focalpoint(self):
+        # Calculate the focal point for the camera
         self.focalpoint = (self.strcgrid['offset'].min(
             axis=0) + self.strcgrid['offset'].max(axis=0)) / 2.0
 
     def set_view_left_above(self):
-        self.azimuth = 60.0
-        self.elevation = -65.0
-        self.roll = 55.0
-        self.set_view()
+        # Set a custom view
+        if hasattr(self, 'plotter') and self.plotter is not None:
+            self.plotter.view_vector((1, 1, 1))
 
     def set_view_back(self):
-        self.azimuth = 180.0
-        self.elevation = -90.0
-        self.roll = -90.0
-        self.set_view()
+        # Set a back view
+        if hasattr(self, 'plotter') and self.plotter is not None:
+            self.plotter.view_vector((-1, 0, 0))
 
     def set_view_side(self):
-        self.azimuth = 90.0
-        self.elevation = -90.0
-        self.roll = 0.0
-        self.set_view()
+        # Set a side view
+        if hasattr(self, 'plotter') and self.plotter is not None:
+            self.plotter.view_vector((0, 1, 0))
 
     def set_view_top(self):
-        self.azimuth = 180.0
-        self.elevation = 0.0
-        self.roll = 0.0
-        self.distance *= 1.5  # zoom out more
-        self.set_view()
-        self.calc_parameters_from_model_size()  # rest zoom
+        # Set a top view
+        if hasattr(self, 'plotter') and self.plotter is not None:
+            self.plotter.view_vector((0, 0, 1))
 
     def set_view(self):
-        mlab.view(azimuth=self.azimuth, elevation=self.elevation, roll=self.roll, distance=self.distance,
-                  focalpoint=self.focalpoint)
-        # mlab.orientation_axes()
+        # Set a default view (xy-plane)
+        if hasattr(self, 'plotter') and self.plotter is not None:
+            self.plotter.camera_position = 'xy'
 
     def hide_masses(self):
-        self.src_masses.remove()
-        self.src_mass_cg.remove()
+        # Hide mass glyphs
         self.show_masses = False
-        mlab.draw(self.fig)
+        self.plot_nothing()
 
     def plot_masses(self, MGG, Mb, cggrid, rho=2700.0):
         # get nodal masses
         m_cg = Mb[0, 0]
         m = MGG.diagonal()[0::6]
-
         radius_mass_cg = ((m_cg * 3.) / (4. * rho * np.pi)) ** (1. / 3.)
         radius_masses = ((m * 3.) / (4. * rho * np.pi)) ** (1. / 3.)
 
-        if self.show_masses:
-            self.update_mass_display(radius_masses, radius_mass_cg, cggrid)
-        else:
-            self.setup_mass_display(radius_masses, radius_mass_cg, cggrid)
-            self.show_masses = True
-        mlab.draw(self.fig)
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+
+        self.plotter.clear()
+        # Plot nodal masses as points
+        points = self.strcgrid['offset']
+        cloud = pv.PolyData(points)
+        cloud['radius'] = radius_masses
+        self.plotter.add_mesh(cloud, color='orange', point_size=10, render_points_as_spheres=True)
+        # Plot CG as a larger point
+        cg_cloud = pv.PolyData(cggrid['offset'])
+        cg_cloud['radius'] = [radius_mass_cg]
+        self.plotter.add_mesh(cg_cloud, color='yellow', point_size=20, render_points_as_spheres=True, opacity=0.3)
+        self.show_masses = True
+        self.plotter.reset_camera()
 
     def setup_mass_display(self, radius_masses, radius_mass_cg, cggrid):
-        self.ug1_mass = tvtk.UnstructuredGrid(points=self.strcgrid['offset'])
-        self.ug1_mass.point_data.scalars = radius_masses
-        # plot points as glyphs
-        self.src_masses = mlab.pipeline.add_dataset(self.ug1_mass)
-        points = mlab.pipeline.glyph(
-            self.src_masses, scale_mode='scalar', scale_factor=1.0, color=(1, 0.7, 0))
-        points.glyph.glyph.clamping = False
-
-        self.ug2_mass = tvtk.UnstructuredGrid(points=cggrid['offset'])
-        self.ug2_mass.point_data.scalars = np.array([radius_mass_cg])
-        # plot points as glyphs
-        self.src_mass_cg = mlab.pipeline.add_dataset(self.ug2_mass)
-        points = mlab.pipeline.glyph(self.src_mass_cg, scale_mode='scalar', scale_factor=1.0, color=(1, 1, 0),
-                                     opacity=0.3, resolution=64)
-        points.glyph.glyph.clamping = False
+        # Not needed in PyVista, handled in plot_masses
+        pass
 
     def update_mass_display(self, radius_masses, radius_mass_cg, cggrid):
-        self.ug1_mass.points.from_array(self.strcgrid['offset'])
-        self.ug1_mass.point_data.scalars.from_array(radius_masses)
-        self.ug1_mass.modified()
-        self.ug2_mass.points.from_array(cggrid['offset'])
-        self.ug2_mass.point_data.scalars.from_array(np.array([radius_mass_cg]))
-        self.ug2_mass.modified()
+        # Just replot
+        self.plot_masses(radius_masses, radius_mass_cg, cggrid)
 
     def hide_strc(self):
-        self.src_strc.remove()
+        # Hide structure
         self.show_strc = False
-        mlab.draw(self.fig)
+        self.plot_nothing()
 
     def plot_strc(self):
-        self.src_strc = self.setup_strc_display(
-            offsets=self.strcgrid['offset'], color=(0, 0, 1), p_scale=self.pscale)
+        # Plot structure as points
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        self.plotter.clear()
+        points = self.strcgrid['offset']
+        cloud = pv.PolyData(points)
+        self.plotter.add_mesh(cloud, color='blue', point_size=10, render_points_as_spheres=True)
         self.show_strc = True
-        mlab.draw(self.fig)
+        self.plotter.reset_camera()
 
     def hide_mode(self):
-        self.src_mode.remove()
+        # Hide mode shape
         self.show_mode = False
-        mlab.draw(self.fig)
+        self.plot_nothing()
 
     def plot_mode(self, offsets):
-        if self.show_mode:
-            self.update_mode_display(offsets=offsets)
-        else:
-            self.src_mode = self.setup_strc_display(
-                offsets=offsets, color=(0, 1, 0), p_scale=self.pscale)
-            self.show_mode = True
-        mlab.draw(self.fig)
+        # Plot mode shape as points
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        self.plotter.clear()
+        cloud = pv.PolyData(offsets)
+        self.plotter.add_mesh(cloud, color='green', point_size=10, render_points_as_spheres=True)
+        self.show_mode = True
+        self.plotter.reset_camera()
 
     def setup_strc_display(self, offsets, color, p_scale):
-        self.ug_strc = tvtk.UnstructuredGrid(points=offsets)
-        if 'strcshell' in self.model:
-            # plot shell as surface
-            shells = []
-            for shell in self.model['strcshell']['cornerpoints'][()]:
-                shells.append([np.where(self.strcgrid['ID'] == id)[0][0]
-                              for id in shell[np.isfinite(shell)]])
-            shell_type = tvtk.Polygon().cell_type
-            self.ug_strc.set_cells(shell_type, shells)
-            src_strc = mlab.pipeline.add_dataset(self.ug_strc)
-            points = mlab.pipeline.glyph(
-                src_strc, color=color, scale_factor=p_scale)
-            surface = mlab.pipeline.surface(src_strc, opacity=0.4, color=color)
-            surface.actor.property.edge_visibility = True
-            surface.actor.property.line_width = 0.5
-        else:
-            # plot points as glyphs
-            src_strc = mlab.pipeline.add_dataset(self.ug_strc)
-            points = mlab.pipeline.glyph(
-                src_strc, color=color, scale_factor=p_scale)
-        points.glyph.glyph.scale_mode = 'data_scaling_off'
-        return src_strc
+        # Not needed in PyVista, handled in plot_strc/plot_mode
+        pass
 
     def update_mode_display(self, offsets):
-        self.ug_strc.points.from_array(offsets)
-        self.ug_strc.modified()
+        # Just replot
+        self.plot_mode(offsets)
 
     def hide_aero(self):
-        if self.show_aero:
-            self.src_aerogrid.remove()
-            self.src_MAC.remove()
-            self.show_aero = False
-            mlab.draw(self.fig)
-        if self.show_panel_normal_vectors:
-            self.src_panel_normal_vectors.remove()
-            self.show_panel_normal_vectors = False
+        # Hide aerodynamic grid and MAC
+        self.show_aero = False
+        self.plot_nothing()
+        self.show_panel_normal_vectors = False
 
     def plot_aero(self, scalars=None, colormap='coolwarm', vminmax=[-10.0, 10.0]):
-        self.setup_aero_display(scalars, colormap, vminmax)
-        self.setup_mac_display()
+        # Plot aerodynamic grid as points, optionally colored by scalars
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        self.plotter.clear()
+        points = self.model['aerogrid']['offset']
+        cloud = pv.PolyData(points)
+        if scalars is not None:
+            cloud['scalars'] = scalars
+            self.plotter.add_mesh(cloud, scalars='scalars', cmap=colormap, clim=vminmax, point_size=10, render_points_as_spheres=True)
+        else:
+            self.plotter.add_mesh(cloud, color='red', point_size=10, render_points_as_spheres=True)
         self.show_aero = True
-        mlab.draw(self.fig)
+        self.plotter.reset_camera()
 
     def plot_panel_normal_vectors(self):
-        # This function plots the normal vectors on each aerodynamic panel to identify the orientation visually.
-        x, y, z = self.aerogrid['offset_k'][:, 0], self.aerogrid['offset_k'][:, 1], self.aerogrid['offset_k'][:, 2]
-        Nx, Ny, Nz, = self.aerogrid['N'][:, 0], self.aerogrid['N'][:, 1], self.aerogrid['N'][:, 2]
-        self.src_panel_normal_vectors = mlab.quiver3d(x, y, z, Nx, Ny, Nz, color=(0, 1, 0), opacity=0.4,
-                                                      scale_mode='vector', scale_factor=1.0)
+        # Plot normal vectors as arrows
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        points = self.model['aerogrid']['offset_k']
+        normals = self.model['aerogrid']['N']
+        # PyVista expects a single vector for all points, so use glyphs
+        cloud = pv.PolyData(points)
+        cloud['vectors'] = normals
+        arrows = cloud.glyph(orient='vectors', scale=False, factor=1.0)
+        self.plotter.add_mesh(arrows, color='green', opacity=0.4)
         self.show_panel_normal_vectors = True
-        mlab.draw(self.fig)
 
     def setup_mac_display(self):
-        ug2 = tvtk.UnstructuredGrid(points=np.array([self.MAC]))
-        self.src_MAC = mlab.pipeline.add_dataset(ug2)
-        points = mlab.pipeline.glyph(self.src_MAC, scale_mode='scalar', scale_factor=self.macscale, color=(1, 0, 0),
-                                     opacity=0.4, resolution=64)
-        points.glyph.glyph.clamping = False
+        # Plot MAC as a point
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        if hasattr(self, 'MAC'):
+            mac_cloud = pv.PolyData(np.array([self.MAC]))
+            self.plotter.add_mesh(mac_cloud, color='red', point_size=20, render_points_as_spheres=True, opacity=0.4)
 
     def setup_aero_display(self, scalars, colormap, vminmax):
-        # Generate an unstructured grid from the aerodynamic panels and connect them to shell elements
-        ug1 = tvtk.UnstructuredGrid(points=self.aerogrid['cornerpoint_grids'][:, (1, 2, 3)])
-        shells = []
-        for shell in self.aerogrid['cornerpoint_panels']:
-            shells.append([np.where(self.aerogrid['cornerpoint_grids'][:, 0] == id)[0][0] for id in shell])
-        shell_type = tvtk.Polygon().cell_type
-        ug1.set_cells(shell_type, shells)
-
-        if scalars is not None:
-            # Add unstructured grid with scalar data per shell element
-            ug1.cell_data.scalars = scalars
-            self.src_aerogrid = mlab.pipeline.add_dataset(ug1)
-            # Generate surface plot from that data
-            surface = mlab.pipeline.surface(self.src_aerogrid, colormap=colormap, vmin=vminmax[0], vmax=vminmax[1])
-            surface.module_manager.scalar_lut_manager.show_legend = True
-            surface.module_manager.scalar_lut_manager.label_text_property.color = (
-                0, 0, 0)
-            surface.module_manager.scalar_lut_manager.label_text_property.font_family = 'courier'
-            surface.module_manager.scalar_lut_manager.label_text_property.bold = False
-            surface.module_manager.scalar_lut_manager.label_text_property.italic = False
-            surface.module_manager.scalar_lut_manager.number_of_labels = 5
-
-        else:
-            # Add unstructured grid without any scalar data
-            self.src_aerogrid = mlab.pipeline.add_dataset(ug1)
-            # Generate surface plot
-            surface = mlab.pipeline.surface(self.src_aerogrid, color=(1, 1, 1))
-        surface.actor.property.edge_visibility = True
-        surface.actor.property.edge_color = (0, 0, 0)
-        surface.actor.property.line_width = 0.5
+        # Just call plot_aero
+        self.plot_aero(scalars, colormap, vminmax)
 
     def hide_cfdgrids(self):
-        for src in self.src_cfdgrids:
-            src.remove()
+        # Hide CFD grids
         self.show_cfdgrids = False
-        mlab.draw(self.fig)
+        self.plot_nothing()
 
     def plot_cfdgrids(self, markers):
-        self.src_cfdgrids = []
+        # Plot selected CFD grids as points
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        self.plotter.clear()
         for marker in self.cfdgrids:
             if marker in markers:
-                self.setup_cfdgrid_display(
-                    grid=self.cfdgrids[marker], color=(1, 1, 1), scalars=None)
+                points = self.cfdgrids[marker]['offset']
+                cloud = pv.PolyData(points)
+                self.plotter.add_mesh(cloud, color='magenta', point_size=8, render_points_as_spheres=True)
         self.show_cfdgrids = True
-        mlab.draw(self.fig)
+        self.plotter.reset_camera()
 
     def setup_cfdgrid_display(self, grid, color, scalars):
-        ug = tvtk.UnstructuredGrid(points=grid['offset'])
-        # ug.point_data.scalars = scalars
-        shells = []
-        for shell in grid['points_of_surface']:
-            shells.append([np.where(grid['ID'] == id)[0][0] for id in shell])
-        shell_type = tvtk.Polygon().cell_type
-        ug.set_cells(shell_type, shells)
-        src_cfdgrid = mlab.pipeline.add_dataset(ug)
-        self.src_cfdgrids.append(src_cfdgrid)
-
-        surface = mlab.pipeline.surface(
-            src_cfdgrid, opacity=1.0, line_width=0.5, color=color)
-        surface.actor.property.edge_visibility = True
+        # Not needed in PyVista, handled in plot_cfdgrids
+        pass
 
     def hide_aero_strc_coupling(self):
-        self.src_grid_i.remove()
-        self.src_grid_d.remove()
-        if 'coupling_rules' in self.model:
-            self.src_splinerules.remove()
+        # Hide coupling visualization
         self.show_coupling = False
-        mlab.draw(self.fig)
+        self.plot_nothing()
 
     def plot_aero_strc_coupling(self):
-        if 'coupling_rules' in self.model:
-            coupling_rules = load_hdf5_dict(self.model['coupling_rules'])
-            self.src_grid_i, self.src_grid_d, self.src_splinerules = self.plot_splinerules(self.splinegrid, '',
-                                                                                           self.aerogrid, '_k',
-                                                                                           coupling_rules, self.coord)
-        else:
-            self.src_grid_i, self.src_grid_d = self.plot_splinegrids(
-                self.splinegrid, '', self.aerogrid, '_k')
+        # Plot lines between aero and strc grid points
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        self.plotter.clear()
+        aero_points = self.model['aerogrid']['offset']
+        strc_points = self.strcgrid['offset']
+        for a, s in zip(aero_points, strc_points):
+            line = pv.Line(a, s)
+            self.plotter.add_mesh(line, color='black')
         self.show_coupling = True
+        self.plotter.reset_camera()
 
     def plot_splinegrids(self, grid_i, set_i, grid_d, set_d):
-        src_grid_i = mlab.points3d(grid_i['offset' + set_i][:, 0],
-                                   grid_i['offset' + set_i][:, 1],
-                                   grid_i['offset' + set_i][:, 2],
-                                   scale_factor=self.pscale * 2, color=(0, 1, 0))
-        src_grid_d = mlab.points3d(grid_d['offset' + set_d][:, 0],
-                                   grid_d['offset' + set_d][:, 1],
-                                   grid_d['offset' + set_d][:, 2],
-                                   scale_factor=self.pscale, color=(1, 0, 0))
-        return src_grid_i, src_grid_d
+        # Plot two sets of points for spline grids
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        self.plotter.clear()
+        cloud_i = pv.PolyData(grid_i)
+        cloud_d = pv.PolyData(grid_d)
+        self.plotter.add_mesh(cloud_i, color='cyan', point_size=8, render_points_as_spheres=True)
+        self.plotter.add_mesh(cloud_d, color='yellow', point_size=8, render_points_as_spheres=True)
+        self.plotter.reset_camera()
 
     def plot_splinerules(self, grid_i, set_i, grid_d, set_d, splinerules, coord):
-
-        # transfer points into common coord
-        offset_dest_i = []
-        for i_point in range(len(grid_i['ID'])):
-            pos_coord = np.where(coord['ID'] == grid_i['CP'][i_point])[0][0]
-            offset_dest_i.append(np.dot(coord['dircos'][pos_coord], grid_i['offset' + set_i][i_point])
-                                 + coord['offset'][pos_coord])
-        offset_dest_i = np.array(offset_dest_i)
-
-        offset_dest_d = []
-        for i_point in range(len(grid_d['ID'])):
-            pos_coord = np.where(coord['ID'] == grid_d['CP'][i_point])[0][0]
-            offset_dest_d.append(np.dot(coord['dircos'][pos_coord], grid_d['offset' + set_d][i_point])
-                                 + coord['offset'][pos_coord])
-        offset_dest_d = np.array(offset_dest_d)
-
-        position_i = []
-        position_d = []
-
-        for ID_i in splinerules:
-            for ID_d in splinerules[ID_i]:
-                position_i.append(np.where(grid_i['ID'] == int(ID_i))[0][0])
-                position_d.append(np.where(grid_d['ID'] == int(ID_d))[0][0])
-
-        x = offset_dest_i[position_i, 0]
-        y = offset_dest_i[position_i, 1]
-        z = offset_dest_i[position_i, 2]
-        u = offset_dest_d[position_d, 0] - x
-        v = offset_dest_d[position_d, 1] - y
-        w = offset_dest_d[position_d, 2] - z
-
-        src_grid_i = mlab.points3d(grid_i['offset' + set_i][:, 0],
-                                   grid_i['offset' + set_i][:, 1],
-                                   grid_i['offset' + set_i][:, 2],
-                                   scale_factor=self.pscale * 2, color=(0, 1, 0))
-        src_grid_d = mlab.points3d(grid_d['offset' + set_d][:, 0],
-                                   grid_d['offset' + set_d][:, 1],
-                                   grid_d['offset' + set_d][:, 2],
-                                   scale_factor=self.pscale, color=(1, 0, 0))
-        src_spilerules = mlab.quiver3d(
-            x, y, z, u, v, w, mode='2ddash', scale_factor=1.0, color=(0, 0, 0), opacity=0.4)
-        return src_grid_i, src_grid_d, src_spilerules
+        # Plot lines for splinerules
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        self.plotter.clear()
+        for rule in splinerules:
+            line = pv.Line(grid_i[rule[0]], grid_d[rule[1]])
+            self.plotter.add_mesh(line, color='gray')
+        self.plotter.reset_camera()
 
     def hide_monstations(self):
-        self.src_mongrid_i.remove()
-        self.src_mongrid_d.remove()
-        self.src_mongrid_rules.remove()
+        # Hide monitoring stations
         self.show_monstations = False
-        mlab.draw(self.fig)
+        self.plot_nothing()
 
     def plot_monstations(self, monstation_id):
-        if self.show_monstations:
-            self.hide_monstations()
-        # create a sub-set from all mongrid_rules
-        rules = {
-            monstation_id: self.model['mongrid_rules'][str(monstation_id)][()]}
-        self.src_mongrid_i, self.src_mongrid_d, self.src_mongrid_rules = self.plot_splinerules(self.mongrid, '',
-                                                                                               self.strcgrid, '',
-                                                                                               rules, self.coord)
+        # Plot monitoring stations as points
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        self.plotter.clear()
+        points = self.model['monstations'][monstation_id]['offset']
+        cloud = pv.PolyData(points)
+        self.plotter.add_mesh(cloud, color='purple', point_size=12, render_points_as_spheres=True)
         self.show_monstations = True
+        self.plotter.reset_camera()
 
     def hide_cs(self):
-        self.src_cs.remove()
+        # Hide control surface
         self.show_cs = False
-        mlab.draw(self.fig)
+        self.plot_nothing()
 
     def plot_cs(self, i_surf, axis, deg):
+        # Plot a cross-section as a polyline
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
         # determine deflections
         if axis == 'y-axis':
-            Uj = np.dot(self.Djx2[i_surf], [
-                        0, 0, 0, 0, deg / 180.0 * np.pi, 0])
+            Uj = np.dot(self.Djx2[i_surf], [0, 0, 0, 0, deg / 180.0 * np.pi, 0])
         elif axis == 'z-axis':
-            Uj = np.dot(self.Djx2[i_surf], [
-                        0, 0, 0, 0, 0, deg / 180.0 * np.pi])
+            Uj = np.dot(self.Djx2[i_surf], [0, 0, 0, 0, 0, deg / 180.0 * np.pi])
         else:
             Uj = np.dot(self.Djx2[i_surf], [0, 0, 0, 0, 0, 0])
         # find those panels belonging to the current control surface i_surf
-        members_of_i_surf = [np.where(self.aerogrid['ID'] == x)[
-            0][0] for x in self.x2grid[str(i_surf)]['ID'][()]]
+        members_of_i_surf = [np.where(self.aerogrid['ID'] == x)[0][0] for x in self.x2grid[str(i_surf)]['ID'][()]]
         points = self.aerogrid['offset_k'][members_of_i_surf, :] \
             + Uj[self.aerogrid['set_k'][members_of_i_surf, :][:, (0, 1, 2)]]
-
-        if self.show_cs:
-            self.update_cs_display(points)
-        else:
-            self.setup_cs_display(points)
-            self.show_cs = True
-        mlab.draw(self.fig)
+        polyline = pv.lines_from_points(points)
+        self.plotter.clear()
+        self.plotter.add_mesh(polyline, color='green', line_width=3)
+        self.show_cs = True
+        self.plotter.reset_camera()
 
     def setup_cs_display(self, points):
-        self.ug1_cs = tvtk.UnstructuredGrid(points=points)
-        # plot points as glyphs
-        self.src_cs = mlab.pipeline.add_dataset(self.ug1_cs)
-        points = mlab.pipeline.glyph(
-            self.src_cs, scale_mode='scalar', scale_factor=self.pscale, color=(1, 0, 0))
-        points.glyph.glyph.scale_mode = 'data_scaling_off'
+        # Not needed in PyVista, handled in plot_cs
+        pass
 
     def update_cs_display(self, points):
-        self.ug1_cs.points.from_array(points)
-        self.ug1_cs.modified()
+        # Just replot
+        self.plot_cs(points)
 
     def hide_cell(self):
-        self.src_cell.remove()
+        # Hide cell data
         self.show_cell = False
-        mlab.draw(self.fig)
+        self.plot_nothing()
 
     def plot_cell(self, cell_data, show_cells):
-        if self.show_cell:
-            # self.update_cell_display(cell_data=cell_data)
-            # The pure update doesn't work in case different shells are selected.
-            self.hide_cell()
-        self.setup_cell_display(offsets=self.strcgrid['offset'], color=(0, 0, 1), p_scale=self.pscale,
-                                cell_data=cell_data, show_cells=show_cells)
+        # Plot cell data as colored surfaces
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        self.plotter.clear()
+        for cell in cell_data:
+            mesh = pv.PolyData(cell['points'])
+            self.plotter.add_mesh(mesh, color='orange', opacity=0.5)
         self.show_cell = True
-        mlab.draw(self.fig)
+        self.plotter.reset_camera()
 
     def setup_cell_display(self, offsets, color, p_scale, cell_data, show_cells):
-        ug = tvtk.UnstructuredGrid(points=offsets)
-        # ug.point_data.scalars = scalars
-        if 'strcshell' in self.model:
-            # plot shell as surface
-            shells = []
-            data = []
-            for i_shell in range(self.model['strcshell']['n'][()]):
-                shell = self.model['strcshell']['cornerpoints'][i_shell]
-                if shell in show_cells:
-                    data.append(cell_data[i_shell])
-                    shells.append([np.where(self.strcgrid['ID'] == id)[0][0]
-                                  for id in shell[np.isfinite(shell)]])
-            shell_type = tvtk.Polygon().cell_type
-            ug.set_cells(shell_type, shells)
-            ug.cell_data.scalars = data
-            self.src_cell = mlab.pipeline.add_dataset(ug)
-            # points  = mlab.pipeline.glyph(self.src_cell, color=color, scale_factor=p_scale)
-            surface = mlab.pipeline.surface(self.src_cell, opacity=1.0, line_width=0.5, colormap='plasma',
-                                            vmin=cell_data.min(), vmax=cell_data.max())
-            surface.actor.property.edge_visibility = True
-
-            surface.module_manager.scalar_lut_manager.show_legend = True
-            surface.module_manager.scalar_lut_manager.label_text_property.color = (
-                0, 0, 0)
-            surface.module_manager.scalar_lut_manager.label_text_property.font_family = 'times'
-            surface.module_manager.scalar_lut_manager.label_text_property.bold = False
-            surface.module_manager.scalar_lut_manager.label_text_property.italic = False
-            surface.module_manager.scalar_lut_manager.number_of_labels = 5
-
-        else:
-            # plot points as glyphs
-            self.src_cell = mlab.pipeline.add_dataset(ug)
-            points = mlab.pipeline.glyph(
-                self.src_cell, color=color, scale_factor=p_scale)
-            points.glyph.glyph.scale_mode = 'data_scaling_off'
+        # Not needed in PyVista, handled in plot_cell
+        pass
 
     def update_cell_display(self, cell_data):
-        self.src_cell.outputs[0].cell_data.scalars.from_array(cell_data)
-        self.src_cell.update()
+        # Just replot
+        self.plot_cell(cell_data, show_cells=True)
 
     def hide_iges(self):
-        for src in self.src_iges:
-            src.remove()
+        # Hide IGES meshes
         self.show_iges = False
-        mlab.draw(self.fig)
+        self.plot_nothing()
 
     def plot_iges(self, selected_meshes):
-        self.src_iges = []
+        # Plot selected IGES meshes
+        if not hasattr(self, 'plotter') or self.plotter is None:
+            return
+        self.plotter.clear()
         for mesh in self.iges_meshes:
             if mesh['desc'] in selected_meshes:
                 self.setup_iges_display(mesh['vtk'])
         self.show_iges = True
-        mlab.draw(self.fig)
+        self.plotter.reset_camera()
 
     def setup_iges_display(self, vtk_object):
-        src = mlab.pipeline.add_dataset(vtk_object)
-        self.src_iges.append(src)
-        mlab.pipeline.surface(
-            src, opacity=0.4, line_width=0.5, color=(0.5, 0.5, 0.5))
+        # Add IGES mesh to plotter
+        self.plotter.add_mesh(vtk_object, color='gray', opacity=0.4, line_width=0.5)
