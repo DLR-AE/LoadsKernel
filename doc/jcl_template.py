@@ -14,7 +14,7 @@ class jcl:
 
     def __init__(self):
         # Give your aircraft a name and set some general parameters
-        self.general = {'aircraft': 'DLR F-19-S',
+        self.general = {'aircraft': 'MyAircraft',
                         # Reference span width (from tip to tip)
                         'b_ref': 15.375,
                         # Reference chord length
@@ -30,7 +30,7 @@ class jcl:
         to be implemented as a python module.
         """
         # Electronic flight control system
-        self.efcs = {'version': 'mephisto', # Name of the corresponding python module
+        self.efcs = {'version': 'MyEFCS', # Name of the corresponding python module
                      # Path where to find the EFCS module
                      'path': '/path/to/EFCS',
                      }
@@ -70,10 +70,11 @@ class jcl:
         self.aero = {'method': 'mona_steady',
                      # 'mona_steady'      - steady trim and quasi-steady time domain simulations
                      # 'mona_unsteady'    - unsteady time domain simulation based on the RFA, e.g. for gust
-                     # 'freq_dom'         - frequency domain simulations, e.g. gust, continuous turbulence, flutter, etc
+                     # 'mona_freq_dom'    - frequency domain simulations, e.g. gust, continuous turbulence, flutter, etc
                      # 'nonlin_steady'    - steady trim and quasi-steady time domain simulations with some non-linearities
                      # 'cfd_steady'       - steady trim
                      # 'cfd_unsteady'     - unsteady time domain simulation, e.g. for gust
+                     # 'cfd_freq_dom'     - frequency domain simulations, e.g. flutter
                      #
                      # True or False, aerodynamic feedback of elastic structure on aerodynamics can be deactivated.
                      # You will still see deformations, but there is no coupling.
@@ -101,12 +102,14 @@ class jcl:
                      # number of poles for rational function approximation (RFA)
                      'n_poles': 4,
                      # Additional parameters for CFD
-                     'para_path': '/scratch/tau/',
-                     'para_file': 'para',
+                     'para_path': '/path/to/CFD-workspace',
+                     'para_file': 'my_baseline_para_file',
                      # Currently implemented interfaces: 'tau' or 'su2'
                      'cfd_solver': 'tau',
                      'tau_solver': 'el',
                      'tau_cores': 16,
+                     # Name of job that was used to precompute CFD-based GAFs
+                     'job_name_gafs': 'jcl_dc3_gafs',
                      # --- Start of experimental section, only for special cases ---
                      # Correction coefficient at CG, negativ = destabilizing
                      'Cn_beta_corr': [-0.012],
@@ -126,7 +129,7 @@ class jcl:
         # General CFD surface mesh information
         self.meshdefo = {'surface': {'fileformat': 'netcdf', # implemented file formats: 'cgns', 'netcdf', 'su2'
                                      # file name of the CFD mesh
-                                     'filename_grid': 'tau.grid',
+                                     'filename_grid': 'CFD-mesh.grid',
                                      # list of markers [1, 2, ...] or ['upper', 'lower', ...] of surfaces to be included in
                                      # deformation
                                      'markers': [1, 3],
@@ -211,8 +214,8 @@ class jcl:
                        'n_blades': [2, 2],
                        # Mach number for VLM4Prop
                        'Ma': [0.25],
-                       # Input-file ('.yaml') for PyPropMAt and VLM4Prop
-                       'propeller_input_file': 'HAP_O6_PROP_pitch.yaml',
+                       # Input-file ('.yaml') for PyPropMat and VLM4Prop
+                       'propeller_input_file': 'Prop.yaml',
                        }
         # CFD-specific
         # In case a pressure inlet boundary is modeled in the CFD mesh, the boundary condition will be
@@ -338,10 +341,17 @@ class jcl:
                          # Flutter parameters for k and ke method
                          'flutter_para': {'method': 'k', 'k_red': np.linspace(2.0, 0.001, 1000)},
                          # Flutter parameters for pk method
-                         # There are two implementations of the PK method: 'pk_schwochow', 'pk_rodden'
-                         # Available mode tracking algortihms: 'MAC', 'MAC*PCC' (recommended), 'MAC*HDM'
-                         # 'flutter_para': {'method': 'pk', 'Vtas': np.linspace(100.0, 500.0, 100),
-                         #                  'tracking': 'MAC*PCC'},
+                         # 'flutter_para': {'method': 'pk_schwochow',  # Available implementations: 'pk_schwochow', 'pk_rodden'
+                         #                  'Vtas': np.linspace(100.0, 500.0, 100),
+                         #                  'tracking': 'MAC*PCC',  # Available: 'MAC', 'MAC*PCC' (recommended), 'MAC*HDM'
+                         #                  },
+                         # True or False, enables computation of CFD-based generalized aerodynamic forces (pulses)
+                         'pulse': True,
+                         'pulse_para': {'df': 0.5,  # The frequency resolution governs the time length.
+                                        # The max. frequency governs the dt of the time domain simulation.
+                                        # Rule of thumb: 20x the highest frequency of interest.
+                                        'fmax': 500.0
+                                        },
                          },
                         ]
         # End

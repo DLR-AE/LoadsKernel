@@ -15,50 +15,70 @@ from loadskernel.interpolate import MatrixInterpolation
 
 class GustExcitation(Common):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Initialize additional attributes to avoid defining them outside __init__
+        self.n_modes = None
+        self.Vtas = None
+        self.q_dyn = None
+        self.fmax = None
+        self.n_freqs = None
+        self.t = None
+        self.idx_output = None
+        self.freqs = None
+        self.fftomega = None
+        self.positiv_fftfreqs = None
+        self.positiv_fftomega = None
+        self.k_reds = None  # For compatibility with KMethod
+        # Interpolators
+        self.Qjj_interp = None
+        self.Qhh_1_interp = None
+        self.Qhh_2_interp = None
+
     def eval_equations(self):
         self.setup_frequence_parameters()
 
-        logging.info('building transfer functions')
+        logging.info('Building transfer functions')
         self.build_AIC_interpolators()  # unsteady
         positiv_TFs = self.build_transfer_functions(self.positiv_fftfreqs)
         TFs = np.zeros((self.n_modes, self.n_modes, self.n_freqs), dtype='complex128')
         for i_mode in range(self.n_modes):
             TFs[:, i_mode, :] = self.mirror_fouriersamples_even(positiv_TFs[:, i_mode, :])
 
-        logging.info('calculating gust excitation (in physical coordinates, this may take considerable time and memory)')
+        logging.info('Calculating gust excitation (in physical coordinates, this may take considerable time and memory)')
         Ph_gust_fourier, Pk_gust_fourier = self.calc_gust_excitation(self.positiv_fftfreqs, self.t)
         Ph_gust_fourier = self.mirror_fouriersamples_even(Ph_gust_fourier)
         Pk_gust_fourier = self.mirror_fouriersamples_even(Pk_gust_fourier)
 
-        logging.info('calculating responses')
+        logging.info('Calculating aircraft response')
         Uh_fourier = TFs * Ph_gust_fourier  # [Antwort, Anregung, Frequenz]
         Uh = ifft(np.array((Uh_fourier) * (1j * self.fftomega) ** 0).sum(axis=1))
         dUh_dt = ifft(np.array((Uh_fourier) * (1j * self.fftomega) ** 1).sum(axis=1))
         d2Uh_dt2 = ifft(np.array((Uh_fourier) * (1j * self.fftomega) ** 2).sum(axis=1))
 
-        logging.info('reconstructing aerodynamic forces (in physical coordinates, this may take considerable time and memory)')
+        logging.info('Reconstructing aerodynamic forces (in physical coordinates, this may take considerable time and memory)')
         Ph_aero_fourier, Pk_aero_fourier = self.calc_aero_response(
             self.positiv_fftfreqs,
             np.array((Uh_fourier) * (1j * self.fftomega) ** 0).sum(axis=1)[:, :self.n_freqs // 2 + 1],
             np.array((Uh_fourier) * (1j * self.fftomega) ** 1).sum(axis=1)[:, :self.n_freqs // 2 + 1],)
         Ph_aero_fourier = self.mirror_fouriersamples_even(Ph_aero_fourier)
         Pk_aero_fourier = self.mirror_fouriersamples_even(Pk_aero_fourier)
-        Pk_aero = np.real(ifft(Pk_gust_fourier) + ifft(Pk_aero_fourier))[:, self.t_output]
-        Pk_gust = np.real(ifft(Pk_gust_fourier))[:, self.t_output]
+        Pk_aero = np.real(ifft(Pk_gust_fourier) + ifft(Pk_aero_fourier))[:, self.idx_output]
+        Pk_gust = np.real(ifft(Pk_gust_fourier))[:, self.idx_output]
 
         # split h-set into b- and f-set
         # remember that the x-component was omitted
-        Ucg = np.concatenate((np.zeros((len(self.t_output), 1)), Uh[:5, self.t_output].T.real - Uh[:5, 0].real), axis=1)
-        dUcg_dt = np.concatenate((np.zeros((len(self.t_output), 1)),
-                                  dUh_dt[:5, self.t_output].T.real - dUh_dt[:5, 0].real), axis=1)
-        d2Ucg_dt2 = np.concatenate((np.zeros((len(self.t_output), 1)),
-                                    d2Uh_dt2[:5, self.t_output].T.real - d2Uh_dt2[:5, 0].real), axis=1)
-        Uf = Uh[5:, self.t_output].T.real - Uh[5:, 0].real
-        dUf_dt = dUh_dt[5:, self.t_output].T.real - dUh_dt[5:, 0].real
-        d2Uf_dt2 = d2Uh_dt2[5:, self.t_output].T.real - d2Uh_dt2[5:, 0].real
+        Ucg = np.concatenate((np.zeros((len(self.idx_output), 1)), Uh[:5, self.idx_output].T.real - Uh[:5, 0].real), axis=1)
+        dUcg_dt = np.concatenate((np.zeros((len(self.idx_output), 1)),
+                                  dUh_dt[:5, self.idx_output].T.real - dUh_dt[:5, 0].real), axis=1)
+        d2Ucg_dt2 = np.concatenate((np.zeros((len(self.idx_output), 1)),
+                                    d2Uh_dt2[:5, self.idx_output].T.real - d2Uh_dt2[:5, 0].real), axis=1)
+        Uf = Uh[5:, self.idx_output].T.real - Uh[5:, 0].real
+        dUf_dt = dUh_dt[5:, self.idx_output].T.real - dUh_dt[5:, 0].real
+        d2Uf_dt2 = d2Uh_dt2[5:, self.idx_output].T.real - d2Uh_dt2[5:, 0].real
 
-        g_cg = np.zeros((len(self.t_output), 3))
-        commands = np.zeros((len(self.t_output), self.solution.n_inputs))
+        g_cg = np.zeros((len(self.idx_output), 3))
+        commands = np.zeros((len(self.idx_output), self.solution.n_inputs))
 
         #  x, y, z, Phi, Theta, Psi,  u, v, w, p, q, r in DIN 9300 body fixed system for flight physics
         X = np.concatenate((Ucg * np.array([-1., 1., -1., -1., 1., -1.]),
@@ -68,7 +88,7 @@ class GustExcitation(Common):
                             commands,
                             ), axis=1)
         response = {'X': X,
-                    't': np.array([self.t[self.t_output]]).T,
+                    't': np.array([self.t[self.idx_output]]).T,
                     'Pk_aero': Pk_aero.T,
                     'Pk_gust': Pk_gust.T,
                     'Pk_unsteady': Pk_aero.T * 0.0,
@@ -96,8 +116,8 @@ class GustExcitation(Common):
             self.n_freqs += 1  # make even
         # sample spacing
         self.t = np.linspace(0.0, self.n_freqs * dt, self.n_freqs)
-        # indices of time samples to returned for post-processing
-        self.t_output = np.where(self.t <= self.simcase['t_final'])[0]
+        # indices of time samples to be returned for post-processing
+        self.idx_output = np.where(self.t <= self.simcase['t_final'])[0]
         # samples only from zero up to the Nyquist frequency
         self.freqs = np.linspace(0.0, self.fmax / 2.0, self.n_freqs // 2)
         # whole frequency space including negative frequencies
@@ -107,11 +127,8 @@ class GustExcitation(Common):
         self.positiv_fftfreqs = np.abs(fftfreqs[:self.n_freqs // 2 + 1])
         self.positiv_fftomega = 2.0 * np.pi * self.positiv_fftfreqs
 
-        logging.info('Frequency domain solution with tfinal = {}x{} s, nfreq = {}, fmax={} Hz and df = {} Hz'.format(
-            t_factor, self.simcase['t_final'], self.n_freqs // 2, self.fmax / 2.0, self.fmax / self.n_freqs))
-        if self.f2k(self.freqs.max()) > np.max(self.aero['k_red']):
-            logging.warning('Required reduced frequency = {:0.3} but AICs given only up to {:0.3}'.format(
-                self.f2k(self.freqs.max()), np.max(self.aero['k_red'])))
+        logging.info('Frequency domain solution with t_final = %s x %s s, n_freq = %s, f_max = %s Hz and df = %s Hz',
+                     t_factor, self.simcase['t_final'], self.n_freqs // 2, self.fmax / 2.0, self.fmax / self.n_freqs)
 
     def mirror_fouriersamples_even(self, fouriersamples):
         mirrored_fourier = np.zeros((fouriersamples.shape[0], self.n_freqs), dtype='complex128')
@@ -218,7 +235,8 @@ class TurbulenceExcitation(GustExcitation):
         if freqs[0] == 0.0:
             psd_karman[0] = 0.0
         # Calculate the RMS value for cross-checking. Exclude first frequency with f=0.0 from the integral.
-        logging.info('RMS of PSD input (should approach 1.0): {:.4f}'.format(np.trapezoid(psd_karman[1:], freqs[1:]) ** 0.5))
+        logging.info('RMS of PSD input (should approach 1.0): %.4f', np.trapezoid(psd_karman[1:], freqs[1:]) ** 0.5)
+
         return psd_karman
 
     def calc_gust_excitation(self, freqs, t):
@@ -227,7 +245,7 @@ class TurbulenceExcitation(GustExcitation):
         # during the simulation time.
         sigma = self.calc_sigma(self.n_freqs)
         u_sigma = self.u_sigma / sigma  # turbulence gust intensity [m/s]
-        logging.info("Using RMS turbulence intensity u_sigma = {:.4f} m/s, sigma = {:.4f}.".format(u_sigma, sigma))
+        logging.info("Using RMS turbulence intensity u_sigma = %.4f m/s, sigma = %.4f.", u_sigma, sigma)
 
         psd_karman = self.calc_psd_vonKarman(freqs)
         # Apply a scaling in the frequency domain to achieve the correct amplitude in the time domain.
@@ -374,13 +392,23 @@ class LimitTurbulence(TurbulenceExcitation):
 
 class KMethod(GustExcitation):
 
+    def __init__(self, *args, **kwargs):
+        # Initialize additional attributes to avoid defining them outside __init__
+        super().__init__(*args, **kwargs)
+        self.k_reds = None
+        self.A = None
+        self.B = None
+        self.freqs = None
+        self.damping = None
+        self.Qhh_interp = None
+
     def eval_equations(self):
         self.setup_frequence_parameters()
 
-        logging.info('building systems')
+        logging.info('Building systems')
         self.build_AIC_interpolators()  # unsteady
         self.build_systems()
-        logging.info('calculating eigenvalues')
+        logging.info('Calculating eigenvalues')
         self.calc_eigenvalues()
 
         response = {'freqs': self.freqs,
@@ -395,8 +423,8 @@ class KMethod(GustExcitation):
         self.n_freqs = len(self.k_reds)
 
         if self.k_reds.max() > np.max(self.aero['k_red']):
-            logging.warning('Required reduced frequency = {:0.3} but AICs given only up to {:0.3}'.format(
-                self.k_reds.max(), np.max(self.aero['k_red'])))
+            logging.warning('Required reduced frequency = %0.3f but AICs given only up to %0.3f',
+                            self.k_reds.max(), np.max(self.aero['k_red']))
 
     def build_AIC_interpolators(self):
         Qhh = []
@@ -463,6 +491,7 @@ class KMethod(GustExcitation):
 
 
 class KEMethod(KMethod):
+    # No new attributes needed, thus no init
 
     def system(self, k_red):
         rho = self.atmo['rho']
@@ -532,6 +561,14 @@ class PKMethodSchwochow(KMethod):
     Modellierungsunsicherheiten am Flugzeug zur”, Dissertation, Universität Kassel, Kassel, 2012.
     """
 
+    def __init__(self, *args, **kwargs):
+        # Initialize additional attributes to avoid defining them outside __init__
+        super().__init__(*args, **kwargs)
+        self.n_modes_rbm = None
+        self.n_modes_f = None
+        self.states = None
+        self.Vvec = None
+
     def setup_frequence_parameters(self):
         self.n_modes_rbm = 5
         self.n_modes_f = self.model['mass'][self.trimcase['mass']]['n_modes'][()]
@@ -542,22 +579,22 @@ class PKMethodSchwochow(KMethod):
             self.states += ['Uf' + str(i_mode)]
         self.states += ["v'", "w'", "p'", "q'", "r'"]
         for i_mode in range(1, self.n_modes_f + 1):
-            self.states += ['$\\mathrm{{ \\dot Uf{} }}$'.format(str(i_mode))]  # noqa: W605
+            self.states += [f'$\\mathrm{{ \\dot Uf{i_mode} }}$']  # noqa: W605
 
         self.Vvec = self.simcase['flutter_para']['Vtas']
 
     def eval_equations(self):
         self.setup_frequence_parameters()
 
-        logging.info('building systems')
+        logging.info('Building systems')
         self.build_AIC_interpolators()
-        logging.info('starting p-k iterations to match k_red with Vtas and omega')
+        logging.info('Starting p-k iterations to match k_red with Vtas and omega')
         # Compute initial guess at k_red=0.0 and first flight speed
         self.Vtas = self.Vvec[0]
         eigenvalue, eigenvector = linalg.eig(self.system(k_red=0.0))
-        bandbreite = eigenvalue.__abs__().max() - eigenvalue.__abs__().min()
+        bandbreite = np.abs(eigenvalue).max() - np.abs(eigenvalue).min()
         # No zero eigenvalues
-        idx_pos = np.where(eigenvalue.__abs__() / bandbreite >= 1e-3)[0]
+        idx_pos = np.where(np.abs(eigenvalue) / bandbreite >= 1e-3)[0]
         # Sort initial results by eigenvalue
         idx_sort = np.argsort(np.abs(eigenvalue.imag[idx_pos]))
         eigenvalues0 = eigenvalue[idx_pos][idx_sort]
@@ -571,7 +608,7 @@ class PKMethodSchwochow(KMethod):
         Vtas = []
         # Loop over modes
         for i_mode in range(len(eigenvalues0)):
-            logging.debug('Mode {}'.format(i_mode + 1))
+            logging.debug('Mode %d', i_mode + 1)
             eigenvalues_per_mode = []
             eigenvectors_per_mode = []
             k_old = copy.deepcopy(k0[i_mode])
@@ -593,6 +630,9 @@ class PKMethodSchwochow(KMethod):
                     elif self.simcase['flutter_para']['method'] in ['pk_rodden']:
                         # Allow only positive reduced frequencies in the implementation following Rodden.
                         k_now = np.abs(eigenvalues_new[i_mode].imag) * self.macgrid['c_ref'] / 2.0 / self.Vtas
+                    else:
+                        # We should never reach this point
+                        k_now = 0.0
                     # Use relaxation for improved convergence, which helps in some cases to avoid oscillations of the
                     # iterative solution.
                     k_new = k_old + 0.8 * (k_now - k_old)
@@ -602,8 +642,8 @@ class PKMethodSchwochow(KMethod):
                     # If no convergence is achieved, stop and issue a warning. Typically, the iteration converges in less than
                     # ten loops, so 50 should be more than enough and prevents excessive calculation times.
                     if n_iter > 50:
-                        logging.warning('No convergence for mode {} at Vtas={:.2f} with k_red={:.5f} and e={:.5f}'.format(
-                            i_mode + 1, V, k_new, e))
+                        logging.warning('No convergence for mode %d at Vtas=%.2f with k_red=%.5f and e=%.5f',
+                                        i_mode + 1, V, k_new, e)
                         break
                 eigenvalues_old = eigenvalues_new
                 eigenvectors_old = eigenvectors_new
@@ -632,7 +672,7 @@ class PKMethodSchwochow(KMethod):
         # To match the modes with the previous step, use a correlation cirterion as specified in the JCL.
         if 'tracking' not in self.simcase['flutter_para']:
             # Set a default.
-            tracking_method = 'MAC'
+            tracking_method = 'MAC*PCC'
         else:
             tracking_method = self.simcase['flutter_para']['tracking']
         # Calculate the correlation bewteen the old and current modes.
@@ -645,6 +685,9 @@ class PKMethodSchwochow(KMethod):
         elif tracking_method == 'MAC*HDM':
             # Combining MAC and hyperboloic distance metric (HDM) for improved handling of complex conjugate pairs.
             correlation = fem_helper.calc_MAC(eigenvectors_old, eigenvector) * fem_helper.calc_HDM(eigenvalues_old, eigenvalue)
+        else:
+            # Because a default was selected above, we should never reach this point.
+            correlation = None
         # Based on the correlation matrix, find the best match and apply to the modes.
         idx_pos = self.get_best_match(correlation)
         eigenvalues = eigenvalue[idx_pos]
@@ -729,8 +772,8 @@ class PKMethodRodden(PKMethodSchwochow):
         Qhh = self.Qhh_interp(k_red)
         Mhh_inv = np.linalg.inv(self.Mhh)
 
-        upper_part = np.concatenate((np.zeros((self.n_modes, self.n_modes), dtype='complex128'),
-                                     np.eye(self.n_modes, dtype='complex128')), axis=1)
+        upper_part = np.concatenate((np.zeros((self.n_modes, self.n_modes)),
+                                     np.eye(self.n_modes)), axis=1)
         lower_part = np.concatenate((-Mhh_inv.dot(self.Khh - rho / 2 * self.Vtas ** 2.0 * Qhh.real),
                                      -Mhh_inv.dot(self.Dhh - rho / 4 * self.Vtas * self.macgrid['c_ref'] / k_red * Qhh.imag)),
                                     axis=1)

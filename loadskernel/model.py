@@ -14,6 +14,7 @@ from loadskernel import build_aero_functions
 from loadskernel import spline_rules
 from loadskernel import spline_functions
 from loadskernel import build_splinegrid
+from loadskernel.io_functions import data_handling
 from loadskernel.io_functions import read_mona, read_op4, read_bdf
 from loadskernel.io_functions import read_cfdgrids
 from loadskernel import grid_trafo
@@ -30,6 +31,8 @@ class Model():
         self.path_output = path_output
         # init the bdf reader
         self.bdf_reader = read_bdf.Reader()
+        # initialize empty dict for GAFs
+        self.GAFs = {}
 
     def build_model(self):
         # run all build function/stages
@@ -200,8 +203,9 @@ class Model():
 
     def build_aero(self):
         logging.info('Building aero model...')
-        if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'hybrid', 'nonlin_steady',
-                                       'cfd_steady', 'cfd_unsteady', 'freq_dom']:
+        if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'nonlin_steady',
+                                       'freq_dom', 'mona_freq_dom',
+                                       'cfd_steady', 'cfd_unsteady', 'cfd_freq_dom']:
             self.build_aerogrid()
             self.build_aero_matrices()
             self.build_W2GJ()
@@ -209,11 +213,46 @@ class Model():
             self.build_cs()
             self.build_AICs_steady()
             self.build_AICs_unsteady()
+            self.read_precomputed_GAFs()
         else:
             logging.error('Unknown aero method: ' + str(self.jcl.aero['method']))
 
         logging.info('The aerodynamic model consists of {} panels and {} control surfaces.'.format(
             self.aerogrid['n'], len(self.x2grid['ID_surf'])))
+
+    def read_precomputed_GAFs(self):
+        # The CFD-based frequency domain method requires precomputed GAFs from the responses of another job.
+        # The corresponding job name is given in the jcl.
+        if self.jcl.aero['method'] in ['cfd_freq_dom'] and 'job_name_gafs' in self.jcl.aero:
+            responses = data_handling.load_hdf5_responses(self.jcl.aero['job_name_gafs'], self.path_output)
+            logging.info('Moving GAFs from responses into model:')
+            for response in responses:
+                if response['successful'] and 'pulse_signal' in response:
+                    # Write info about which GAFs we found in the response
+                    desc = response['desc'].asstr()[()]
+                    mass = response['mass'].asstr()[()]
+                    aero = response['aero'].asstr()[()]
+                    altitude = response['altitude'].asstr()[()]
+                    logging.info(" - trimcase '%s' wih mass '%s', aero '%s', altitude '%s'", desc, mass, aero, altitude)
+                    # Init hierarchical storage
+                    if mass not in self.GAFs:
+                        self.GAFs[mass] = {}
+                    if aero not in self.GAFs[mass]:
+                        self.GAFs[mass][aero] = {}
+                    if altitude not in self.GAFs[mass][aero]:
+                        self.GAFs[mass][aero][altitude] = {}
+                    # Pick GAF matrices from response and copy into model
+                    gaf_items = ['k_red', 'Qhh', 'Qhk', 'Qgusth', 'Qgustk', 'q_dyn']
+                    for item in gaf_items:
+                        self.GAFs[mass][aero][altitude][item] = response[item][()]
+                    # Copy the linearization point
+                    self.GAFs[mass][aero][altitude]['X0'] = response['X'][()].squeeze()
+                    # Pick relevant data from the linearization point and copy into model
+                    self.GAFs[mass][aero][altitude]['response'] = {}
+                    resp_items = ['X', 't', 'Pk_aero', 'Pk_gust', 'Pk_unsteady',
+                                  'dUcg_dt', 'd2Ucg_dt2', 'Uf', 'dUf_dt', 'd2Uf_dt2', 'g_cg']
+                    for item in resp_items:
+                        self.GAFs[mass][aero][altitude]['response'][item] = response[item][()].squeeze()
 
     def build_aerogrid(self):
         # To avoid interference with other CQUAD4 cards parsed earlier, clear those dataframes first
@@ -351,7 +390,7 @@ class Model():
                 self.build_rfa()
             else:
                 logging.error('Unknown AIC method: ' + str(self.jcl.aero['method_AIC']))
-        elif self.jcl.aero['method'] in ['freq_dom']:
+        elif self.jcl.aero['method'] in ['freq_dom', 'mona_freq_dom']:
             if self.jcl.aero['method_AIC'] == 'dlm':
                 self.build_AICs_DLM()
             elif self.jcl.aero['method_AIC'] == 'nastran':

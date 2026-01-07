@@ -42,7 +42,7 @@ class PostProcessing():
             self.PHIcfd_strc = load_hdf5_sparse_matrix(self.model['PHIcfd_strc'])
 
     def force_summation_method(self):
-        logging.info('calculating forces & moments on structural set (force summation method)...')
+        logging.info('Calculating forces & moments on structural set (force summation method)...')
         response = self.response
 
         response['Pg_iner'] = np.zeros((len(response['t']), 6 * self.strcgrid['n']))
@@ -86,10 +86,8 @@ class PostProcessing():
             response['d2Ug_dt2'][i_step, :] = d2Ug_dt2_r + d2Ug_dt2_f
 
     def modal_displacement_method(self):
-        logging.info(
-            'calculating forces & moments on structural set (modal displacement method)...')
-        logging.warning(
-            'using the modal displacement method is not recommended, use force summation method instead.')
+        logging.info('Calculating forces & moments on structural set (modal displacement method)...')
+        logging.warning('Using the modal displacement method is not recommended, use force summation method instead.')
         response = self.response
         Kgg = load_hdf5_sparse_matrix(self.model['KGG'])
 
@@ -101,7 +99,7 @@ class PostProcessing():
             response['Pg'][i_step, :] = Kgg.dot(Ug_f_body)
 
     def euler_transformation(self):
-        logging.info('apply euler angles...')
+        logging.info('Apply euler angles...')
         response = self.response
 
         response['Pg_iner_global'] = np.zeros((len(response['t']), 6 * self.strcgrid['n']))
@@ -156,7 +154,7 @@ class PostProcessing():
             response['Ug'][i_step, :] = response['Ug_r'][i_step, :] + response['Ug_f'][i_step, :]
 
     def cuttingforces(self):
-        logging.info('calculating cutting forces & moments...')
+        logging.info('Calculating cutting forces & moments...')
         response = self.response
         response['Pmon_local'] = np.zeros((len(response['t']), 6 * self.mongrid['n']))
         for i_step in range(len(response['t'])):
