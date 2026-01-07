@@ -33,7 +33,7 @@ def my_setup():
           python_requires='>=3.10',
           install_requires=['PanelAero',
                             'matplotlib',
-                            'numpy<2.4.0',  # Mayavi does not support numpy >= 2.4.0
+                            'numpy',
                             'scipy',
                             'h5py',
                             'tables',
@@ -41,12 +41,12 @@ def my_setup():
                             'pandas',
                             ],
           extras_require={'extras': ['mpi4py',
+                                     'pyside6',
                                      'pyvista',
                                      'pyvistaqt',
-                                     'jupyter',
                                      'pyiges',  # only available with pip, not with conda
+                                     'jupyter',
                                      'pyfmi',
-                                     'pyside6'
                                      ],
                           'test': ['pytest',
                                    'pytest-cov',

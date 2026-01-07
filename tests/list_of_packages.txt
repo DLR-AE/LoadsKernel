@@ -12,6 +12,7 @@ pandas
 
 # Extras, optional
 mpi4py
+pyside6
 pyvista
 pyvistaqt
 jupyter
