@@ -33,7 +33,7 @@ def my_setup():
           python_requires='>=3.10',
           install_requires=['PanelAero',
                             'matplotlib',
-                            'numpy',
+                            'numpy<2.4.0',  # Mayavi does not support numpy >= 2.4.0
                             'scipy',
                             'psutil',
                             'h5py',
@@ -55,7 +55,6 @@ def my_setup():
                                    'jupyter-book==1.0.4',  # Jupyter book 2.xx is not yet generating static html pages
                                    'flake8',
                                    'pylint',
-                                   'gitpython'
                                    ]},
           )
 
