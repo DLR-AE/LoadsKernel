@@ -3,20 +3,18 @@ import os
 import sys
 from itertools import compress
 
-from pyface.qt import QtCore
-from pyface.qt.QtGui import (QApplication, QWidget, QTabWidget, QSizePolicy, QGridLayout, QMainWindow, QAction, QListWidget,
-                             QListWidgetItem, QAbstractItemView, QFileDialog, QComboBox, QCheckBox, QLabel)
-import matplotlib
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
+from PySide6 import QtCore
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import (
+    QApplication, QWidget, QTabWidget, QSizePolicy, QGridLayout, QMainWindow, QListWidget,
+    QListWidgetItem, QAbstractItemView, QFileDialog, QComboBox, QCheckBox, QLabel, QMessageBox)
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
 
 import numpy as np
 
 from loadscompare import plotting
 from loadskernel.io_functions import data_handling
-
-
-matplotlib.use('Qt5Agg')
 
 
 class Compare():
@@ -83,7 +81,7 @@ class Compare():
         # Configure tabs widget
         self.tabs_widget = QTabWidget()
         # configure sizing, limit width of tabs widget in favor of plotting area
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.tabs_widget.setSizePolicy(sizePolicy)
         self.tabs_widget.setMinimumWidth(300)
         self.tabs_widget.setMaximumWidth(450)
@@ -96,7 +94,7 @@ class Compare():
         self.tabs_widget.addTab(tab_loads, 'Section Loads')
         # Elements of loads tab
         self.lb_dataset = QListWidget()
-        self.lb_dataset.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.lb_dataset.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.lb_dataset.itemSelectionChanged.connect(self.show_choice)
         self.lb_dataset.itemChanged.connect(self.update_desc)
 
@@ -154,7 +152,7 @@ class Compare():
         self.canvas = FigureCanvasQTAgg(fig1)
         self.canvas.draw()
         # configure sizing, set minimum size
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.canvas.setSizePolicy(sizePolicy)
         self.canvas.setMinimumWidth(800)
         self.canvas.setMinimumHeight(600)
@@ -241,7 +239,7 @@ class Compare():
                                        )
             # Update the text box with number of plotted load cases.
             n_subcases = [len(dataset[mon_sel]['subcases']) for dataset in datasets]
-            self.label_n_loadcases.setText('Selected load case: {}'.format(np.sum(n_subcases)))
+            self.label_n_loadcases.setText(f'Selected load case: {np.sum(n_subcases)}')
         else:
             self.plotting.plot_nothing()
         self.canvas.draw()
@@ -251,7 +249,7 @@ class Compare():
             # Init new dataset.
             new_dataset = {}
             for x in [item.row() for item in self.lb_dataset.selectedIndexes()]:
-                print('Working on {} ...'.format(self.datasets['desc'][x]))
+                print(f'Working on {self.datasets['desc'][x]} ...')
                 for station in self.common_monstations:
                     if station not in new_dataset.keys():
                         # create (empty) entries for new monstation
@@ -278,24 +276,29 @@ class Compare():
 
     def load_monstation(self):
         # open file dialog
-        filename = QFileDialog.getOpenFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'],
-                                               self.file_opt['filters'])[0]
+        filename, _ = QFileDialog.getOpenFileName(self.window,
+                                                  self.file_opt['title'],
+                                                  self.file_opt['initialdir'],
+                                                  self.file_opt['filters'])
         if filename != '':
+            dataset = None
             if '.pickle' in filename:
                 with open(filename, 'rb') as f:
                     dataset = data_handling.load_pickle(f)
             elif '.hdf5' in filename:
                 dataset = data_handling.load_hdf5(filename)
-
-            # save into data structure
-            self.datasets['ID'].append(self.datasets['n'])
-            self.datasets['dataset'].append(dataset)
-            self.datasets['color'].append(self.colors[self.datasets['n']])
-            self.datasets['desc'].append('dataset ' + str(self.datasets['n']))
-            self.datasets['n'] += 1
-            # update fields
-            self.update_fields()
-            self.file_opt['initialdir'] = os.path.split(filename)[0]
+            else:
+                QMessageBox.warning(self.window, "Unsupported File", "Please select a .pickle or .hdf5 file.")
+            if dataset is not None:
+                # save into data structure
+                self.datasets['ID'].append(self.datasets['n'])
+                self.datasets['dataset'].append(dataset)
+                self.datasets['color'].append(self.colors[self.datasets['n']])
+                self.datasets['desc'].append('dataset ' + str(self.datasets['n']))
+                self.datasets['n'] += 1
+                # update fields
+                self.update_fields()
+                self.file_opt['initialdir'] = os.path.split(filename)[0]
 
     def save_monstation(self):
         """
@@ -304,8 +307,10 @@ class Compare():
         if self.lb_dataset.currentItem() is not None and len(self.lb_dataset.selectedItems()) == 1:
             dataset_sel = self.datasets['dataset'][self.lb_dataset.currentRow()]
             # open file dialog
-            filename = QFileDialog.getSaveFileName(self.window, self.file_opt['title'], self.file_opt['initialdir'],
-                                                   self.file_opt['filters'])[0]
+            filename, _ = QFileDialog.getSaveFileName(self.window,
+                                                      self.file_opt['title'],
+                                                      self.file_opt['initialdir'],
+                                                      self.file_opt['filters'])
             if filename != '' and '.pickle' in filename:
                 with open(filename, 'wb') as f:
                     data_handling.dump_pickle(dataset_sel, f)
