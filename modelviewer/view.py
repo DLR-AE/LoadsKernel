@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
 import numpy as np
-# To be able to use PySide or PyQt4 and not run in conflicts with traits,
-# we need to import QtGui and QtCore from pyface.qt
-from pyface.qt import QtGui, QtCore
+
+from PySide6 import QtWidgets, QtCore, QtGui
 
 from traits.api import HasTraits, Instance, on_trait_change
 from traitsui.api import View, Item
@@ -18,37 +17,26 @@ from modelviewer.iges import IgesMesh
 
 
 class Visualization(HasTraits):
-    scene = Instance(MlabSceneModel, ())
+    """
+    This class is used to set up the Mayavi scene. However, I don't use TraitsUI to create the full GUI, but only the Mayavi
+    figure. The rest of the GUI is created with PySide6.
+    The way to embed Mayavi in PySide6 is based on the following example, but is modified and simplified.
+    https://docs.enthought.com/mayavi/mayavi/auto/example_qt_embedding.html#example-qt-embedding
+    https://docs.enthought.com/mayavi/mayavi/building_applications.html
+    """
 
+    # This function is called when the view is opened.
+    # It also returns the figure object for further use.
     @on_trait_change('scene.activated')
     def update_plot(self):
-        # This function is called when the view is opened. We don't
-        # populate the scene when the view is not yet open, as some
-        # VTK features require a GLContext.
-
-        # We can do normal mlab calls on the embedded scene.
         return self.scene.mlab.gcf()
 
-    # the layout of the dialog screated
+    # These two commands look complicated and I don't know what they do, but they set up the Mayavi scene.
+    scene = Instance(MlabSceneModel, ())
     view = View(Item('scene', editor=SceneEditor(scene_class=MayaviScene),
                      height=600, width=600, show_label=False),
                 resizable=True  # We need this to resize with the parent widget
                 )
-
-
-class MayaviQWidget(QtGui.QWidget):
-
-    def __init__(self, parent=None):
-        QtGui.QWidget.__init__(self, parent)
-        layout = QtGui.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        self.visualization = Visualization()
-        # The edit_traits call will generate the widget to embed.
-        self.ui = self.visualization.edit_traits(parent=self,
-                                                 kind='subpanel').control
-        layout.addWidget(self.ui)
-        self.ui.setParent(self)
 
 
 class Modelviewer():
@@ -81,45 +69,57 @@ class Modelviewer():
 
         self.plotting = Plotting()
         self.nastran = NastranSOL101()
-
         self.iges = IgesMesh()
 
     def run(self):
         # Don't create a new QApplication, it would unhook the Events
         # set by Traits on the existing QApplication. Simply use the
         # '.instance()' method to retrieve the existing one.
-        app = QtGui.QApplication.instance()
+        app = QtWidgets.QApplication.instance()
+        if app is None:
+            app = QtWidgets.QApplication([])
         # Init the application's menues, tabs, etc.
         self.initGUI()
         # Start the main event loop.
-        app.exec_()
+        app.exec()
 
     def test(self):
         """
         This function is intended for CI testing. To test at least some parts of the code, the app is initialized, but
         never started. Instead, all windows are closed again.
         """
-        app = QtGui.QApplication.instance()
+        app = QtWidgets.QApplication.instance()
         self.initGUI()
         app.closeAllWindows()
 
     def initGUI(self):
         # Use one Widget as a main container.
-        self.container = QtGui.QWidget()
+        self.container = QtWidgets.QWidget()
         # Init all sub-widgets.
-        self.initTabs()
-        self.initMayaviFigure()
         self.initWindow()
+        self.initTabs()
+        mayavi_widget = self.initMayavi()
         # Arrange the layout inside the container.
-        layout = QtGui.QGridLayout(self.container)
+        layout = QtWidgets.QGridLayout(self.container)
         layout.addWidget(self.tabs_widget, 0, 0)
-        layout.addWidget(self.mayavi_widget, 0, 1)
+        layout.addWidget(mayavi_widget, 0, 1)
+
+    def initMayavi(self):
+        # Set up Mayavi as a widget
+        visualization = Visualization()
+        mayavi_widget = visualization.edit_traits(parent=self, kind='subpanel').control
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        mayavi_widget.setSizePolicy(sizePolicy)
+        # Get the figure from the visualization and hand it over to the plotting class.
+        fig = visualization.update_plot()
+        self.plotting.add_figure(fig)
+        return mayavi_widget
 
     def initTabs(self):
         # Configure tabs widget
-        self.tabs_widget = QtGui.QTabWidget()
-        sizePolicy = QtGui.QSizePolicy(
-            QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        self.tabs_widget = QtWidgets.QTabWidget()
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         self.tabs_widget.setSizePolicy(sizePolicy)
         self.tabs_widget.setMinimumWidth(300)
         self.tabs_widget.setMaximumWidth(450)
@@ -135,37 +135,37 @@ class Modelviewer():
         self.initIgesTab()
 
     def initStrcTab(self):
-        tab_strc = QtGui.QWidget()
+        tab_strc = QtWidgets.QWidget()
         self.tabs_widget.addTab(tab_strc, 'strc')
         # Elements of strc tab
-        lb_undeformed = QtGui.QLabel('Undeformed')
-        bt_strc_show = QtGui.QPushButton('Show')
+        lb_undeformed = QtWidgets.QLabel('Undeformed')
+        bt_strc_show = QtWidgets.QPushButton('Show')
         bt_strc_show.clicked.connect(self.plotting.plot_strc)
-        bt_strc_hide = QtGui.QPushButton('Hide')
+        bt_strc_hide = QtWidgets.QPushButton('Hide')
         bt_strc_hide.clicked.connect(self.plotting.hide_strc)
         # lists of mass case and mode number
-        lb_modes_mass = QtGui.QLabel('Mass')
-        lb_modes_number = QtGui.QLabel('Modes')
-        self.list_modes_mass = QtGui.QListWidget()
+        lb_modes_mass = QtWidgets.QLabel('Mass')
+        lb_modes_number = QtWidgets.QLabel('Modes')
+        self.list_modes_mass = QtWidgets.QListWidget()
         self.list_modes_mass.itemSelectionChanged.connect(self.update_modes)
-        self.list_modes_number = QtGui.QListWidget()
+        self.list_modes_number = QtWidgets.QListWidget()
         self.list_modes_number.itemSelectionChanged.connect(
             self.get_mode_data_for_plotting)
-        self.lb_freq = QtGui.QLabel('Frequency: {:0.4f} Hz'.format(0.0))
-        self.lb_uf = QtGui.QLabel('Scaling: 1.0')
+        self.lb_freq = QtWidgets.QLabel('Frequency: {:0.4f} Hz'.format(0.0))
+        self.lb_uf = QtWidgets.QLabel('Scaling: 1.0')
         # slider for generalized coordinate magnification factor
-        self.sl_uf = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.sl_uf = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.sl_uf.setMinimum(-50)
         self.sl_uf.setMaximum(+50)
         self.sl_uf.setSingleStep(1)
         self.sl_uf.setValue(5)
-        self.sl_uf.setTickPosition(QtGui.QSlider.TicksBelow)
+        self.sl_uf.setTickPosition(QtWidgets.QSlider.TickPosition.TicksBelow)
         self.sl_uf.setTickInterval(5)
         self.sl_uf.valueChanged.connect(self.get_mode_data_for_plotting)
-        bt_mode_hide = QtGui.QPushButton('Hide')
+        bt_mode_hide = QtWidgets.QPushButton('Hide')
         bt_mode_hide.clicked.connect(self.plotting.hide_mode)
 
-        layout_strc = QtGui.QGridLayout(tab_strc)
+        layout_strc = QtWidgets.QGridLayout(tab_strc)
         layout_strc.addWidget(lb_undeformed, 0, 0, 1, -1)
         layout_strc.addWidget(bt_strc_show, 1, 0, 1, -1)
         layout_strc.addWidget(bt_strc_hide, 2, 0, 1, -1)
@@ -179,33 +179,33 @@ class Modelviewer():
         layout_strc.addWidget(bt_mode_hide, 8, 0, 1, -1)
 
     def initMassTab(self):
-        tab_mass = QtGui.QWidget()
+        tab_mass = QtWidgets.QWidget()
         self.tabs_widget.addTab(tab_mass, "mass")
         # Elements of mass tab
-        self.list_mass = QtGui.QListWidget()
+        self.list_mass = QtWidgets.QListWidget()
         self.list_mass.itemSelectionChanged.connect(
             self.get_mass_data_for_plotting)
-        self.lb_rho = QtGui.QLabel('Rho: 2700 kg/m^3')
+        self.lb_rho = QtWidgets.QLabel('Rho: 2700 kg/m^3')
         # slider for generalized coordinate magnification factor
-        self.sl_rho = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.sl_rho = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.sl_rho.setMinimum(10)
         self.sl_rho.setMaximum(3000)
         self.sl_rho.setSingleStep(100)
         self.sl_rho.setValue(2700)
-        self.sl_rho.setTickPosition(QtGui.QSlider.TicksBelow)
+        self.sl_rho.setTickPosition(QtWidgets.QSlider.TickPosition.TicksBelow)
         self.sl_rho.setTickInterval(500)
         self.sl_rho.valueChanged.connect(self.get_mass_data_for_plotting)
-        self.lb_cg = QtGui.QLabel(
+        self.lb_cg = QtWidgets.QLabel(
             'CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(0.0, 0.0, 0.0))
-        self.lb_cg_mac = QtGui.QLabel('CG: x={:0.4f} % MAC'.format(0.0))
-        self.lb_mass = QtGui.QLabel('Mass: {:0.2f} kg'.format(0.0))
-        self.lb_Ixx = QtGui.QLabel('Ixx:  {:0.4g} kg m^2'.format(0.0))
-        self.lb_Iyy = QtGui.QLabel('Iyy:  {:0.4g} kg m^2'.format(0.0))
-        self.lb_Izz = QtGui.QLabel('Izz:  {:0.4g} kg m^2'.format(0.0))
-        bt_mass_hide = QtGui.QPushButton('Hide')
+        self.lb_cg_mac = QtWidgets.QLabel('CG: x={:0.4f} % MAC'.format(0.0))
+        self.lb_mass = QtWidgets.QLabel('Mass: {:0.2f} kg'.format(0.0))
+        self.lb_Ixx = QtWidgets.QLabel('Ixx:  {:0.4g} kg m^2'.format(0.0))
+        self.lb_Iyy = QtWidgets.QLabel('Iyy:  {:0.4g} kg m^2'.format(0.0))
+        self.lb_Izz = QtWidgets.QLabel('Izz:  {:0.4g} kg m^2'.format(0.0))
+        bt_mass_hide = QtWidgets.QPushButton('Hide')
         bt_mass_hide.clicked.connect(self.plotting.hide_masses)
 
-        layout_mass = QtGui.QVBoxLayout(tab_mass)
+        layout_mass = QtWidgets.QVBoxLayout(tab_mass)
         layout_mass.addWidget(self.list_mass)
         layout_mass.addWidget(self.lb_cg)
         layout_mass.addWidget(self.lb_cg_mac)
@@ -218,32 +218,32 @@ class Modelviewer():
         layout_mass.addWidget(bt_mass_hide)
 
     def initAeroTab(self):
-        tab_aero = QtGui.QWidget()
+        tab_aero = QtWidgets.QWidget()
         self.tabs_widget.addTab(tab_aero, "aero")
         # Elements of aero tab
-        self.list_aero = QtGui.QListWidget()
+        self.list_aero = QtWidgets.QListWidget()
         self.list_aero.itemSelectionChanged.connect(self.get_aero_for_plotting)
-        self.cb_w2gj = QtGui.QCheckBox('Color by W2GJ [deg]')
+        self.cb_w2gj = QtWidgets.QCheckBox('Color by W2GJ [deg]')
         self.cb_w2gj.setChecked(False)
         self.cb_w2gj.stateChanged.connect(self.get_aero_for_plotting)
-        self.cb_normal_vectors = QtGui.QCheckBox('Panel normal vectors')
+        self.cb_normal_vectors = QtWidgets.QCheckBox('Panel normal vectors')
         self.cb_normal_vectors.setChecked(False)
         self.cb_normal_vectors.stateChanged.connect(self.get_aero_for_plotting)
-        bt_aero_hide = QtGui.QPushButton('Hide')
+        bt_aero_hide = QtWidgets.QPushButton('Hide')
         bt_aero_hide.clicked.connect(self.plotting.hide_aero)
-        self.lb_MAC = QtGui.QLabel(
+        self.lb_MAC = QtWidgets.QLabel(
             'MAC: x={:0.4f}, y={:0.4f} m'.format(0.0, 0.0))
-        self.lb_MAC2 = QtGui.QLabel('')
+        self.lb_MAC2 = QtWidgets.QLabel('')
 
-        self.list_markers = QtGui.QListWidget()
+        self.list_markers = QtWidgets.QListWidget()
         self.list_markers.setSelectionMode(
-            QtGui.QAbstractItemView.ExtendedSelection)  # allow multiple selections
+            QtWidgets.QAbstractItemView.ExtendedSelection)  # allow multiple selections
         self.list_markers.itemSelectionChanged.connect(
             self.get_new_markers_for_plotting)
-        bt_cfdgrid_hide = QtGui.QPushButton('Hide CFD Grids')
+        bt_cfdgrid_hide = QtWidgets.QPushButton('Hide CFD Grids')
         bt_cfdgrid_hide.clicked.connect(self.plotting.hide_cfdgrids)
 
-        layout_aero = QtGui.QVBoxLayout(tab_aero)
+        layout_aero = QtWidgets.QVBoxLayout(tab_aero)
         layout_aero.addWidget(self.list_aero)
         layout_aero.addWidget(self.lb_MAC)
         layout_aero.addWidget(self.lb_MAC2)
@@ -254,58 +254,58 @@ class Modelviewer():
         layout_aero.addWidget(bt_cfdgrid_hide)
 
     def initCouplingTab(self):
-        tab_coupling = QtGui.QWidget()
+        tab_coupling = QtWidgets.QWidget()
         self.tabs_widget.addTab(tab_coupling, "coupling")
         # Elements of coupling tab
-        bt_coupling_show = QtGui.QPushButton('Show')
+        bt_coupling_show = QtWidgets.QPushButton('Show')
         bt_coupling_show.clicked.connect(self.plotting.plot_aero_strc_coupling)
-        bt_coupling_hide = QtGui.QPushButton('Hide')
+        bt_coupling_hide = QtWidgets.QPushButton('Hide')
         bt_coupling_hide.clicked.connect(self.plotting.hide_aero_strc_coupling)
 
-        layout_coupling = QtGui.QVBoxLayout(tab_coupling)
+        layout_coupling = QtWidgets.QVBoxLayout(tab_coupling)
         layout_coupling.addWidget(bt_coupling_show)
         layout_coupling.addWidget(bt_coupling_hide)
         layout_coupling.addStretch(1)
 
     def initMonstationsTab(self):
-        tab_monstations = QtGui.QWidget()
+        tab_monstations = QtWidgets.QWidget()
         self.tabs_widget.addTab(tab_monstations, "monstations")
         # Elements of monstations tab
-        self.list_monstations = QtGui.QListWidget()
+        self.list_monstations = QtWidgets.QListWidget()
         self.list_monstations.itemSelectionChanged.connect(
             self.get_monstation_for_plotting)
-        self.lb_monstation_coord = QtGui.QLabel('Coord:')
-        bt_monstations_hide = QtGui.QPushButton('Hide')
+        self.lb_monstation_coord = QtWidgets.QLabel('Coord:')
+        bt_monstations_hide = QtWidgets.QPushButton('Hide')
         bt_monstations_hide.clicked.connect(self.plotting.hide_monstations)
 
-        layout_monstations = QtGui.QVBoxLayout(tab_monstations)
+        layout_monstations = QtWidgets.QVBoxLayout(tab_monstations)
         layout_monstations.addWidget(self.list_monstations)
         layout_monstations.addWidget(self.lb_monstation_coord)
         layout_monstations.addWidget(bt_monstations_hide)
 
     def initCSTab(self):
-        tab_cs = QtGui.QWidget()
+        tab_cs = QtWidgets.QWidget()
         self.tabs_widget.addTab(tab_cs, "cs")
         # Elements of cs tab
-        self.list_cs = QtGui.QListWidget()
+        self.list_cs = QtWidgets.QListWidget()
         self.list_cs.itemSelectionChanged.connect(self.get_new_cs_for_plotting)
-        self.lb_deg = QtGui.QLabel('Deflection: 0 deg')
+        self.lb_deg = QtWidgets.QLabel('Deflection: 0 deg')
         # slider for generalized coordinate magnification factor
-        self.sl_deg = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.sl_deg = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.sl_deg.setMinimum(-30)
         self.sl_deg.setMaximum(30)
         self.sl_deg.setSingleStep(10)
         self.sl_deg.setValue(0)
-        self.sl_deg.setTickPosition(QtGui.QSlider.TicksBelow)
+        self.sl_deg.setTickPosition(QtWidgets.QSlider.TickPosition.TicksBelow)
         self.sl_deg.setTickInterval(10)
         self.sl_deg.valueChanged.connect(self.get_cs_data_for_plotting)
-        self.cb_axis = QtGui.QComboBox()
+        self.cb_axis = QtWidgets.QComboBox()
         self.cb_axis.addItems(['y-axis', 'z-axis'])
         self.cb_axis.currentIndexChanged.connect(self.get_cs_data_for_plotting)
-        bt_cs_hide = QtGui.QPushButton('Hide')
+        bt_cs_hide = QtWidgets.QPushButton('Hide')
         bt_cs_hide.clicked.connect(self.plotting.hide_cs)
 
-        layout_cs = QtGui.QVBoxLayout(tab_cs)
+        layout_cs = QtWidgets.QVBoxLayout(tab_cs)
         layout_cs.addWidget(self.list_cs)
         layout_cs.addWidget(self.lb_deg)
         layout_cs.addWidget(self.sl_deg)
@@ -313,57 +313,46 @@ class Modelviewer():
         layout_cs.addWidget(bt_cs_hide)
 
     def initPytranTab(self):
-        tab_pytran = QtGui.QWidget()
+        tab_pytran = QtWidgets.QWidget()
         self.tabs_widget.addTab(tab_pytran, "pytran")
         # Elements of results tab
-        self.list_celldata = QtGui.QListWidget()
+        self.list_celldata = QtWidgets.QListWidget()
         self.list_celldata.itemSelectionChanged.connect(
             self.get_new_cell_data_for_plotting)
-        self.list_show_cells = QtGui.QListWidget()
+        self.list_show_cells = QtWidgets.QListWidget()
         self.list_show_cells.setSelectionMode(
-            QtGui.QAbstractItemView.ExtendedSelection)
+            QtWidgets.QAbstractItemView.ExtendedSelection)
         self.list_show_cells.itemSelectionChanged.connect(
             self.get_new_cell_data_for_plotting)
 
-        bt_cell_hide = QtGui.QPushButton('Hide Nastran results')
+        bt_cell_hide = QtWidgets.QPushButton('Hide Nastran results')
         bt_cell_hide.clicked.connect(self.plotting.hide_cell)
 
-        layout_pytran = QtGui.QGridLayout(tab_pytran)
+        layout_pytran = QtWidgets.QGridLayout(tab_pytran)
         layout_pytran.addWidget(self.list_celldata, 0, 0, 1, 1)
         layout_pytran.addWidget(self.list_show_cells, 0, 1, 1, 1)
         layout_pytran.addWidget(bt_cell_hide, 1, 0, 1, -1)
 
     def initIgesTab(self):
-        tab_iges = QtGui.QWidget()
+        tab_iges = QtWidgets.QWidget()
         self.tabs_widget.addTab(tab_iges, "iges")
 
-        self.list_iges = QtGui.QListWidget()
+        self.list_iges = QtWidgets.QListWidget()
         self.list_iges.setSelectionMode(
-            QtGui.QAbstractItemView.ExtendedSelection)  # allow multiple selections
+            QtWidgets.QAbstractItemView.ExtendedSelection)  # allow multiple selections
         self.list_iges.itemSelectionChanged.connect(self.get_iges_for_plotting)
-        bt_iges_hide = QtGui.QPushButton('Hide IGES')
+        bt_iges_hide = QtWidgets.QPushButton('Hide IGES')
         bt_iges_hide.clicked.connect(self.plotting.hide_iges)
 
-        layout_iges = QtGui.QVBoxLayout(tab_iges)
+        layout_iges = QtWidgets.QVBoxLayout(tab_iges)
         layout_iges.addWidget(self.list_iges)
         layout_iges.addWidget(bt_iges_hide)
-
-    def initMayaviFigure(self):
-        # ----------------------------
-        # --- set up Mayavi Figure ---
-        # ----------------------------
-        self.mayavi_widget = MayaviQWidget(self.container)
-        sizePolicy = QtGui.QSizePolicy(
-            QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
-        self.mayavi_widget.setSizePolicy(sizePolicy)
-        fig = self.mayavi_widget.visualization.update_plot()
-        self.plotting.add_figure(fig)
 
     def initWindow(self):
         # ------------------------------
         # --- set up window and menu ---
         # ------------------------------
-        self.window = QtGui.QMainWindow()
+        self.window = QtWidgets.QMainWindow()
         mainMenu = self.window.menuBar()
         fileMenu = mainMenu.addMenu('File')
         # Add load button
@@ -432,7 +421,7 @@ class Modelviewer():
                 old_mode = tmp.data(0)
             self.list_modes_number.clear()
             for mode in range(1, self.model['mass'][key]['n_modes'][()] + 1):
-                item = QtGui.QListWidgetItem(str(mode))
+                item = QtWidgets.QListWidgetItem(str(mode))
                 self.list_modes_number.addItem(item)
                 if tmp is not None and int(old_mode) == mode:
                     self.list_modes_number.setCurrentItem(item)
@@ -584,7 +573,7 @@ class Modelviewer():
 
     def load_model(self):
         # open file dialog
-        filename = QtGui.QFileDialog.getOpenFileName(self.window, self.file_opt['title'],
+        filename = QtWidgets.QFileDialog.getOpenFileName(self.window, self.file_opt['title'],
                                                      self.file_opt['initialdir'], self.file_opt['filters'])[0]
         if filename != '':
             # load model
@@ -601,25 +590,27 @@ class Modelviewer():
         self.list_mass.clear()
         self.list_modes_mass.clear()
         for key in self.model['mass'].keys():
-            self.list_mass.addItem(QtGui.QListWidgetItem(key))
-            self.list_modes_mass.addItem(QtGui.QListWidgetItem(key))
+            self.list_mass.addItem(QtWidgets.QListWidgetItem(key))
+            self.list_modes_mass.addItem(QtWidgets.QListWidgetItem(key))
 
         self.list_aero.clear()
         for key in self.model['aero'].keys():
-            self.list_aero.addItem(QtGui.QListWidgetItem(key))
+            self.list_aero.addItem(QtWidgets.QListWidgetItem(key))
 
         self.list_cs.clear()
         for key in self.model['x2grid']['key'].asstr():
-            self.list_cs.addItem(QtGui.QListWidgetItem(key))
+            self.list_cs.addItem(QtWidgets.QListWidgetItem(key))
 
         self.list_monstations.clear()
         if 'mongrid' in self.model:
             for name in self.model['mongrid']['name'].asstr():
-                self.list_monstations.addItem(QtGui.QListWidgetItem(str(name)))
+                self.list_monstations.addItem(QtWidgets.QListWidgetItem(str(name)))
 
     def load_nastran_results(self):
-        filename = QtGui.QFileDialog.getOpenFileName(self.window, self.hdf5_opt['title'],
-                                                     self.hdf5_opt['initialdir'], self.hdf5_opt['filters'])[0]
+        filename = QtWidgets.QFileDialog.getOpenFileName(self.window,
+                                                         self.hdf5_opt['title'],
+                                                         self.hdf5_opt['initialdir'],
+                                                         self.hdf5_opt['filters'])[0]
         if filename != '':
             self.nastran.load_file(filename)
             self.nastran.add_model(self.model)
@@ -629,15 +620,17 @@ class Modelviewer():
     def update_celldata(self):
         self.list_celldata.clear()
         for key in self.nastran.celldata.keys():
-            self.list_celldata.addItem(QtGui.QListWidgetItem(key))
+            self.list_celldata.addItem(QtWidgets.QListWidgetItem(key))
         self.list_show_cells.clear()
         if hasattr(self.model, 'strcshell'):
             for key in self.model.strcshell['ID']:
-                self.list_show_cells.addItem(QtGui.QListWidgetItem(str(key)))
+                self.list_show_cells.addItem(QtWidgets.QListWidgetItem(str(key)))
 
     def load_tau_grid(self):
-        filename = QtGui.QFileDialog.getOpenFileName(self.window, self.nc_opt['title'],
-                                                     self.nc_opt['initialdir'], self.nc_opt['filters'])[0]
+        filename = QtWidgets.QFileDialog.getOpenFileName(self.window,
+                                                         self.nc_opt['title'],
+                                                         self.nc_opt['initialdir'],
+                                                         self.nc_opt['filters'])[0]
         if filename != '':
             self.tabs_widget.setCurrentIndex(2)
             self.cfdgrid = TauGrid()
@@ -647,8 +640,10 @@ class Modelviewer():
             self.nc_opt['initialdir'] = os.path.split(filename)[0]
 
     def load_su2_grid(self):
-        filename = QtGui.QFileDialog.getOpenFileName(self.window, self.nc_opt['title'],
-                                                     self.nc_opt['initialdir'], self.nc_opt['filters'])[0]
+        filename = QtWidgets.QFileDialog.getOpenFileName(self.window,
+                                                         self.nc_opt['title'],
+                                                         self.nc_opt['initialdir'],
+                                                         self.nc_opt['filters'])[0]
         if filename != '':
             self.tabs_widget.setCurrentIndex(2)
             self.cfdgrid = SU2Grid()
@@ -660,11 +655,13 @@ class Modelviewer():
     def update_markers(self):
         self.list_markers.clear()
         for marker in self.cfdgrid.cfdgrids:
-            self.list_markers.addItem(QtGui.QListWidgetItem(marker))
+            self.list_markers.addItem(QtWidgets.QListWidgetItem(marker))
 
     def load_iges(self):
-        filename = QtGui.QFileDialog.getOpenFileName(self.window, self.iges_opt['title'],
-                                                     self.iges_opt['initialdir'], self.iges_opt['filters'])[0]
+        filename = QtWidgets.QFileDialog.getOpenFileName(self.window,
+                                                         self.iges_opt['title'],
+                                                         self.iges_opt['initialdir'],
+                                                         self.iges_opt['filters'])[0]
         if filename != '':
             self.tabs_widget.setCurrentIndex(6)
             self.iges.load_file(filename)
@@ -675,7 +672,7 @@ class Modelviewer():
     def update_list_iges(self):
         self.list_iges.clear()
         for mesh in self.iges.meshes:
-            self.list_iges.addItem(QtGui.QListWidgetItem(mesh['desc']))
+            self.list_iges.addItem(QtWidgets.QListWidgetItem(mesh['desc']))
 
 
 def command_line_interface():
