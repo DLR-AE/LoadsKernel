@@ -71,6 +71,49 @@ class Modelviewer():
         self.nastran = NastranSOL101()
         self.iges = IgesMesh()
 
+        # GUI attributes (lists, labels, sliders, etc.)
+        self.container = None
+        self.tabs_widget = None
+        self.list_modes_mass = None
+        self.list_modes_number = None
+        self.lb_freq = None
+        self.lb_uf = None
+        self.sl_uf = None
+        self.list_mass = None
+        self.lb_rho = None
+        self.sl_rho = None
+        self.lb_cg = None
+        self.lb_cg_mac = None
+        self.lb_mass = None
+        self.lb_Ixx = None
+        self.lb_Iyy = None
+        self.lb_Izz = None
+        self.list_aero = None
+        self.cb_w2gj = None
+        self.cb_normal_vectors = None
+        self.lb_MAC = None
+        self.lb_MAC2 = None
+        self.list_markers = None
+        self.list_cs = None
+        self.lb_deg = None
+        self.sl_deg = None
+        self.cb_axis = None
+        self.list_monstations = None
+        self.lb_monstation_coord = None
+        self.list_celldata = None
+        self.list_show_cells = None
+        self.list_iges = None
+        self.window = None
+        self.viewMenu = None
+        self.loadButtonNastran = None
+        self.loadButtonTauGrid = None
+        self.loadButtonSU2Grid = None
+        self.loadButtonIges = None
+        self.cfdgrid = None
+        self.iges = None
+        self.model = None
+        self.MAC = None
+
     def run(self):
         # Don't create a new QApplication, it would unhook the Events
         # set by Traits on the existing QApplication. Simply use the
@@ -151,7 +194,7 @@ class Modelviewer():
         self.list_modes_number = QtWidgets.QListWidget()
         self.list_modes_number.itemSelectionChanged.connect(
             self.get_mode_data_for_plotting)
-        self.lb_freq = QtWidgets.QLabel('Frequency: {:0.4f} Hz'.format(0.0))
+        self.lb_freq = QtWidgets.QLabel(f'Frequency: {0.0:0.4f} Hz')
         self.lb_uf = QtWidgets.QLabel('Scaling: 1.0')
         # slider for generalized coordinate magnification factor
         self.sl_uf = QtWidgets.QSlider(QtCore.Qt.Horizontal)
@@ -195,13 +238,12 @@ class Modelviewer():
         self.sl_rho.setTickPosition(QtWidgets.QSlider.TickPosition.TicksBelow)
         self.sl_rho.setTickInterval(500)
         self.sl_rho.valueChanged.connect(self.get_mass_data_for_plotting)
-        self.lb_cg = QtWidgets.QLabel(
-            'CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(0.0, 0.0, 0.0))
-        self.lb_cg_mac = QtWidgets.QLabel('CG: x={:0.4f} % MAC'.format(0.0))
-        self.lb_mass = QtWidgets.QLabel('Mass: {:0.2f} kg'.format(0.0))
-        self.lb_Ixx = QtWidgets.QLabel('Ixx:  {:0.4g} kg m^2'.format(0.0))
-        self.lb_Iyy = QtWidgets.QLabel('Iyy:  {:0.4g} kg m^2'.format(0.0))
-        self.lb_Izz = QtWidgets.QLabel('Izz:  {:0.4g} kg m^2'.format(0.0))
+        self.lb_cg = QtWidgets.QLabel(f'CG: x={0.0:0.4f}, y={0.0:0.4f}, z={0.0:0.4f} m')
+        self.lb_cg_mac = QtWidgets.QLabel(f'CG: x={0.0:0.4f} % MAC')
+        self.lb_mass = QtWidgets.QLabel(f'Mass: {0.0:0.2f} kg')
+        self.lb_Ixx = QtWidgets.QLabel(f'Ixx:  {0.0:0.4g} kg m^2')
+        self.lb_Iyy = QtWidgets.QLabel(f'Iyy:  {0.0:0.4g} kg m^2')
+        self.lb_Izz = QtWidgets.QLabel(f'Izz:  {0.0:0.4g} kg m^2')
         bt_mass_hide = QtWidgets.QPushButton('Hide')
         bt_mass_hide.clicked.connect(self.plotting.hide_masses)
 
@@ -231,8 +273,7 @@ class Modelviewer():
         self.cb_normal_vectors.stateChanged.connect(self.get_aero_for_plotting)
         bt_aero_hide = QtWidgets.QPushButton('Hide')
         bt_aero_hide.clicked.connect(self.plotting.hide_aero)
-        self.lb_MAC = QtWidgets.QLabel(
-            'MAC: x={:0.4f}, y={:0.4f} m'.format(0.0, 0.0))
+        self.lb_MAC = QtWidgets.QLabel(f'MAC: x={0.0:0.4f}, y={0.0:0.4f} m')
         self.lb_MAC2 = QtWidgets.QLabel('')
 
         self.list_markers = QtWidgets.QListWidget()
@@ -349,9 +390,7 @@ class Modelviewer():
         layout_iges.addWidget(bt_iges_hide)
 
     def initWindow(self):
-        # ------------------------------
-        # --- set up window and menu ---
-        # ------------------------------
+        # Set-up window and menu
         self.window = QtWidgets.QMainWindow()
         mainMenu = self.window.menuBar()
         fileMenu = mainMenu.addMenu('File')
@@ -361,8 +400,7 @@ class Modelviewer():
         loadButtonModel.triggered.connect(self.load_model)
         fileMenu.addAction(loadButtonModel)
 
-        self.loadButtonNastran = QtGui.QAction(
-            'Load Nastran results', self.window)
+        self.loadButtonNastran = QtGui.QAction('Load Nastran results', self.window)
         self.loadButtonNastran.setShortcut('Ctrl+R')
         self.loadButtonNastran.setDisabled(True)
         self.loadButtonNastran.triggered.connect(self.load_nastran_results)
@@ -416,20 +454,25 @@ class Modelviewer():
     def update_modes(self):
         if self.list_modes_mass.currentItem() is not None:
             key = self.list_modes_mass.currentItem().data(0)
-            tmp = self.list_modes_number.currentItem()
-            if tmp is not None:
-                old_mode = tmp.data(0)
+            # Remember the mode that was previously selected
+            if self.list_modes_number.currentItem() is not None:
+                old_mode = int(self.list_modes_number.currentItem().data(0))
+            else:
+                # There is no mode '0', so we can use 0 as a flag for no selection
+                old_mode = 0
+            # Clear and refill the mode numbers list
             self.list_modes_number.clear()
             for mode in range(1, self.model['mass'][key]['n_modes'][()] + 1):
                 item = QtWidgets.QListWidgetItem(str(mode))
                 self.list_modes_number.addItem(item)
-                if tmp is not None and int(old_mode) == mode:
+                # Restore the previously selected mode
+                if old_mode == mode:
                     self.list_modes_number.setCurrentItem(item)
             self.get_mode_data_for_plotting()
 
     def get_mode_data_for_plotting(self):
         uf_i = np.sign(self.sl_uf.value()) * (self.sl_uf.value() / 5.0) ** 2.0
-        self.lb_uf.setText('Scaling: {:0.2f}'.format(uf_i))
+        self.lb_uf.setText(f'Scaling: {uf_i:0.2f}')
         if self.list_modes_mass.currentItem() is not None and self.list_modes_number.currentItem() is not None:
             key = self.list_modes_mass.currentItem().data(0)
             mass = self.model['mass'][key]
@@ -443,45 +486,43 @@ class Modelviewer():
             # the eigenvalue directly corresponds to the generalized stiffness if Mass is scaled to 1.0
             eigenvalue = mass['Kff'][()].diagonal()[i_mode]
             freq = np.real(eigenvalue) ** 0.5 / 2 / np.pi
-            self.lb_freq.setText('Frequency: {:0.4f} Hz'.format(freq))
+            self.lb_freq.setText(f'Frequency: {freq:0.4f} Hz')
 
-    def get_mass_data_for_plotting(self, *args):
+    def get_mass_data_for_plotting(self):
         rho = np.double(self.sl_rho.value())
-        self.lb_rho.setText('Scaling: {:0.0f} kg/m^3'.format(rho))
+        self.lb_rho.setText(f'Scaling: {rho:0.0f} kg/m^3')
         if self.list_mass.currentItem() is not None:
             key = self.list_mass.currentItem().data(0)
             Mgg = load_hdf5_sparse_matrix(self.model['mass'][key]['MGG'])
             Mb = self.model['mass'][key]['Mb'][()]
             cggrid = load_hdf5_dict(self.model['mass'][key]['cggrid'])
             self.plotting.plot_masses(Mgg, Mb, cggrid, rho)
-            self.lb_cg.setText('CG: x={:0.4f}, y={:0.4f}, z={:0.4f} m'.format(cggrid['offset'][0, 0],
-                                                                              cggrid['offset'][0, 1],
-                                                                              cggrid['offset'][0, 2]))
+            self.lb_cg.setText(f"CG: x={cggrid['offset'][0, 0]:0.4f}, \
+                               y={cggrid['offset'][0, 1]:0.4f}, \
+                               z={cggrid['offset'][0, 2]:0.4f} m")
             # cg_mac = (x_cg - x_mac)*c_ref * 100 [%]
             # negativ bedeutet Vorlage --> stabil
             cg_mac = (cggrid['offset'][0, 0] - self.MAC[0]) / \
                 self.model['macgrid']['c_ref'][()] * 100.0
-            if cg_mac == 0.0:
-                rating = 'indifferent'
-            elif cg_mac < 0.0:
+            if cg_mac < 0.0:
                 rating = 'stable'
             elif cg_mac > 0.0:
                 rating = 'unstable'
-            self.lb_cg_mac.setText(
-                'CG: x={:0.4f} % MAC, {}'.format(cg_mac, rating))
-            self.lb_mass.setText('Mass: {:0.2f} kg'.format(Mb[0, 0]))
-            self.lb_Ixx.setText('Ixx: {:0.4g} kg m^2'.format(Mb[3, 3]))
-            self.lb_Iyy.setText('Iyy: {:0.4g} kg m^2'.format(Mb[4, 4]))
-            self.lb_Izz.setText('Izz: {:0.4g} kg m^2'.format(Mb[5, 5]))
+            else:  # cg_mac == 0.0:
+                rating = 'indifferent'
+            self.lb_cg_mac.setText(f'CG: x={cg_mac:0.4f} % MAC, {rating}')
+            self.lb_mass.setText(f'Mass: {Mb[0, 0]:0.2f} kg')
+            self.lb_Ixx.setText(f'Ixx: {Mb[3, 3]:0.4g} kg m^2')
+            self.lb_Iyy.setText(f'Iyy: {Mb[4, 4]:0.4g} kg m^2')
+            self.lb_Izz.setText(f'Izz: {Mb[5, 5]:0.4g} kg m^2')
 
-    def get_monstation_for_plotting(self, *args):
+    def get_monstation_for_plotting(self):
         if self.list_monstations.currentItem() is not None:
             key = self.list_monstations.currentItem().data(0)
             pos = list(self.model['mongrid']['name'].asstr()).index(key)
             monstation_id = self.model['mongrid']['ID'][pos]
             self.plotting.plot_monstations(monstation_id)
-            self.lb_monstation_coord.setText(
-                'Coord: {}'.format(self.model['mongrid']['CD'][pos]))
+            self.lb_monstation_coord.setText(f'Coord: {self.model["mongrid"]["CD"][pos]}')
 
     def calc_MAC(self, key):
         # The mean aerodynamic center is calculated from the aerodynamics.
@@ -510,8 +551,8 @@ class Modelviewer():
         if self.list_aero.currentItem() is not None:
             key = self.list_aero.currentItem().data(0)
             self.calc_MAC(key)
-            self.lb_MAC.setText('MAC: x={:0.4f}, y={:0.4f} m'.format(self.MAC[0], self.MAC[1]))
-            self.lb_MAC2.setText('(based on AIC from "{}", rigid, subsonic)'.format(key))
+            self.lb_MAC.setText(f'MAC: x={self.MAC[0]:0.4f}, y={self.MAC[1]:0.4f} m')
+            self.lb_MAC2.setText(f'(based on AIC from "{key}", rigid, subsonic)')
             if self.plotting.show_aero:
                 self.plotting.hide_aero()
             if self.cb_w2gj.isChecked():
@@ -521,27 +562,26 @@ class Modelviewer():
             if self.cb_normal_vectors.isChecked():
                 self.plotting.plot_panel_normal_vectors()
 
-    def get_new_cs_for_plotting(self, *args):
+    def get_new_cs_for_plotting(self):
         # To show a different control surface, new points need to be created. Thus, remove last control surface from plot.
         if self.plotting.show_cs:
             self.plotting.hide_cs()
         self.sl_deg.setValue(0)
-        self.lb_deg.setText('Deflection: {:0.0f} deg'.format(0.0))
+        self.lb_deg.setText(f'Deflection: {0.0:0.0f} deg')
         self.get_cs_data_for_plotting()
 
-    def get_cs_data_for_plotting(self, *args):
+    def get_cs_data_for_plotting(self):
         deg = np.double(self.sl_deg.value())
-        self.lb_deg.setText('Deflection: {:0.0f} deg'.format(deg))
+        self.lb_deg.setText(f'Deflection: {deg:0.0f} deg')
         if self.list_cs.currentItem() is not None:
             # determine cs
             key = self.list_cs.currentItem().data(0)
-            i_surf = np.where(self.model['x2grid']
-                              ['key'].asstr()[:] == key)[0][0]
+            i_surf = np.where(self.model['x2grid']['key'].asstr()[:] == key)[0][0]
             axis = self.cb_axis.currentText()
             # hand over for plotting
             self.plotting.plot_cs(i_surf, axis, deg)
 
-    def get_new_cell_data_for_plotting(self, *args):
+    def get_new_cell_data_for_plotting(self):
         if (self.list_show_cells.currentItem() is not None) and (self.list_celldata.currentItem() is not None):
             items = self.list_show_cells.selectedItems()
             show_cells = [int(item.text()) for item in items]
@@ -549,20 +589,20 @@ class Modelviewer():
             celldata = self.nastran.celldata[key]
             self.plotting.plot_cell(celldata, show_cells)
 
-    def get_new_markers_for_plotting(self, *args):
+    def get_new_markers_for_plotting(self):
         # To show a different control surface, new points need to be created. Thus, remove last control surface from plot.
         if self.plotting.show_cfdgrids:
             self.plotting.hide_cfdgrids()
         self.get_markers_for_plotting()
 
-    def get_markers_for_plotting(self, *args):
+    def get_markers_for_plotting(self):
         if self.list_markers.currentItem() is not None:
             # determine marker
             items = self.list_markers.selectedItems()
             selected_markers = [item.text() for item in items]
             self.plotting.plot_cfdgrids(selected_markers)
 
-    def get_iges_for_plotting(self, *args):
+    def get_iges_for_plotting(self):
         if self.list_iges.currentItem() is not None:
             # determine marker
             items = self.list_iges.selectedItems()
@@ -573,8 +613,10 @@ class Modelviewer():
 
     def load_model(self):
         # open file dialog
-        filename = QtWidgets.QFileDialog.getOpenFileName(self.window, self.file_opt['title'],
-                                                     self.file_opt['initialdir'], self.file_opt['filters'])[0]
+        filename = QtWidgets.QFileDialog.getOpenFileName(self.window,
+                                                         self.file_opt['title'],
+                                                         self.file_opt['initialdir'],
+                                                         self.file_opt['filters'])[0]
         if filename != '':
             # load model
             self.model = data_handling.load_hdf5(filename)
@@ -619,7 +661,7 @@ class Modelviewer():
 
     def update_celldata(self):
         self.list_celldata.clear()
-        for key in self.nastran.celldata.keys():
+        for key in self.nastran.celldata:
             self.list_celldata.addItem(QtWidgets.QListWidgetItem(key))
         self.list_show_cells.clear()
         if hasattr(self.model, 'strcshell'):
