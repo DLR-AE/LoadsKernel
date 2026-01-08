@@ -44,7 +44,6 @@ def my_setup():
                                      'mayavi',
                                      'traits',
                                      'traitsui',
-                                     'pyface',
                                      'jupyter',
                                      'pyiges',  # only available with pip, not with conda
                                      'pyfmi',

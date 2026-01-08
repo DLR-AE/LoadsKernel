@@ -15,9 +15,9 @@ mpi4py
 mayavi
 traits
 traitsui
-pyface
 jupyter
 pyfmi
+pyside6
 
 # Regression tests
 pytest
