@@ -10,5 +10,4 @@ The aeroelastic model of the Douglas DC3 as well as most parts of this tutorial 
 
 ## Bibliography
 ```{bibliography}
-:style: unsrt
 ```
