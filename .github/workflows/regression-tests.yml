@@ -9,6 +9,12 @@ on:
   schedule:
     - cron: '0 2 * * 0'
 
+env:
+  # `BASE_URL` determines, relative to the root of the domain, the URL that your site is served from.
+  # E.g., if your site lives at `https://mydomain.org/myproject`, set `BASE_URL=/myproject`.
+  # If, instead, your site lives at the root of the domain, at `https://mydomain.org`, set `BASE_URL=''`.
+  BASE_URL: /${{ github.event.repository.name }}
+
 jobs:
   
   Pytest:
@@ -71,7 +77,10 @@ jobs:
         # Select Python version to be used for compiling here.
         python-version: ["3.12"]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 18.x
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
@@ -83,7 +92,9 @@ jobs:
         pip install .[test]
     - name: Assemble the tutorials to a jupyter book and build htlm pages
       run: |
-        jupyter-book build ./doc/tutorials
+        cd ./doc/tutorials
+        jupyter-book build --execute --html
+        cd ../../
         # Put the html into a 2nd-level sub-folder and use 1st-level subfolder for uploading
         mkdir ./doc/html
         mv ./doc/tutorials/_build/html ./doc/html/tutorials
