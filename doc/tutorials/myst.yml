@@ -1,0 +1,23 @@
+version: 1
+project:
+  title: Loads Kernel Tutorials
+  authors:
+    - name: Francisco Carvalho
+    - name: Arne Voß
+  github: DLR-AE/LoadsKernel
+  bibliography:
+    - references.bib
+  toc:
+    - file: intro.md
+    - file: first_steps.ipynb
+    - file: simulation_set_up.ipynb
+    - file: aeroelastic_modeling.md
+    - file: trim.ipynb
+    - file: maneuver_loads.ipynb
+    - file: gust_time_domain.ipynb
+    - file: flutter.ipynb
+site:
+  options:
+    logo: ../../graphics/LK_logo2.png
+    folders: true
+  template: book-theme
