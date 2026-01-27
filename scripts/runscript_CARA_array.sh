@@ -34,11 +34,11 @@ export OPENBLAS_NUM_THREADS=1
 module purge
 
 # switch python environment
-source /home/voss_ar/miniconda3/etc/profile.d/conda.sh
+source /home/my_username/miniconda3/etc/profile.d/conda.sh
 conda activate
 
 # set SU2 environment
-source /home/voss_ar/su2env.sh
+source /home/my_username/su2env.sh
 
 # check envirnoment
 echo "Environment check:"

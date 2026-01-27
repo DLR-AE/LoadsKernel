@@ -1,6 +1,13 @@
 # Note
 New releases are marked in the repository using tags. Simply checkout the master branch for the lastest version or use git checkout if you require a specific release, for example 'git checkout 2022.10'.
 
+# Release 2026.01
+- Added gust and flutter simulation in the frequency domain based of GAFs obtained from linearized CFD (using SU2 and via pulse simulations). This is work is still very new and therefore needs more testing and/or applications.
+- Refactoring of 'equations'
+- Added regressions tests based on the DC3
+- Multiple small fixes collected through the last year
+- Dependencies: switch to PySide6 (for GUIs) and to Jupyter Book 2 (for tutorials)
+
 # Release 2025.01
 - Update of flutter solution sequence including updated description in the User Guide and of the tutorials
 - Numpy 2.2 and Python 3.12 compatibility

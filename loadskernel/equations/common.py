@@ -5,7 +5,7 @@ import numpy as np
 
 from loadskernel.cfd_interfaces import tau_interface, su2_interface
 from loadskernel.engine_interfaces import engine, propeller
-from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load_hdf5_dict, check_nested_dict
 from loadskernel.solution_tools import calc_drehmatrix, design_gust_cs_25_341, turbulence_cs_25_341, calc_drehmatrix_angular, \
     calc_drehmatrix_angular_inv
 
@@ -38,6 +38,7 @@ class Common():
         self.defo_old = 0.0
         # load data needed for subsequent simulation
         self.load_data()
+        self.load_GAFs()
         # set-up simulation parameters
         self.setup_hingeline()
         self.setup_efcs()
@@ -92,6 +93,22 @@ class Common():
         self.cam_rad = self.model['camber_twist']['cam_rad'][()]
 
         self.Qjj = self.aero['Qjj']
+
+    def load_GAFs(self):
+        if self.jcl.aero['method'] in ['cfd_freq_dom']:
+            # Derive the paht/key from the trimcase description
+            mass = self.trimcase['mass']
+            aero = self.trimcase['aero']
+            altitude = self.trimcase['altitude']
+            if check_nested_dict(self.model['GAFs'], [mass, aero, altitude]):
+                self.GAFs = load_hdf5_dict(self.model['GAFs'][mass][aero][altitude])
+                self.X0 = self.GAFs['X0']
+            else:
+                logging.error("No GAFs found for mass '%s', aero '%s', altitude '%s'", mass, aero, altitude)
+                msg = """GAFs depend on the operational point: mass, aero and altitude. They are organized hierarchically
+                         by the mass, aero and altitude keys. Please make sure that the GAFs for the requested
+                         trimcase have bee computed and gathered/added to the model file."""
+                logging.error(msg)
 
     def setup_hingeline(self):
         # set hingeline for cs deflections
@@ -207,10 +224,10 @@ class Common():
                                   self.trimcond_Y[np.where(self.trimcond_Y[:, 0] == 'Nz')[0][0], 2])]),
                               })
             else:
-                logging.error('Unknown EFCS: {}'.format(self.jcl.efcs['version']))
+                logging.error('Unknown EFCS: %s', self.jcl.efcs['version'])
 
     def setup_aero_matrices(self):
-        if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'freq_dom']:
+        if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'freq_dom', 'mona_freq_dom']:
             self.Djf_1 = self.aerogrid['Nmat'].dot(self.aerogrid['Rmat'].dot(self.PHIjf))
             self.Djf_2 = self.aerogrid['Nmat'].dot(self.PHIjf) * -1.0
             self.Djh_1 = self.aerogrid['Nmat'].dot(self.aerogrid['Rmat'].dot(self.PHIjh))

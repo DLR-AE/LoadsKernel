@@ -4,6 +4,7 @@ import itertools
 import os
 import numpy as np
 from scipy.spatial import ConvexHull
+from scipy.fftpack import fft, fftfreq
 
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -80,7 +81,7 @@ class LoadPlots():
         if self.cuttingforces_fuselage:
             self.cuttingforces_along_axis_plots(monstations=self.cuttingforces_fuselage, axis=0)
         self.pp.close()
-        logging.info('Plots saved as ' + filename_pdf)
+        logging.info('Plots saved as %s', filename_pdf)
 
     def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull=True, show_labels=False, show_minmax=False):
         loads = np.array(self.monstations[station]['loads'])
@@ -102,7 +103,7 @@ class LoadPlots():
                     self.subplot.plot(points[simplex, 0], points[simplex, 1], color=color, linewidth=2.0, linestyle='--')
                 crit_trimcases = [subcases[i] for i in hull.vertices]
                 if show_labels:
-                    for i_case in range(crit_trimcases.__len__()):
+                    for i_case in range(len(crit_trimcases)):
                         self.subplot.text(points[hull.vertices[i_case], 0], points[hull.vertices[i_case], 1],
                                           str(subcases[hull.vertices[i_case]]), fontsize=8)
             except Exception:
@@ -197,7 +198,7 @@ class LoadPlots():
 
     def cuttingforces_along_axis_plots(self, monstations, axis):
         assert axis in [0, 1, 2], 'Plotting along an axis only supported for axis 0, 1 or 2!'
-        logging.info('Start plotting cutting forces along axis {}...'.format(axis))
+        logging.info('Start plotting cutting forces along axis %d...', axis)
         # Read the data required for plotting.
         loads = []
         offsets = []
@@ -345,7 +346,7 @@ class LoadPlots():
             pp.savefig()
             plt.close()
         pp.close()
-        logging.info('plots saved as ' + filename_pdf)
+        logging.info('plots saved as %s', filename_pdf)
 
 
 class FlutterPlots(LoadPlots):
@@ -442,7 +443,7 @@ class FlutterPlots(LoadPlots):
             # this kind of plot is only feasible for methods which iterate over Vtas, e.g. not the K- or KE-methods
             if 'flutter' in simcase and simcase['flutter_para']['method'] not in ['pk_rodden', 'pk_schwochow',
                                                                                   'pk', 'statespace']:
-                logging.info('skip plotting of eigenvalues and -vectors for {}'.format(trimcase['desc']))
+                logging.info('skip plotting of eigenvalues and -vectors for %s', trimcase['desc'])
                 continue
 
             # Plot boundaries
@@ -455,13 +456,14 @@ class FlutterPlots(LoadPlots):
                 colors = itertools.cycle((plt.cm.tab20c(np.linspace(0, 1, 20))))
                 markers = itertools.cycle(('+', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'x', 'D',))
                 desc = [str(mode) for mode in range(response['eigenvalues'].shape[1])]
-
+                # clear all axes for next plot
                 ax[0].cla()
                 ax[1].cla()
                 ax[2].cla()
-                ax_cbar.cla(), ax_freq.cla()  # clear all axes for next plot
+                ax_cbar.cla()
+                ax_freq.cla()
                 # plot eigenvector
-                im_eig = ax[2].imshow(response['eigenvectors'][i].__abs__(), cmap='hot_r', aspect='auto',
+                im_eig = ax[2].imshow(np.abs(response['eigenvectors'][i]), cmap='hot_r', aspect='auto',
                                       origin='upper', vmin=0.0, vmax=1.0)
                 # add colorbar to plot
                 fig.colorbar(im_eig, cax=ax_cbar, orientation="horizontal")
@@ -477,12 +479,12 @@ class FlutterPlots(LoadPlots):
                                color=color, linestyle='--')
                     ax[1].plot(response['eigenvalues'][i, j].real, response['eigenvalues'][i, j].imag,
                                marker=marker, markersize=8.0, color=color, label=desc[j])
-                    ax[2].plot(j, response['states'].__len__(),
+                    ax[2].plot(j, len(response['states']),
                                marker=marker, markersize=8.0, c=color)
 
                 # make plots nice
-                fig.suptitle(t='{}, Veas={:.2f} m/s, Vtas={:.2f} m/s'.format(
-                    trimcase['desc'], tas2eas(response['Vtas'][i, 0], h), response['Vtas'][i, 0]), fontsize=16)
+                fig.suptitle(t=f'{trimcase['desc']}, Veas={tas2eas(response['Vtas'][i, 0], h):.2f} m/s, \
+                             Vtas={response['Vtas'][i, 0]:.2f} m/s', fontsize=16)
                 ax[0].set_position([0.12, 0.1, 0.25, 0.8])
                 ax[0].set_xlabel('Real')
                 ax[0].set_ylabel('Imag')
@@ -514,7 +516,7 @@ class FlutterPlots(LoadPlots):
                 ax[1].legend(bbox_to_anchor=(1.10, 1), loc='upper left', borderaxespad=0.0, fontsize=10)
 
                 ax[2].set_position([0.60, 0.1, 0.35, 0.8])
-                ax[2].yaxis.set_ticks(np.arange(0, response['states'].__len__(), 1))
+                ax[2].yaxis.set_ticks(np.arange(0, len(response['states']), 1))
                 ax[2].yaxis.set_ticklabels(response['states'].asstr(), fontsize=10)
                 ax[2].yaxis.set_tick_params(rotation=0)
                 ax[2].xaxis.set_ticks(np.arange(0, response['eigenvalues'].shape[1], 1))
@@ -530,13 +532,13 @@ class FlutterPlots(LoadPlots):
         self.pp = PdfPages(filename_pdf)
         self.plot_fluttercurves()
         self.pp.close()
-        logging.info('plots saved as ' + filename_pdf)
+        logging.info('plots saved as %s', filename_pdf)
 
     def plot_eigenvalues_to_pdf(self, filename_pdf):
         self.pp = PdfPages(filename_pdf)
         self.plot_eigenvalues()
         self.pp.close()
-        logging.info('plots saved as ' + filename_pdf)
+        logging.info('plots saved as %s', filename_pdf)
 
 
 class TurbulencePlots(LoadPlots):
@@ -547,7 +549,7 @@ class TurbulencePlots(LoadPlots):
         self.pp = PdfPages(filename_pdf)
         self.potato_plots()
         self.pp.close()
-        logging.info('plots saved as ' + filename_pdf)
+        logging.info('plots saved as %s', filename_pdf)
 
     def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull=True, show_labels=False, show_minmax=False):
         loads = np.array(self.monstations[station]['loads'])
@@ -608,7 +610,7 @@ class TurbulencePlots(LoadPlots):
 
         # Print the equation of the ellipse in standard form
         logging.debug(
-            'The ellipse is given by {0:.3}x^2 + {1:.3}*2xy+{2:.3}y^2 = 1'.format(x[0], x[1], x[2]))
+            'The ellipse is given by %.3fx^2 + %.3f*2xy+%.3fy^2 = 1', x[0], x[1], x[2])
 
         # Calculate the parameters of the ellipse
         alpha = -0.5 * np.arctan(2 * x[1] / (x[2] - x[0]))
@@ -617,9 +619,9 @@ class TurbulencePlots(LoadPlots):
         major = (2.0 / (eta - zeta)) ** 0.5
         minor = (2.0 / (eta + zeta)) ** 0.5
 
-        logging.debug('Major axis = {:.3f}'.format(major))
-        logging.debug('Minor axis = {:.3f}'.format(minor))
-        logging.debug('Rotation = {:.3f} deg'.format(alpha / np.pi * 180.0))
+        logging.debug('Major axis = %.3f', major)
+        logging.debug('Minor axis = %.3f', minor)
+        logging.debug('Rotation = %.3f deg', alpha / np.pi * 180.0)
 
         # Plot the given samples
         # self.subplot.scatter(X, Y, label='Data Points')
@@ -631,3 +633,140 @@ class TurbulencePlots(LoadPlots):
         X = 0.0 + major * np.cos(phi) * np.cos(alpha) - minor * np.sin(phi) * np.sin(alpha)
         Y = 0.0 + major * np.cos(phi) * np.sin(alpha) + minor * np.sin(phi) * np.cos(alpha)
         return X, Y
+
+
+class PulsePlots(LoadPlots):
+
+    def make_as_nice(self, ax):
+        for a in ax:
+            a.get_yaxis().set_label_coords(x=-0.10, y=0.5)
+            a.grid(visible=True, which='major', axis='both')
+            a.minorticks_on()
+            a.legend(loc='upper right')
+
+    def plot_pluse(self, filename_pdf):
+        logging.info('start plotting pulse signals...')
+        pp = PdfPages(filename_pdf)
+        for response in self.responses:
+            # Get/load data from the response
+            trimcase = self.jcl.trimcase[response['i'][()]]
+            simcase = self.jcl.simcase[response['i'][()]]
+            pulse_signal = response['pulse_signal'][()]
+            gust_signal = response['gust_signal'][()]
+            t = response['t_pulse'][()]
+            Pb_pulse = response['Pb_pulse'][()]
+            Pb_gust = response['Pb_gust'][()]
+            # Qhh = response['Qhh'][()]
+            k_red = response['k_red'][()]
+            Vtas = sum(response['X'][0, 6:9] ** 2) ** 0.5
+            q_dyn = response['q_dyn'][0]
+            c_ref = self.jcl.general['c_ref']
+
+            # Step 1: plot pulse in frequency domain
+            pulse_f = fft(pulse_signal)
+            gust_f = fft(gust_signal)
+            n_freqs = int(simcase['pulse_para']['fmax'] / simcase['pulse_para']['df'])
+            if n_freqs % 2 != 0:  # n_freq is odd
+                n_freqs += 1  # make even
+            # Calculate all parameters from the number of freqs
+            fmax = n_freqs * simcase['pulse_para']['df']
+            dt = 1.0 / fmax
+            # Whole frequency space including negative frequencies
+            fftfreqs = fftfreq(n_freqs, dt)
+            # Positive only frequencies where we need to calculate the TFs and excitations
+            positiv_fftfreqs = np.abs(fftfreqs[:n_freqs // 2 + 1])
+            # Do the actual plotting
+            fig, ax = plt.subplots(2, sharex=True, figsize=(8, 10))
+            fig.suptitle(f'{trimcase['desc']}', fontsize=16)
+            ax[0].set_position([0.15, 0.55, 0.75, 0.35])
+            ax[0].plot(positiv_fftfreqs, np.abs(pulse_f[0, :len(positiv_fftfreqs)]), '-', label='FFT Pulse')
+            ax[1].set_position([0.15, 0.15, 0.75, 0.35])
+            ax[1].plot(positiv_fftfreqs, np.abs(gust_f[:len(positiv_fftfreqs)]), '-', label='FFT Gust')
+            # the shared x-axis
+            ax[1].set_xlabel('Frequency [Hz]')
+            f_max = 50.0  # I don't like hard-coded limits here, but 50 Hz is ok for most applications
+            k_max = 2.0 * np.pi * f_max * c_ref / 2.0 / Vtas
+            ax[1].set_xlim((0.0, f_max))
+            self.make_as_nice(ax)
+            # set second x-axis
+            ax_k = ax[-1].twiny()
+            ax_k.set_position([0.15, 0.15, 0.75, 0.35])  # Move the axis on top of the lower plot
+            ax_k.xaxis.set_ticks_position('bottom')
+            ax_k.xaxis.set_label_position('bottom')
+            ax_k.spines['bottom'].set_position(('outward', 60))
+            ax_k.set_xlim((0.0, k_max))
+            ax_k.minorticks_on()
+            ax_k.set_xlabel('$k_{red}$')
+            pp.savefig()
+            plt.close()
+
+            # Step 2: plot lift coefficient derivative from heave and pitch motions as suggesrted by Marc-Johan
+            # Fourier transformation
+            Pb_f = fft(Pb_pulse)
+            Qhb = Pb_f / pulse_f
+            # Calculate dCl from the lift force Fz at CG
+            omega = k_red * Vtas * 2.0 / c_ref
+            dCl_heave = Qhb[2, 1, :len(k_red)] / (1j * omega) * Vtas / (q_dyn * self.jcl.general['A_ref'])
+            dCl_pitch = Qhb[2, 3, :len(k_red)] / (q_dyn * self.jcl.general['A_ref'])
+            # ToDo: calculate dCl from Qhh as cross-check
+
+            # Do the actual plotting
+            fig = plt.figure()
+            ax = fig.add_axes([0.15, 0.15, 0.75, 0.75])
+            ax.plot(k_red, np.abs(dCl_heave), '--x', label='dCl from heave')
+            ax.plot(k_red, np.abs(dCl_pitch), '--x', label='dCl from pitch')
+            fig.suptitle(f'{trimcase['desc']}', fontsize=16)
+            self.make_as_nice([ax])
+            ax.set_xlabel('$k_{red}$')
+            ax.set_ylabel('[-]')
+            pp.savefig()
+            plt.close()
+
+            # Step 3: plot each mode separately
+            fig, ax = plt.subplots(7, sharex=True, figsize=(8, 10))
+            for i in range(Pb_pulse.shape[1]):
+                fig.suptitle(f'{trimcase['desc']}, Mode {i + 2}', fontsize=16)
+                for a in ax:
+                    a.cla()
+                ax[0].plot(t, pulse_signal[i, :], '-', label='Pulse')
+                ax[1].plot(t, Pb_pulse[0, i, :], '-', label='Fx')
+                ax[2].plot(t, Pb_pulse[1, i, :], '-', label='Fy')
+                ax[3].plot(t, Pb_pulse[2, i, :], '-', label='Fz')
+                ax[4].plot(t, Pb_pulse[3, i, :], '-', label='Mx')
+                ax[5].plot(t, Pb_pulse[4, i, :], '-', label='My')
+                ax[6].plot(t, Pb_pulse[5, i, :], '-', label='Mz')
+                self.make_as_nice(ax)
+                ax[-1].set_xlabel('Time [s]')
+                ax[0].set_ylabel('[-]')
+                ax[1].set_ylabel('[N]')
+                ax[2].set_ylabel('[N]')
+                ax[3].set_ylabel('[N]')
+                ax[4].set_ylabel('[Nm]')
+                ax[5].set_ylabel('[Nm]')
+                ax[6].set_ylabel('[Nm]')
+                fig.tight_layout(pad=1.0)
+                pp.savefig()
+
+        # Step 4: plot gust
+            fig, ax = plt.subplots(7, sharex=True, figsize=(8, 10))
+            fig.suptitle(f'{trimcase['desc']}, Gust', fontsize=16)
+            ax[0].plot(t, gust_signal, '-', label='Gust')
+            ax[1].plot(t, Pb_gust[0, :], '-', label='Fx')
+            ax[2].plot(t, Pb_gust[1, :], '-', label='Fy')
+            ax[3].plot(t, Pb_gust[2, :], '-', label='Fz')
+            ax[4].plot(t, Pb_gust[3, :], '-', label='Mx')
+            ax[5].plot(t, Pb_gust[4, :], '-', label='My')
+            ax[6].plot(t, Pb_gust[5, :], '-', label='Mz')
+            self.make_as_nice(ax)
+            ax[-1].set_xlabel('Time [s]')
+            ax[0].set_ylabel('[-]')
+            ax[1].set_ylabel('[N]')
+            ax[2].set_ylabel('[N]')
+            ax[3].set_ylabel('[N]')
+            ax[4].set_ylabel('[Nm]')
+            ax[5].set_ylabel('[Nm]')
+            ax[6].set_ylabel('[Nm]')
+            fig.tight_layout(pad=1.0)
+            pp.savefig()
+        pp.close()
+        plt.close()

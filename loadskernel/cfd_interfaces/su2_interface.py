@@ -113,7 +113,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         Communicate the change of coordinates of the fluid interface to the fluid solver.
         Prepare the fluid solver for mesh deformation.
         """
-        logging.info('Sending surface deformations to SU2.')
+        logging.debug('Sending surface deformations to SU2.')
         for x in range(self.local_mesh['n']):
             self.FluidSolver.SetMarkerCustomDisplacement(self.local_mesh['MarkerID'][x],
                                                          self.local_mesh['VertexIndex'][x],
@@ -199,7 +199,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
             self.get_local_mesh()
 
     def run_solver(self, i_timestep=0):
-        logging.info('Waiting until all processes are ready to perform a coordinated start...')
+        logging.debug('Waiting until all processes are ready to perform a coordinated start...')
         self.comm.barrier()
         logging.info('Launch SU2 for time step {}.'.format(i_timestep))
         # start timer
@@ -510,16 +510,23 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
                 os.symlink(filename_steady, filename_unsteady1)
             except FileExistsError:
                 pass
-
-            """
-            In the time domain, simply rely on the the density residual to establish convergence.
-            This is because SU2 only needs a few inner iterations per time step, which are too few for a meaningful
-            cauchy convergence.
-            """
+            # Set-up inner iterations
+            if 'pulse' in self.simcase and self.simcase['pulse']:
+                # In case of GAF computation, no convergence criterion can be used because the reference / zero solution
+                # (without a pulse) has to have exactly the same number of steps as the pulse solution.
+                # Possibly, the number of inner iterations depends on the aircraft, mesh size, etc.
+                config['INNER_ITER'] = 4
+                if 'CONV_RESIDUAL_MINVAL' in config:
+                    config.pop('CONV_RESIDUAL_MINVAL')
+            else:
+                # In the time domain, simply rely on the the density residual to establish convergence.
+                # This is because SU2 only needs a few inner iterations per time step, which are too few for a meaningful
+                # cauchy convergence.
+                config['INNER_ITER'] = 30
+                config['CONV_RESIDUAL_MINVAL'] = -6
+            # Remove other convergence criteria
             if 'CONV_FIELD' in config:
                 config.pop('CONV_FIELD')
-            config['INNER_ITER'] = 30
-            config['CONV_RESIDUAL_MINVAL'] = -6
 
             # There is no need for restart solutions, they only take up storage space. Write plotting files only.
             config['OUTPUT_FILES'] = ['TECPLOT', 'SURFACE_TECPLOT']
@@ -561,7 +568,6 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             # Note: In SU2 this is the full gust length, not the gust gradient H (half gust length).
             config['GUST_WAVELENGTH'] = 2.0 * self.simcase['gust_gradient']
             config['GUST_PERIODS'] = 1.0
-            config['GUST_AMPL'] = Vgust
             config['GUST_BEGIN_TIME'] = 0.0
             config['GUST_BEGIN_LOC'] = -2.0 * self.simcase['gust_gradient'] - self.simcase['gust_para']['T1'] * Vtas
 

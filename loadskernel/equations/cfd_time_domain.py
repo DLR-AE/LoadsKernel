@@ -1,6 +1,6 @@
 import numpy as np
 
-from loadskernel.equations.steady import Steady
+from loadskernel.equations.mona_time_domain import Steady
 from loadskernel.solution_tools import gravitation_on_earth
 
 
@@ -127,7 +127,7 @@ class CfdUnsteady(CfdSteady):
         # aerodynamics
         self.cfd_interface.update_general_para()
         self.cfd_interface.update_timedom_para()
-        if self.simcase['gust']:
+        if 'gust' in self.simcase and self.simcase['gust']:
             self.cfd_interface.update_gust_para(Vtas, self.WG_TAS * Vtas)
         self.cfd_interface.init_solver()
         self.cfd_interface.set_euler_transformation(delta_XYZ, PhiThetaPsi)

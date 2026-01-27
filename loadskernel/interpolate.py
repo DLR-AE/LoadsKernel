@@ -31,9 +31,9 @@ class MatrixInterpolation:
     def calc_gradients(self):
         # calculate the gradients between all samples
         for m in range(self.n_samples - 1):
-            self.gradients[m, :, :] = (self.data[m + 1, :, :] - self.data[m, :, :]) / (self.x[m + 1] - self.x[m])
+            self.gradients[[m], :] = (self.data[[m + 1], :] - self.data[[m], :]) / (self.x[m + 1] - self.x[m])
         # repeat the last set of gradients to make sure there are right-sided gradients available in case of extrapolation
-        self.gradients[-1, :, :] = self.gradients[-2, :, :]
+        self.gradients[[-1], :] = self.gradients[[-2], :]
 
     def interpolate(self, i):
         # find the nearest neighbor
@@ -46,4 +46,5 @@ class MatrixInterpolation:
         else:
             pos_gradients = pos
         # perform linear interpolation and return result
-        return self.data[pos, :, :] + self.gradients[pos_gradients, :, :] * delta
+        result = self.data[[pos], :] + self.gradients[[pos_gradients], :] * delta
+        return result.squeeze()

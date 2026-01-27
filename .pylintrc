@@ -7,3 +7,6 @@ disable=C0103,C0114,C0115,C0116,W0105
 
 # Set same max. line length as with Flake8
 max-line-length=127
+
+# Pylint doesn't load any C extensions by default and throws 'no-name-in-module / E0611' errors
+extension-pkg-whitelist=PySide6

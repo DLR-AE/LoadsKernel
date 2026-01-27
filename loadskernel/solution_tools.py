@@ -59,8 +59,7 @@ def design_gust_cs_25_341(simcase, atmo, V):
         MTOW = float(simcase['gust_para']['MTOW'])  # Maximum Take-Off Weight
         MZFW = float(simcase['gust_para']['MZFW'])  # Maximum Zero Fuel Weight
         fg = calc_fg(altitude, Z_mo, MLW, MTOW, MZFW)
-    logging.info(
-        'CS25_Uds is set up with flight profile alleviation factor Fg = {}'.format(fg))
+    logging.info('CS25_Uds is set up with flight profile alleviation factor Fg = %s', fg)
 
     # reference gust velocity (EAS) [m/s]
     if altitude <= 4572:
@@ -134,3 +133,43 @@ def calc_fg(altitude, Z_mo, MLW, MTOW, MZFW):
     else:
         fg = fg_sl + (1.0 - fg_sl) * altitude / Z_mo
     return fg
+
+
+def polynomial_pulse(dt, t_final, eps, T1=0.1):
+    # Create a pulse signal with timestep dt up to t_final with magnitude eps.
+    # The pulse uses a 5th-order polynomial following eq. 2.26 in [1].
+    # [1] Koch, C., “Whirl Flutter Stability Analysis Using Propeller Transfer Matrices”,
+    # Deutsches Zentrum für Luft- und Raumfahrt e. V. (DLR), 2024, https://doi.org/10.57676/BF00-1962.
+    t = np.arange(0.0, t_final + dt, dt)
+    # Pulse width in seconds, dt*40 should excite the low frequencies up to 5% of fmax.
+    tw = dt * 40
+    T1 = 0.1
+    if (tw + T1) > t_final:
+        logging.warning('The pulse signal is longer than the simulation time. Please increase fmax and/or decrease df.')
+    # The pulse is assembled from two half pulses; the up and down strokes.
+    stroke_up = -4.0 * (2.0 * t / tw - 1.0)**5 - 15 * (2.0 * t / tw - 1.0)**4 - 20 * (2.0 * t / tw - 1.0)**3 \
+        - 10 * (2.0 * t / tw - 1.0)**2 + 1
+    stroke_down = +4.0 * (2.0 * t / tw - 1.0)**5 - 15 * (2.0 * t / tw - 1.0)**4 + 20 * (2.0 * t / tw - 1.0)**3 \
+        - 10 * (2.0 * t / tw - 1.0)**2 + 1
+    n_stroke = int(tw / 2 / dt)
+    n_lead = int(T1 / dt)
+    pulse = np.zeros(t.shape)
+    pulse[n_lead:n_lead + n_stroke] = stroke_up[:n_stroke]
+    pulse[n_lead + n_stroke:n_lead + n_stroke * 2] = stroke_down[n_stroke:n_stroke * 2]
+    pulse *= eps
+    return t, pulse
+
+
+def one_m_cosine_pulse(dt, t_final, Vtas, eps=3e-3, half_length=4.0, T1=0.1):
+    # Create a pulse signal with timestep dt up to t_final with magnitude eps.
+    # The pulse uses the 1-cosine gust shape according to CS-25.341.
+    # The downside of the 1-cosine pulse is that it has zeros in the frequency domain.
+    # Because for gust analsysis mainly the low-frequency range is of interest, this
+    # pulse shape is acceptable and is implemented in most CFD codes. In addition,
+    # a pulse shorter than the shortest gust precribed in CS-25 (9-107m) should be suffcient.
+    t = np.arange(0.0, t_final + dt, dt)
+    tw = half_length * 2.0 / Vtas
+    pulse = eps * 0.5 * (1 - np.cos(2.0 * np.pi * (t - T1) / tw))
+    pulse[np.where(t < T1)] = 0.0
+    pulse[np.where(t > tw + T1)] = 0.0
+    return t, pulse

@@ -13,7 +13,7 @@ from setuptools import setup, find_packages
 
 def my_setup():
     setup(name='LoadsKernel',
-          version='2025.01',
+          version='2026.01',
           description="""The Loads Kernel Software allows for the calculation of quasi-steady and dynamic maneuver loads,
           unsteady gust loads in the time and frequency domain as well as dynamic landing loads based on a generic landing
           gear module.""",
@@ -33,9 +33,8 @@ def my_setup():
           python_requires='>=3.10',
           install_requires=['PanelAero',
                             'matplotlib',
-                            'numpy',
+                            'numpy<2.4.0',  # Mayavi / VTK does not support numpy >= 2.4.0, wait for release of VTK 9.6
                             'scipy',
-                            'psutil',
                             'h5py',
                             'tables',
                             'pyyaml',
@@ -45,15 +44,14 @@ def my_setup():
                                      'mayavi',
                                      'traits',
                                      'traitsui',
-                                     'pyface',
                                      'jupyter',
                                      'pyiges',  # only available with pip, not with conda
+                                     'pyfmi',
+                                     'pyside6'
                                      ],
-                          'difficult': ['pyfmi',  # frequent version conflicts
-                                        ],
                           'test': ['pytest',
                                    'pytest-cov',
-                                   'jupyter-book==1.0.4',  # Jupyter book 2.xx is not yet generating static html pages
+                                   'jupyter-book',
                                    'flake8',
                                    'pylint',
                                    ]},
