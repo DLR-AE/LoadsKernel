@@ -13,7 +13,7 @@ from setuptools import setup, find_packages
 
 def my_setup():
     setup(name='LoadsKernel',
-          version='2026.01',
+          version='2026.02',
           description="""The Loads Kernel Software allows for the calculation of quasi-steady and dynamic maneuver loads,
           unsteady gust loads in the time and frequency domain as well as dynamic landing loads based on a generic landing
           gear module.""",
@@ -39,7 +39,9 @@ def my_setup():
                             'h5py',
                             'tables',
                             'pyyaml',
-                            'pandas<3.0.0',  # Pandas 3.0.0 comes with changes that are not yet supported, see https://github.com/DLR-AE/LoadsKernel/issues/86
+                            # Pandas 3.0.0 comes with changes that are not yet supported,
+                            # see https://github.com/DLR-AE/LoadsKernel/issues/86
+                            'pandas<3.0.0',
                             ],
           extras_require={'extras': ['mpi4py',
                                      'mayavi',

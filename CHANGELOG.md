@@ -1,6 +1,10 @@
 # Note
 New releases are marked in the repository using tags. Simply checkout the master branch for the lastest version or use git checkout if you require a specific release, for example 'git checkout 2022.10'.
 
+# Release 2026.02
+- Continuous integration tests look good for Python 3.13
+- Dependencies: limit Pandas to versions <3.0.0
+
 # Release 2026.01
 - Added gust and flutter simulation in the frequency domain based of GAFs obtained from linearized CFD (using SU2 and via pulse simulations). This is work is still very new and therefore needs more testing and/or applications.
 - Refactoring of 'equations'
