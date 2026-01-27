@@ -3,7 +3,7 @@ Setup file
 Install Loads Kernel with core dependencies via:
 - pip install -e <local_repo_path>
 To use the graphical tools and other features, optional libraries definded as extras are necessary:
-- pip install -e <repo_path>[extra]
+- pip install -e <repo_path>[extras]
 Especially with mpi or the graphical libraries, pip frequently fails. In that case, try to install the packages using a
 package manager such as conda.
 """
@@ -30,6 +30,7 @@ def my_setup():
           include_package_data=True,
           package_data={'loadskernel': ['graphics/*.*'],
                         'loadscompare': ['graphics/*.*'], },
+          # Remember to update the requirements also in the conda feedstock (./recipe/meta.yml) when changing them here!
           python_requires='>=3.10',
           install_requires=['PanelAero',
                             'matplotlib',
@@ -38,7 +39,7 @@ def my_setup():
                             'h5py',
                             'tables',
                             'pyyaml',
-                            'pandas',
+                            'pandas<3.0.0',  # Pandas 3.0.0 comes with changes that are not yet supported, see https://github.com/DLR-AE/LoadsKernel/issues/86
                             ],
           extras_require={'extras': ['mpi4py',
                                      'mayavi',
