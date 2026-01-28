@@ -106,6 +106,8 @@ jobs:
         if-no-files-found: ignore
   
   combine-pages:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     # Add a dependency to the build job
     needs: [Jupyter, Pytest]
