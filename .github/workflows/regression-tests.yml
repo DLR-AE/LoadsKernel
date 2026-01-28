@@ -1,6 +1,11 @@
 # This workflow will run some regression tests.
 name: Regression Tests
 
+# Restrict permissions at top-level to 'read' as a minimal explicit permission.
+# This will apply to all jobs that do not define their own permissions.
+permissions:
+  contents: read
+
 on:
   push:
     branches: ['master', 'devel']
@@ -69,8 +74,8 @@ jobs:
         if-no-files-found: ignore
   
   Jupyter:
-    # Building the Jupyter book is not really a regression test. However, it has to be in this workflow due to the handling of 
-    # the artifacts.
+    # Building the Jupyter book is not really a regression test, but it makes sure that the notebooks are still working.
+    # In addition, it has to be in this workflow due to the handling of the artifacts.
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -106,8 +111,6 @@ jobs:
         if-no-files-found: ignore
   
   combine-pages:
-    permissions:
-      contents: read
     runs-on: ubuntu-latest
     # Add a dependency to the build job
     needs: [Jupyter, Pytest]
