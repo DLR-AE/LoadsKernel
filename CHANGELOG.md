@@ -6,7 +6,8 @@ New releases are marked in the repository using tags. Simply checkout the master
 - Refactoring of 'equations'
 - Added regressions tests based on the DC3
 - Multiple small fixes collected through the last year
-- Dependencies: switch to PySide6 (for GUIs) and to Jupyter Book 2 (for tutorials)
+- Continuous integration tests look good for Python 3.13
+- Dependencies: switch to PySide6 (for GUIs) and to Jupyter Book 2 (for tutorials), limit Pandas to versions <3.0.0 and Numpy to versions <2.4.0
 
 # Release 2025.01
 - Update of flutter solution sequence including updated description in the User Guide and of the tutorials

@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         # Add the Python versions here to run tests on new(er) versions.
-        python-version: ["3.12"]
+        python-version: ["3.13"]
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
@@ -43,7 +43,7 @@ jobs:
     strategy:
       matrix:
         # Add multiple Python versions here to run tests on new(er) versions.
-        python-version: ["3.12"]
+        python-version: ["3.13"]
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}

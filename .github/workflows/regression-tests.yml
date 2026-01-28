@@ -22,7 +22,7 @@ jobs:
     strategy:
       matrix:
         # Add multiple Python versions here to run tests on new(er) versions.
-        python-version: ["3.12"]
+        python-version: ["3.13"]
     # Step 1 to make GUIs work, see https://pytest-qt.readthedocs.io/en/latest/troubleshooting.html
     env:
       DISPLAY: ':99.0'
@@ -75,7 +75,7 @@ jobs:
     strategy:
       matrix:
         # Select Python version to be used for compiling here.
-        python-version: ["3.12"]
+        python-version: ["3.13"]
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4

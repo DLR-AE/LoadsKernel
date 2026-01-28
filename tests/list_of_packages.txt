@@ -8,7 +8,7 @@ scipy
 h5py
 pytables
 pyyaml
-pandas
+pandas<3.0.0
 
 # Extras, optional
 mpi4py
