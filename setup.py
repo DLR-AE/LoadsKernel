@@ -33,7 +33,7 @@ setup(
     package_data={'loadskernel': ['graphics/*.*'],
                   'loadscompare': ['graphics/*.*'], },
     # Remember to update the requirements also in the conda feedstock (./recipe/meta.yml) when changing them here!
-    python_requires='>=3.10',
+    python_requires='>=3.12',
     install_requires=['PanelAero',
                       'matplotlib',
                       'numpy<2.4.0',  # Mayavi / VTK does not support numpy >= 2.4.0, wait for release of VTK 9.6
