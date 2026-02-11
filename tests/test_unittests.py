@@ -4,6 +4,8 @@ import numpy as np
 
 from loadskernel.io_functions import read_bdf
 from loadskernel.fem_interfaces import fem_helper
+from loadskernel import atmosphere
+from loadskernel import units
 
 
 @pytest.fixture(name='tmp_output', scope='class')
@@ -69,3 +71,15 @@ def test_hyperbolic_distance_metric():
     HDM = fem_helper.calc_HDM(lam1, lam2)
     # Check for numerical similarity with reference values.
     assert np.allclose(HDM, HDM_ref, rtol=1e-4, atol=1e-4), "Hyperbolic distance metric (HDM) does NOT match reference"
+
+def test_reynoldsnumber():
+    # Test Reynolds number calculation at sea level.
+    # This test also covers the dynamic viscosity calculation and parts of the isa atmosphere.
+    p, rho, T, a = atmosphere.isa(0.0)
+    v = 70.0  # m/s
+    l_ref = 1.0  # m
+    Re = units.reynolds_number(rho, v, l_ref, T)
+    # Reference value, checked with external tool.
+    Re_ref = 4792379.49652419
+    # Check for numerical similarity with reference values.
+    assert np.allclose(Re, Re_ref, rtol=1e-4, atol=1e-4), "Reynolds number does NOT match reference"
