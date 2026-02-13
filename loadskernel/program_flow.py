@@ -75,56 +75,48 @@ class ProgramFlowHelper():
     def setup_logger_cluster(self, i):
         # Generate a separate filename for each subcase
         path_log = data_handling.check_path(self.path_output + 'log/')
-        filename = path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) \
-            + '.txt.' + str(self.myid)
+        filename = path_log + f'log_{self.job_name}_subcase_{self.jcl.trimcase[i]['subcase']}.txt.{self.myid}'
         # Then create the logger and console output
         self.create_logfile_and_console_output(filename)
 
     def setup_logger(self):
         # Generate a generic name for the log file
         path_log = data_handling.check_path(self.path_output + 'log/')
-        filename = path_log + 'log_' + self.job_name + '.txt.' + str(self.myid)
+        filename = path_log + f'log_{self.job_name}.txt.{self.myid}'
         # Then create the logger and console output
         self.create_logfile_and_console_output(filename)
 
     def create_logfile_and_console_output(self, filename):
         logger = logging.getLogger()
+        # Disable propagation to avoid duplicate outputs in case of multiple handlers (e.g. console and file handler).
+        logger.propagate = False
+        # Clear previous handlers.
+        if logger.hasHandlers():
+            logger.handlers.clear()
         # Set logging level.
         if self.debug:
             logger.setLevel(logging.DEBUG)
         else:
             logger.setLevel(logging.INFO)
-        # Get the names of all existing loggers.
-        existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
-        if 'lk_logfile' in existing_handlers:
-            # Make sure that the filename is still correct.
-            hdlr = logger.handlers[existing_handlers.index('lk_logfile')]
-            if not hdlr.baseFilename == filename:
-                # In case the filename is incorrect, remove the handler completely from the logger.
-                logger.removeHandler(hdlr)
-                # Update the list of all existing loggers.
-                existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
-
-        # Add the following handlers only if they don't exist. This avoid duplicate lines/log entries.
-        if 'lk_logfile' not in existing_handlers:
-            # define a Handler which writes messages to a log file
-            logfile = logging.FileHandler(filename, mode='a')
-            logfile.set_name('lk_logfile')
-            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
-                                          datefmt='%d/%m/%Y %H:%M:%S')
-            logfile.setFormatter(formatter)
-            logger.addHandler(logfile)
-
+        # Define a Handler which writes messages to a log file
+        logfile = logging.FileHandler(filename, mode='a')
+        logfile.set_name('lk_logfile')
+        logfile.propagate = False
+        formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
+                                      datefmt='%d/%m/%Y %H:%M:%S')
+        logfile.setFormatter(formatter)
+        # Add the handler to the root logger
+        logger.addHandler(logfile)
         # For convinience, the first rank writes console outputs, too.
-        if (self.myid == 0) and ('lk_console' not in existing_handlers):
-            # define a Handler which writes messages to the sys.stout
+        if self.myid == 0:
+            # Define a Handler which writes messages to the sys.stout
             console = logging.StreamHandler(sys.stdout)
             console.set_name('lk_console')
-            # set a format which is simpler for console use
+            console.propagate = False
+            # Set a format which is simpler for console use and tell the handler to use this format
             formatter = logging.Formatter(fmt='%(levelname)s: %(message)s')
-            # tell the handler to use this format
             console.setFormatter(formatter)
-            # add the handler(s) to the root logger
+            # Add the handler to the root logger
             logger.addHandler(console)
 
         logger.info('This is the log for process %s.', self.myid)
