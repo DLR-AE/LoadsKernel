@@ -266,8 +266,7 @@ class Plotting:
         self.src_cfdgrids = []
         for marker in self.cfdgrids:
             if marker in markers:
-                self.setup_cfdgrid_display(
-                    grid=self.cfdgrids[marker], color=(1, 1, 1), scalars=None)
+                self.setup_cfdgrid_display(grid=self.cfdgrids[marker], color=(1, 1, 1), scalars=None)
         self.show_cfdgrids = True
         mlab.draw(self.fig)
 

@@ -10,7 +10,7 @@ class TauGrid(loadskernel.io_functions.read_cfdgrids.ReadCfdgrids):
         self.read_netcdf(self.filename_grid, self.markers)
 
     def get_markers(self):
-        ncfile_grid = netcdf.NetCDFFile(self.filename_grid, 'r')
+        ncfile_grid = netcdf.netcdf_file(self.filename_grid, 'r')
         self.markers = ncfile_grid.variables['marker'][:].tolist()
 
 

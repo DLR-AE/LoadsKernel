@@ -29,50 +29,59 @@ class ReadCfdgrids:
 
     def read_netcdf(self, filename_grid, markers):
         logging.info('Extracting points belonging to marker(s) %s from grid %s', markers, filename_grid)
-        # get all points on surfaces
-        ncfile_grid = netcdf.NetCDFFile(filename_grid, 'r')
+        # Get all points on surfaces
+        ncfile_grid = netcdf.netcdf_file(filename_grid, 'r')
         boundarymarker_surfaces = ncfile_grid.variables['boundarymarker_of_surfaces'][:]
-        points_of_surface = []
-        # merge triangles with quadrilaterals
+        # Get all surface trianagles and quadrilaterals.
+        triangles = np.array([])
+        quadrilaterals = np.array([])
         if 'points_of_surfacetriangles' in ncfile_grid.variables:
-            points_of_surface += ncfile_grid.variables['points_of_surfacetriangles'][:].tolist()
+            triangles = ncfile_grid.variables['points_of_surfacetriangles'][:].copy()
         if 'points_of_surfacequadrilaterals' in ncfile_grid.variables:
-            points_of_surface += ncfile_grid.variables['points_of_surfacequadrilaterals'][:].tolist()
-
-        # Merge all markers into one cfdgrid
-        surfaces = np.array([], dtype=int)
-        for marker in markers:
-            surfaces = np.hstack((surfaces, np.where(boundarymarker_surfaces == marker)[0]))
-        points = np.unique([points_of_surface[s] for s in surfaces])
-        self.cfdgrid['ID'] = points
-        self.cfdgrid['CP'] = np.zeros(self.cfdgrid['ID'].shape)
-        self.cfdgrid['CD'] = np.zeros(self.cfdgrid['ID'].shape)
-        self.cfdgrid['n'] = len(self.cfdgrid['ID'])
-        self.cfdgrid['offset'] = np.vstack((ncfile_grid.variables['points_xc'][:][points].copy(),
-                                            ncfile_grid.variables['points_yc'][:][points].copy(),
-                                            ncfile_grid.variables['points_zc'][:][points].copy())).T
-        self.cfdgrid['set'] = np.arange(6 * self.cfdgrid['n']).reshape(-1, 6)
-        self.cfdgrid['desc'] = markers
-        self.cfdgrid['points_of_surface'] = [points_of_surface[s] for s in surfaces]
-
+            quadrilaterals = ncfile_grid.variables['points_of_surfacequadrilaterals'][:].copy()
         # Assemble the cfdgrids, one grid for each marker
         for marker in markers:
-            # --- get points on surfaces according to marker ---
-            surfaces = np.where(boundarymarker_surfaces == marker)[0]
-            points = np.unique([points_of_surface[s] for s in surfaces])
-            # build cfdgrid
+            # Get points on surfaces for this marker
+            triangles_on_marker = triangles[boundarymarker_surfaces[:len(triangles)] == marker]
+            quadrilaterals_on_marker = quadrilaterals[boundarymarker_surfaces[len(triangles):] == marker]
+            points_on_marker = np.unique(np.concatenate((triangles_on_marker.flatten(),
+                                                         quadrilaterals_on_marker.flatten())))
             cfdgrid = {}
-            cfdgrid['ID'] = points
+            cfdgrid['ID'] = points_on_marker
             cfdgrid['CP'] = np.zeros(cfdgrid['ID'].shape)
             cfdgrid['CD'] = np.zeros(cfdgrid['ID'].shape)
             cfdgrid['n'] = len(cfdgrid['ID'])
-            cfdgrid['offset'] = np.vstack((ncfile_grid.variables['points_xc'][:][points].copy(),
-                                           ncfile_grid.variables['points_yc'][:][points].copy(),
-                                           ncfile_grid.variables['points_zc'][:][points].copy())).T
+            cfdgrid['offset'] = np.vstack((ncfile_grid.variables['points_xc'][:][points_on_marker].copy(),
+                                           ncfile_grid.variables['points_yc'][:][points_on_marker].copy(),
+                                           ncfile_grid.variables['points_zc'][:][points_on_marker].copy())).T
             cfdgrid['set'] = np.arange(6 * cfdgrid['n']).reshape(-1, 6)
             cfdgrid['desc'] = str(marker)
-            cfdgrid['points_of_surface'] = [points_of_surface[s] for s in surfaces]
+            cfdgrid['triangles'] = triangles_on_marker.tolist()
+            cfdgrid['quadrilaterals'] = quadrilaterals_on_marker.tolist()
             self.cfdgrids[str(marker)] = cfdgrid
+
+        # Merge all markers into one cfdgrid
+        points_of_all_markers = np.array([], dtype=int)
+        triangles_of_all_markers = []
+        quadrilaterals_of_all_markers = []
+        for marker, cfdgrid in self.cfdgrids.items():
+            points_of_all_markers = np.concatenate((points_of_all_markers, cfdgrid['ID']))
+            triangles_of_all_markers += cfdgrid['triangles']
+            quadrilaterals_of_all_markers += cfdgrid['quadrilaterals']
+        points_of_all_markers = np.unique(points_of_all_markers)
+
+        self.cfdgrid['ID'] = points_of_all_markers
+        self.cfdgrid['CP'] = np.zeros(self.cfdgrid['ID'].shape)
+        self.cfdgrid['CD'] = np.zeros(self.cfdgrid['ID'].shape)
+        self.cfdgrid['n'] = len(self.cfdgrid['ID'])
+        self.cfdgrid['offset'] = np.vstack((ncfile_grid.variables['points_xc'][:][points_of_all_markers].copy(),
+                                            ncfile_grid.variables['points_yc'][:][points_of_all_markers].copy(),
+                                            ncfile_grid.variables['points_zc'][:][points_of_all_markers].copy())).T
+        self.cfdgrid['set'] = np.arange(6 * self.cfdgrid['n']).reshape(-1, 6)
+        self.cfdgrid['desc'] = markers
+        self.cfdgrid['triangles'] = triangles_of_all_markers
+        self.cfdgrid['quadrilaterals'] = quadrilaterals_of_all_markers
+
         ncfile_grid.close()
 
     def read_su2(self, filename_grid, markers=None):
@@ -129,13 +138,13 @@ class ReadCfdgrids:
                         quadrilaterals.append([int(id) for id in split_line[1:]])
                     else:
                         logging.error('Surface elements of type "%s" are not implemented!', split_line[0])
-                points_of_surface = list(chain.from_iterable(triangles + quadrilaterals))
+                points_on_surface = list(chain.from_iterable(triangles + quadrilaterals))
                 i += x
                 # Store everything
                 surface_points[marker] = {}
                 surface_points[marker]['triangles'] = triangles
                 surface_points[marker]['quadrilaterals'] = quadrilaterals
-                surface_points[marker]['points_of_surface'] = np.unique(points_of_surface)
+                surface_points[marker]['points_of_surface'] = np.unique(points_on_surface)
             i += 1
 
         # Assemble the cfdgrids, one grid for each marker
