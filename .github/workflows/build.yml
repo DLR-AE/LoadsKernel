@@ -2,6 +2,10 @@
 
 name: Build and installation tests
 
+# Restrict permissions at top-level to 'read' as a minimal explicit permission.
+permissions:
+  contents: read
+
 on:
   push:
     branches: ['master', 'devel']

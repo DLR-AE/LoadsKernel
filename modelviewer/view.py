@@ -497,13 +497,12 @@ class Modelviewer():
             Mb = self.model['mass'][key]['Mb'][()]
             cggrid = load_hdf5_dict(self.model['mass'][key]['cggrid'])
             self.plotting.plot_masses(Mgg, Mb, cggrid, rho)
-            self.lb_cg.setText(f"CG: x={cggrid['offset'][0, 0]:0.4f}, \
-                               y={cggrid['offset'][0, 1]:0.4f}, \
-                               z={cggrid['offset'][0, 2]:0.4f} m")
+            self.lb_cg.setText(f"CG: x={cggrid['offset'][0, 0]:0.4f},"
+                               f"y={cggrid['offset'][0, 1]:0.4f},"
+                               f"z={cggrid['offset'][0, 2]:0.4f} m")
             # cg_mac = (x_cg - x_mac)*c_ref * 100 [%]
             # negativ bedeutet Vorlage --> stabil
-            cg_mac = (cggrid['offset'][0, 0] - self.MAC[0]) / \
-                self.model['macgrid']['c_ref'][()] * 100.0
+            cg_mac = (cggrid['offset'][0, 0] - self.MAC[0]) / self.model['macgrid']['c_ref'][()] * 100.0
             if cg_mac < 0.0:
                 rating = 'stable'
             elif cg_mac > 0.0:
