@@ -522,6 +522,11 @@ class OP2():
                 f.read(4)  # endrec
                 key = self._get_key()
         self._skip_key(2)
+        # TODO: IDK why does this work for Nast95 generated op2 file ?
+        if max(data) > 1:
+            print("[warning]: .op2 file from Nast95 detected, converting the data to binary")
+            data[data < 20] = 1
+            data[data > 20] = 2
         return data
 
     def skip_op2_record(self):

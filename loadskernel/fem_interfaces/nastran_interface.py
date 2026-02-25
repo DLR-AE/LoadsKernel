@@ -3,6 +3,8 @@ import logging
 
 import scipy
 import numpy as np
+from pyNastran.op2.op2 import OP2
+from scipy.sparse import csc_matrix
 
 from loadskernel.io_functions import read_op2, read_op4, read_h5, read_mona
 from loadskernel import spline_functions, spline_rules
@@ -22,6 +24,12 @@ class NastranInterface(object):
         elif 'filename_KGG' in self.jcl.geom and 'filename_GM' in self.jcl.geom:
             self.KGG = read_op4.load_matrix(self.jcl.geom['filename_KGG'], sparse_output=True, sparse_format=True)
             self.GM = read_op4.load_matrix(self.jcl.geom['filename_GM'], sparse_output=True, sparse_format=True)
+        elif 'filename_op2' in self.jcl.geom:
+            op2_model = OP2()
+            op2_model.mode = 'nasa95'
+            op2_model.read_op2(self.jcl.geom['filename_op2'])
+            self.KGG = csc_matrix(op2_model.matrices['KGG'].data)
+            self.GM = csc_matrix(op2_model.matrices['GM'].data).T
         else:
             logging.error('Please provide filename(s) of .h5 or .OP4 files.')
 
@@ -31,6 +39,11 @@ class NastranInterface(object):
             self.MGG = read_h5.load_matrix(self.jcl.mass['filename_h5'][self.i_mass], name='MGG')
         elif 'filename_MGG' in self.jcl.mass:
             self.MGG = read_op4.load_matrix(self.jcl.mass['filename_MGG'][self.i_mass], sparse_output=True, sparse_format=True)
+        elif 'filename_op2' in self.jcl.mass:
+            op2_model = OP2()
+            op2_model.mode = 'nasa95'
+            op2_model.read_op2(self.jcl.geom['filename_op2'])
+            self.MGG = csc_matrix(op2_model.matrices['MGG'].data)
         else:
             logging.error('Please provide filename(s) of .h5 or .OP4 files.')
         return self.MGG
