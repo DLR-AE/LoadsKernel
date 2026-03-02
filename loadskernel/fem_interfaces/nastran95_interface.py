@@ -18,28 +18,24 @@ class Nastran95Interface(object):
         self.coord = coord
 
     def get_stiffness_matrix(self):
-        if 'filename_op2' in self.jcl.geom:
-            op2_model = OP2()
-            try:
-                op2_model.read_op2(self.jcl.geom['filename_op2'])
-            except Exception as e:
-                print("Warning: an error occurred during OP2 read but was ignored.")
-            self.KGG = csc_matrix(op2_model.matrices['KGG'].data)
-            self.GM = csc_matrix(op2_model.matrices['GM'].data).T
-        else:
-            logging.error('Please provide filename(s) of .h5 or .OP4 files.')
+        op2_model = OP2()
+        try:
+            op2_model.read_op2(self.jcl.geom['filename_op2'])
+        except Exception as e:
+            print("Warning: an error occurred during OP2 read but was ignored.")
+        self.KGG = csc_matrix(op2_model.matrices['KGG'].data)
+        self.GM = csc_matrix(op2_model.matrices['GM'].data).T
 
     def get_mass_matrix(self, i_mass):
         self.i_mass = i_mass
-        if 'filename_op2' in self.jcl.mass:
-            op2_model = OP2()
-            try:
-                op2_model.read_op2(self.jcl.geom['filename_op2'])
-            except Exception as e:
-                print("Warning: an error occurred during OP2 read but was ignored.")
-            self.MGG = csc_matrix(op2_model.matrices['MGG'].data)
-        else:
-            logging.error('Please provide filename(s) of .h5 or .OP4 files.')
+
+        op2_model = OP2()
+        try:
+            op2_model.read_op2(self.jcl.geom['filename_op2'])
+        except Exception as e:
+            print("Warning: an error occurred during OP2 read but was ignored.")
+        self.MGG = csc_matrix(op2_model.matrices['MGG'].data)
+
         return self.MGG
 
     def get_sets_from_bitposes(self, x_dec):
