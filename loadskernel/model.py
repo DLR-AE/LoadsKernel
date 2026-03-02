@@ -9,7 +9,7 @@ import time
 
 from panelaero import VLM, DLM
 
-from loadskernel.fem_interfaces import nastran_interface, nastran_f06_interface, cofe_interface, b2000_interface
+from loadskernel.fem_interfaces import nastran_interface, nastran_f06_interface, cofe_interface, b2000_interface, nastran95_interface
 from loadskernel import build_aero_functions
 from loadskernel import spline_rules
 from loadskernel import spline_functions
@@ -62,7 +62,7 @@ class Model():
 
     def build_strc(self):
         logging.info('Building structural model...')
-        if self.jcl.geom['method'] == 'mona':
+        if self.jcl.geom['method'] in ['mona', 'Nastran95']:
             # parse given bdf files
             self.bdf_reader.process_deck(self.jcl.geom['filename_grid'])
             # assemble strcgrid, sort grids to be in accordance with matricies such as Mgg from Nastran
@@ -106,7 +106,7 @@ class Model():
                                                                      self.bdf_reader.cards['CTRIA3']], ignore_index=True))
 
     def build_mongrid(self):
-        if self.jcl.geom['method'] in ['mona', 'CoFE']:
+        if self.jcl.geom['method'] in ['mona', 'CoFE', 'Nastran95']:
             if 'filename_mongrid' in self.jcl.geom and not self.jcl.geom['filename_mongrid'] == '':
                 logging.info('Building Monitoring Stations from GRID data...')
                 self.mongrid = read_mona.Modgen_GRID(self.jcl.geom['filename_mongrid'])
@@ -531,7 +531,7 @@ class Model():
     def build_structural_dynamics(self):
         logging.info('Building stiffness and mass model...')
         self.mass = {}
-        if self.jcl.mass['method'] in ['mona', 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000']:
+        if self.jcl.mass['method'] in ['mona', 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000', 'Nastran95']:
 
             # select the fem interface
             if self.jcl.mass['method'] in ['modalanalysis', 'guyan']:
@@ -542,6 +542,8 @@ class Model():
                 fem_interface = b2000_interface.B2000Interface(self.jcl, self.strcgrid, self.coord)
             elif self.jcl.mass['method'] in ['CoFE']:
                 fem_interface = cofe_interface.CoFEInterface(self.jcl, self.strcgrid, self.coord)
+            elif self.jcl.mass['method'] in ['Nastran95']:
+                fem_interface = nastran95_interface.Nastran95Interface(self.jcl, self.strcgrid, self.coord)
 
             # the stiffness matrix is needed for all methods / fem interfaces
             fem_interface.get_stiffness_matrix()
@@ -552,7 +554,7 @@ class Model():
                 logging.warning('Stiffness matrix Kgg is NOT symmetric.')
 
             # do further processing of the stiffness matrix
-            if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'CoFE', 'B2000']:
+            if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'CoFE', 'B2000', 'Nastran95']:
                 fem_interface.get_dofs()
                 fem_interface.prepare_stiffness_matrices()
             if self.jcl.mass['method'] in ['guyan']:
@@ -577,10 +579,10 @@ class Model():
             logging.warning('Mass matrix Mgg is NOT symmetric.')
 
         # getting the eigenvalues and -vectors depends on the method / fem solver
-        if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'CoFE', 'B2000']:
+        if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'CoFE', 'B2000', 'Nastran95']:
             Mb, cggrid, cggrid_norm = fem_interface.calc_cg()
             fem_interface.prepare_mass_matrices()
-            if self.jcl.mass['method'] in ['modalanalysis', 'CoFE', 'B2000']:
+            if self.jcl.mass['method'] in ['modalanalysis', 'CoFE', 'B2000', 'Nastran95']:
                 fem_interface.modalanalysis()
             elif self.jcl.mass['method'] in ['guyan']:
                 fem_interface.guyanreduction()
