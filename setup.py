@@ -44,6 +44,7 @@ setup(
                       # Pandas 3.0.0 comes with changes that are not yet supported,
                       # see https://github.com/DLR-AE/LoadsKernel/issues/86
                       'pandas<3.0.0',
+                      'pyNastran'
                       ],
     extras_require={'extras': ['mpi4py',
                                'mayavi',
