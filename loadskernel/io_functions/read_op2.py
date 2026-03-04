@@ -523,7 +523,7 @@ class OP2():
                 key = self._get_key()
         self._skip_key(2)
         # TODO: IDK why does this work for Nast95 generated op2 file ?
-        if max(data) > 1:
+        if max(data) > 3:
             print("[warning]: .op2 file from Nast95 detected, converting the data to binary")
             data[data < 20] = 1
             data[data > 20] = 2
