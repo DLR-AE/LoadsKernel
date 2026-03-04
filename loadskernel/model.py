@@ -9,7 +9,8 @@ import time
 
 from panelaero import VLM, DLM
 
-from loadskernel.fem_interfaces import nastran_interface, nastran_f06_interface, cofe_interface, b2000_interface, nastran95_interface
+from loadskernel.fem_interfaces import (nastran_interface, nastran_f06_interface, cofe_interface, b2000_interface,
+                                        nastran95_interface)
 from loadskernel import build_aero_functions
 from loadskernel import spline_rules
 from loadskernel import spline_functions
