@@ -34,6 +34,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 import struct
+import logging
 import numpy as np
 
 #  Notes on the op2 format.
@@ -524,7 +525,7 @@ class OP2():
         self._skip_key(2)
         # TODO: IDK why does this work for Nast95 generated op2 file ?
         if max(data) > 3:
-            print("[warning]: .op2 file from Nast95 detected, converting the data to binary")
+            logging.warning(".op2 file from Nast95 detected, converting the data to binary")
             data[data < 20] = 1
             data[data > 20] = 2
         return data

@@ -1,6 +1,11 @@
+# Built-ins
+import logging
+
+# Libs
 from pyNastran.op2.op2 import OP2
 from scipy.sparse import csc_matrix
 
+# Own modules
 from loadskernel.fem_interfaces.nastran_interface import NastranInterface
 
 
@@ -18,7 +23,7 @@ class Nastran95Interface(NastranInterface):
         try:
             op2_model.read_op2(self.jcl.geom['filename_op2'])
         except Exception as e:
-            print(f"Warning: an error occurred during OP2 read but was ignored.\n{e}")
+            logging.warning(f"An error occurred during OP2 read but was ignored.\n{e}")
         self.KGG = csc_matrix(op2_model.matrices['KGG'].data)
         self.GM = csc_matrix(op2_model.matrices['GM'].data).T
 
@@ -29,7 +34,7 @@ class Nastran95Interface(NastranInterface):
         try:
             op2_model.read_op2(self.jcl.geom['filename_op2'])
         except Exception as e:
-            print(f"Warning: an error occurred during OP2 read but was ignored.\n{e}")
+            logging.warning(f"An error occurred during OP2 read but was ignored.\n{e}")
         self.MGG = csc_matrix(op2_model.matrices['MGG'].data)
 
         return self.MGG
