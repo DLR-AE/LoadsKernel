@@ -43,8 +43,7 @@ setup(
                       'pyyaml',
                       # Pandas 3.0.0 comes with changes that are not yet supported,
                       # see https://github.com/DLR-AE/LoadsKernel/issues/86
-                      'pandas<3.0.0',
-                      'pyNastran'
+                      'pandas<3.0.0'
                       ],
     extras_require={'extras': ['mpi4py',
                                'mayavi',
@@ -53,7 +52,8 @@ setup(
                                'jupyter',
                                'pyiges',  # only available with pip, not with conda
                                'pyfmi',
-                               'pyside6'
+                               'pyside6',
+                               'pyNastran'  # only available with pip, not with conda
                                ],
                     'test': ['pytest',
                              'pytest-cov',
