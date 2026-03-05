@@ -104,7 +104,6 @@ class SplineRadialBasisFunctions:
     def __init__(self, nodes_fe, nodes_cfd, rbf_type, surface_spline, support_radius):
         self.surface_spline = surface_spline
         self.rbf_type = rbf_type
-        self.rbf_type = 'wendland2'
         self.R = support_radius
         if self.surface_spline:
             logging.debug('Using surface formulation (2D xy surface)')

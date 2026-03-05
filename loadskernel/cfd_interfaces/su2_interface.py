@@ -75,10 +75,10 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         if "pysu2" in sys.modules and "SU2" in sys.modules:
             # make sure that all processes are at the same stage
             self.comm.barrier()
-            logging.info('Init CFD interface of type "{}" on MPI process {}.'.format(self.__class__.__name__, self.myid))
+            logging.info('Init CFD interface of type "%s" on MPI process %s.', self.__class__.__name__, self.myid)
         else:
-            logging.error('pysu2 was/could NOT be imported! Model equations of type "{}" will NOT work.'.format(
-                self.jcl.aero['method']))
+            logging.error('pysu2 was/could NOT be imported! Model equations of type "%s" will NOT work.',
+                          self.jcl.aero['method'])
         self.FluidSolver = None
 
         # Set-up file system structure
@@ -86,11 +86,13 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
             check_cfd_folders(self.jcl)
             check_para_path(self.jcl)
             copy_para_file(self.jcl, self.trimcase)
-        self.para_filename = self.jcl.aero['para_path'] + 'para_subcase_{}'.format(self.trimcase['subcase'])
+        self.para_filename = self.jcl.aero['para_path'] + f'para_subcase_{self.trimcase["subcase"]}'
 
-        # Storage for the euler transofmation of the unsteady interface
+        # Init some variables
         self.XYZ = None
         self.PhiThetaPsi = None
+        self.Ucfd = None
+        self.local_mesh = None
 
     def prepare_meshdefo(self, Uf, Ux2):
         """
@@ -143,17 +145,16 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
             # set general parameters, which don't change over the course of the CFD simulation, so they are only updated
             # for the first execution
             config['MESH_FILENAME'] = self.jcl.meshdefo['surface']['filename_grid']
-            config['RESTART_FILENAME'] = self.jcl.aero['para_path'] + 'sol/restart_subcase_{}.dat'.format(
-                self.trimcase['subcase'])
-            config['SOLUTION_FILENAME'] = self.jcl.aero['para_path'] + 'sol/restart_subcase_{}.dat'.format(
-                self.trimcase['subcase'])
-            config['SURFACE_FILENAME'] = self.jcl.aero['para_path'] + 'sol/surface_subcase_{}'.format(
-                self.trimcase['subcase'])
-            config['VOLUME_FILENAME'] = self.jcl.aero['para_path'] + 'sol/volume_subcase_{}'.format(
-                self.trimcase['subcase'])
-            config['CONV_FILENAME'] = self.jcl.aero['para_path'] + 'sol/history_subcase_{}'.format(
-                self.trimcase['subcase'])
-            # free stream definition
+            config['RESTART_FILENAME'] = self.jcl.aero['para_path'] + f'sol/restart_subcase_{self.trimcase["subcase"]}.dat'
+            config['SOLUTION_FILENAME'] = self.jcl.aero['para_path'] + f'sol/restart_subcase_{self.trimcase["subcase"]}.dat'
+            config['SURFACE_FILENAME'] = self.jcl.aero['para_path'] + f'sol/surface_subcase_{self.trimcase["subcase"]}'
+            config['VOLUME_FILENAME'] = self.jcl.aero['para_path'] + f'sol/volume_subcase_{self.trimcase["subcase"]}'
+            config['CONV_FILENAME'] = self.jcl.aero['para_path'] + f'sol/history_subcase_{self.trimcase["subcase"]}'
+            # Set density-based free-stream initialization and use the thermodynamics quantities instead of
+            # the reynolds number.
+            config['FREESTREAM_OPTION'] = 'DENSITY_FS'
+            config['INIT_OPTION'] = 'TD_CONDITIONS'
+            # Free-stream definition
             config['FREESTREAM_TEMPERATURE'] = self.atmo['T']
             config['FREESTREAM_DENSITY'] = self.atmo['rho']
             config['FREESTREAM_PRESSURE'] = self.atmo['p']
@@ -172,9 +173,8 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
             config['MARKER_DEFORM_MESH'] = '( ' + ', '.join(self.jcl.meshdefo['surface']['markers']) + ' )'
             # activate grid movement
             config['GRID_MOVEMENT'] = 'ROTATING_FRAME'
-            config['MOTION_ORIGIN'] = '{} {} {}'.format(self.cggrid['offset'][0, 0],
-                                                        self.cggrid['offset'][0, 1],
-                                                        self.cggrid['offset'][0, 2])
+            config['MOTION_ORIGIN'] = \
+                f'{self.cggrid["offset"][0, 0]} {self.cggrid["offset"][0, 1]} {self.cggrid["offset"][0, 2]}'
             config['MACH_MOTION'] = self.trimcase['Ma']
             # there is no restart for the first execution
             config['RESTART_SOL'] = 'NO'
@@ -201,7 +201,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
     def run_solver(self, i_timestep=0):
         logging.debug('Waiting until all processes are ready to perform a coordinated start...')
         self.comm.barrier()
-        logging.info('Launch SU2 for time step {}.'.format(i_timestep))
+        logging.info('Launch SU2 for time step %s.', i_timestep)
         # start timer
         t_start = time.time()
         # initialize SU2 if this is the first run.
@@ -218,7 +218,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         self.FluidSolver.Output(i_timestep)
         self.comm.barrier()
 
-        logging.debug('CFD computation performed in {:.2f} seconds.'.format(time.time() - t_start))
+        logging.debug('CFD computation performed in %.2f seconds.', time.time() - t_start)
 
     def get_last_solution(self):
         return self.Pcfd_global()
@@ -234,7 +234,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         self.comm.barrier()
         self.comm.Allgatherv(Pcfd_send, Pcfd_rcv)
         Pcfd = Pcfd_rcv.sum(axis=0)
-        logging.debug('All nodal loads recovered, sorted and gathered in {:.2f} sec.'.format(time.time() - t_start))
+        logging.debug('All nodal loads recovered, sorted and gathered in %.2f sec.', time.time() - t_start)
         return Pcfd
 
     def prepare_initial_solution(self):
@@ -299,7 +299,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
                            'set_global': np.array(tmp_set_global).squeeze(),
                            'n': n
                            }
-        logging.debug('This is process {} and my local mesh has a size of {}'.format(self.myid, self.local_mesh['n']))
+        logging.debug('This is process %s and my local mesh has a size of %s', self.myid, self.local_mesh['n'])
 
     def transfer_deformations(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
         """
@@ -307,7 +307,7 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         This version works on the local mesh of a mpi partition, making the calculation of the
         mesh deformations faster.
         """
-        logging.info('Transferring deformations to the local CFD surface with {} nodes.'.format(self.local_mesh['n']))
+        logging.info('Transferring deformations to the local CFD surface with %s nodes.', self.local_mesh['n'])
         # build spline matrix
         PHIi_d = spline_functions.spline_rbf(grid_i, set_i, self.local_mesh, '',
                                              rbf_type=rbf_type, surface_spline=surface_spline,
@@ -419,17 +419,16 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             # set general parameters, which don't change over the course of the CFD simulation, so they are only updated
             # for the first execution
             config['MESH_FILENAME'] = self.jcl.meshdefo['surface']['filename_grid']
-            config['RESTART_FILENAME'] = self.jcl.aero['para_path'] + 'sol/restart_subcase_{}.dat'.format(
-                self.trimcase['subcase'])
-            config['SOLUTION_FILENAME'] = self.jcl.aero['para_path'] + 'sol/restart_subcase_{}.dat'.format(
-                self.trimcase['subcase'])
-            config['SURFACE_FILENAME'] = self.jcl.aero['para_path'] + 'sol/surface_subcase_{}'.format(
-                self.trimcase['subcase'])
-            config['VOLUME_FILENAME'] = self.jcl.aero['para_path'] + 'sol/volume_subcase_{}'.format(
-                self.trimcase['subcase'])
-            config['CONV_FILENAME'] = self.jcl.aero['para_path'] + 'sol/history_subcase_{}'.format(
-                self.trimcase['subcase'])
-            # free stream definition
+            config['RESTART_FILENAME'] = self.jcl.aero['para_path'] + f'sol/restart_subcase_{self.trimcase["subcase"]}.dat'
+            config['SOLUTION_FILENAME'] = self.jcl.aero['para_path'] + f'sol/restart_subcase_{self.trimcase["subcase"]}.dat'
+            config['SURFACE_FILENAME'] = self.jcl.aero['para_path'] + f'sol/surface_subcase_{self.trimcase["subcase"]}'
+            config['VOLUME_FILENAME'] = self.jcl.aero['para_path'] + f'sol/volume_subcase_{self.trimcase["subcase"]}'
+            config['CONV_FILENAME'] = self.jcl.aero['para_path'] + f'sol/history_subcase_{self.trimcase["subcase"]}'
+            # Set density-based free-stream initialization and use the thermodynamics quantities instead of
+            # the reynolds number.
+            config['FREESTREAM_OPTION'] = 'DENSITY_FS'
+            config['INIT_OPTION'] = 'TD_CONDITIONS'
+            # Free-stream definition
             config['FREESTREAM_TEMPERATURE'] = self.atmo['T']
             config['FREESTREAM_DENSITY'] = self.atmo['rho']
             config['FREESTREAM_PRESSURE'] = self.atmo['p']
@@ -486,12 +485,9 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             config['RESTART_SOL'] = 'YES'
             config['RESTART_ITER'] = 2
             # create links for the .dat files...
-            filename_steady = self.jcl.aero['para_path'] + 'sol/restart_subcase_{}.dat'.format(
-                self.trimcase['subcase'])
-            filename_unsteady0 = self.jcl.aero['para_path'] + 'sol/restart_subcase_{}_00000.dat'.format(
-                self.trimcase['subcase'])
-            filename_unsteady1 = self.jcl.aero['para_path'] + 'sol/restart_subcase_{}_00001.dat'.format(
-                self.trimcase['subcase'])
+            filename_steady = self.jcl.aero['para_path'] + f'sol/restart_subcase_{self.trimcase["subcase"]}.dat'
+            filename_unsteady0 = self.jcl.aero['para_path'] + f'sol/restart_subcase_{self.trimcase["subcase"]}_00000.dat'
+            filename_unsteady1 = self.jcl.aero['para_path'] + f'sol/restart_subcase_{self.trimcase["subcase"]}_00001.dat'
             try:
                 os.symlink(filename_steady, filename_unsteady0)
                 os.symlink(filename_steady, filename_unsteady1)
@@ -499,12 +495,9 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
                 # Do nothing, the most likely cause is that the file already exists.
                 pass
             # ...and for the .csv files
-            filename_steady = self.jcl.aero['para_path'] + 'sol/restart_subcase_{}.csv'.format(
-                self.trimcase['subcase'])
-            filename_unsteady0 = self.jcl.aero['para_path'] + 'sol/restart_subcase_{}_00000.csv'.format(
-                self.trimcase['subcase'])
-            filename_unsteady1 = self.jcl.aero['para_path'] + 'sol/restart_subcase_{}_00001.csv'.format(
-                self.trimcase['subcase'])
+            filename_steady = self.jcl.aero['para_path'] + f'sol/restart_subcase_{self.trimcase["subcase"]}.csv'
+            filename_unsteady0 = self.jcl.aero['para_path'] + f'sol/restart_subcase_{self.trimcase["subcase"]}_00000.csv'
+            filename_unsteady1 = self.jcl.aero['para_path'] + f'sol/restart_subcase_{self.trimcase["subcase"]}_00001.csv'
             try:
                 os.symlink(filename_steady, filename_unsteady0)
                 os.symlink(filename_steady, filename_unsteady1)
@@ -562,9 +555,8 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
                 config['GUST_DIR'] = 'Y_DIR'
                 config['GUST_AMPL'] = -Vgust
             else:
-                logging.error('Gust orientation {} currently NOT supported by SU2. \
-                               Possible values: 0.0, 90.0, 180.0, 270.0 or 360.0 degrees.'.format(
-                              self.simcase['gust_orientation']))
+                logging.error('Gust orientation %s currently NOT supported by SU2. \
+                               Possible values: 0.0, 90.0, 180.0, 270.0 or 360.0 degrees.', self.simcase['gust_orientation'])
             # Note: In SU2 this is the full gust length, not the gust gradient H (half gust length).
             config['GUST_WAVELENGTH'] = 2.0 * self.simcase['gust_gradient']
             config['GUST_PERIODS'] = 1.0
