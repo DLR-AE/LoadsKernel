@@ -4,7 +4,7 @@ name: Regression Tests
 # Restrict permissions at top-level to 'read' as a minimal explicit permission.
 # This will apply to all jobs that do not define their own permissions.
 permissions:
-  contents: read
+  contents: write
 
 on:
   push:
