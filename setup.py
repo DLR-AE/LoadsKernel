@@ -36,7 +36,7 @@ setup(
     python_requires='>=3.12',
     install_requires=['PanelAero',
                       'matplotlib',
-                      'numpy<2.4.0',  # Mayavi / VTK does not support numpy >= 2.4.0, wait for release of VTK 9.6
+                      'numpy>2.0,<2.4.0',  # Mayavi / VTK does not support numpy >= 2.4.0, wait for release of VTK 9.6
                       'scipy',
                       'h5py',
                       'tables',
@@ -49,10 +49,10 @@ setup(
                                'mayavi',
                                'traits',
                                'traitsui',
-                               'jupyter',
-                               'pyiges',  # only available with pip, not with conda
-                               'pyfmi',
                                'pyside6',
+                               'jupyter',
+                               'pyfmi',
+                               'pyiges',  # only available with pip, not with conda
                                'pyNastran'  # only available with pip, not with conda
                                ],
                     'test': ['pytest',
