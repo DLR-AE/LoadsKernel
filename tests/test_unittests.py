@@ -72,6 +72,7 @@ def test_hyperbolic_distance_metric():
     # Check for numerical similarity with reference values.
     assert np.allclose(HDM, HDM_ref, rtol=1e-4, atol=1e-4), "Hyperbolic distance metric (HDM) does NOT match reference"
 
+
 def test_reynoldsnumber():
     # Test Reynolds number calculation at sea level.
     # This test also covers the dynamic viscosity calculation and parts of the isa atmosphere.
