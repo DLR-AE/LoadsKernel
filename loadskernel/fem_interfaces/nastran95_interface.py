@@ -38,7 +38,7 @@ class Nastran95Interface(NastranInterface):
         try:
             op2_model.read_op2(self.jcl.geom['filename_op2'])
         except Exception as e:
-            logging.warning(f"An error occurred during OP2 read but was ignored.\n{e}")
+            logging.warning("An error occurred during OP2 read but was ignored.\n%s", e)
         self.KGG = csc_matrix(op2_model.matrices['KGG'].data)
         self.GM = csc_matrix(op2_model.matrices['GM'].data).T
 
@@ -49,7 +49,7 @@ class Nastran95Interface(NastranInterface):
         try:
             op2_model.read_op2(self.jcl.geom['filename_op2'])
         except Exception as e:
-            logging.warning(f"An error occurred during OP2 read but was ignored.\n{e}")
+            logging.warning("An error occurred during OP2 read but was ignored.\n%s", e)
         self.MGG = csc_matrix(op2_model.matrices['MGG'].data)
 
         return self.MGG
