@@ -4,7 +4,7 @@ name: Regression Tests
 # Restrict permissions at top-level to 'read' as a minimal explicit permission.
 # This will apply to all jobs that do not define their own permissions.
 permissions:
-  contents: write
+  contents: read
 
 on:
   push:
@@ -137,6 +137,7 @@ jobs:
     needs: combine-pages
     # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
     permissions:
+      contents: write
       pages: write      # to deploy to Pages
       id-token: write   # to verify the deployment originates from an appropriate source
 
