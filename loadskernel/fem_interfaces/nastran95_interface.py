@@ -1,12 +1,20 @@
 # Built-ins
 import logging
+import sys
 
 # Libs
-from pyNastran.op2.op2 import OP2
 from scipy.sparse import csc_matrix
 
 # Own modules
 from loadskernel.fem_interfaces.nastran_interface import NastranInterface
+
+# In case a user has only the core packages and no extras installed, we want to avoid an import error when importing the
+# Nastran95Interface class. The OP2 read is only performed when the stiffness or mass matrix is requested, so the error
+# is not relevant until then. In that case, we catch the error and issue an error message.
+try:
+    from pyNastran.op2.op2 import OP2
+except ImportError:
+    pass
 
 
 class Nastran95Interface(NastranInterface):
@@ -17,6 +25,13 @@ class Nastran95Interface(NastranInterface):
         self.GM: csc_matrix = csc_matrix((0, 0))
         self.MGG: csc_matrix = csc_matrix((0, 0))
         self.i_mass: int = 0
+        # Check if OP2 from pyNastran was imported successfully, see try/except statement in the import section.
+        if "pyNastran" not in sys.modules:
+            logging.error(
+                'pyNastran was/could NOT be imported!'
+                'The Nastran95Interface will not be able to read the stiffness and mass matrices from the OP2 file. '
+                'Please install pyNastran or the Loads Kernel with the extras to use this feature.'
+            )
 
     def get_stiffness_matrix(self):
         op2_model = OP2()
