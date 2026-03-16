@@ -1,0 +1,46 @@
+$
+$***********************************************************************
+$ Created by ModGen (Version 2.2401.01  (latest version))
+$ Operating System: Linux    
+$ Date & Time: 2024-02-21 15:41:39
+$***********************************************************************
+$
+$ - The file contains CONM2-cards as result of the mass integration
+$   task of modgen
+$ - SCONM2 mass entities are attached to MGRIDs
+$ - The total mass and c.g. is written below the CONM2 cards
+$
+$-----------------------------------------------------------------------
+$
+CONM2      9000164090001       0 161.473.0145699.2631190-.156335        +
++        14.7777 5.67-14 92.9288 -.30998 -4.3-16 100.509
+CONM2      9000264090003       0 161.466.0145699 -.26309-.156336        +
++        14.7761 -3.98-6 92.9245 -.30996 -4.37-5 100.502
+CONM2      9000364090003       0 161.473.0145699.2631100-.156335        +
++        14.7777 -7.97-6 92.9291 -.30998 -8.74-5 100.509
+CONM2      9000464090004       0 160.344.0145699.2612600-.156335        +
++        14.5198 -7.91-6 92.2792 -.30781 -8.67-5 99.6520
+$
+$ TOTAL MASS:        644.75600
+$       X-CG:            8.58180
+$       Y-CG:            1.05061
+$       Z-CG:            0.01840
+$
+$
+$
+$***********************************************************************
+$ ModGen is a program to set up Nastran structural, aerodynamic, and
+$ optimization models for aircraft structures like wing and fuselage
+$ including optional pre-sizing.
+$
+$ ModGen is developed by:
+$
+$       DLR German Aerospace Center
+$       Institute of Aeroelasticity
+$       37073 Goettingen
+$       Internet www.dlr.de/ae
+$       Contact: thomas.klimmek@dlr.de
+$
+$***********************************************************************
+$
+$

@@ -1,0 +1,99 @@
+$ Mono, 10pt,   column  width   17mm,   no spacing      
+$2345678                                                
+                                                        
+$ LG    nodes   ref is  2meters in frontof nose         
+$ GRID        ID      CP      X1      X2      X3      CD
+$ GRID    101001          7.8180   2.745   0.000        
+$ GRID    101002          7.8180  -2.745   0.000        
+$ GRID    101003         18.4670   0.000   0.878        
+                                                        
+                                                        
+$ LG    mass    model                                   
+$ CONM2      EID       G     CID       M      X1      X2      X3
+$            I11     I21     I22     I31     I32     I33
+CONM2     12000164090006      -1 139.815  7.8180   2.745   0.000
+           0.000   0.000   0.000   0.000   0.000   0.000
+CONM2     12000254090006      -1 139.815  7.8180  -2.745   0.000
+           0.000   0.000   0.000   0.000   0.000   0.000
+CONM2     120003  100010      -1  31.070 18.4670   0.000   0.878
+           0.000   0.000   0.000   0.000   0.000   0.000
+                                                        
+                                                        
+$FuelSysnodes   ref is  2meters in frontof nose         
+$ GRID        ID      CP      X1      X2      X3      CD
+$ GRID    102001          8.0380   1.867   0.000        
+$ GRID    102002          8.0380  -1.867   0.000        
+                                                        
+                                                        
+$FuelSysmass    model                                   
+$ CONM2      EID       G     CID       M      X1      X2      X3
+$            I11     I21     I22     I31     I32     I33
+CONM2     13000164090005      -1 103.550  8.0380   1.867   0.000
+           0.000   0.000   0.000   0.000   0.000   0.000
+CONM2     13000254090005      -1 103.550  8.0380  -1.867   0.000
+           0.000   0.000   0.000   0.000   0.000   0.000
+                                                        
+$FltCtl nodes   ref is  2meters in frontof nose         
+$ GRID        ID      CP      X1      X2      X3      CD
+$ GRID    103001           5.138   0.000   1.427        
+                                                        
+$FltCtl mass    model                                   
+$ CONM2      EID       G     CID       M      X1      X2      X3
+$            I11     I21     I22     I31     I32     I33
+CONM2     140001  100003      -1 241.900   5.138   0.000   1.427
+           0.000   0.000   0.000   0.000   0.000   0.000
+                                                        
+                                                        
+$HydSys nodes   ref is  2meters in frontof nose         
+$ GRID        ID      CP      X1      X2      X3      CD
+$ GRID    104001           5.138   0.000   1.427        
+                                                        
+$HydSys mass    model                                   
+$ CONM2      EID       G     CID       M      X1      X2      X3
+$            I11     I21     I22     I31     I32     I33
+CONM2     150001  100003      -1  12.500   5.138   0.000   1.427
+           0.000   0.000   0.000   0.000   0.000   0.000
+                                                        
+                                                        
+$Avioni nodes   ref is  2meters in frontof nose         
+$ GRID        ID      CP      X1      X2      X3      CD
+$ GRID    105001           3.293   0.000   0.000        
+                                                        
+$Avioni mass    model                                   
+$ CONM2      EID       G     CID       M      X1      X2      X3
+$            I11     I21     I22     I31     I32     I33
+CONM2     160001  100002      -1 142.300   3.293   0.000   0.000
+           0.000   0.000   0.000   0.000   0.000   0.000
+                                                        
+                                                        
+$EleSys nodes   ref is  2meters in frontof nose         
+$ GRID        ID      CP      X1      X2      X3      CD
+$ GRID    106001           3.293   0.000   0.000        
+                                                        
+$EleSys mass    model                                   
+$ CONM2      EID       G     CID       M      X1      X2      X3
+$            I11     I21     I22     I31     I32     I33
+CONM2     170001  100002      -1 255.900   3.293   0.000   0.000
+           0.000   0.000   0.000   0.000   0.000   0.000
+                                                        
+                                                        
+$AirCon nodes   ref is  2meters in frontof nose         
+$ GRID        ID      CP      X1      X2      X3      CD
+$ GRID    107001           7.112   0.000   0.000        
+                                                        
+$AirCon mass    model                                   
+$ CONM2      EID       G     CID       M      X1      X2      X3
+$            I11     I21     I22     I31     I32     I33
+CONM2     180001  100004      -1 608.000   7.112   0.000   0.000
+           0.000   0.000   0.000   0.000   0.000   0.000
+                                                        
+                                                        
+$Furnishnodes   ref is  2meters in frontof nose         
+$ GRID        ID      CP      X1      X2      X3      CD
+$ GRID    108001           7.965   0.000   0.000        
+                                                        
+$Furnishmass    model                                   
+$ CONM2      EID       G     CID       M      X1      X2      X3
+$            I11     I21     I22     I31     I32     I33
+CONM2     190001  100004      -1 696.300   7.965   0.000   0.000
+           0.000   0.000   0.000   0.000   0.000   0.000
