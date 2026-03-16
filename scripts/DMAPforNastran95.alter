@@ -1,0 +1,29 @@
+ID    My,Aircraft
+$ The modal anaylsis is called SOL 3 in Nastran 95.
+SOL   3
+$ Print the DMAP code and insert the output command after line 52.
+$ I haven't found an option so specify a filename of the op2 file, 
+$ in my case the resulting file was named 'none'. So remember to keep 
+$ track of your filenames when working with multiple mass configurations.
+DIAG 14,18
+ALTER 52
+OUTPUT2 KGG,MGG,GM,USET,//0/11////*MSC* $
+ENDALTER
+CEND
+$
+METHOD=100
+ECHO=NONE
+$
+BEGIN BULK
+PARAM    GRDPNT   0
+$ Calculate all modes between 0.1 and 15.0 Hz using the modified Givens method.
+$ Because we only want the system matrices, the modal analysis is (stricly speaking)
+$ not necessary but allows to compare eigenvalues calculated in Loads Kernel with
+$ those found by Nastran 95 as a cross-check.
+$------><------><------><------><------><------><------><------><------>
+EIGR    100     MGIV    0.1     15.0
+$
+$ Insert structural model below here (include statements are not supported by Nastran 95).
+$
+$ Explicitly terminate file.
+ENDDATA
