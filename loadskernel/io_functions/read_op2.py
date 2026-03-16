@@ -201,7 +201,7 @@ class OP2():
         self._int32stru = self._endian + '%di'
         self._read_op2_header()
         self._postheaderpos = self._fileh.tell()
-        self.directory(verbose=True)
+        self.directory(verbose=False)
 
     def _get_key(self):
         """Reads [reclen, key, endrec] triplet and returns key."""
@@ -602,7 +602,7 @@ class OP2():
         # We don't know why, but the USET exported from Nastran 95 is not zeros and ones but 17 and another large number
         # (e.g. 496 or 1074, possibly depending on the operating system).
         if max(uset) > 3:
-            logging.warning("USET from Nastran 95 detected, converting the data to binary")
+            logging.info("USET from Nastran 95 detected, attempt conversion of data to binary")
             uset[uset < 20] = 1
             uset[uset > 20] = 2
         return uset
@@ -627,13 +627,13 @@ def read_op2(op2_filename):
                 raise RuntimeError('name={name}')
             # Read matrices, typically stiffness and mass matrices such as Kgg, Mgg and GM
             if dbtype > 0:
-                logging.info("Reading matrix %s...", name)
+                logging.debug("Reading matrix %s...", name)
                 data[name] = o2.read_op2_matrix(name, trailer)
             # Read USET table but skip other tables
             elif name.find('USET') == 0:
-                logging.info("Reading table %s...", name)
+                logging.debug("Reading table %s...", name)
                 data['uset'] = o2.read_op2_uset()
             else:
-                logging.info("Skipping table %s...", name)
+                logging.debug("Skipping table %s...", name)
                 o2.skip_op2_table()
     return data
