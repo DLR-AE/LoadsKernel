@@ -53,7 +53,6 @@ setup(
                                'jupyter',
                                'pyfmi',
                                'pyiges',  # only available with pip, not with conda
-                               'pyNastran'  # only available with pip, not with conda
                                ],
                     'test': ['pytest',
                              'pytest-cov',
