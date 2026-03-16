@@ -63,7 +63,7 @@ class Model():
 
     def build_strc(self):
         logging.info('Building structural model...')
-        if self.jcl.geom['method'] in ['mona', 'Nastran95']:
+        if self.jcl.geom['method'] in ['mona']:
             # parse given bdf files
             self.bdf_reader.process_deck(self.jcl.geom['filename_grid'])
             # assemble strcgrid, sort grids to be in accordance with matricies such as Mgg from Nastran
@@ -107,7 +107,7 @@ class Model():
                                                                      self.bdf_reader.cards['CTRIA3']], ignore_index=True))
 
     def build_mongrid(self):
-        if self.jcl.geom['method'] in ['mona', 'CoFE', 'Nastran95']:
+        if self.jcl.geom['method'] in ['mona']:
             if 'filename_mongrid' in self.jcl.geom and not self.jcl.geom['filename_mongrid'] == '':
                 logging.info('Building Monitoring Stations from GRID data...')
                 self.mongrid = read_mona.Modgen_GRID(self.jcl.geom['filename_mongrid'])
@@ -552,7 +552,11 @@ class Model():
             self.KGG = fem_interface.KGG
             # Check if matrix is symmetric
             if not fem_helper.check_matrix_symmetry(self.KGG):
-                logging.warning('Stiffness matrix Kgg is NOT symmetric.')
+                if fem_helper.check_matrix_symmetry_allclose(self.KGG):
+                    logging.warning('Stiffness matrix Kgg is only symmetric within numerical tolerances.')
+                else:
+                    logging.warning('Stiffness matrix Kgg is NOT symmetric. \
+                                    This may lead to problems in the modal analysis and should be checked carefully.')
 
             # do further processing of the stiffness matrix
             if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'CoFE', 'B2000', 'Nastran95']:
@@ -577,8 +581,11 @@ class Model():
         MGG = fem_interface.get_mass_matrix(i_mass)
         # Check if matrix is symmetric
         if not fem_helper.check_matrix_symmetry(MGG):
-            logging.warning('Mass matrix Mgg is NOT symmetric.')
-
+            if fem_helper.check_matrix_symmetry_allclose(MGG):
+                logging.warning('Mass matrix Mgg is only symmetric within numerical tolerances.')
+            else:
+                logging.warning('Mass matrix Mgg is NOT symmetric. \
+                                This may lead to problems in the modal analysis and should be checked carefully.')
         # getting the eigenvalues and -vectors depends on the method / fem solver
         if self.jcl.mass['method'] in ['modalanalysis', 'guyan', 'CoFE', 'B2000', 'Nastran95']:
             Mb, cggrid, cggrid_norm = fem_interface.calc_cg()
