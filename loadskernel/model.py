@@ -503,13 +503,12 @@ class Model():
         # ---- mesh defo ---
         # -------------------
         if self.jcl.aero['method'] in ['cfd_steady', 'cfd_unsteady']:
-            cfdgrids = read_cfdgrids.ReadCfdgrids(self.jcl)
-            cfdgrids.read_surface(merge_domains=True)
-            cfdgrids.read_surface(merge_domains=False)
+            cfdgrids = read_cfdgrids.ReadCfdgrids()
+            cfdgrids.read_surface(self.jcl)
             self.cfdgrid = cfdgrids.cfdgrid
             self.cfdgrids = cfdgrids.cfdgrids
-            logging.info('The CFD surface grid consists of {} grid points and {} boundary markers.'.format(
-                self.cfdgrid['n'], self.cfdgrids.__len__()))
+            logging.info('The CFD surface grid consists of %s grid points and %s boundary markers.',
+                         self.cfdgrid['n'], len(self.cfdgrids))
 
             # Option A: CFD forces are transferred to the aerogrid.
             # This allows a direct integration into existing procedures and a comparison to VLM forces.

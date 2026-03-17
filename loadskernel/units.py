@@ -75,3 +75,40 @@ def tas2Ma(tas, h):
 def eas2Ma(eas, h):
     tas = eas2tas(eas, h)
     return tas2Ma(tas, h)
+
+
+def reynolds_number(rho, v, l_ref, T):
+    # Calculate Reynolds number, https://en.wikipedia.org/wiki/Reynolds_number
+    # Inputs:
+    # - rho:    fluid density [kg/m^3]
+    # - v:      fluid velocity [m/s]
+    # - l_ref:  reference length [m]
+    # - T:      temperature [K]
+    #
+    # Output:
+    # - Re:     Reynolds number (dimensionless)
+
+    mu = dynamic_viscosity_of_air(T)
+    Re = (rho * v * l_ref) / mu
+    return Re
+
+
+def dynamic_viscosity_of_air(T):
+    # Calculate dynamic viscosity of air according to Sutherland's formula.
+    # The constants used here are from https://www.cfd-online.com/Wiki/Sutherland%27s_law and in line with the
+    # values used in SU2. Different sources (e.g. https://de.wikipedia.org/wiki/Sutherland-Modell) give slightly
+    # different values.
+    # Inputs:
+    # - T:  temperature [K]
+    #
+    # Output:
+    # - mu: dynamic viscosity [Pa*s = kg/(m*s)]
+
+    # reference viscosity at T_ref [kg/(m*s)]
+    mu_ref = 1.716e-5
+    # reference temperature [K]
+    T_ref = 273.15
+    # Sutherland's constant for air [K]
+    S = 110.4
+    mu = mu_ref * (T_ref + S) / (T + S) * (T / T_ref) ** (3 / 2)
+    return mu
