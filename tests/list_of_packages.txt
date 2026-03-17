@@ -3,7 +3,7 @@
 # conda install -y -c conda-forge --file ./tests/list_of_packages.txt
 # Lodas Kernel core dependencies
 matplotlib
-numpy<2.4.0
+numpy>2.0,<2.4.0
 scipy
 h5py
 pytables

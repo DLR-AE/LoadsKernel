@@ -69,10 +69,10 @@ class NastranInterface(object):
         # Prepare some data required for modal analysis which is not mass case dependent.
         # The uset is actually geometry dependent and should go into the geometry section.
         # However, it is only required for modal analysis...
-        logging.info('Read USET from OP2-file {} ...'.format(self.jcl.geom['filename_uset']))
-        op2_data = read_op2.read_post_op2(self.jcl.geom['filename_uset'], verbose=False)
+        logging.info('Read USET from OP2-file %s ...', self.jcl.geom['filename_uset'])
+        op2_data = read_op2.read_op2(self.jcl.geom['filename_uset'])
         if op2_data['uset'] is None:
-            logging.error('No USET found in OP2-file {} !'.format(self.jcl.geom['filename_uset']))
+            logging.error('No USET found in OP2-file %s !', self.jcl.geom['filename_uset'])
         self.get_sets_from_bitposes(op2_data['uset'])
 
     def prepare_stiffness_matrices(self):

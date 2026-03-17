@@ -36,23 +36,23 @@ setup(
     python_requires='>=3.12',
     install_requires=['PanelAero',
                       'matplotlib',
-                      'numpy<2.4.0',  # Mayavi / VTK does not support numpy >= 2.4.0, wait for release of VTK 9.6
+                      'numpy>2.0,<2.4.0',  # Mayavi / VTK does not support numpy >= 2.4.0, wait for release of VTK 9.6
                       'scipy',
                       'h5py',
                       'tables',
                       'pyyaml',
                       # Pandas 3.0.0 comes with changes that are not yet supported,
                       # see https://github.com/DLR-AE/LoadsKernel/issues/86
-                      'pandas<3.0.0',
+                      'pandas<3.0.0'
                       ],
     extras_require={'extras': ['mpi4py',
                                'mayavi',
                                'traits',
                                'traitsui',
+                               'pyside6',
                                'jupyter',
-                               'pyiges',  # only available with pip, not with conda
                                'pyfmi',
-                               'pyside6'
+                               'pyiges',  # only available with pip, not with conda
                                ],
                     'test': ['pytest',
                              'pytest-cov',

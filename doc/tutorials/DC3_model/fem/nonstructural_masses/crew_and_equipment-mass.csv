@@ -1,0 +1,15 @@
+$ Mono, 10pt,   column  width   17mm,   no spacing      
+$2345678                                                
+                                                        
+$crew eqnodes   ref is  2meters in frontof nose         
+$ GRID        ID      CP      X1      X2      X3      CD
+$ GRID    111001           7.700   0.000   0.000        
+                                                        
+                                                        
+                                                        
+                                                        
+$crew eqmass    model                                   
+$crew eq     EID       G     CID       M      X1      X2      X3
+$            I11     I21     I22     I31     I32     I33
+CONM2     121001  100004      -1 425.470   7.700   0.000   0.000
+           0.000   0.000   0.000   0.000   0.000   0.000

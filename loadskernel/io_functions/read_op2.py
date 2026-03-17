@@ -34,6 +34,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 import struct
+import logging
 import numpy as np
 
 #  Notes on the op2 format.
@@ -200,7 +201,7 @@ class OP2():
         self._int32stru = self._endian + '%di'
         self._read_op2_header()
         self._postheaderpos = self._fileh.tell()
-        self.directory(verbose=True)
+        self.directory(verbose=False)
 
     def _get_key(self):
         """Reads [reclen, key, endrec] triplet and returns key."""
@@ -308,6 +309,54 @@ class OP2():
         self._skip_key(2)
         rec_type = self._get_key()
         return db_name, trailer, rec_type
+
+    def read_op2_matrix(self, name, trailer):
+        """
+        Read and return Nastran op2 matrix at current file position.
+
+        It is assumed that the name has already been read in via
+        :func:`_read_op2_name_trailer`.
+
+        The size of the matrix is read from trailer:
+             nrows = trailer[2]
+             ncols = trailer[1]
+        """
+        dtype = 1
+        nrows = trailer[2]
+        ncols = trailer[1]
+        # print('    %s (%s, %s)' % (name, nrows, ncols))
+        matrix = np.zeros((nrows, ncols), order='F')
+        if self._bit64:
+            intsize = 8
+        else:
+            intsize = 4
+        col = 0
+        frm = self._endian + '%dd'
+        # print('frm =', frm)
+        while dtype > 0:  # read in matrix columns
+            # key is number of elements in next record (row # followed
+            # by key-1 real numbers)
+            key = self._get_key()
+            # read column
+            while key > 0:
+                reclen = self._Str4.unpack(self._fileh.read(4))[0]
+                r = self._Str.unpack(self._fileh.read(self._ibytes))[0] - 1
+                n = (reclen - intsize) // 8
+                if n < self._rowsCutoff:
+                    matrix[r:r + n, col] = struct.unpack(
+                        frm % n, self._fileh.read(n * 8))
+                else:
+                    matrix[r:r + n, col] = np.fromfile(
+                        self._fileh, np.float64, n)
+                self._fileh.read(4)  # endrec
+                key = self._get_key()
+            col += 1
+            self._get_key()
+            dtype = self._get_key()
+        self._read_op2_end_of_table()
+        if self._swap:
+            matrix = matrix.byteswap()
+        return matrix
 
     def skip_op2_matrix(self, trailer):
         """
@@ -535,7 +584,7 @@ class OP2():
             key = self._get_key()
         self._skip_key(2)
 
-    def _read_op2_uset(self):
+    def read_op2_uset(self):
         """
         Read the USET data block.
 
@@ -550,51 +599,41 @@ class OP2():
         if any(sset):
             uset[sset] = uset[sset] & ~2
         self._read_op2_end_of_table()
+        # We don't know why, but the USET exported from Nastran 95 is not zeros and ones but 17 and another large number
+        # (e.g. 496 or 1074, possibly depending on the operating system).
+        if max(uset) > 3:
+            logging.info("USET from Nastran 95 detected, attempt conversion of data to binary")
+            uset[uset < 20] = 1
+            uset[uset > 20] = 2
         return uset
 
 
-def read_post_op2(op2_filename, verbose=False):
+def read_op2(op2_filename):
     """
-    Reads PARAM,POST,-1 op2 file and returns dictionary of data.
-
-    Parameters
-    ----------
-    op2_filename : string
-        Name of op2 file.
-    verbose : bool
-        If true, echo names of tables and matrices to screen
-
-    Returns dictionary with following members
-    -----------------------------------------
-    'uset' : array
+    Reads op2 file and returns dictionary of data.
     """
-    # read op2 file:
+    # Open op2 file
     with OP2(op2_filename) as o2:
-        uset = None
+        data = {}
         o2._fileh.seek(o2._postheaderpos)
 
         while 1:
             name, trailer, dbtype = o2._read_op2_name_trailer()
-            # print('name = %r' % name)
-            # print('trailer = %s' % str(trailer))
-            # print('dbtype = %r' % dbtype)
+            # Condition to stop iterating
             if name is None:
                 break
+            # Catch error condition
             if name == '':
-                raise RuntimeError('name=%r' % name)
+                raise RuntimeError('name={name}')
+            # Read matrices, typically stiffness and mass matrices such as Kgg, Mgg and GM
             if dbtype > 0:
-                if verbose:
-                    print("Skipping matrix {0}...".format(name))
-                o2.skip_op2_matrix(trailer)
+                logging.debug("Reading matrix %s...", name)
+                data[name] = o2.read_op2_matrix(name, trailer)
+            # Read USET table but skip other tables
+            elif name.find('USET') == 0:
+                logging.debug("Reading table %s...", name)
+                data['uset'] = o2.read_op2_uset()
             else:
-                if name.find('USET') == 0:
-                    if verbose:
-                        print("Reading USET table {0}...".format(name))
-                    uset = o2._read_op2_uset()
-                    continue
-                else:
-                    if verbose:
-                        print("Skipping table %r..." % name)
+                logging.debug("Skipping table %s...", name)
                 o2.skip_op2_table()
-
-    return {'uset': uset}
+    return data
