@@ -204,9 +204,12 @@ class Kernel(ProgramFlowHelper):
             solution_i.exec_pulse()
         # Collect response from solution sequence, then destroy it to free memory.
         response = solution_i.response
-        response['i'] = i
         response['successful'] = solution_i.successful
         del solution_i
+        # Add information regarding subcase and description to the response.
+        response['i'] = i
+        response['desc'] = jcl.trimcase[i]['desc']
+        response['subcase'] = jcl.trimcase[i]['subcase']
         return response
 
     def run_main_sequential(self):
