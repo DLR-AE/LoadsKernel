@@ -124,11 +124,11 @@ class Compare():
         # Elements of loads tab
         self.lb_dataset = QListWidget()
         self.lb_dataset.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.lb_dataset.itemSelectionChanged.connect(self.show_choice)
+        self.lb_dataset.itemSelectionChanged.connect(self.on_selection_changed)
         self.lb_dataset.itemChanged.connect(self.update_desc)
 
         self.lb_mon = QListWidget()
-        self.lb_mon.itemSelectionChanged.connect(self.show_choice)
+        self.lb_mon.itemSelectionChanged.connect(self.on_selection_changed)
 
         self.cb_color = QComboBox()
         self.cb_color.addItems(self.colors)
@@ -137,24 +137,24 @@ class Compare():
         self.cb_xaxis = QComboBox()
         self.cb_xaxis.addItems(self.dof)
         self.cb_xaxis.setCurrentIndex(3)
-        self.cb_xaxis.activated.connect(self.show_choice)
+        self.cb_xaxis.activated.connect(self.on_selection_changed)
 
         self.cb_yaxis = QComboBox()
         self.cb_yaxis.addItems(self.dof)
         self.cb_yaxis.setCurrentIndex(4)
-        self.cb_yaxis.activated.connect(self.show_choice)
+        self.cb_yaxis.activated.connect(self.on_selection_changed)
 
         self.cb_hull = QCheckBox("show convex hull")
         self.cb_hull.setChecked(False)
-        self.cb_hull.stateChanged.connect(self.show_choice)
+        self.cb_hull.stateChanged.connect(self.on_selection_changed)
 
         self.cb_labels = QCheckBox("show labels")
         self.cb_labels.setChecked(False)
-        self.cb_labels.stateChanged.connect(self.show_choice)
+        self.cb_labels.stateChanged.connect(self.on_selection_changed)
 
         self.cb_minmax = QCheckBox("show min/max")
         self.cb_minmax.setChecked(False)
-        self.cb_minmax.stateChanged.connect(self.show_choice)
+        self.cb_minmax.stateChanged.connect(self.on_selection_changed)
 
         self.label_n_loadcases = QLabel()
 
@@ -250,7 +250,7 @@ class Compare():
         self.window.setWindowTitle("Loads Compare")
         self.window.show()
 
-    def show_choice(self):
+    def on_selection_changed(self):
         # called on change in listbox, combobox, etc
         # discard extra variables
         if len(self.lb_dataset.selectedItems()) == 1:
@@ -328,7 +328,7 @@ class Compare():
             self.datasets['desc'].append('dataset ' + str(self.datasets['n']))
             self.datasets['n'] += 1
             # Update fields.
-            self.update_fields()
+            self.update_fields_of_loads_tab()
 
     def load_monstation(self):
         # open file dialog
@@ -353,7 +353,7 @@ class Compare():
                 self.datasets['desc'].append('dataset ' + str(self.datasets['n']))
                 self.datasets['n'] += 1
                 # update fields
-                self.update_fields()
+                self.update_fields_of_loads_tab()
                 self.file_opt['initialdir'] = os.path.split(filename)[0]
 
     def save_monstation(self):
@@ -373,7 +373,7 @@ class Compare():
             if filename != '' and '.hdf5' in filename:
                 data_handling.dump_hdf5(filename, dataset_sel)
 
-    def update_fields(self):
+    def update_fields_of_loads_tab(self):
         self.lb_dataset.clear()
         for desc in self.datasets['desc']:
             item = QListWidgetItem(desc)
@@ -410,9 +410,9 @@ class Compare():
         if index == 1:
             # Loads tab is at index 0
             # Time tab is at index 1
-            self.update_time_tab_fields()
+            self.update_fields_of_time_tab()
 
-    def update_time_tab_fields(self):
+    def update_fields_of_time_tab(self):
         # Update the Time tab fields when it is activated.
         if self.lb_dataset.currentItem() is not None and self.lb_mon.currentItem() is not None:
             # Get the items selected by the user.
