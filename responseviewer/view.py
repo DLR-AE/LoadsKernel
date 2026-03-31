@@ -27,6 +27,16 @@ class ResponseViewer():
         self.file_opt['initialdir'] = os.getcwd()
         self.file_opt['title'] = 'Load Responses'
 
+        # GUI attributes
+        self.container = None
+        self.tabs_widget = None
+        self.canvas = None
+        self.toolbar = None
+        self.plotting = None
+        self.window = None
+        self.lb_subcase = None
+        self.lb_states = None
+
     def run(self):
         # Create the app.
         app = self.initApp()

@@ -12,7 +12,6 @@ class Plotting():
     other_avail = ['q_dyn [Pa]', 'alpha [deg]', 'beta [deg]', 'p1 [m]', 'F1 [N]']
     all_quantities = states_avail + commands_avail + loadfactors_avail + other_avail
 
-
     def __init__(self, fig):
         plt.rcParams.update({'font.size': 16,
                              'svg.fonttype': 'none'})
