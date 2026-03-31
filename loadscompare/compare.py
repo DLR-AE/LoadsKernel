@@ -430,6 +430,7 @@ class Compare():
             # Populate list of subcases by finding all integers in monstation.keys()
             monstation = dataset_sel[mon_sel]
             subcase_keys = [key for key in monstation if key.isdigit()]
+            subcase_keys.sort(key=int)
             self.lb_subcases_time.clear()
             self.lb_subcases_time.addItems(subcase_keys)
 
