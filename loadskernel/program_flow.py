@@ -402,20 +402,16 @@ class Kernel(ProgramFlowHelper):
         plt = plotting_extra.DetailedPlots(self.jcl, model)
         plt.add_responses(responses)
         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-            # show some plots of the time domain data
-            plt.plot_time_data()
-        else:
-            # show some plots of the force vectors, useful to identify model shortcomings
-            # plt.plot_pressure_distribution()
-            plt.plot_forces_deformation_interactive()
-
-        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
             # show a nice animation of the time domain simulation
             plt = plotting_extra.Animations(self.jcl, model)
             plt.add_responses(responses)
             plt.make_animation()
             # make a video file of the animation
             # plt.make_movie(self.path_output, speedup_factor=1.0)
+        else:
+            # show some plots of the force vectors, useful to identify model shortcomings
+            # plt.plot_pressure_distribution()
+            plt.plot_forces_deformation_interactive()
 
         """
         At the moment, I also use this section for custom analysis scripts.
