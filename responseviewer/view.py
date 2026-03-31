@@ -80,7 +80,7 @@ class ResponseViewer():
 
     def initStatesTab(self):
         tab_loads = QWidget()
-        self.tabs_widget.addTab(tab_loads, 'States')
+        self.tabs_widget.addTab(tab_loads, 'Time Histories')
         # Elements of loads tab
         self.lb_subcase = QListWidget()
         self.lb_subcase.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -88,7 +88,7 @@ class ResponseViewer():
 
         self.lb_states = QListWidget()
         self.lb_states.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        for item in self.plotting.states_avail:
+        for item in self.plotting.all_quantities:
             self.lb_states.addItem(QListWidgetItem(item))
         self.lb_states.setCurrentRow(4)
         self.lb_states.itemSelectionChanged.connect(self.show_choice)
@@ -144,10 +144,10 @@ class ResponseViewer():
     def update_plot(self):
         if self.lb_subcase.currentItem() is not None and self.lb_states.currentItem() is not None:
             # Get the items selected by the user.
-            subcases_sel = [item.row() for item in self.lb_subcase.selectedIndexes()]
-            states_selected = [item.row() for item in self.lb_states.selectedIndexes()]
+            subcases_selected = [item.text() for item in self.lb_subcase.selectedItems()]
+            quantities_selected = [item.text() for item in self.lb_states.selectedItems()]
             # Call the plotting function.
-            self.plotting.timehistories(subcases_sel, states_selected)
+            self.plotting.timehistories(subcases_selected, quantities_selected)
         else:
             self.plotting.plot_nothing()
         self.canvas.draw()
