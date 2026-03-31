@@ -18,7 +18,7 @@ class Plotting(plotting_standard.LoadPlots):
         self.fig.clf()
         self.subplot = None
         # Add the logo in the bottom left corner.
-        im = plt.imread(os.path.dirname(__file__) + '/graphics/LK_logo2.png')
+        im = plt.imread(os.path.dirname(__file__) + '/../graphics/LK_logo2.png')
         newax = self.fig.add_axes([0.04, 0.02, 0.10, 0.08])
         newax.imshow(im, interpolation='hanning')
         newax.axis('off')
