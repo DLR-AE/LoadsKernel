@@ -13,6 +13,7 @@ class Plotting(plotting_standard.LoadPlots):
                              'svg.fonttype': 'none'})
         self.fig = fig
         self.subplot = None
+        self.crit_trimcases = []
 
     def clear_figure(self):
         self.fig.clf()
