@@ -192,8 +192,9 @@ class ResponseViewer():
     def update_fields(self):
         if self.responses is not None:
             self.lb_subcase.clear()
-            for i in self.responses:
-                self.lb_subcase.addItem(QListWidgetItem(i))
+            list_of_subcases = list(self.responses)
+            list_of_subcases.sort(key=int)
+            self.lb_subcase.addItems(list_of_subcases)
 
 
 def command_line_interface():
