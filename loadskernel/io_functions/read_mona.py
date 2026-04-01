@@ -177,12 +177,12 @@ def add_GRIDS(pandas_grids):
     # This functions relies on the Pandas data frames from the bdf reader.
     n = pandas_grids.shape[0]
     strcgrid = {}
-    strcgrid['ID'] = pandas_grids['ID'].to_numpy(dtype='int')
-    strcgrid['CD'] = pandas_grids['CD'].to_numpy(dtype='int')
-    strcgrid['CP'] = pandas_grids['CP'].to_numpy(dtype='int')
+    strcgrid['ID'] = pandas_grids['ID'].to_numpy(dtype='int').copy()
+    strcgrid['CD'] = pandas_grids['CD'].to_numpy(dtype='int').copy()
+    strcgrid['CP'] = pandas_grids['CP'].to_numpy(dtype='int').copy()
     strcgrid['n'] = n
     strcgrid['set'] = np.arange(n * 6).reshape((n, 6))
-    strcgrid['offset'] = pandas_grids[['X1', 'X2', 'X3']].to_numpy(dtype='float')
+    strcgrid['offset'] = pandas_grids[['X1', 'X2', 'X3']].to_numpy(dtype='float').copy()
     return strcgrid
 
 
@@ -190,7 +190,7 @@ def add_shell_elements(pandas_panels):
     # This functions relies on the Pandas data frames from the bdf reader.
     strcshell = {}
     n = pandas_panels.shape[0]
-    strcshell['ID'] = pandas_panels['ID'].to_numpy(dtype='int')
+    strcshell['ID'] = pandas_panels['ID'].to_numpy(dtype='int').copy()
     strcshell['cornerpoints'] = np.array(pandas_panels[['G1', 'G2', 'G3', 'G4']])
     strcshell['CD'] = np.zeros(n)  # Assumption: panels are given in global coord system
     strcshell['CP'] = np.zeros(n)
@@ -207,8 +207,8 @@ def add_panels_from_CAERO(pandas_caero, pandas_aefact):
     panels = {"ID": [], 'CP': [], 'CD': [], "cornerpoints": []}
     for index, caerocard in pandas_caero.iterrows():
         # get the four corner points of the CAERO card
-        X1 = caerocard[['X1', 'Y1', 'Z1']].to_numpy(dtype='float')
-        X4 = caerocard[['X4', 'Y4', 'Z4']].to_numpy(dtype='float')
+        X1 = caerocard[['X1', 'Y1', 'Z1']].to_numpy(dtype='float').copy()
+        X4 = caerocard[['X4', 'Y4', 'Z4']].to_numpy(dtype='float').copy()
         X2 = X1 + np.array([caerocard['X12'], 0.0, 0.0])
         X3 = X4 + np.array([caerocard['X43'], 0.0, 0.0])
         # calculate LE, Root and Tip vectors [x,y,z]^T
@@ -362,9 +362,9 @@ def add_CORD2R(pandas_cord2r, coord):
     for _, row in pandas_cord2r.iterrows():
         ID = int(row['ID'])
         RID = int(row['RID'])
-        A = row[['A1', 'A2', 'A3']].to_numpy(dtype='float').squeeze()
-        B = row[['B1', 'B2', 'B3']].to_numpy(dtype='float').squeeze()
-        C = row[['C1', 'C2', 'C3']].to_numpy(dtype='float').squeeze()
+        A = row[['A1', 'A2', 'A3']].to_numpy(dtype='float').squeeze().copy()
+        B = row[['B1', 'B2', 'B3']].to_numpy(dtype='float').squeeze().copy()
+        C = row[['C1', 'C2', 'C3']].to_numpy(dtype='float').squeeze().copy()
         # build coord
         z = B - A
         y = np.cross(B - A, C - A)
@@ -466,9 +466,9 @@ def add_MONPNT1(pandas_monpnts):
     mongrid['ID'] = np.arange(1, n + 1)
     mongrid['name'] = pandas_monpnts['NAME'].to_list()
     mongrid['comp'] = pandas_monpnts['COMP'].to_list()
-    mongrid['CD'] = pandas_monpnts['CD'].to_numpy(dtype='int')
-    mongrid['CP'] = pandas_monpnts['CP'].to_numpy(dtype='int')
+    mongrid['CD'] = pandas_monpnts['CD'].to_numpy(dtype='int').copy()
+    mongrid['CP'] = pandas_monpnts['CP'].to_numpy(dtype='int').copy()
     mongrid['n'] = n
     mongrid['set'] = np.arange(n * 6).reshape((n, 6))
-    mongrid['offset'] = pandas_monpnts[['X', 'Y', 'Z']].to_numpy(dtype='float')
+    mongrid['offset'] = pandas_monpnts[['X', 'Y', 'Z']].to_numpy(dtype='float').copy()
     return mongrid
