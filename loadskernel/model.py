@@ -138,8 +138,8 @@ class Model():
                 logging.warning('No Monitoring Stations are created!')
                 """
                 This is an empty dummy monitoring stations, which is necessary when no monitoring stations are defined,
-                because monstations are expected to exist for example for the calculation of cutting forces, which are in
-                turn expected in the post processing.  However, this procedure allows the code to run without any given
+                because monstations are expected to exist for example for the calculation of internal section forces, which
+                are in turn expected in the recovery step.  However, this procedure allows the code to run without any given
                 monitoring stations, which are not available for all models.
                 """
                 self.mongrid = {'ID': np.array([0]),
