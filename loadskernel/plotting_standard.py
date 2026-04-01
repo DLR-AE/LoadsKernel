@@ -77,9 +77,9 @@ class LoadPlots():
         self.pp = PdfPages(filename_pdf)
         self.potato_plots()
         if self.cuttingforces_wing:
-            self.cuttingforces_along_axis_plots(monstations=self.cuttingforces_wing, axis=1)
+            self.plot_loads_along_axis(monstations=self.cuttingforces_wing, axis=1)
         if self.cuttingforces_fuselage:
-            self.cuttingforces_along_axis_plots(monstations=self.cuttingforces_fuselage, axis=0)
+            self.plot_loads_along_axis(monstations=self.cuttingforces_fuselage, axis=0)
         self.pp.close()
         logging.info('Plots saved as %s', filename_pdf)
 
@@ -196,9 +196,9 @@ class LoadPlots():
                 self.potato_plot_nicely(station, station, dof_xaxis, dof_yaxis, var_xaxis, var_yaxis)
         plt.close()
 
-    def cuttingforces_along_axis_plots(self, monstations, axis):
+    def plot_loads_along_axis(self, monstations, axis):
         assert axis in [0, 1, 2], 'Plotting along an axis only supported for axis 0, 1 or 2!'
-        logging.info('Start plotting cutting forces along axis %d...', axis)
+        logging.info('Start plotting internal section loads along axis %d...', axis)
         # Read the data required for plotting.
         loads = []
         offsets = []
@@ -273,7 +273,7 @@ class LoadPlots():
         plt.close()
 
     def plot_monstations_time(self, filename_pdf):
-        logging.info('start plotting cutting forces over time ...')
+        logging.info('start plotting internal section loads over time ...')
         pp = PdfPages(filename_pdf)
         potato = np.sort(np.unique(self.potatos_fz_mx + self.potatos_mx_my + self.potatos_fz_my + self.potatos_fy_mx
                                    + self.potatos_mx_mz + self.potatos_my_mz))

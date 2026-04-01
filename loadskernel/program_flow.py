@@ -14,7 +14,7 @@ except ImportError:
     pass
 
 import loadskernel
-from loadskernel import solution_sequences, post_processing, gather_loads, auxiliary_output, plotting_standard
+from loadskernel import recover_loads_and_defo, solution_sequences, gather_loads, auxiliary_output, plotting_standard
 from loadskernel.io_functions import data_handling
 import loadskernel.model as model_modul
 from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
@@ -189,10 +189,11 @@ class Kernel(ProgramFlowHelper):
         # Also, the name 'post_processing' might be misleading here, as it is not post processing of the entire
         # job (post=True), but only of the trim / sim solution sequence.
         if solution_i.successful:
-            post_processing_i = post_processing.PostProcessing(jcl, model, jcl.trimcase[i], solution_i.response)
+            post_processing_i = recover_loads_and_defo.RecoverLoadsAndDeformations(jcl, model, jcl.trimcase[i],
+                                                                                   solution_i.response)
             post_processing_i.force_summation_method()
             post_processing_i.euler_transformation()
-            post_processing_i.cuttingforces()
+            post_processing_i.integrate_loads()
             del post_processing_i
         # Look if any other special analyses are requested (such as flutter, derivatives, pulses) in the simcase.
         if 'flutter' in jcl.simcase[i] and jcl.simcase[i]['flutter']:
