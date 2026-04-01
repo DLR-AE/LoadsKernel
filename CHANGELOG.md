@@ -2,7 +2,12 @@
 New releases are marked in the repository using tags. Simply checkout the master branch for the lastest version or use git checkout if you require a specific release, for example 'git checkout 2022.10'.
 
 # Next Release
+- New interface for Nastran 95
+- Tested RANS simulations with SU2, found and fixed a bug during splining
+- Loads Compare can now plot time histories per subcase
+- New tool Response Viewer to plot time histories of aircraft states per subcase (e.g. velocities, rates, angles, alpha, beta, etc.)
 - Dropped support for Python versions lower than 3.12
+- Dependencies: removed version limitation of Pandas
 
 # Release 2026.01
 - Added gust and flutter simulation in the frequency domain based of GAFs obtained from linearized CFD (using SU2 and via pulse simulations). This is work is still very new and therefore needs more testing and/or applications.
