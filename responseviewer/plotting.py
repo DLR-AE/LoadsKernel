@@ -6,7 +6,7 @@ import numpy as np
 class Plotting():
 
     states_avail = ['x [m]', 'y [m]', 'z [m]', 'Phi [deg]', 'Theta [deg]', 'Psi [deg]',
-                    'u [m/s]', 'v [m/s]', 'w [m/s]', 'p [deg]', 'q [deg]', 'r [deg]']
+                    'u [m/s]', 'v [m/s]', 'w [m/s]', 'p [deg/s]', 'q [deg/s]', 'r [deg/s]']
     commands_avail = ['Xi [deg]', 'Eta [deg]', 'Zeta [deg]', 'Thrust [N]', 'Stabilizer [deg]', 'Flaps [deg]']
     loadfactors_avail = ['Nx [-]', 'Ny [-]', 'Nz [-]']
     other_avail = ['q_dyn [Pa]', 'alpha [deg]', 'beta [deg]', 'p1 [m]', 'F1 [N]']
@@ -45,9 +45,13 @@ class Plotting():
                     idx = self.states_avail.index(quantity)
                     data = self.responses[subcase]['X'][:, idx]
                 elif quantity in self.commands_avail:
-                    # Commands are stored in the last 6 rows of 'X' in the same order as in commands_avail.
+                    # Derive number of mode shapes from modal deformations 'Uf'.
+                    n_modes = self.responses[subcase]['Uf'].shape[1]
+                    # Find commands in state vector/matrix 'X' with the following sequence:
+                    # X = [12 rigid body states, 2*n_modes, 6 commands, many unsteady lag states]
+                    commands = self.responses[subcase]['X'][:, 12 + 2 * n_modes: 12 + 2 * n_modes + 6]
+                    # Commands are stored in the same sequence as in commands_avail
                     idx = self.commands_avail.index(quantity)
-                    commands = self.responses[subcase]['X'][:, -6:]
                     data = commands[:, idx]
                 elif quantity in self.loadfactors_avail:
                     # Load factors are stored in 'Nxyz' in the same order as in loadfactors_avail.
@@ -64,7 +68,7 @@ class Plotting():
                         # In case the quantity is not found, create some dummy data.
                         subcase = 'Not found'
                         data = np.zeros_like(time)
-                if '[deg]' in quantity:
+                if '[deg]' in quantity or '[deg/s]' in quantity:
                     data *= 180.0 / np.pi
                 # Plot the time history for the current subcase and quantity.
                 a.plot(time, data, label=subcase)
