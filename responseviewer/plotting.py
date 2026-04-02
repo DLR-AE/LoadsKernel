@@ -45,9 +45,13 @@ class Plotting():
                     idx = self.states_avail.index(quantity)
                     data = self.responses[subcase]['X'][:, idx]
                 elif quantity in self.commands_avail:
-                    # Commands are stored in the last 6 rows of 'X' in the same order as in commands_avail.
+                    # Derive number of mode shapes from modal deformations 'Uf'.
+                    n_modes = self.responses[subcase]['Uf'].shape[1]
+                    # Find commands in state vector/matrix 'X' with the following sequence:
+                    # X = [12 rigid body states, 2*n_modes, 6 commands, many unsteady lag states]
+                    commands = self.responses[subcase]['X'][:, 12 + 2 * n_modes: 12 + 2 * n_modes + 6]
+                    # Commands are stored in the same sequence as in commands_avail
                     idx = self.commands_avail.index(quantity)
-                    commands = self.responses[subcase]['X'][:, -6:]
                     data = commands[:, idx]
                 elif quantity in self.loadfactors_avail:
                     # Load factors are stored in 'Nxyz' in the same order as in loadfactors_avail.
