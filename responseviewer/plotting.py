@@ -6,7 +6,7 @@ import numpy as np
 class Plotting():
 
     states_avail = ['x [m]', 'y [m]', 'z [m]', 'Phi [deg]', 'Theta [deg]', 'Psi [deg]',
-                    'u [m/s]', 'v [m/s]', 'w [m/s]', 'p [deg]', 'q [deg]', 'r [deg]']
+                    'u [m/s]', 'v [m/s]', 'w [m/s]', 'p [deg/s]', 'q [deg/s]', 'r [deg/s]']
     commands_avail = ['Xi [deg]', 'Eta [deg]', 'Zeta [deg]', 'Thrust [N]', 'Stabilizer [deg]', 'Flaps [deg]']
     loadfactors_avail = ['Nx [-]', 'Ny [-]', 'Nz [-]']
     other_avail = ['q_dyn [Pa]', 'alpha [deg]', 'beta [deg]', 'p1 [m]', 'F1 [N]']
@@ -68,7 +68,7 @@ class Plotting():
                         # In case the quantity is not found, create some dummy data.
                         subcase = 'Not found'
                         data = np.zeros_like(time)
-                if '[deg]' in quantity:
+                if '[deg]' in quantity or '[deg/s]' in quantity:
                     data *= 180.0 / np.pi
                 # Plot the time history for the current subcase and quantity.
                 a.plot(time, data, label=subcase)
