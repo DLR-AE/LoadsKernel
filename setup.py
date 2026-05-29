@@ -15,7 +15,7 @@ with open('README.md', encoding='utf8') as f:
 
 setup(
     name='LoadsKernel',
-    version='2026.01.1',
+    version='2026.05',
     description=("The Loads Kernel Software allows for the calculation of quasi-steady and dynamic maneuver loads, "
                  "unsteady gust loads in the time and frequency domain as well as dynamic landing loads based on a "
                  "generic landing gear module."),
