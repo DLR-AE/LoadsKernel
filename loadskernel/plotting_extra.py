@@ -12,8 +12,8 @@ except ImportError:
     pass
 
 from loadskernel import plotting_standard
-from modelviewer import plotting as plotting_modelviewer
 from loadskernel.io_functions.data_handling import load_hdf5_dict
+from modelviewer import plotting as plotting_modelviewer
 
 plt.rcParams.update({'font.size': 16,
                      'svg.fonttype': 'none'})
@@ -45,146 +45,6 @@ class DetailedPlots(plotting_standard.LoadPlots, plotting_modelviewer.Plotting):
             self.setup_aero_display(scalars=cp, colormap='plasma', vminmax=cp_minmax)
             self.set_view_left_above()
             mlab.show()
-
-    def plot_time_data(self):
-        # Create all plots
-        _, (ax11, ax12) = plt.subplots(nrows=2, ncols=1, sharex=True,)
-        _, (ax21, ax22, ax23) = plt.subplots(nrows=3, ncols=1, sharex=True,)
-        _, (ax31, ax32) = plt.subplots(nrows=2, ncols=1, sharex=True,)
-        _, (ax41, ax42) = plt.subplots(nrows=2, ncols=1, sharex=True,)
-        _, (ax51, ax52, ax53) = plt.subplots(nrows=3, ncols=1, sharex=True,)
-        _, (ax61, ax62) = plt.subplots(nrows=2, ncols=1, sharex=True,)
-        if hasattr(self.jcl, 'landinggear'):
-            _, (ax71, ax72) = plt.subplots(nrows=2, ncols=1, sharex=True,)
-        Dkx1 = self.model['Dkx1'][()]
-        # Loop over responses and fill plots with data
-        for response in self.responses:
-            trimcase = self.jcl.trimcase[response['i'][()]]
-            logging.info('plotting for simulation {:s}'.format(trimcase['desc']))
-
-            self.n_modes = self.model['mass'][trimcase['mass']]['n_modes'][()]
-
-            if self.jcl.aero['method'] in ['mona_steady', 'mona_unsteady', 'nonlin_steady']:
-                Cl = response['Pmac'][:, 2] / response['q_dyn'][:].T / self.jcl.general['A_ref']
-                ax11.plot(response['t'], response['Pmac'][:, 2], 'b-')
-                ax12.plot(response['t'], Cl.T, 'b-')
-
-                ax21.plot(response['t'], response['q_dyn'], 'k-')
-                ax22.plot(response['t'], response['alpha'][:] / np.pi * 180.0, 'r-')
-                ax22.plot(response['t'], response['beta'][:] / np.pi * 180.0, 'c-')
-                ax23.plot(response['t'], response['Nxyz'][:, 1], 'g-')
-                ax23.plot(response['t'], response['Nxyz'][:, 2], 'b-')
-
-            if self.jcl.aero['method'] in ['mona_unsteady']:
-                Pb_gust = []
-                Pb_unsteady = []
-                for i_step in range(len(response['t'])):
-                    Pb_gust.append(np.dot(Dkx1.T, response['Pk_gust'][i_step, :])[2])
-                    Pb_unsteady.append(np.dot(Dkx1.T, response['Pk_unsteady'][i_step, :])[2])
-                ax11.plot(response['t'], Pb_gust, 'k-')
-                ax11.plot(response['t'], Pb_unsteady, 'r-')
-
-            ax31.plot(response['t'], response['X'][:, 0], 'b-')
-            ax31.plot(response['t'], response['X'][:, 1], 'g-')
-            ax31.plot(response['t'], response['X'][:, 2], 'r-')
-
-            ax32.plot(response['t'], response['X'][:, 3] / np.pi * 180.0, 'b-')
-            ax32.plot(response['t'], response['X'][:, 4] / np.pi * 180.0, 'g-')
-            ax32.plot(response['t'], response['X'][:, 5] / np.pi * 180.0, 'r-')
-
-            ax41.plot(response['t'], response['X'][:, 6], 'b-')
-            ax41.plot(response['t'], response['X'][:, 7], 'g-')
-            ax41.plot(response['t'], response['X'][:, 8], 'r-')
-
-            ax42.plot(response['t'], response['X'][:, 9] / np.pi * 180.0, 'b-')
-            ax42.plot(response['t'], response['X'][:, 10] / np.pi * 180.0, 'g-')
-            ax42.plot(response['t'], response['X'][:, 11] / np.pi * 180.0, 'r-')
-
-            ax51.plot(response['t'], response['X'][:, 12 + 2 * self.n_modes + 0] / np.pi * 180.0, 'b-')
-            ax51.plot(response['t'], response['X'][:, 12 + 2 * self.n_modes + 1] / np.pi * 180.0, 'g-')
-            ax51.plot(response['t'], response['X'][:, 12 + 2 * self.n_modes + 2] / np.pi * 180.0, 'r-')
-
-            ax52.plot(response['t'], response['X'][:, 12 + 2 * self.n_modes + 3], 'k-')
-
-            ax53.plot(response['t'], response['X'][:, 12 + 2 * self.n_modes + 4], 'b-')
-            ax53.plot(response['t'], response['X'][:, 12 + 2 * self.n_modes + 5], 'g-')
-
-            ax61.plot(response['t'], response['Uf'], 'b-')
-
-            ax62.plot(response['t'], response['d2Ucg_dt2'][:, 0], 'b-')
-            ax62.plot(response['t'], response['d2Ucg_dt2'][:, 1], 'g-')
-            ax62.plot(response['t'], response['d2Ucg_dt2'][:, 2], 'r-')
-
-            if hasattr(self.jcl, 'landinggear'):
-                ax71.plot(response['t'], response['p1'])
-                ax72.plot(response['t'], response['F1'])
-
-        # Make plots nice
-        ax11.set_ylabel('Fz [N]')
-        ax11.grid(True)
-        if self.jcl.aero['method'] in ['mona_unsteady']:
-            ax11.legend(['aero', 'gust', 'unsteady'])
-        ax12.set_xlabel('t [sec]')
-        ax12.set_ylabel('Cz [-]')
-        ax12.grid(True)
-        ax12.legend(['Cz'])
-
-        ax21.set_ylabel('[Pa]')
-        ax21.grid(True)
-        ax21.legend(['q_dyn'])
-        ax22.legend(['alpha', 'beta'])
-        ax22.grid(True)
-        ax22.set_ylabel('[deg]')
-        ax23.set_xlabel('t [sec]')
-        ax23.legend(['Ny', 'Nz'])
-        ax23.grid(True)
-        ax23.set_ylabel('[-]')
-
-        ax31.set_ylabel('[m]')
-        ax31.grid(True)
-        ax31.legend(['x', 'y', 'z'])
-        ax32.set_xlabel('t [sec]')
-        ax32.set_ylabel('[deg]')
-        ax32.grid(True)
-        ax32.legend(['phi', 'theta', 'psi'])
-
-        ax41.set_ylabel('[m/s]')
-        ax41.grid(True)
-        ax41.legend(['u', 'v', 'w'])
-        ax42.set_xlabel('t [sec]')
-        ax42.set_ylabel('[deg/s]')
-        ax42.grid(True)
-        ax42.legend(['p', 'q', 'r'])
-
-        ax51.set_ylabel('Inputs [deg]')
-        ax51.grid(True)
-        ax51.legend(['Xi', 'Eta', 'Zeta'])
-        ax52.set_ylabel('Inputs [N]')
-        ax52.grid(True)
-        ax52.legend(['Thrust'])
-        ax53.set_xlabel('t [sec]')
-        ax53.set_ylabel('Inputs [deg]')
-        ax53.grid(True)
-        ax53.legend(['stabilizer', 'flap setting'])
-
-        ax61.set_ylabel('Uf')
-        ax61.grid(True)
-        ax62.set_xlabel('t [sec]')
-        ax62.set_ylabel('d2Ucg_dt2 [m/s^2]')
-        ax62.legend(['du', 'dv', 'dw'])
-        ax62.grid(True)
-
-        if hasattr(self.jcl, 'landinggear'):
-            ax71.legend(self.jcl.landinggear['key'], loc='best')
-            ax71.set_ylabel('p1 [m]')
-            ax71.grid(True)
-            ax72.legend(self.jcl.landinggear['key'], loc='best')
-            ax72.set_xlabel('t [s]')
-            ax72.set_ylabel('F1 [N]')
-            ax72.grid(True)
-
-        # Show plots
-        plt.show()
 
     def plot_forces_deformation_interactive(self):
 

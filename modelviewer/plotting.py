@@ -266,8 +266,7 @@ class Plotting:
         self.src_cfdgrids = []
         for marker in self.cfdgrids:
             if marker in markers:
-                self.setup_cfdgrid_display(
-                    grid=self.cfdgrids[marker], color=(1, 1, 1), scalars=None)
+                self.setup_cfdgrid_display(grid=self.cfdgrids[marker], color=(1, 1, 1), scalars=None)
         self.show_cfdgrids = True
         mlab.draw(self.fig)
 
@@ -275,7 +274,7 @@ class Plotting:
         ug = tvtk.UnstructuredGrid(points=grid['offset'])
         # ug.point_data.scalars = scalars
         shells = []
-        for shell in grid['points_of_surface']:
+        for shell in grid['triangles'] + grid['quadrilaterals']:
             shells.append([np.where(grid['ID'] == id)[0][0] for id in shell])
         shell_type = tvtk.Polygon().cell_type
         ug.set_cells(shell_type, shells)

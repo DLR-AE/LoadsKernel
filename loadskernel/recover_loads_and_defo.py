@@ -7,7 +7,7 @@ from loadskernel.grid_trafo import grid_trafo, vector_trafo
 from loadskernel.io_functions.data_handling import load_hdf5_sparse_matrix, load_hdf5_dict
 
 
-class PostProcessing():
+class RecoverLoadsAndDeformations():
     """
     In this class calculations are made that follow up on every simulation.
     The functions should be able to handle both trim calculations and time simulations.
@@ -153,8 +153,8 @@ class PostProcessing():
                                                                 dest_coord=1000000)
             response['Ug'][i_step, :] = response['Ug_r'][i_step, :] + response['Ug_f'][i_step, :]
 
-    def cuttingforces(self):
-        logging.info('Calculating cutting forces & moments...')
+    def integrate_loads(self):
+        logging.info('Calculating section forces & moments...')
         response = self.response
         response['Pmon_local'] = np.zeros((len(response['t']), 6 * self.mongrid['n']))
         for i_step in range(len(response['t'])):

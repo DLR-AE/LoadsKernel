@@ -3,12 +3,12 @@
 # conda install -y -c conda-forge --file ./tests/list_of_packages.txt
 # Lodas Kernel core dependencies
 matplotlib
-numpy<2.4.0
+numpy>2.0,<2.4.0
 scipy
 h5py
 pytables
 pyyaml
-pandas<3.0.0
+pandas
 
 # Extras, optional
 mpi4py
@@ -23,7 +23,7 @@ pyside6
 pytest
 pytest-cov
 sqlite
-jupyter-book==1.0.4
+jupyter-book
 
 # Coding style
 flake8

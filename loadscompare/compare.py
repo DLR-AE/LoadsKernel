@@ -38,6 +38,31 @@ class Compare():
         self.file_opt['initialdir'] = os.getcwd()
         self.file_opt['title'] = 'Load Monstations'
 
+        # GUI attributes for Loads tab
+        self.lb_dataset = None
+        self.lb_mon = None
+        self.cb_color = None
+        self.cb_xaxis = None
+        self.cb_yaxis = None
+        self.cb_hull = None
+        self.cb_labels = None
+        self.cb_minmax = None
+        self.label_n_loadcases = None
+
+        # GUI attributes for Time tab
+        self.label_dataset_time = None
+        self.label_monstation_time = None
+        self.lb_subcases_time = None
+        self.lb_dof_time = None
+
+        # Other GUI attributes
+        self.container = None
+        self.tabs_widget = None
+        self.canvas = None
+        self.toolbar = None
+        self.plotting = None
+        self.window = None
+
     def run(self):
         # Create the app.
         app = self.initApp()
@@ -88,6 +113,10 @@ class Compare():
 
         # Add tabs
         self.initLoadsTab()
+        self.initTimeTab()
+
+        # Connect tab change signal
+        self.tabs_widget.currentChanged.connect(self.on_tab_changed)
 
     def initLoadsTab(self):
         tab_loads = QWidget()
@@ -95,11 +124,11 @@ class Compare():
         # Elements of loads tab
         self.lb_dataset = QListWidget()
         self.lb_dataset.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.lb_dataset.itemSelectionChanged.connect(self.show_choice)
+        self.lb_dataset.itemSelectionChanged.connect(self.on_selection_changed)
         self.lb_dataset.itemChanged.connect(self.update_desc)
 
         self.lb_mon = QListWidget()
-        self.lb_mon.itemSelectionChanged.connect(self.show_choice)
+        self.lb_mon.itemSelectionChanged.connect(self.on_selection_changed)
 
         self.cb_color = QComboBox()
         self.cb_color.addItems(self.colors)
@@ -108,24 +137,24 @@ class Compare():
         self.cb_xaxis = QComboBox()
         self.cb_xaxis.addItems(self.dof)
         self.cb_xaxis.setCurrentIndex(3)
-        self.cb_xaxis.activated.connect(self.show_choice)
+        self.cb_xaxis.activated.connect(self.on_selection_changed)
 
         self.cb_yaxis = QComboBox()
         self.cb_yaxis.addItems(self.dof)
         self.cb_yaxis.setCurrentIndex(4)
-        self.cb_yaxis.activated.connect(self.show_choice)
+        self.cb_yaxis.activated.connect(self.on_selection_changed)
 
         self.cb_hull = QCheckBox("show convex hull")
         self.cb_hull.setChecked(False)
-        self.cb_hull.stateChanged.connect(self.show_choice)
+        self.cb_hull.stateChanged.connect(self.on_selection_changed)
 
         self.cb_labels = QCheckBox("show labels")
         self.cb_labels.setChecked(False)
-        self.cb_labels.stateChanged.connect(self.show_choice)
+        self.cb_labels.stateChanged.connect(self.on_selection_changed)
 
         self.cb_minmax = QCheckBox("show min/max")
         self.cb_minmax.setChecked(False)
-        self.cb_minmax.stateChanged.connect(self.show_choice)
+        self.cb_minmax.stateChanged.connect(self.on_selection_changed)
 
         self.label_n_loadcases = QLabel()
 
@@ -142,6 +171,33 @@ class Compare():
         layout.addWidget(self.cb_labels, 5, 0, 1, 2)
         layout.addWidget(self.cb_minmax, 6, 0, 1, 2)
         layout.addWidget(self.label_n_loadcases, 7, 0, 1, 2)
+
+    def initTimeTab(self):
+        tab_time = QWidget()
+        self.tabs_widget.addTab(tab_time, 'Time')
+        # Elements of time tab
+        self.label_dataset_time = QLabel()
+        self.label_dataset_time.setText('Dataset: ')
+
+        self.label_monstation_time = QLabel()
+        self.label_monstation_time.setText('Monstation: ')
+
+        self.lb_subcases_time = QListWidget()
+        self.lb_subcases_time.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.lb_subcases_time.itemSelectionChanged.connect(self.update_time_plot)
+
+        self.lb_dof_time = QListWidget()
+        self.lb_dof_time.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.lb_dof_time.itemSelectionChanged.connect(self.update_time_plot)
+        self.lb_dof_time.addItems(self.dof)
+        self.lb_dof_time.setCurrentRow(3)
+
+        layout = QGridLayout(tab_time)
+        # Notation: layout.addWidget(widget, row, column, rowSpan, columnSpan)
+        layout.addWidget(self.label_dataset_time, 0, 0, 1, 2)
+        layout.addWidget(self.label_monstation_time, 1, 0, 1, 2)
+        layout.addWidget(self.lb_subcases_time, 2, 0, 1, 1)
+        layout.addWidget(self.lb_dof_time, 3, 0, 1, 1)
 
     def initMatplotlibFigure(self):
         # init Matplotlib Plot
@@ -194,7 +250,7 @@ class Compare():
         self.window.setWindowTitle("Loads Compare")
         self.window.show()
 
-    def show_choice(self, *args):
+    def on_selection_changed(self):
         # called on change in listbox, combobox, etc
         # discard extra variables
         if len(self.lb_dataset.selectedItems()) == 1:
@@ -202,17 +258,17 @@ class Compare():
             self.cb_color.setEnabled(True)
         else:
             self.cb_color.setDisabled(True)
-        self.update_plot()
+        self.update_loads_plot()
 
     def update_color(self, color):
         self.datasets['color'][self.lb_dataset.currentRow()] = self.colors[color]
-        self.update_plot()
+        self.update_loads_plot()
 
-    def update_desc(self, *args):
+    def update_desc(self):
         self.datasets['desc'][self.lb_dataset.currentRow()] = self.lb_dataset.currentItem().text()
-        self.update_plot()
+        self.update_loads_plot()
 
-    def update_plot(self):
+    def update_loads_plot(self):
         if self.lb_dataset.currentItem() is not None and self.lb_mon.currentItem() is not None:
             # Get the items selected by the user.
             mon_sel = self.common_monstations[self.lb_mon.currentRow()]
@@ -241,7 +297,7 @@ class Compare():
             n_subcases = [len(dataset[mon_sel]['subcases']) for dataset in datasets]
             self.label_n_loadcases.setText(f'Selected load case: {np.sum(n_subcases)}')
         else:
-            self.plotting.plot_nothing()
+            self.plotting.clear_figure()
         self.canvas.draw()
 
     def merge_monstation(self):
@@ -251,7 +307,7 @@ class Compare():
             for x in [item.row() for item in self.lb_dataset.selectedIndexes()]:
                 print(f'Working on {self.datasets['desc'][x]} ...')
                 for station in self.common_monstations:
-                    if station not in new_dataset.keys():
+                    if station not in new_dataset:
                         # create (empty) entries for new monstation
                         new_dataset[station] = {'CD': self.datasets['dataset'][x][station]['CD'][()],
                                                 'CP': self.datasets['dataset'][x][station]['CP'][()],
@@ -272,7 +328,7 @@ class Compare():
             self.datasets['desc'].append('dataset ' + str(self.datasets['n']))
             self.datasets['n'] += 1
             # Update fields.
-            self.update_fields()
+            self.update_fields_of_loads_tab()
 
     def load_monstation(self):
         # open file dialog
@@ -297,7 +353,7 @@ class Compare():
                 self.datasets['desc'].append('dataset ' + str(self.datasets['n']))
                 self.datasets['n'] += 1
                 # update fields
-                self.update_fields()
+                self.update_fields_of_loads_tab()
                 self.file_opt['initialdir'] = os.path.split(filename)[0]
 
     def save_monstation(self):
@@ -317,7 +373,7 @@ class Compare():
             if filename != '' and '.hdf5' in filename:
                 data_handling.dump_hdf5(filename, dataset_sel)
 
-    def update_fields(self):
+    def update_fields_of_loads_tab(self):
         self.lb_dataset.clear()
         for desc in self.datasets['desc']:
             item = QListWidgetItem(desc)
@@ -331,6 +387,52 @@ class Compare():
         self.lb_mon.clear()
         for x in self.common_monstations:
             self.lb_mon.addItem(QListWidgetItem(x))
+
+    def update_time_plot(self):
+        # called on change in listbox
+        if self.lb_subcases_time.currentItem() is not None and self.lb_dof_time.currentItem() is not None:
+            # Get the items selected by the user.
+            mon_sel = self.common_monstations[self.lb_mon.currentRow()]
+            dataset_idx = self.lb_dataset.currentRow()
+            dataset_sel = self.datasets['dataset'][dataset_idx]
+            monstation = dataset_sel[mon_sel]
+            subcases_sel = [item.text() for item in self.lb_subcases_time.selectedItems()]
+            dofs_text = [item.text() for item in self.lb_dof_time.selectedItems()]
+            dofs_idx = [item.row() for item in self.lb_dof_time.selectedIndexes()]
+            # Call the plotting function.
+            self.plotting.timehistories(monstation, subcases_sel, dofs_idx, dofs_text)
+        else:
+            self.plotting.clear_figure()
+        self.canvas.draw()
+
+    def on_tab_changed(self, index):
+        # Called when a tab is changed.
+        if index == 1:
+            # Loads tab is at index 0
+            # Time tab is at index 1
+            self.update_fields_of_time_tab()
+
+    def update_fields_of_time_tab(self):
+        # Update the Time tab fields when it is activated.
+        if self.lb_dataset.currentItem() is not None and self.lb_mon.currentItem() is not None:
+            # Get the items selected by the user.
+            mon_sel = self.common_monstations[self.lb_mon.currentRow()]
+            dataset_idx = self.lb_dataset.currentRow()
+            dataset_sel = self.datasets['dataset'][dataset_idx]
+
+            # Update the dataset label
+            dataset_name = self.datasets['desc'][dataset_idx]
+            self.label_dataset_time.setText(f'Dataset: {dataset_name}')
+
+            # Update the monstation label
+            self.label_monstation_time.setText(f'Monstation: {mon_sel}')
+
+            # Populate list of subcases by finding all integers in monstation.keys()
+            monstation = dataset_sel[mon_sel]
+            subcase_keys = [key for key in monstation if key.isdigit()]
+            subcase_keys.sort(key=int)
+            self.lb_subcases_time.clear()
+            self.lb_subcases_time.addItems(subcase_keys)
 
 
 def command_line_interface():

@@ -16,6 +16,7 @@ Schulze, Matthias, Institute of Aeroelasticity, Deutsches Zentrum für Luft- und
 Handojo, Vega, Institute of Aeroelasticity, Deutsches Zentrum für Luft- und Raumfahrt e.V.
 Baier, Jan, Institute of Aeroelasticity, Deutsches Zentrum für Luft- und Raumfahrt e.V.
 Carvalho, Francisco, Institute of Aeroelasticity, Deutsches Zentrum für Luft- und Raumfahrt e.V.
+Chang Xu, Visonary Aircraft Concepts, Bauhaus Luftfahrt e.V.
 
 ```
 

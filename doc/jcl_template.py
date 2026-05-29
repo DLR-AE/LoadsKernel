@@ -51,20 +51,25 @@ class jcl:
                      # bdf file with GRID-cards, 1st file -> 1st monstation
                      'filename_monstations': ['monstation_MON1.bdf', 'monstation_MON2.bdf'],
                      # The following matrices are required for some mass methods. However, the stiffness is geometry
-                     # and not mass dependent. Overview:
-                     # KGG via DMAP Alter (.op4 or .h5)      - required for mass method = 'modalanalysis', 'guyan' or 'B2000'
-                     # GM via DMAP Alter (.op4 or .h5)       - required for mass method = 'modalanalysis', 'guyan'
-                     # USET via DMAP Alter and OP2           - required for mass method = 'modalanalysis', 'guyan'
-                     # bdf file(s) with ASET1-card           - required for mass method = 'guyan'
-                     # matrix R_trans from B2000             - required for mass method = 'B2000'
+                     # and not mass dependent and is organized here for better overview. You can gerente these matrices
+                     # with a DMAP Alter, see the scripts folder.
+                     # Overview:
+                     # KGG via DMAP Alter (.op4, .h5, .csv)  - required for mass method Nastran or B2000
+                     # GM via DMAP Alter (.op4 or .h5)       - required for mass method Nastran
+                     # USET via DMAP Alter (.op2)            - required for mass method Nastran
+                     # R_trans from B2000                    - required for mass method B2000
+                     # bdf file(s) with ASET1-card           - required Guyan reduction
                      # The HDF5 file format is preferred over OP4 due to better performance and higher precision. Because the
                      # uset is a table, not a matrix, it can't be included in the HDF5 file and still needs to be given as OP2.
                      'filename_h5': 'SOL103.mtx.h5',
                      'filename_KGG': 'KGG.dat',
                      'filename_GM': 'GM.dat',
                      'filename_uset': 'uset.op2',
-                     'filename_aset': 'aset.bdf',
                      'filename_Rtrans': 'Rtrans.csv',
+                     'filename_aset': 'aset.bdf',
+                     # If you really want to, the matrices Kgg and GM may also be given in OP2 format, e.g. when using
+                     # Nastran 95. Note that the OP2 file is binary so that it is difficult to check its content.
+                     'filename_op2': 'matrices_from_Nastran95.op2',
                      }
         # Settings for the aerodynamic model
         self.aero = {'method': 'mona_steady',
@@ -147,15 +152,25 @@ class jcl:
                        'filename_splinegrid': ['splinegrid.bdf']
                        }
         # Settings for the structural dynamics.
-        self.mass = {'method': 'modalanalysis', # Inplemented interfaces: 'f06', 'modalanalysis', 'guyan', 'CoFE', 'B2000'
+        self.mass = {'method': 'modalanalysis',
+                     # 'modalanalysis', 'guyan' - Eigenvalue / -vector analysis, optionally incl. Guyan reduction,
+                     #                            based on system matrices obtained from Nastran (MSC or Siemens NX)
+                     # 'f06'                    - Eigenvalues and -vectors calculated with SOL 103 and parsed from f06-file
+                     # 'CoFE'                   - Matrices from Nastran Compatible Finite Elements (CoFE)
+                     # 'B2000'                  - Matrices from DLR's version of B2000++
+                     # 'Nastran95'              - Matrices from open-source NASA Structural Analysis System (Nastran 95)
+                     # Note that the the stiffness is geometry dependent and is therfor given in the geom setion. All mass
+                     # cases share the same geometry and stiffness matrix.
                      'key': ['M1', 'M2'],
-                     # MGG via DMAP Alter and HDF5
-                     'filename_h5': ['SOL103_M1.mtx.h5', 'SOL103_M2.mtx.h5'],
                      # MGG via DMAP Alter and OP4
                      'filename_MGG': ['MGG_M1.dat', 'MGG_M2.dat'],
+                     # MGG via DMAP Alter and HDF5
+                     'filename_h5': ['SOL103_M1.mtx.h5', 'SOL103_M2.mtx.h5'],
+                     # MGG via DMAP Alter and OP2
+                     'filename_op2': ['MGG_M1.op2', 'MGG_M2.op2'],
                      # eigenvalues and eigenvectors from .f06-file - required for 'mona'
                      'filename_S103': ['SOL103_M1.f06', 'SOL103_M1.f06'],
-                     # eigenvalues and eigenvectors from .f06-file - required for 'mona'
+                     # eigenvalues and eigenvectors from .mat-file - required for 'CoFe'
                      'filename_CoFE': ['M1.mat', 'M2.mat'],
                      # True or False, omits first six modes
                      'omit_rb_modes': False,

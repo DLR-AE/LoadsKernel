@@ -14,7 +14,7 @@ except ImportError:
     pass
 
 import loadskernel
-from loadskernel import solution_sequences, post_processing, gather_loads, auxiliary_output, plotting_standard
+from loadskernel import recover_loads_and_defo, solution_sequences, gather_loads, auxiliary_output, plotting_standard
 from loadskernel.io_functions import data_handling
 import loadskernel.model as model_modul
 from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
@@ -75,56 +75,48 @@ class ProgramFlowHelper():
     def setup_logger_cluster(self, i):
         # Generate a separate filename for each subcase
         path_log = data_handling.check_path(self.path_output + 'log/')
-        filename = path_log + 'log_' + self.job_name + '_subcase_' + str(self.jcl.trimcase[i]['subcase']) \
-            + '.txt.' + str(self.myid)
+        filename = path_log + f'log_{self.job_name}_subcase_{self.jcl.trimcase[i]['subcase']}.txt.{self.myid}'
         # Then create the logger and console output
         self.create_logfile_and_console_output(filename)
 
     def setup_logger(self):
         # Generate a generic name for the log file
         path_log = data_handling.check_path(self.path_output + 'log/')
-        filename = path_log + 'log_' + self.job_name + '.txt.' + str(self.myid)
+        filename = path_log + f'log_{self.job_name}.txt.{self.myid}'
         # Then create the logger and console output
         self.create_logfile_and_console_output(filename)
 
     def create_logfile_and_console_output(self, filename):
         logger = logging.getLogger()
+        # Disable propagation to avoid duplicate outputs in case of multiple handlers (e.g. console and file handler).
+        logger.propagate = False
+        # Clear previous handlers.
+        if logger.hasHandlers():
+            logger.handlers.clear()
         # Set logging level.
         if self.debug:
             logger.setLevel(logging.DEBUG)
         else:
             logger.setLevel(logging.INFO)
-        # Get the names of all existing loggers.
-        existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
-        if 'lk_logfile' in existing_handlers:
-            # Make sure that the filename is still correct.
-            hdlr = logger.handlers[existing_handlers.index('lk_logfile')]
-            if not hdlr.baseFilename == filename:
-                # In case the filename is incorrect, remove the handler completely from the logger.
-                logger.removeHandler(hdlr)
-                # Update the list of all existing loggers.
-                existing_handlers = [hdlr.get_name() for hdlr in logger.handlers]
-
-        # Add the following handlers only if they don't exist. This avoid duplicate lines/log entries.
-        if 'lk_logfile' not in existing_handlers:
-            # define a Handler which writes messages to a log file
-            logfile = logging.FileHandler(filename, mode='a')
-            logfile.set_name('lk_logfile')
-            formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
-                                          datefmt='%d/%m/%Y %H:%M:%S')
-            logfile.setFormatter(formatter)
-            logger.addHandler(logfile)
-
+        # Define a Handler which writes messages to a log file
+        logfile = logging.FileHandler(filename, mode='a')
+        logfile.set_name('lk_logfile')
+        logfile.propagate = False
+        formatter = logging.Formatter(fmt='%(asctime)s %(processName)-14s %(levelname)s: %(message)s',
+                                      datefmt='%d/%m/%Y %H:%M:%S')
+        logfile.setFormatter(formatter)
+        # Add the handler to the root logger
+        logger.addHandler(logfile)
         # For convinience, the first rank writes console outputs, too.
-        if (self.myid == 0) and ('lk_console' not in existing_handlers):
-            # define a Handler which writes messages to the sys.stout
+        if self.myid == 0:
+            # Define a Handler which writes messages to the sys.stout
             console = logging.StreamHandler(sys.stdout)
             console.set_name('lk_console')
-            # set a format which is simpler for console use
+            console.propagate = False
+            # Set a format which is simpler for console use and tell the handler to use this format
             formatter = logging.Formatter(fmt='%(levelname)s: %(message)s')
-            # tell the handler to use this format
             console.setFormatter(formatter)
-            # add the handler(s) to the root logger
+            # Add the handler to the root logger
             logger.addHandler(console)
 
         logger.info('This is the log for process %s.', self.myid)
@@ -197,10 +189,11 @@ class Kernel(ProgramFlowHelper):
         # Also, the name 'post_processing' might be misleading here, as it is not post processing of the entire
         # job (post=True), but only of the trim / sim solution sequence.
         if solution_i.successful:
-            post_processing_i = post_processing.PostProcessing(jcl, model, jcl.trimcase[i], solution_i.response)
+            post_processing_i = recover_loads_and_defo.RecoverLoadsAndDeformations(jcl, model, jcl.trimcase[i],
+                                                                                   solution_i.response)
             post_processing_i.force_summation_method()
             post_processing_i.euler_transformation()
-            post_processing_i.cuttingforces()
+            post_processing_i.integrate_loads()
             del post_processing_i
         # Look if any other special analyses are requested (such as flutter, derivatives, pulses) in the simcase.
         if 'flutter' in jcl.simcase[i] and jcl.simcase[i]['flutter']:
@@ -212,8 +205,8 @@ class Kernel(ProgramFlowHelper):
             solution_i.exec_pulse()
         # Collect response from solution sequence, then destroy it to free memory.
         response = solution_i.response
-        response['i'] = i
         response['successful'] = solution_i.successful
+        response['i'] = i
         del solution_i
         return response
 
@@ -410,20 +403,16 @@ class Kernel(ProgramFlowHelper):
         plt = plotting_extra.DetailedPlots(self.jcl, model)
         plt.add_responses(responses)
         if 't_final' and 'dt' in self.jcl.simcase[0].keys():
-            # show some plots of the time domain data
-            plt.plot_time_data()
-        else:
-            # show some plots of the force vectors, useful to identify model shortcomings
-            # plt.plot_pressure_distribution()
-            plt.plot_forces_deformation_interactive()
-
-        if 't_final' and 'dt' in self.jcl.simcase[0].keys():
             # show a nice animation of the time domain simulation
             plt = plotting_extra.Animations(self.jcl, model)
             plt.add_responses(responses)
             plt.make_animation()
             # make a video file of the animation
             # plt.make_movie(self.path_output, speedup_factor=1.0)
+        else:
+            # show some plots of the force vectors, useful to identify model shortcomings
+            # plt.plot_pressure_distribution()
+            plt.plot_forces_deformation_interactive()
 
         """
         At the moment, I also use this section for custom analysis scripts.

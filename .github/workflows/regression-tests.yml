@@ -1,6 +1,11 @@
 # This workflow will run some regression tests.
 name: Regression Tests
 
+# Restrict permissions at top-level to 'read' as a minimal explicit permission.
+# This will apply to all jobs that do not define their own permissions.
+permissions:
+  contents: read
+
 on:
   push:
     branches: ['master', 'devel']
@@ -23,34 +28,27 @@ jobs:
       matrix:
         # Add multiple Python versions here to run tests on new(er) versions.
         python-version: ["3.13"]
-    # Step 1 to make GUIs work, see https://pytest-qt.readthedocs.io/en/latest/troubleshooting.html
-    env:
-      DISPLAY: ':99.0'
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
-    # Step 2 to make GUIs work
-    - uses: tlambert03/setup-qt-libs@v1
-    - name: Install dependencies
+    - name: Setup headless display
+      uses: pyvista/setup-headless-display-action@v3
+    - name: Build and install
       run: |
-        # Step 3 to make GUIs work
-        /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 1920x1200x24 -ac +extension GLX
         # Install same requirements as to be used during regression testing
         source $CONDA/etc/profile.d/conda.sh
-        conda config --add channels conda-forge
-        conda config --set channel_priority strict
-        conda create -n pytest_env python=${{ matrix.python-version }}
-        conda activate pytest_env
-        conda install -y -q --file ./tests/list_of_packages.txt  || true
-        # Install the package itself to make sure that all imports work.
+        conda create -n my_env python=${{ matrix.python-version }}
+        conda activate my_env
+        conda install -y -q -c conda-forge --file ./tests/list_of_packages.txt || true
+        # Install with -e (in editable mode) to allow the tracking of the test coverage
         pip install -e .[extras,test]
     - name: Analysing the code with pytest
       run: |
         source $CONDA/etc/profile.d/conda.sh
-        conda activate pytest_env
+        conda activate my_env
         # Run the actual testing of the code with pytest
         # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
         python -m pytest -v --basetemp=./tmp -k 'test_unittests or test_gui or test_integration_public' --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
@@ -58,8 +56,8 @@ jobs:
         coverage report
         coverage xml -o coverage.xml
         coverage html --directory ./coverage
-    - name: Upload test restults and coverage as an artifact
-      uses: actions/upload-artifact@v4
+    - name: Upload test results and coverage as an artifact
+      uses: actions/upload-artifact@v7
       with:
         name: test results and coverage
         path: |
@@ -69,28 +67,28 @@ jobs:
         if-no-files-found: ignore
   
   Jupyter:
-    # Building the Jupyter book is not really a regression test. However, it has to be in this workflow due to the handling of 
-    # the artifacts.
+    # Building the Jupyter book is not really a regression test, but it makes sure that the notebooks are still working.
+    # In addition, it has to be in this workflow due to the handling of the artifacts.
     runs-on: ubuntu-latest
     strategy:
       matrix:
         # Select Python version to be used for compiling here.
         python-version: ["3.13"]
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
       with:
         node-version: 18.x
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+    - name: Build and install
       run: |
         python -m pip install --upgrade pip
         # Install the package itself to make sure that all imports work.
         pip install .[test]
-    - name: Assemble the tutorials to a jupyter book and build htlm pages
+    - name: Assemble the tutorials to a jupyter book and build html pages
       run: |
         cd ./doc/tutorials
         jupyter-book build --execute --html
@@ -99,7 +97,7 @@ jobs:
         mkdir ./doc/html
         mv ./doc/tutorials/_build/html ./doc/html/tutorials
     - name: Upload Jupyter book as an artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: tutorials
         path: ./doc/html
@@ -110,7 +108,7 @@ jobs:
     # Add a dependency to the build job
     needs: [Jupyter, Pytest]
     steps:
-    - uses: actions/download-artifact@v4.1.7
+    - uses: actions/download-artifact@v8
       with:
         merge-multiple: true
     - name: See what we've got and merge artifacts
@@ -121,7 +119,7 @@ jobs:
         mv ./coverage ./pages/coverage
     - name: Upload artifact for pages
       # This is not a normal artifact but one that can be deployed to the GitHub pages in the next step
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v5
       with:
         name: github-pages  # This name may not be changed according to the documentation
         path: ./pages  # There must be only one path
@@ -142,7 +140,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup GitHub Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v6
       - name: Deploy to Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

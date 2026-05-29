@@ -1,0 +1,44 @@
+NASTRAN OP2NEW=0
+$ Direct Text Input for File Management Section
+ASSIGN OUTPUT2 = 'uset.op2', UNIT = 12
+$ Direct Text Input for Executive Control
+MALTER 'AFTER UPSTREAM SUPERELEMENT MATRIX AND LOAD ASSEMBLY'$
+CRDB_MTX MGG//'MGG' $
+CRDB_MTX KGG//'KGG' $
+ENDALTER $
+MALTER 'MALTER:AFTER SUPERELEMENT MATRIX AND LOAD REDUCTION TO A-SET' $
+CRDB_MTX GM//'GM' $
+OUTPUT2 USET//0/12///'USET' $
+ENDALTER $
+ECHOON $
+$
+SOL 103
+CEND
+$
+METHOD=100
+ECHO=NONE
+$
+BEGIN BULK
+PARAM    GRDPNT   0
+$------><------><------><------><------><------><------><------><------>
+EIGRL   100                          100
+$------><------><------><------><------><------><------><------><------>
+HDF5OUT PRCISION     64 CMPRMTHD   NONE     MTX     YES
+$
+$-----------------------------------------------------------------------
+$ Structural model
+include '../assembly/structure_only.bdf'
+$
+$ Non-structural masses
+include '../nonstructural_masses/systems-mass.csv'
+include '../nonstructural_masses/crew_and_equipment-mass.csv'
+$
+$ Low fuel
+include '../nonstructural_masses/fueltanks_low_mi.SCONM2'
+include '../nonstructural_masses/fueltanks_low_mi.SCONM2_mrd'
+$
+$ Payload mass
+include '../nonstructural_masses/payload.csv'
+$
+ENDDATA
+$

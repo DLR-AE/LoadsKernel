@@ -89,3 +89,10 @@ def check_matrix_symmetry(matrix):
     matrix_sym = force_matrix_symmetry(matrix)
     result = (matrix != matrix_sym).nnz == 0
     return result
+
+
+def check_matrix_symmetry_allclose(matrix):
+    # Check if a matrix is symmetric by forcing symmetry and then compare with the original matrix.
+    matrix_sym = force_matrix_symmetry(matrix)
+    result = np.allclose(matrix.toarray(), matrix_sym.toarray())
+    return result

@@ -78,3 +78,8 @@ class TestDC3Gust(TestDC3Trim):
 class TestDC3Flutter(TestDC3Trim):
     job_name = 'jcl_dc3_flutter'
     aircraft_name = 'DC3_model'
+
+
+class TestDC3Nastran95(PreMainPostFunctional):
+    job_name = 'jcl_dc3_Nastran95'
+    aircraft_name = 'DC3_model'
