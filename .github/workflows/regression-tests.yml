@@ -32,9 +32,9 @@ jobs:
     env:
       DISPLAY: ':99.0'
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
     # Step 2 to make GUIs work
@@ -63,8 +63,8 @@ jobs:
         coverage report
         coverage xml -o coverage.xml
         coverage html --directory ./coverage
-    - name: Upload test restults and coverage as an artifact
-      uses: actions/upload-artifact@v4
+    - name: Upload test results and coverage as an artifact
+      uses: actions/upload-artifact@v7
       with:
         name: test results and coverage
         path: |
@@ -82,12 +82,12 @@ jobs:
         # Select Python version to be used for compiling here.
         python-version: ["3.13"]
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
       with:
         node-version: 18.x
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
@@ -95,7 +95,7 @@ jobs:
         python -m pip install --upgrade pip
         # Install the package itself to make sure that all imports work.
         pip install .[test]
-    - name: Assemble the tutorials to a jupyter book and build htlm pages
+    - name: Assemble the tutorials to a jupyter book and build html pages
       run: |
         cd ./doc/tutorials
         jupyter-book build --execute --html
@@ -104,7 +104,7 @@ jobs:
         mkdir ./doc/html
         mv ./doc/tutorials/_build/html ./doc/html/tutorials
     - name: Upload Jupyter book as an artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: tutorials
         path: ./doc/html
@@ -115,7 +115,7 @@ jobs:
     # Add a dependency to the build job
     needs: [Jupyter, Pytest]
     steps:
-    - uses: actions/download-artifact@v4.1.7
+    - uses: actions/download-artifact@v8
       with:
         merge-multiple: true
     - name: See what we've got and merge artifacts
@@ -126,7 +126,7 @@ jobs:
         mv ./coverage ./pages/coverage
     - name: Upload artifact for pages
       # This is not a normal artifact but one that can be deployed to the GitHub pages in the next step
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v7
       with:
         name: github-pages  # This name may not be changed according to the documentation
         path: ./pages  # There must be only one path
@@ -147,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup GitHub Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v6
       - name: Deploy to Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
