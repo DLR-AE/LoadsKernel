@@ -33,7 +33,8 @@ setup(
                                       ]},
     include_package_data=True,
     package_data={'loadskernel': ['graphics/*.*'],
-                  'loadscompare': ['graphics/*.*'], },
+                  'loadscompare': ['graphics/*.*'],
+                  'responseviewer': ['graphics/*.*'], },
     # Remember to update the requirements also in the conda feedstock (./recipe/meta.yml) when changing them here!
     python_requires='>=3.12',
     install_requires=['PanelAero',
@@ -43,8 +44,6 @@ setup(
                       'h5py',
                       'tables',
                       'pyyaml',
-                      # Pandas 3.0.0 comes with changes that are not yet supported,
-                      # see https://github.com/DLR-AE/LoadsKernel/issues/86
                       'pandas'
                       ],
     extras_require={'extras': ['mpi4py',
