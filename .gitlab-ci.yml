@@ -1,26 +1,40 @@
 variables:
   GIT_STRATEGY: clone
+  DISPLAY: ':99.0'
+  # Allow OpenMPI to run as root (only ok inside the VM)
+  OMPI_ALLOW_RUN_AS_ROOT: 1
+  OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
 
 stages:
   - test
   - deploy
 
-.virtenv: &virtualenv
-  - source /work/f_jwsb/software/miniforge3/etc/profile.d/conda.sh
-  # This is the environment where I installed all dependencies.
-  - conda activate lk_ci
-  # To make things faster, re-use existing site packages. 
-  - python -m venv virtualenv --system-site-packages
-  - source virtualenv/bin/activate
-  # Python's venv comes with an older version of pip, so update it.
-  - pip install --upgrade pip
-  # Check python version
-  - which python
-  - which pytest
-  # Check MPI
+.conda-and-pip-installation: &conda-and-pip-installation
+  # Like in the GitHub workflows, we use conda to install most dependencies,
+  # then install the rest using pip.
+  # Location of conda within the docker-image condaforge/miniforge3:latest
+  - source /opt/conda/etc/profile.d/conda.sh
+  - conda create -n my_env python=3.13
+  - conda activate my_env
+  - conda install -y -q -c conda-forge --file ./tests/list_of_packages.txt || true
+  # Install with -e (in editable mode) to allow the tracking of the test coverage
+  - pip install -e .[extras,test]
+  # Check result of installation
+  - pip list
+  - which loads-kernel
+  - which model-viewer
+  - which loads-compare
   - which mpiexec
-  # Check location
-  - pwd
+
+.setup-os: &setup-os
+  # Install Xvfb and git-lfs
+  - apt-get update && apt-get install -y xvfb git-lfs
+  # Start Xvfb (X Virtual Framebuffer) for headless GUI testing
+  - /sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 1920x1200x24 -ac +extension GLX
+  # Initialize git-lfs
+  - git lfs install
+  # Tell git to use the proxy
+  - git config --global http.proxy $http_proxy
   
 LongTermContinuousIntegration:
   stage: test
@@ -29,18 +43,17 @@ LongTermContinuousIntegration:
   tags:
     - lk
   script:
-    # Set-up the environement
-    - *virtualenv
-    # Install with -e (in editable mode) to allow the tracking of the test coverage
-    - pip install -e .[test,extras]
-    - pip list
+    # Set up the operating system
+    - *setup-os
+    # Set-up the conda environement
+    - *conda-and-pip-installation
     # Get the internal examples repository
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-examples.git
     # Get the internal reference results repository 
     - git clone --depth=1 --filter=blob:none https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-reference-results.git
     # Run the actual testing of the code with pytest
     # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
-    - python -m pytest -v --cov=loadskernel  --cov=modelviewer --cov=loadscompare --junitxml=testresult.xml
+    - python -m pytest -v --cov=loadskernel  --cov=modelviewer --cov=loadscompare --cov=responseviewer --junitxml=testresult.xml
     # Create some reports
     - coverage report
     - coverage xml -o coverage.xml
@@ -65,7 +78,7 @@ deploy-pages:
     - LongTermContinuousIntegration
   script:
     - mkdir public
-    # Publish the coverage htlm results
+    # Publish the coverage html results
     - mv coverage ./public/coverage
   # Specifies that this is a Pages job
   pages: true
