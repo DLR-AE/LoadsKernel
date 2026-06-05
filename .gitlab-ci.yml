@@ -4,6 +4,10 @@ variables:
   # Allow OpenMPI to run as root (only ok inside the VM)
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+  # Use single threading
+  MKL_NUM_THREADS: 1
+  OPENBLAS_NUM_THREADS: 1
+  OMP_NUM_THREADS: 1
 
 stages:
   - test
