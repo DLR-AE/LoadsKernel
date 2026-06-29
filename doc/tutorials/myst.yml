@@ -16,6 +16,7 @@ project:
     - file: maneuver_loads.ipynb
     - file: gust_time_domain.ipynb
     - file: flutter.ipynb
+    - file: cfd_steady.md
 site:
   options:
     logo: ../../graphics/LK_logo2.png
