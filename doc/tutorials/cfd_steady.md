@@ -104,3 +104,13 @@ The cluster mode creates one response per job/trimcase and allows to gather all 
 ```
 c.gather_responses()
 ```
+
+The pictures below show the deformed CFD surface (blue) and the surface pressure coefficient for a pullup maneuver with Nz = 2.5, corresponding to subcase 3 in the example.
+
+<img src="./images/cfd_pullup_defo.png" width="600" alt="DC3">
+
+*CFD surface deformation, pullup maneuver with Nz = 2.5.*
+
+<img src="./images/cfd_pullup_cp.png" width="600" alt="DC3">
+
+*Surface pressure coefficient cp, pullup maneuver with Nz = 2.5.*
