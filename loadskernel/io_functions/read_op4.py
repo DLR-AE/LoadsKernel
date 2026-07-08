@@ -58,14 +58,14 @@ def read_op4_column(fid, data, i_col, i_row, n_lines, n_items, type_real):
     for _ in range(n_lines):
         row += fid.readline()[:-1]
 
-    for i_item in range(n_items):
-        if type_real:
-            data[i_col, i_row + i_item] = nastran_number_converter(row[:16], 'float')
-            row = row[16:]
-        else:
-            data[i_col, i_row + i_item] = np.complex(nastran_number_converter(row[:16], 'float'),
-                                                     nastran_number_converter(row[16:32], 'float'))
-            row = row[32:]
+    if type_real:
+        values = [nastran_number_converter(row[i * 16:(i + 1) * 16], 'float') for i in range(n_items)]
+        data[i_col, i_row:i_row + n_items] = values
+    else:
+        values = [np.complex(nastran_number_converter(row[i * 32:i * 32 + 16], 'float'),
+                             nastran_number_converter(row[i * 32 + 16:i * 32 + 32], 'float'))
+                  for i in range(n_items)]
+        data[i_col, i_row:i_row + n_items] = values
     return data
 
 
