@@ -62,8 +62,8 @@ def read_op4_column(fid, data, i_col, i_row, n_lines, n_items, type_real):
         values = [nastran_number_converter(row[i * 16:(i + 1) * 16], 'float') for i in range(n_items)]
         data[i_col, i_row:i_row + n_items] = values
     else:
-        values = [np.complex(nastran_number_converter(row[i * 32:i * 32 + 16], 'float'),
-                             nastran_number_converter(row[i * 32 + 16:i * 32 + 32], 'float'))
+        values = [complex(nastran_number_converter(row[i * 32:i * 32 + 16], 'float'),
+                          nastran_number_converter(row[i * 32 + 16:i * 32 + 32], 'float'))
                   for i in range(n_items)]
         data[i_col, i_row:i_row + n_items] = values
     return data
