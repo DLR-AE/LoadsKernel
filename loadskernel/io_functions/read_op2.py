@@ -586,25 +586,10 @@ class OP2():
 
     def read_op2_uset(self):
         """
-        Read the USET data block.
-
-        Returns 1-d USET array.  The 2nd bit is cleared for the S-set.
-
-        See :func:`rdn2cop2`.
+        Read the USET data block, but don't perfrom any conversions here.
         """
         uset = self.read_op2_record('uint')
-        # clear the 2nd bit for all S-set:
-        s = 1024 | 512
-        sset = 0 != (uset & s)
-        if any(sset):
-            uset[sset] = uset[sset] & ~2
         self._read_op2_end_of_table()
-        # We don't know why, but the USET exported from Nastran 95 is not zeros and ones but 17 and another large number
-        # (e.g. 496 or 1074, possibly depending on the operating system).
-        if max(uset) > 3:
-            logging.info("USET from Nastran 95 detected, attempt conversion of data to binary")
-            uset[uset < 20] = 1
-            uset[uset > 20] = 2
         return uset
 
 
