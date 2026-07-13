@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import gc
 import logging
 import itertools
 import os
@@ -74,13 +75,16 @@ class LoadPlots():
 
     def plot_monstations(self, filename_pdf):
         # launch plotting
-        self.pp = PdfPages(filename_pdf)
-        self.potato_plots()
-        if self.cuttingforces_wing:
-            self.plot_loads_along_axis(monstations=self.cuttingforces_wing, axis=1)
-        if self.cuttingforces_fuselage:
-            self.plot_loads_along_axis(monstations=self.cuttingforces_fuselage, axis=0)
-        self.pp.close()
+        with PdfPages(filename_pdf) as self.pp:
+            self.potato_plots()
+            if self.cuttingforces_wing:
+                self.plot_loads_along_axis(monstations=self.cuttingforces_wing, axis=1)
+            if self.cuttingforces_fuselage:
+                self.plot_loads_along_axis(monstations=self.cuttingforces_fuselage, axis=0)
+            self.pp.close()
+            # Explicitly free memory.
+            del self.pp
+            gc.collect()
         logging.info('Plots saved as %s', filename_pdf)
 
     def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull=True, show_labels=False, show_minmax=False):
@@ -428,6 +432,7 @@ class FlutterPlots(LoadPlots):
             ax_vtas.set_xlabel('$V_{tas} [m/s]$')
 
             self.pp.savefig()
+        plt.close()
 
     def plot_eigenvalues(self):
         logging.info('start plotting eigenvalues and -vectors...')
@@ -527,17 +532,24 @@ class FlutterPlots(LoadPlots):
                 ax_cbar.xaxis.set_ticks_position("top")
 
                 self.pp.savefig()
+        plt.close()
 
     def plot_fluttercurves_to_pdf(self, filename_pdf):
-        self.pp = PdfPages(filename_pdf)
-        self.plot_fluttercurves()
-        self.pp.close()
+        with PdfPages(filename_pdf) as self.pp:
+            self.plot_fluttercurves()
+            self.pp.close()
+            # Explicitly free memory.
+            del self.pp
+            gc.collect()
         logging.info('plots saved as %s', filename_pdf)
 
     def plot_eigenvalues_to_pdf(self, filename_pdf):
-        self.pp = PdfPages(filename_pdf)
-        self.plot_eigenvalues()
-        self.pp.close()
+        with PdfPages(filename_pdf) as self.pp:
+            self.plot_eigenvalues()
+            self.pp.close()
+            # Explicitly free memory.
+            del self.pp
+            gc.collect()
         logging.info('plots saved as %s', filename_pdf)
 
 
@@ -546,9 +558,12 @@ class TurbulencePlots(LoadPlots):
     def plot_monstations(self, filename_pdf):
 
         # launch plotting
-        self.pp = PdfPages(filename_pdf)
-        self.potato_plots()
-        self.pp.close()
+        with PdfPages(filename_pdf) as self.pp:
+            self.potato_plots()
+            self.pp.close()
+            # Explicitly free memory.
+            del self.pp
+            gc.collect()
         logging.info('plots saved as %s', filename_pdf)
 
     def potato_plot(self, station, desc, color, dof_xaxis, dof_yaxis, show_hull=True, show_labels=False, show_minmax=False):
