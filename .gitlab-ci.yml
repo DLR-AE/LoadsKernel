@@ -56,8 +56,16 @@ LongTermContinuousIntegration:
     # Get the internal reference results repository 
     - git clone --depth=1 --filter=blob:none https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.dlr.de/loads-kernel/loads-kernel-reference-results.git
     # Run the actual testing of the code with pytest
+    - coverage erase
     # Using python -m pytest is necessary because pytest has the habit of not looking in the site-packages of the venv
-    - python -m pytest -v --cov=loadskernel  --cov=modelviewer --cov=loadscompare --cov=responseviewer --junitxml=testresult.xml
+    # Split the tests into parts for performance / memory footprint
+    - python -m pytest -v --cov=loadskernel --cov-append --junitxml=testresult_a.xml -k test_integration_internal -k Discus2c
+    - python -m pytest -v --cov=loadskernel --cov-append --junitxml=testresult_b.xml -k test_integration_internal -k Allegra
+    - python -m pytest -v --cov=loadskernel --cov-append --junitxml=testresult_c.xml -k test_integration_internal -k HAP
+    - python -m pytest -v --cov=loadskernel --cov-append --junitxml=testresult_d.xml -k test_integration_internal -k DC3
+    - python -m pytest -v --cov=loadskernel --cov-append --junitxml=testresult_e.xml -k test_integration_public
+    - python -m pytest -v --cov=loadskernel --cov-append --junitxml=testresult_f.xml -k test_unittest
+    - python -m pytest -v --cov=modelviewer --cov=loadscompare --cov=responseviewer --cov-append --junitxml=testresult_g.xml -k test_gui
     # Create some reports
     - coverage report
     - coverage xml -o coverage.xml
@@ -66,13 +74,13 @@ LongTermContinuousIntegration:
     when: always
     paths:
       - coverage.xml
-      - testresult.xml
+      - testresult_*.xml
       - coverage
     reports:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
-      junit: testresult.xml
+      junit: testresult_*.xml
 
 deploy-pages:
   stage: deploy
