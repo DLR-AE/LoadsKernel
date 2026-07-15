@@ -8,9 +8,9 @@ import numpy as np
 from loadskernel import spline_functions
 from loadskernel.cfd_interfaces import meshdefo
 from loadskernel.cfd_interfaces.mpi_helper import setup_mpi
-from loadskernel.cfd_interfaces.tau_interface import check_para_path, copy_para_file, check_cfd_folders
+from loadskernel.cfd_interfaces.para_helper import check_para_path, copy_para_file
 from loadskernel.grid_trafo import grid_trafo, vector_trafo
-from loadskernel.io_functions.data_handling import load_hdf5_dict
+from loadskernel.io_functions.data_handling import load_hdf5_dict, check_path
 from loadskernel.solution_tools import calc_drehmatrix
 
 try:
@@ -35,8 +35,13 @@ expected during e.g. a gust encounter. This approach involves more work on the L
 surface deformations and the aerodynamic forces need to be translated back and forth.
 """
 
+def check_cfd_folders(jcl):
+    para_path = check_path(jcl.aero['para_path'])
+    # check and create default folders for SU2
+    if not os.path.exists(os.path.join(para_path, 'sol')):
+        os.makedirs(os.path.join(para_path, 'sol'))
 
-class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
+class SU2InterfaceGridVelocity(meshdefo.SurfaceMeshDefo):
 
     def __init__(self, solution):
         self.model = solution.model
@@ -93,6 +98,8 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         self.PhiThetaPsi = None
         self.Ucfd = None
         self.local_mesh = None
+        self.PHIcfdx2 = None
+        self.PHIcfdf = None
 
     def prepare_meshdefo(self, Uf, Ux2):
         """
@@ -102,11 +109,9 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
         if self.local_mesh['n'] > 0:
             # Initialize the surface deformation vector with zeros
             self.Ucfd = np.zeros(self.local_mesh['n'] * 6)
-            # These two functions are inherited from the original Meshdefo class
-            # Add flexible deformations
-            self.Uf(Uf)
-            # Add control surface deformations
-            self.Ux2(Ux2)
+            # These two functions are inherited from the SurfaceMeshDefo class
+            self.apply_Uf(Uf)
+            self.apply_Ux2(Ux2)
             # Communicate the deformation of the local mesh to the CFD solver
             self.set_deformations()
 
@@ -301,20 +306,36 @@ class SU2InterfaceGridVelocity(meshdefo.Meshdefo):
                            }
         logging.debug('This is process %s and my local mesh has a size of %s', self.myid, self.local_mesh['n'])
 
-    def transfer_deformations(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
+    def transfer_deformations_Ux2(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=None):
         """
-        This function overwrites the original Meshdefo.transfer_deformations().
-        This version works on the local mesh of a mpi partition, making the calculation of the
+        This function works on the local mesh of a mpi partition, making the calculation of the
         mesh deformations faster.
         """
-        logging.info('Transferring deformations to the local CFD surface with %s nodes.', self.local_mesh['n'])
-        # build spline matrix
-        PHIi_d = spline_functions.spline_rbf(grid_i, set_i, self.local_mesh, '',
-                                             rbf_type=rbf_type, surface_spline=surface_spline,
-                                             support_radius=support_radius, dimensions=[U_i.size, self.local_mesh['n'] * 6])
-        # store deformation of cfdgrid
-        self.Ucfd += PHIi_d.dot(U_i)
-        del PHIi_d
+        
+        if self.PHIcfdx2 is None:
+            logging.info('Calculate spline matrix for the local CFD surface with %s nodes.', self.local_mesh['n'])
+            # Build spline matrix on first run, store it for later use
+            self.PHIcfdx2 = spline_functions.spline_rbf(grid_i, set_i, self.local_mesh, '',
+                                                          rbf_type=rbf_type, surface_spline=surface_spline,
+                                                          support_radius=support_radius,
+                                                          dimensions=[U_i.size, self.local_mesh['n'] * 6])
+        # Store deformation of cfdgrid
+        self.Ucfd += self.PHIcfdx2.dot(U_i)
+    
+    def transfer_deformations_Uf(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=None):
+        """
+        This function works on the local mesh of a mpi partition, making the calculation of the
+        mesh deformations faster.
+        """
+        if self.PHIcfdf is None:
+            logging.info('Calculate spline matrix for the local CFD surface with %s nodes.', self.local_mesh['n'])
+            # Build spline matrix on first run, store it for later use
+            self.PHIcfdf = spline_functions.spline_rbf(grid_i, set_i, self.local_mesh, '',
+                                                          rbf_type=rbf_type, surface_spline=surface_spline,
+                                                          support_radius=support_radius,
+                                                          dimensions=[U_i.size, self.local_mesh['n'] * 6])
+        # Store deformation of cfdgrid
+        self.Ucfd += self.PHIcfdf.dot(U_i)
 
     def set_euler_transformation(self, XYZ, PhiThetaPsi):
         self.XYZ = XYZ
@@ -365,9 +386,9 @@ class SU2InterfaceFarfieldOnflow(SU2InterfaceGridVelocity):
             self.Ucfd = np.zeros(self.local_mesh['n'] * 6)
             # These two functions are inherited from the original Meshdefo class
             # Add flexible deformations
-            self.Uf(Uf)
+            self.apply_Uf(Uf)
             # Add control surface deformations
-            self.Ux2(Ux2)
+            self.apply_Ux2(Ux2)
             # Add rigid body rotations
             self.Ucfd_rbm_transformation(self.XYZ, self.PhiThetaPsi)
             # Communicate the deformation of the local mesh to the CFD solver
