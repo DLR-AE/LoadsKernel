@@ -35,11 +35,13 @@ expected during e.g. a gust encounter. This approach involves more work on the L
 surface deformations and the aerodynamic forces need to be translated back and forth.
 """
 
+
 def check_cfd_folders(jcl):
     para_path = check_path(jcl.aero['para_path'])
     # check and create default folders for SU2
     if not os.path.exists(os.path.join(para_path, 'sol')):
         os.makedirs(os.path.join(para_path, 'sol'))
+
 
 class SU2InterfaceGridVelocity(meshdefo.SurfaceMeshDefo):
 
@@ -311,17 +313,17 @@ class SU2InterfaceGridVelocity(meshdefo.SurfaceMeshDefo):
         This function works on the local mesh of a mpi partition, making the calculation of the
         mesh deformations faster.
         """
-        
+
         if self.PHIcfdx2 is None:
             logging.info('Calculate spline matrix for the local CFD surface with %s nodes.', self.local_mesh['n'])
             # Build spline matrix on first run, store it for later use
             self.PHIcfdx2 = spline_functions.spline_rbf(grid_i, set_i, self.local_mesh, '',
-                                                          rbf_type=rbf_type, surface_spline=surface_spline,
-                                                          support_radius=support_radius,
-                                                          dimensions=[U_i.size, self.local_mesh['n'] * 6])
+                                                        rbf_type=rbf_type, surface_spline=surface_spline,
+                                                        support_radius=support_radius,
+                                                        dimensions=[U_i.size, self.local_mesh['n'] * 6])
         # Store deformation of cfdgrid
         self.Ucfd += self.PHIcfdx2.dot(U_i)
-    
+
     def transfer_deformations_Uf(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=None):
         """
         This function works on the local mesh of a mpi partition, making the calculation of the
@@ -331,9 +333,9 @@ class SU2InterfaceGridVelocity(meshdefo.SurfaceMeshDefo):
             logging.info('Calculate spline matrix for the local CFD surface with %s nodes.', self.local_mesh['n'])
             # Build spline matrix on first run, store it for later use
             self.PHIcfdf = spline_functions.spline_rbf(grid_i, set_i, self.local_mesh, '',
-                                                          rbf_type=rbf_type, surface_spline=surface_spline,
-                                                          support_radius=support_radius,
-                                                          dimensions=[U_i.size, self.local_mesh['n'] * 6])
+                                                       rbf_type=rbf_type, surface_spline=surface_spline,
+                                                       support_radius=support_radius,
+                                                       dimensions=[U_i.size, self.local_mesh['n'] * 6])
         # Store deformation of cfdgrid
         self.Ucfd += self.PHIcfdf.dot(U_i)
 

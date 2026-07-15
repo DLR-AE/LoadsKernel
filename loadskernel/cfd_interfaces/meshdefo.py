@@ -8,7 +8,7 @@ class SurfaceMeshDefo():
     """
     This is a base class for all CFD interfaces that provides some mesh deformation functionalities.
     It makes sure that the same mesh deformation methods and parameters are used for all CFD interfaces.
-    The way deformations are transferred to the CFD mesh is CFD-solver specific and is therefore 
+    The way deformations are transferred to the CFD mesh is CFD-solver specific and is therefore
     implemented in the respective CFD interface class.
     """
 
@@ -31,7 +31,7 @@ class SurfaceMeshDefo():
                     Ujx2 += np.dot(self.Djx2[i_x2], [0, 0, 0, 0, 0, Ux2[i_x2]])
             # Hand-over the surface deformations to the CFD interface.
             self.transfer_deformations_Ux2(self.aerogrid, Ujx2, '_k', rbf_type='wendland2',
-                                       surface_spline=False, support_radius=1.5)
+                                           surface_spline=False, support_radius=1.5)
         else:
             logging.info('Apply NO control surface deflections to cfd surface mesh.')
 

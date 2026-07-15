@@ -16,7 +16,6 @@ import platform
 import shlex
 import subprocess
 import sys
-import shutil
 import numpy as np
 import scipy.io.netcdf as netcdf
 
@@ -273,7 +272,7 @@ class TauInterface(meshdefo.SurfaceMeshDefo):
 
     def transfer_deformations_Ux2(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
         return self.transfer_deformations(grid_i, U_i, set_i, rbf_type, surface_spline, support_radius)
-    
+
     def transfer_deformations_Uf(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
         return self.transfer_deformations(grid_i, U_i, set_i, rbf_type, surface_spline, support_radius)
 
