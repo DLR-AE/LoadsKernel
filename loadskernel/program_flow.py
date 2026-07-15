@@ -454,7 +454,13 @@ class ClusterMode(Kernel):
         self.setup_logger_cluster(i=i)
         logging.info('Starting Loads Kernel with job: %s', self.job_name)
         logging.info('User %s on %s (%s)', getpass.getuser(), platform.node(), platform.platform())
-        logging.info('Cluster array mode')
+        logging.info('Software versions:')
+        logging.info(' - Loads Kernel %s (%s)', metadata.version('loadskernel'), repr(loadskernel))
+        logging.info(' - Panel Aero %s', metadata.version('panelaero'))
+        logging.info(' - Python %s', platform.python_version())
+        logging.info(' - Numpy %s', metadata.version('numpy'))
+        logging.info(' - Scipy %s', metadata.version('scipy'))
+        logging.info('Cluster array mode for main processing)')
 
         self.run_main_single(i)
 

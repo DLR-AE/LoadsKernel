@@ -16,25 +16,13 @@ import platform
 import shlex
 import subprocess
 import sys
-import shutil
 import numpy as np
 import scipy.io.netcdf as netcdf
 
 from loadskernel.cfd_interfaces import meshdefo
+from loadskernel.cfd_interfaces.para_helper import check_para_path, copy_para_file
 from loadskernel import spline_functions
-from loadskernel.io_functions.data_handling import check_path
-from loadskernel.io_functions.data_handling import load_hdf5_dict
-
-
-def copy_para_file(jcl, trimcase):
-    para_path = check_path(jcl.aero['para_path'])
-    src = para_path + jcl.aero['para_file']
-    dst = para_path + 'para_subcase_{}'.format(trimcase['subcase'])
-    shutil.copyfile(src, dst)
-
-
-def check_para_path(jcl):
-    jcl.aero['para_path'] = check_path(jcl.aero['para_path'])
+from loadskernel.io_functions.data_handling import load_hdf5_dict, check_path
 
 
 def check_cfd_folders(jcl):
@@ -50,7 +38,7 @@ def check_cfd_folders(jcl):
         os.makedirs(os.path.join(para_path, 'dualgrid'))
 
 
-class TauInterface(meshdefo.Meshdefo):
+class TauInterface(meshdefo.SurfaceMeshDefo):
 
     def __init__(self, solution):
         self.model = solution.model
@@ -115,8 +103,8 @@ class TauInterface(meshdefo.Meshdefo):
 
     def prepare_meshdefo(self, Uf, Ux2):
         self.init_deformations()
-        self.Uf(Uf, self.trimcase)
-        self.Ux2(Ux2)
+        self.apply_Uf(Uf, self.trimcase)
+        self.apply_Ux2(Ux2)
         self.write_deformations(self.jcl.aero['para_path'] + './defo/surface_defo_subcase_' + str(self.trimcase['subcase']))
 
         Para = PyPara.Parafile(self.jcl.aero['para_path'] + 'para_subcase_{}'.format(self.trimcase['subcase']))
@@ -282,19 +270,14 @@ class TauInterface(meshdefo.Meshdefo):
         for marker in self.cfdgrids:
             self.Ucfd.append(np.zeros(self.cfdgrids[marker]['n'][()] * 6))
 
+    def transfer_deformations_Ux2(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
+        return self.transfer_deformations(grid_i, U_i, set_i, rbf_type, surface_spline, support_radius)
+
+    def transfer_deformations_Uf(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
+        return self.transfer_deformations(grid_i, U_i, set_i, rbf_type, surface_spline, support_radius)
+
     def transfer_deformations(self, grid_i, U_i, set_i, rbf_type, surface_spline, support_radius=2.0):
         logging.info('Transferring deformations to the CFD surface mesh.')
-        if self.plotting:
-            # set-up plot
-            from mayavi import mlab
-            p_scale = 0.05  # points
-            mlab.figure()
-            mlab.points3d(grid_i['offset' + set_i][:, 0], grid_i['offset' + set_i][:, 1], grid_i['offset' + set_i][:, 2],
-                          scale_factor=p_scale, color=(1, 1, 1))
-            mlab.points3d(grid_i['offset' + set_i][:, 0] + U_i[grid_i['set' + set_i][:, 0]],
-                          grid_i['offset' + set_i][:, 1] + U_i[grid_i['set' + set_i][:, 1]],
-                          grid_i['offset' + set_i][:, 2] + U_i[grid_i['set' + set_i][:, 2]],
-                          scale_factor=p_scale, color=(1, 0, 0))
         for marker, Ucfd in zip(self.cfdgrids, self.Ucfd):
             grid_d = load_hdf5_dict(self.cfdgrids[marker])
             logging.debug('Working on marker {}'.format(grid_d['desc']))
@@ -304,17 +287,8 @@ class TauInterface(meshdefo.Meshdefo):
                                                  support_radius=support_radius, dimensions=[U_i.size, grid_d['n'] * 6])
             # store deformation of cfdgrid
             Ucfd += PHIi_d.dot(U_i)
-            if self.plotting:
-                U_d = PHIi_d.dot(U_i)
-                mlab.points3d(grid_d['offset'][:, 0], grid_d['offset'][:, 1], grid_d['offset'][:, 2],
-                              color=(0, 0, 0), mode='point')
-                mlab.points3d(grid_d['offset'][:, 0] + U_d[grid_d['set'][:, 0]],
-                              grid_d['offset'][:, 1] + U_d[grid_d['set'][:, 1]],
-                              grid_d['offset'][:, 2] + U_d[grid_d['set'][:, 2]],
-                              color=(0, 0, 1), mode='point')
+
             del PHIi_d
-        if self.plotting:
-            mlab.show()
 
     def write_deformations(self, filename_defo):
         self.write_defo_netcdf(filename_defo)
