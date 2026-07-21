@@ -72,6 +72,11 @@ def tas2Ma(tas, h):
     return tas / a
 
 
+def Ma2tas(Ma, h):
+    _, _, _, a = atmo_isa(h)
+    return Ma * a
+
+
 def eas2Ma(eas, h):
     tas = eas2tas(eas, h)
     return tas2Ma(tas, h)
