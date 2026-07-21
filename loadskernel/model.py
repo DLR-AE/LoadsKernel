@@ -234,7 +234,7 @@ class Model():
                     mass = response['mass'].asstr()[()]
                     aero = response['aero'].asstr()[()]
                     altitude = response['altitude'].asstr()[()]
-                    logging.info(" - trimcase '%s' wih mass '%s', aero '%s', altitude '%s'", desc, mass, aero, altitude)
+                    logging.info(" - trimcase '%s' with mass '%s', aero '%s', altitude '%s'", desc, mass, aero, altitude)
                     # Init hierarchical storage
                     if mass not in self.GAFs:
                         self.GAFs[mass] = {}
@@ -396,7 +396,6 @@ class Model():
                 self.build_AICs_DLM()
             elif self.jcl.aero['method_AIC'] == 'nastran':
                 self.build_AICs_Nastran()
-            self.aero['n_poles'] = 0
 
     def build_AICs_DLM(self):
         logging.info('Calculating unsteady AIC matrices ({} panels, k={} (Nastran Definition!)) \
