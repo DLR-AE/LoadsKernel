@@ -267,7 +267,7 @@ class SolutionSequences(TrimConditions):
             equations = Steady(self)
         elif self.jcl.aero['method'] in ['nonlin_steady']:
             equations = NonlinSteady(self)
-        elif self.simcase['landinggear'] and self.jcl.landinggear['method'] in ['generic', 'skid']:
+        elif 'landinggear' in self.simcase and self.simcase['landinggear']:
             equations = Landing(self)
         else:
             logging.error('Unknown aero method: %s', self.jcl.aero['method'])
@@ -376,7 +376,7 @@ class SolutionSequences(TrimConditions):
             equations = Steady(self, X0)
         elif self.jcl.aero['method'] in ['nonlin_steady']:
             equations = NonlinSteady(self, X0)
-        elif self.simcase['landinggear'] and self.jcl.landinggear['method'] in ['generic', 'skid']:
+        elif 'landinggear' in self.simcase and self.simcase['landinggear']:
             # add landing gear to system
             self.add_landinggear()
             # reset initial solution including new states
