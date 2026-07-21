@@ -736,10 +736,12 @@ class SolutionSequences(TrimConditions):
             self.response['k_red'] = k_red
             self.response['Qhh'] = Qhh
             self.response['Qhk'] = Qhk
-            self.response['Qhcfd'] = Qhcfd
             self.response['Qgusth'] = Qgusth
             self.response['Qgustk'] = Qgustk
-            self.response['Qgustcfd'] = Qgustcfd
+            # Forces on the CFD surface are currently not needed, because the GAFs are projected on the k-set and/or the h-set.
+            # This approach is more memory efficient, but for the future, this would be the place to get them.
+            # self.response['Qhcfd'] = Qhcfd
+            # self.response['Qgustcfd'] = Qgustcfd
             # The time signals are only saved for plotting / plausibility checking
             self.response['pulse_signal'] = pulse_signal
             self.response['gust_signal'] = gust_signal
