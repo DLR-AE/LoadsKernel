@@ -748,5 +748,6 @@ class SolutionSequences(TrimConditions):
             self.response['t_pulse'] = t
             self.response['Pb_pulse'] = Pb_pulse
             self.response['Pb_gust'] = Pb_gust
+            self.response['Pb_ref'] = np.dot(PHIcfd_cg.T, Pcfd_ref)
 
         self.successful = True
