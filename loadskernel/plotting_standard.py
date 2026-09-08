@@ -671,6 +671,7 @@ class PulsePlots(LoadPlots):
             t = response['t_pulse'][()]
             Pb_pulse = response['Pb_pulse'][()]
             Pb_gust = response['Pb_gust'][()]
+            Pb_ref = response['Pb_ref'][()]
             # Qhh = response['Qhh'][()]
             k_red = response['k_red'][()]
             Vtas = sum(response['X'][0, 6:9] ** 2) ** 0.5
@@ -715,7 +716,7 @@ class PulsePlots(LoadPlots):
             pp.savefig()
             plt.close()
 
-            # Step 2: plot lift coefficient derivative from heave and pitch motions as suggesrted by Marc-Johan
+            # Step 2: plot lift coefficient derivative from heave and pitch motions as suggested by Marc-Johan
             # Fourier transformation
             Pb_f = fft(Pb_pulse)
             Qhb = Pb_f / pulse_f
@@ -737,7 +738,30 @@ class PulsePlots(LoadPlots):
             pp.savefig()
             plt.close()
 
-            # Step 3: plot each mode separately
+            # Step 3a: plot reference solution
+            fig, ax = plt.subplots(7, sharex=True, figsize=(8, 10))
+            fig.suptitle(f'{trimcase['desc']}, Reference solution', fontsize=16)
+            for a in ax:
+                a.cla()
+            ax[1].plot(t, Pb_ref[0, :], '-', label='Fx')
+            ax[2].plot(t, Pb_ref[1, :], '-', label='Fy')
+            ax[3].plot(t, Pb_ref[2, :], '-', label='Fz')
+            ax[4].plot(t, Pb_ref[3, :], '-', label='Mx')
+            ax[5].plot(t, Pb_ref[4, :], '-', label='My')
+            ax[6].plot(t, Pb_ref[5, :], '-', label='Mz')
+            self.make_as_nice(ax)
+            ax[-1].set_xlabel('Time [s]')
+            ax[0].set_ylabel('[-]')
+            ax[1].set_ylabel('[N]')
+            ax[2].set_ylabel('[N]')
+            ax[3].set_ylabel('[N]')
+            ax[4].set_ylabel('[Nm]')
+            ax[5].set_ylabel('[Nm]')
+            ax[6].set_ylabel('[Nm]')
+            fig.tight_layout(pad=1.0)
+            pp.savefig()
+
+            # Step 3b: plot each mode separately
             fig, ax = plt.subplots(7, sharex=True, figsize=(8, 10))
             for i in range(Pb_pulse.shape[1]):
                 fig.suptitle(f'{trimcase['desc']}, Mode {i + 2}', fontsize=16)
