@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import numpy as np
+import scipy as sp
 from matplotlib import pyplot as plt
 import pandas as pd
 
@@ -176,21 +177,22 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
 
     # komplette AIC-Matrix: hierzu wird die AIC mit nj*nj umgeformt in einen Vektor nj**2
     Qjj_reshaped = np.vstack((np.real(Qjj.reshape(n_k, -1)), np.imag(Qjj.reshape(n_k, -1))))
-    n_j = Qjj.shape[1]
+    n_i = Qjj.shape[1]
+    n_j = Qjj.shape[2]
 
     logging.info('- solving B = A*x with least-squares method')
     solution, _, _, _ = np.linalg.lstsq(Ajj, Qjj_reshaped, rcond=-1)
-    ABCD = solution.reshape(3 + n_poles, n_j, n_j)
+    ABCD = solution.reshape(3 + n_poles, n_i, n_j)
 
     # Kontrolle
     Qjj_aprox = np.dot(Ajj, solution)
     RMSE = []
     logging.info('- root-mean-square error(s): ')
     for k_i in range(n_k):
-        RMSE_real = np.sqrt(((Qjj_aprox[k_i, :].reshape(n_j, n_j)
-                              - np.real(Qjj[k_i, :, :])) ** 2).sum(axis=None) / n_j ** 2)
-        RMSE_imag = np.sqrt(((Qjj_aprox[k_i + n_k, :].reshape(n_j, n_j)
-                              - np.imag(Qjj[k_i, :, :])) ** 2).sum(axis=None) / n_j ** 2)
+        RMSE_real = np.sqrt(((Qjj_aprox[k_i, :].reshape(n_i, n_j)
+                              - np.real(Qjj[k_i, :, :])) ** 2).sum(axis=None) / (n_i * n_j))
+        RMSE_imag = np.sqrt(((Qjj_aprox[k_i + n_k, :].reshape(n_i, n_j)
+                              - np.imag(Qjj[k_i, :, :])) ** 2).sum(axis=None) / (n_i * n_j))
         RMSE.append([RMSE_real, RMSE_imag])
         logging.info('  k = {:<6}, RMSE_real = {:<20}, RMSE_imag = {:<20}'.format(k[k_i], RMSE_real, RMSE_imag))
     # Vergroesserung des Frequenzbereichs
@@ -230,3 +232,153 @@ def rfa(Qjj, k, n_poles=2, filename='rfa.png'):
     plt.savefig(filename)
     plt.close()
     return ABCD, n_poles, betas, np.array(RMSE)
+
+
+class RFArevisted:
+    def __init__(self, Y, k, max_poles=10, rtol=1e-3):
+        self.Y_given = Y
+        self.k_given = k
+        self.max_poles = max_poles
+        self.rtol = rtol
+
+        self.n_poly = 2
+        self.poles = None
+        self.x = None
+
+    def rfa_with_poles(self, Y, k, poles):
+        A = self.build_A_matrix(k, poles)
+        Y_double = np.concatenate([np.real(Y), np.imag(Y)])
+        A_double = np.concatenate([np.real(A), np.imag(A)])
+        x, _, _, _ = np.linalg.lstsq(A_double, Y_double, rcond=-1)
+        # x, _, _, _ = np.linalg.lstsq(A, Y, rcond=-1)
+        return x, A
+
+    def build_A_matrix(self, k, poles):
+        # Build the A matrix for the RFA with the given frequencies k and poles.
+        k = np.array(k)
+        n_k = len(k)
+
+        if self.n_poly == 3:
+            # All terms: constant (steady), linear (damping), quadratic (acceleration)
+            A = [np.ones(n_k), 1j * k, (1j * k) ** 2]
+            # A_real = [np.ones(n_k), np.zeros(n_k), -k ** 2]
+            # A_imag = [np.zeros(n_k), k, np.zeros(n_k)]
+        elif self.n_poly == 2:
+            # No acceleration term (best choice for state space realization)
+            A = [np.ones(n_k), 1j * k]
+            # A_real = [np.ones(n_k), np.zeros(n_k)]
+            # A_imag = [np.zeros(n_k), k]
+        elif self.n_poly == 0:
+            # Purely rational fit
+            A = []
+        else:
+            raise ValueError("Valid polynomial degrees are: 3, 2 or 0")
+
+        # Add the rational part
+        for beta in poles:
+            A += [1j * k / (1j * k + beta)]
+            # A_real += [k ** 2 / (k ** 2 + beta ** 2)]
+            # A_imag += [k * beta / (k ** 2 + beta ** 2)]
+        # A = np.hstack([A_real, A_imag]).T
+        A = np.array(A).T
+        return A
+
+    def interpolate(self, k):
+        # This function interpolates the given data Y at the frequencies k using
+        # the previously computed RFA coefficients x and poles.
+        if self.poles is None or self.x is None:
+            raise ValueError("RFA has not been performed yet. Call perform_rfa() first.")
+        if np.min(k) < self.k_given.min() or np.max(k) > self.k_given.max():
+            print('Warning: k is out of the range of the given data, leading to extrapolation')
+        A = self.build_A_matrix(k, self.poles)
+        Y = np.dot(A, self.x)
+        return Y
+
+    def to_ss(self):
+        # Convert the RFA representation to a state space representation.
+        # This makes only sense if the RFA was performed with frequencies in Hz, because the
+        # conversion to a reduced frequency (with c_ref and Vtas) is missing. The result would 
+        # be some kind to dimensionless time.        
+        if self.poles is None or self.x is None:
+            raise ValueError("RFA has not been performed yet. Call perform_rfa() first.")
+        A = np.diag(- self.poles)
+        B = np.hstack([np.zeros((len(self.poles), 1)), np.ones((len(self.poles), 1))])
+        if self.x.ndim == 1:
+            # Account for the fact that x may be a vector (SISO system)
+            C = self.x[np.newaxis, self.n_poly:]
+            D = self.x[np.newaxis, :self.n_poly]
+        else:
+            # or a matrix (MIMO systems)
+            C = self.x[:, self.n_poly:]
+            D = self.x[:, :self.n_poly]
+        # Store
+        self.A = A
+        self.B = B
+        self.C = C
+        self.D = D
+        # Create the state space system
+        SS = sp.signal.StateSpace(A, B, C, D)
+        return SS
+
+    def select_poles(self, k, n_poles, method='roger'):
+        if method == 'roger':
+            poles = np.max(k) / np.arange(1, n_poles + 1)
+        elif method == 'karpel':
+            poles = 1.7 * np.max(k) * (np.arange(1, n_poles + 1) / (n_poles + 1.0)) ** 2.0
+        else:
+            raise ValueError(f'Unknown pole selection method: {method}')
+        return poles
+
+    def perform_rfa(self, n_poles=None):
+        if n_poles is None:
+            n_poles = self.max_poles
+        print(f'Performing rational function approximation (RFA) with {n_poles} poles...')
+        poles = self.select_poles(self.k_given, n_poles)
+        x, A = self.rfa_with_poles(self.Y_given, self.k_given, poles)
+        # Store the current solution
+        self.x = x
+        self.poles = poles
+
+    def perform_rfa_iteratively(self):
+        # Start with two poles
+        n_poles = 2
+        poles = self.select_poles(self.k_given, n_poles)
+        # Set-up mask to keep track which frequencies have been used for pole selection and
+        # exclude k=0.0 from the selection of poles.
+        mask = np.ones_like(self.k_given, dtype=np.bool_)
+        mask[self.k_given == 0.0] = False
+        for p in poles:
+            mask[self.k_given == p] = False
+        # Perform RFA iteratively, adding poles until the desired tolerance is met or the maximum number of poles is reached
+        while n_poles <= self.max_poles:
+            x, A = self.rfa_with_poles(self.Y_given, self.k_given, poles)
+            # Check
+            Y_approx = np.dot(A, x)
+            error = np.sum(np.abs(self.Y_given - Y_approx)) / np.sum(np.abs(self.Y_given))
+            # Store the current solution
+            self.x = x
+            self.poles = poles
+            if error < self.rtol:
+                print(f'RFA successful with {n_poles} poles and relative error {error:.6f}.')
+                break
+            else:
+                # Add a new pole at the frequency with the maximum local error
+                n_poles += 1
+                local_error = np.abs((self.Y_given - Y_approx))
+                next_pole = self.k_given[mask][np.argmax(local_error[mask])]
+                poles = np.append(poles, next_pole)
+                # Update the mask
+                mask[self.k_given == next_pole] = False
+        if n_poles > self.max_poles:
+            print(f'RFA reached maximum number of poles ({self.max_poles}) and relative error {error:.6f}.')
+
+    def plot_approximation(self):
+        plt.figure()
+        plt.plot(np.real(self.Y_given), np.imag(self.Y_given), '.-', label='Original Data')
+        Y_interp = self.interpolate(np.linspace(0.0, (self.k_given.max()), len(self.k_given) * 10))
+        plt.plot(np.real(Y_interp), np.imag(Y_interp), '-', label='Approximation')
+        plt.legend()
+        plt.grid()
+        plt.xlabel('Real Part')
+        plt.ylabel('Imaginary Part')
+        plt.show()
