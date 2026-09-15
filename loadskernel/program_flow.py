@@ -460,7 +460,7 @@ class ClusterMode(Kernel):
         logging.info(' - Python %s', platform.python_version())
         logging.info(' - Numpy %s', metadata.version('numpy'))
         logging.info(' - Scipy %s', metadata.version('scipy'))
-        logging.info('Cluster array mode for main processing)')
+        logging.info('Cluster array mode for main processing')
 
         self.run_main_single(i)
 

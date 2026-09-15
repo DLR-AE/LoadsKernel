@@ -267,7 +267,7 @@ class SolutionSequences(TrimConditions):
             equations = Steady(self)
         elif self.jcl.aero['method'] in ['nonlin_steady']:
             equations = NonlinSteady(self)
-        elif self.simcase['landinggear'] and self.jcl.landinggear['method'] in ['generic', 'skid']:
+        elif 'landinggear' in self.simcase and self.simcase['landinggear']:
             equations = Landing(self)
         else:
             logging.error('Unknown aero method: %s', self.jcl.aero['method'])
@@ -376,7 +376,7 @@ class SolutionSequences(TrimConditions):
             equations = Steady(self, X0)
         elif self.jcl.aero['method'] in ['nonlin_steady']:
             equations = NonlinSteady(self, X0)
-        elif self.simcase['landinggear'] and self.jcl.landinggear['method'] in ['generic', 'skid']:
+        elif 'landinggear' in self.simcase and self.simcase['landinggear']:
             # add landing gear to system
             self.add_landinggear()
             # reset initial solution including new states
@@ -736,15 +736,18 @@ class SolutionSequences(TrimConditions):
             self.response['k_red'] = k_red
             self.response['Qhh'] = Qhh
             self.response['Qhk'] = Qhk
-            self.response['Qhcfd'] = Qhcfd
             self.response['Qgusth'] = Qgusth
             self.response['Qgustk'] = Qgustk
-            self.response['Qgustcfd'] = Qgustcfd
+            # Forces on the CFD surface are currently not needed, because the GAFs are projected on the k-set and/or the h-set.
+            # This approach is more memory efficient, but for the future, this would be the place to get them.
+            # self.response['Qhcfd'] = Qhcfd
+            # self.response['Qgustcfd'] = Qgustcfd
             # The time signals are only saved for plotting / plausibility checking
             self.response['pulse_signal'] = pulse_signal
             self.response['gust_signal'] = gust_signal
             self.response['t_pulse'] = t
             self.response['Pb_pulse'] = Pb_pulse
             self.response['Pb_gust'] = Pb_gust
+            self.response['Pb_ref'] = np.dot(PHIcfd_cg.T, Pcfd_ref)
 
         self.successful = True
