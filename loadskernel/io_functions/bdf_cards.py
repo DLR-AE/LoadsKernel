@@ -242,7 +242,7 @@ class AESURF(SimpleCard):
     expected_lines = 1
     # field of interest (any other fields are not implemented)
     field_names = ['ID', 'LABEL', 'CID', 'AELIST', 'EFF']
-    field_positions = [0, 1, 2, 3, 7]
+    field_positions = [0, 1, 2, 3, 6]
     field_types = ['int', 'str', 'int', 'int', 'float']
     optional_fields = ['EFF']
     optional_defaults = [1.0]
