@@ -90,6 +90,8 @@ class jcl:
                      'filename_caero_bdf': ['CAERO1_bdf'],
                      # DMI Matrix for camber and twist correction. Same order as the aerogrid.
                      'filename_DMI_W2GJ': [],
+                     # Factors for W2GJ matrices, used to scale the correction (optional, defaults to 1.0).
+                     'factor_DMI_W2GJ': [1.0, 0.8, 0.8, 1.0, 1.0],
                      # bdf file(s) with AESURF-cards
                      'filename_aesurf': ['filename.AESURF'],
                      # bdf file(s) with AELIST-cards
