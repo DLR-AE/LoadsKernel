@@ -283,15 +283,22 @@ class Model():
         self.aerogrid['Amat'] = sp.diags(self.aerogrid['A'], format='csc')
 
     def build_W2GJ(self):
-        # Correctionfor camber and twist, W2GJ
+        # The W2GJ matrices are used to correct the downwash due to camber and twist of the panels.
+        # The correction is based on DMI_W2GJb matrices, which are read from files specified in the JCL.
         if 'filename_DMI_W2GJ' in self.jcl.aero and self.jcl.aero['filename_DMI_W2GJ']:
-            for i_file in range(len(self.jcl.aero['filename_DMI_W2GJ'])):
-                DMI = read_mona.Nastran_DMI(self.jcl.aero['filename_DMI_W2GJ'][i_file])
-                if i_file == 0:
-                    data = DMI['data'].toarray().squeeze()
-                else:
-                    data = np.hstack((data, DMI['data'].toarray().squeeze()))
-            self.camber_twist = {'ID': self.aerogrid['ID'], 'cam_rad': data}
+            # The factor_DMI_W2GJ is used to scale the correction, if needed.
+            if 'factor_DMI_W2GJ' in self.jcl.aero and self.jcl.aero['factor_DMI_W2GJ']:
+                factor_DMI_W2GJ = self.jcl.aero['factor_DMI_W2GJ']
+            else:
+                # In case no factors are given, set them to 1.0 for all DMI_W2GJb files.
+                factor_DMI_W2GJ = [1.0] * len(self.jcl.aero['filename_DMI_W2GJ'])
+            # Loop over all DMI_W2GJb files and read the data, then concatenate them into a single array.
+            data = []
+            for filename, factor in zip(self.jcl.aero['filename_DMI_W2GJ'], factor_DMI_W2GJ):
+                DMI = read_mona.Nastran_DMI(filename)
+                data.append(DMI['data'].toarray().squeeze() * factor)
+            # Store data in the model
+            self.camber_twist = {'ID': self.aerogrid['ID'], 'cam_rad': np.hstack(data)}
         else:
             logging.info('No W2GJ data (correction of camber and twist) given, setting to zero')
             self.camber_twist = {'ID': self.aerogrid['ID'], 'cam_rad': np.zeros(self.aerogrid['ID'].shape)}
