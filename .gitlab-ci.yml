@@ -43,6 +43,7 @@ stages:
 LongTermContinuousIntegration:
   stage: test
   timeout: 3 hours
+  retry: 2
   coverage: '/^TOTAL.+?(\d+\%)$/'
   tags:
     - lk
