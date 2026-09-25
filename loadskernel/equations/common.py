@@ -324,34 +324,21 @@ class Common():
 
     def cs_nonlin(self, dUcg_dt, X, Ux2, Vtas):
         wj = np.zeros(self.aerogrid['n'])
-        # Hier gibt es zwei Wege und es wird je Steuerflaeche unterschieden:
-        # a) es liegen Daten in der AeroDB vor -> Kraefte werden interpoliert, dann zu Pk addiert, downwash vector bleibt
-        #    unveraendert
-        # b) der downwash der Steuerflaeche wird berechnet, zum downwash vector addiert
         for i_x2 in range(len(self.efcs.keys)):
-            # b) use DLM solution
             if self.hingeline == 'y':
                 Ujx2 = np.dot(self.Djx2[i_x2], [0, 0, 0, 0, Ux2[i_x2], 0])
             elif self.hingeline == 'z':
                 Ujx2 = np.dot(self.Djx2[i_x2], [0, 0, 0, 0, 0, Ux2[i_x2]])
-            # Rotationen ry und rz verursachen Luftkraefte. Rotation rx hat keinen Einfluss, wenn die Stoemung von vorne
-            # kommt...
-            # Mit der Norm von wj geht das Vorzeichen verloren - dies ist aber fuer den Steuerflaechenausschlag wichtig.
-            wj += self.x2grid['eff'][i_x2] * np.sign(Ux2[i_x2]) \
-                * np.sqrt(np.sin(Ujx2[self.aerogrid['set_j'][:, 4]]) ** 2.0
-                          + np.sin(Ujx2[self.aerogrid['set_j'][:, 5]]) ** 2.0) * -Vtas
+            wj += self.x2grid['eff'][i_x2] * np.sum(self.aerogrid['N'][:]
+                                                    * np.cross(Ujx2[self.aerogrid['set_j'][:, (3, 4, 5)]],
+                                                               np.array([-1., 0., 0.])), axis=1) * -Vtas
         dUmac_dt = np.dot(self.PHImac_cg, dUcg_dt)  # auch bodyfixed
         Pk = self.calc_Pk_nonlin(dUmac_dt, wj)
         return Pk, wj
 
     def cs(self, X, Ux2, q_dyn):
         wj = np.zeros(self.aerogrid['n'])
-        # Hier gibt es zwei Wege und es wird je Steuerflaeche unterschieden:
-        # a) es liegen Daten in der AeroDB vor -> Kraefte werden interpoliert, dann zu Pk addiert, downwash vector bleibt
-        #    unveraendert
-        # b) der downwash der Steuerflaeche wird berechnet, zum downwash vector addiert
         for i_x2 in range(len(self.efcs.keys)):
-            # b) use DLM solution
             if self.hingeline == 'y':
                 Ujx2 = np.dot(self.Djx2[i_x2], [0, 0, 0, 0, Ux2[i_x2], 0])
             elif self.hingeline == 'z':

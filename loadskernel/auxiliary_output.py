@@ -95,13 +95,15 @@ class AuxiliaryOutput():
         A = self.jcl.general['A_ref']  # sum(self.model.aerogrid['A'][:])
         AR = self.jcl.general['b_ref'] ** 2.0 / self.jcl.general['A_ref']
         Pmac_c = np.divide(response['Pmac'][0, :], response['q_dyn'][0]) / A
-        # um alpha drehen, um Cl und Cd zu erhalten
-        Cl = Pmac_c[2] * np.cos(response['alpha'][0, 0]) + Pmac_c[0] * np.sin(response['alpha'][0, 0])
-        Cd = Pmac_c[2] * np.sin(response['alpha'][0, 0]) + Pmac_c[0] * np.cos(response['alpha'][0, 0])
+        # Rotation by alpha to obtain Cl und Cd. Assumption: Theta equals alpha.
+        alpha = response['X'][0, 4]
+        Cl = Pmac_c[2] * np.cos(alpha) + Pmac_c[0] * np.sin(alpha)
+        Cd = Pmac_c[2] * np.sin(alpha) + Pmac_c[0] * np.cos(alpha)
         Cd_ind_theo = Cl ** 2.0 / np.pi / AR
 
         trimresult['Cz_rbm'] = Pmac_rbm[2] / response['q_dyn'][0, 0] / A
         trimresult['Cz_cam'] = Pmac_cam[2] / response['q_dyn'][0, 0] / A
+        trimresult['Cmy_cam'] = Pmac_cam[4] / response['q_dyn'][0, 0] / A / self.macgrid['c_ref']
         trimresult['Cz_cs'] = Pmac_cs[2] / response['q_dyn'][0, 0] / A
         trimresult['Cz_f'] = Pmac_f[2] / response['q_dyn'][0, 0] / A
         trimresult['Cx'] = Pmac_c[0]
