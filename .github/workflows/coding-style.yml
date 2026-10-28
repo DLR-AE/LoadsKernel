@@ -46,21 +46,21 @@ jobs:
         python-version: ["3.13"]
     steps:
     - uses: actions/checkout@v6
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
+    - name: Set up Python ${{ matrix.python-version }} with miniconda
+      uses: conda-incubator/setup-miniconda@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
         # Install same requirements as to be used during regression testing
         source $CONDA/etc/profile.d/conda.sh
-        conda create -n pylint_env python=${{ matrix.python-version }}
-        conda activate pylint_env
+        conda create -y -q -c conda-forge -n my_env python=${{ matrix.python-version }}
+        conda activate my_env
         conda install -y -q -c conda-forge --file ./tests/list_of_packages.txt || true
         # Install the package itself to make sure that all imports work.
         pip install .[extras]
     - name: Analysing the code with pylint
       run: |
         source $CONDA/etc/profile.d/conda.sh
-        conda activate pylint_env
+        conda activate my_env
         pylint $(git ls-files '*.py') --fail-under=7.0
